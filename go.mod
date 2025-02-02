@@ -1,4 +1,4 @@
-module webcontainer-go
+module gkube
 
 go 1.22.4
 
