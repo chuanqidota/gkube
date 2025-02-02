@@ -14,8 +14,8 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "webcontainer-go",
-	Short: "A brief description of your application",
+	Use:   "gkube",
+	Short: "操作k8s相关资源",
 	Long: `A longer description that spans multiple lines and likely contains
 examples and usage of using your application. For example:
 
