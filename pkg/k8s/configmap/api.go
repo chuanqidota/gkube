@@ -2,14 +2,32 @@ package configmap
 
 import (
 	"context"
+	"encoding/json"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/yaml"
 )
 
-func GetconfigMap(client *kubernetes.Clientset, namespace, name string) (*corev1.ConfigMap, error) {
+func GetConfigMap(client *kubernetes.Clientset, namespace, name string) (*corev1.ConfigMap, error) {
 	return client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}
+
+func GetConfigMapYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
+	configmap, err := client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	configmapJSON, err := json.Marshal(configmap)
+	if err != nil {
+		return "", err
+	}
+	configmapYAML, err := yaml.JSONToYAML(configmapJSON)
+	if err != nil {
+		return "", err
+	}
+	return string(configmapYAML), nil
 }
 
 func CreateConfigMap(client *kubernetes.Clientset, namespace, name string, data map[string]string) (bool, error) {
