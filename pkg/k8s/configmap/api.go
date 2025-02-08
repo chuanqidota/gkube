@@ -30,6 +30,15 @@ func GetConfigMapYaml(client *kubernetes.Clientset, namespace, name string) (str
 	return string(configmapYAML), nil
 }
 
+func GetConfigMapList(client *kubernetes.Clientset, namespace string) ([]corev1.ConfigMap, error) {
+	configMaps, err := client.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return configMaps.Items, nil
+
+}
+
 func CreateConfigMap(client *kubernetes.Clientset, namespace, name string, data map[string]string) (bool, error) {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -59,10 +68,6 @@ func UpdateConfigMap(client *kubernetes.Clientset, namespace, name string, data 
 	return true, nil
 }
 
-func DeleteConfigMap(client *kubernetes.Clientset, namespace, name string) (bool, error) {
-	err := client.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if err != nil {
-		return false, err
-	}
-	return true, nil
+func DeleteConfigMap(client *kubernetes.Clientset, namespace, name string) error {
+	return client.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
