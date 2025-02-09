@@ -11,6 +11,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// GetNodeYaml
+//
+//	@Description: 获取node的yaml
+//	@param client
+//	@param nodeName
+//	@return string
+//	@return error
 func GetNodeYaml(client *kubernetes.Clientset, nodeName string) (string, error) {
 	node, err := client.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 	if err != nil {
@@ -27,6 +34,13 @@ func GetNodeYaml(client *kubernetes.Clientset, nodeName string) (string, error) 
 	return string(nodeYAML), nil
 }
 
+// GetNodePods
+//
+//	@Description: 获取node的pods
+//	@param client
+//	@param nodeName
+//	@return *corev1.PodList
+//	@return error
 func GetNodePods(client *kubernetes.Clientset, nodeName string) (*corev1.PodList, error) {
 	fieldSelector, err := fields.ParseSelector("spec.nodeName=" + nodeName +
 		",status.phase!=" + string(corev1.PodSucceeded) +
@@ -39,7 +53,13 @@ func GetNodePods(client *kubernetes.Clientset, nodeName string) (*corev1.PodList
 	})
 }
 
-// CordonNode 禁止调度
+// CordonNode
+//
+//	@Description: 禁止调度
+//	@param client
+//	@param nodeName
+//	@return bool
+//	@return error
 func CordonNode(client *kubernetes.Clientset, nodeName string) (bool, error) {
 	node, err := client.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 	if err != nil {

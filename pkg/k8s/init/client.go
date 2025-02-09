@@ -10,6 +10,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// GetK8sClient
+//
+//	@Description: 初始化k8s客户端
+//	@param k8sConf
+//	@return *kubernetes.Clientset
+//	@return error
 func GetK8sClient(k8sConf string) (*kubernetes.Clientset, error) {
 	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(k8sConf))
 	config.TLSClientConfig.Insecure = true
@@ -23,6 +29,12 @@ func GetK8sClient(k8sConf string) (*kubernetes.Clientset, error) {
 	return clientSet, nil
 }
 
+// GetK8sClientClusterID
+//
+//	@Description: 通过id获取k8s客户端
+//	@param id
+//	@return *kubernetes.Clientset
+//	@return error
 func GetK8sClientClusterID(id uint) (*kubernetes.Clientset, error) {
 	var k8sCluster model.K8SCluster
 	if err := database.DB.Model(&model.K8SCluster{}).

@@ -1,15 +1,13 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
 	"fmt"
-
 	"github.com/spf13/cobra"
-	"gkube/pkg/database"
 	"gkube/app/k8s/model"
+	"gkube/pkg/database"
 )
 
 // migrateCmd represents the migrate command
@@ -23,11 +21,8 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("migrate called")
-		if err:=database.DB.AutoMigrate(
-			&model.K8SCluster{},
-		);err!=nil{
-			fmt.Printf("迁移失败:%s",err.Error())
+		if err := database.DB.AutoMigrate(&model.K8SCluster{}); err != nil {
+			fmt.Printf("migrate error:%v", err)
 		}
 	},
 }

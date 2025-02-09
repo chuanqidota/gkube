@@ -8,6 +8,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// GetNamespaceList
+//
+//	@Description: 获取命名空间列表
+//	@param client
+//	@return *corev1.NamespaceList
+//	@return error
 func GetNamespaceList(client *kubernetes.Clientset) (*corev1.NamespaceList, error) {
 	namespace, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
