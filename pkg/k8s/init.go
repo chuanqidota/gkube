@@ -1,4 +1,4 @@
-package init
+package k8s
 
 import (
 	"fmt"
