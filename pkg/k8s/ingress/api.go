@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -28,8 +29,7 @@ func GetIngressList(client *kubernetes.Clientset, namespace string) ([]netv1.Ing
 	return ingress.Items, nil
 }
 
-
-func GetIngressByLabel(client *kubernetes.Clientset,namespace string,labelMap map[string]string)([]netv1.Ingress, error){
+func GetIngressByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]netv1.Ingress, error) {
 	labelSelector := labels.SelectorFromSet(labelMap) // 创建标签选择器
 	ingress, err := client.NetworkingV1().Ingresses(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
@@ -40,8 +40,7 @@ func GetIngressByLabel(client *kubernetes.Clientset,namespace string,labelMap ma
 	return ingress.Items, nil
 }
 
-
-func GetIngressByFiled(client *kubernetes.Clientset, namespace string, fieldMap map[string]string)([]netv1.Ingress, error){
+func GetIngressByFiled(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]netv1.Ingress, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap) // 创建标签选择器
 	ingress, err := client.NetworkingV1().Ingresses(namespace).List(context.TODO(), metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
@@ -51,7 +50,6 @@ func GetIngressByFiled(client *kubernetes.Clientset, namespace string, fieldMap 
 	}
 	return ingress.Items, nil
 }
-
 
 // GetIngressYaml
 //
@@ -70,11 +68,11 @@ func GetIngressYaml(client *kubernetes.Clientset, namespace, name string) (strin
 	if err != nil {
 		return "", err
 	}
-	configmapYAML, err := yaml.JSONToYAML(ingressJSON)
+	ingressYAML, err := yaml.JSONToYAML(ingressJSON)
 	if err != nil {
 		return "", err
 	}
-	return string(configmapYAML), nil
+	return string(ingressYAML), nil
 }
 
 // CreateIngress
