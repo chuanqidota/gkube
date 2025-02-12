@@ -28,6 +28,31 @@ func GetIngressList(client *kubernetes.Clientset, namespace string) ([]netv1.Ing
 	return ingress.Items, nil
 }
 
+
+func GetIngressByLabel(client *kubernetes.Clientset,namespace string,labelMap map[string]string)([]netv1.Ingress, error){
+	labelSelector := labels.SelectorFromSet(labelMap) // 创建标签选择器
+	ingress, err := client.NetworkingV1().Ingresses(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: labelSelector.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ingress.Items, nil
+}
+
+
+func GetIngressByFiled(client *kubernetes.Clientset, namespace string, fieldMap map[string]string)([]netv1.Ingress, error){
+	fieldSelector := fields.SelectorFromSet(fieldMap) // 创建标签选择器
+	ingress, err := client.NetworkingV1().Ingresses(namespace).List(context.TODO(), metav1.ListOptions{
+		FieldSelector: fieldSelector.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ingress.Items, nil
+}
+
+
 // GetIngressYaml
 //
 //	@Description: 获取ingress yaml
