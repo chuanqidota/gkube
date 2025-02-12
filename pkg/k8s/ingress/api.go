@@ -29,6 +29,14 @@ func GetIngressList(client *kubernetes.Clientset, namespace string) ([]netv1.Ing
 	return ingress.Items, nil
 }
 
+// GetIngressByLabel
+//
+//	@Description: 根据label获取ingress
+//	@param client
+//	@param namespace
+//	@param labelMap
+//	@return []netv1.Ingress
+//	@return error
 func GetIngressByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]netv1.Ingress, error) {
 	labelSelector := labels.SelectorFromSet(labelMap) // 创建标签选择器
 	ingress, err := client.NetworkingV1().Ingresses(namespace).List(context.TODO(), metav1.ListOptions{
@@ -40,6 +48,14 @@ func GetIngressByLabel(client *kubernetes.Clientset, namespace string, labelMap 
 	return ingress.Items, nil
 }
 
+// GetIngressByFiled
+//
+//	@Description: 根据字段获取ingress
+//	@param client
+//	@param namespace
+//	@param fieldMap
+//	@return []netv1.Ingress
+//	@return error
 func GetIngressByFiled(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]netv1.Ingress, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap) // 创建标签选择器
 	ingress, err := client.NetworkingV1().Ingresses(namespace).List(context.TODO(), metav1.ListOptions{

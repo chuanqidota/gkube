@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"encoding/json"
 
@@ -13,6 +14,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// GetServicesList
+//
+//	@Description: 获取service列表
+//	@param client
+//	@param namespace
+//	@return []corev1.Service
+//	@return error
 func GetServicesList(client *kubernetes.Clientset, namespace string) ([]corev1.Service, error) {
 	services, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -21,6 +29,14 @@ func GetServicesList(client *kubernetes.Clientset, namespace string) ([]corev1.S
 	return services.Items, nil
 }
 
+// GetServicesByLabel
+//
+//	@Description: 根据标签获取service列表
+//	@param client
+//	@param namespace
+//	@param labelMap
+//	@return []corev1.Service
+//	@return error
 func GetServicesByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]corev1.Service, error) {
 	labelSelector := labels.SelectorFromSet(labelMap) // 创建标签选择器
 	services, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{
@@ -32,7 +48,15 @@ func GetServicesByLabel(client *kubernetes.Clientset, namespace string, labelMap
 	return services.Items, nil
 }
 
-func GetServicesyFiled(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]corev1.Service, error) {
+// GetServicesByFiled
+//
+//	@Description: 根据字段获取service列表
+//	@param client
+//	@param namespace
+//	@param fieldMap
+//	@return []corev1.Service
+//	@return error
+func GetServicesByFiled(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]corev1.Service, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap) // 创建标签选择器
 	services, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
@@ -43,6 +67,14 @@ func GetServicesyFiled(client *kubernetes.Clientset, namespace string, fieldMap 
 	return services.Items, nil
 }
 
+// GetServicesYaml
+//
+//	@Description: 根据名称获取service的yaml
+//	@param client
+//	@param namespace
+//	@param name
+//	@return string
+//	@return error
 func GetServicesYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
 	services, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
@@ -57,4 +89,59 @@ func GetServicesYaml(client *kubernetes.Clientset, namespace, name string) (stri
 		return "", err
 	}
 	return string(servicesYAML), nil
+}
+
+// CreateService
+//
+//	@Description: 创建service
+//	@param client
+//	@param namespace
+//	@param serviceYAML
+//	@return bool
+//	@return error
+func CreateService(client *kubernetes.Clientset, namespace, serviceYAML string) (bool, error) {
+	var service corev1.Service
+	if err := yaml.Unmarshal([]byte(serviceYAML), &service); err != nil {
+		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+	}
+	_, err := client.CoreV1().Services(namespace).Create(context.TODO(), &service, metav1.CreateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("创建service资源失败:%s", err.Error())
+	}
+	return true, nil
+}
+
+// UpdateService
+//
+//	@Description: 创建service
+//	@param client
+//	@param serviceYAML
+//	@return bool
+//	@return error
+func UpdateService(client *kubernetes.Clientset, serviceYAML string) (bool, error) {
+	var service corev1.Service
+	if err := yaml.Unmarshal([]byte(serviceYAML), &service); err != nil {
+		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+	}
+	_, err := client.CoreV1().Services(service.Namespace).Update(context.TODO(), &service, metav1.UpdateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("更新service资源失败:%s", err.Error())
+	}
+	return true, nil
+}
+
+// DeleteService
+//
+//	@Description: 删除service
+//	@param client
+//	@param namespace
+//	@param name
+//	@return bool
+//	@return error
+func DeleteService(client *kubernetes.Clientset, namespace, name string) (bool, error) {
+	err := client.CoreV1().Services(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		return false, fmt.Errorf("删除service资源失败:%s", err.Error())
+	}
+	return true, nil
 }
