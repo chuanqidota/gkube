@@ -2,11 +2,13 @@ package pv
 
 import (
 	"context"
+	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/yaml"
 )
 
 // GetPVList
@@ -97,8 +99,11 @@ func GetPVYaml(client *kubernetes.Clientset, name string) (string, error) {
 //	@return bool
 //	@return error
 func CreatePV(client *kubernetes.Clientset, pvYaml string) (bool, error) {
-
-	pv, err := client.CoreV1().PersistentVolumes().Create(context.Background(), &corev1.PersistentVolume{}, metav1.CreateOptions{})
+	var persistentVolume corev1.PersistentVolume
+	if err := yaml.Unmarshal([]byte(pvYaml), &persistentVolume); err != nil {
+		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+	}
+	pv, err := client.CoreV1().PersistentVolumes().Create(context.Background(), &persistentVolume, metav1.CreateOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -113,7 +118,11 @@ func CreatePV(client *kubernetes.Clientset, pvYaml string) (bool, error) {
 //	@return bool
 //	@return error
 func UpdatePV(client *kubernetes.Clientset, pvYaml string) (bool, error) {
-	pv, err := client.CoreV1().PersistentVolumes().Update(context.Background(), &corev1.PersistentVolume{}, metav1.UpdateOptions{})
+	var persistentVolume corev1.PersistentVolume
+	if err := yaml.Unmarshal([]byte(pvYaml), &persistentVolume); err != nil {
+		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+	}
+	pv, err := client.CoreV1().PersistentVolumes().Update(context.Background(), &persistentVolume, metav1.UpdateOptions{})
 	if err != nil {
 		return false, err
 	}
