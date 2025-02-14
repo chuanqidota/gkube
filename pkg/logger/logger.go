@@ -15,12 +15,12 @@ var logger = logrus.New()
 func Init() {
 	// 创建一个 lumberjack.Logger 实例，用于日志切割
 	logFile := &lumberjack.Logger{
-		Filename:   "./log/rbac.log", // 日志文件名
-		MaxSize:    10,               // 每个日志文件最大大小，单位为 MB
-		MaxBackups: 5,                // 最多保留的旧日志文件数量
-		MaxAge:     7,                // 最长保留的旧日志文件天数
-		LocalTime:  true,             // 以本地时间为基准
-		Compress:   false,            // 是否压缩旧日志文件
+		Filename:   "./log/gkube.log", // 日志文件名
+		MaxSize:    10,                // 每个日志文件最大大小，单位为 MB
+		MaxBackups: 5,                 // 最多保留的旧日志文件数量
+		MaxAge:     7,                 // 最长保留的旧日志文件天数
+		LocalTime:  true,              // 以本地时间为基准
+		Compress:   false,             // 是否压缩旧日志文件
 	}
 
 	// 设置日志输出格式
