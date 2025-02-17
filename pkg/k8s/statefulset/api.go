@@ -5,6 +5,7 @@ import (
 	"fmt"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
 )
@@ -65,10 +66,9 @@ func GetStatefulSetYaml(client *kubernetes.Clientset, namespace, name string) (s
 //	@return []appsv1.StatefulSet
 //	@return error
 func GetStatefulSetByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]appsv1.StatefulSet, error) {
+	fieldSelector := fields.SelectorFromSet(fieldMap)
 	statefulSetList, err := client.AppsV1().StatefulSets(namespace).List(context.Background(), metav1.ListOptions{
-		FieldSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
-			MatchLabels: fieldMap,
-		}),
+		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
 		return nil, err
@@ -85,10 +85,9 @@ func GetStatefulSetByField(client *kubernetes.Clientset, namespace string, field
 //	@return []appsv1.StatefulSet
 //	@return error
 func GetStatefulSetByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]appsv1.StatefulSet, error) {
+	labelSelector := fields.SelectorFromSet(labelMap)
 	statefulSetList, err := client.AppsV1().StatefulSets(namespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
-			MatchLabels: labelMap,
-		}),
+		LabelSelector: labelSelector.String(),
 	})
 	if err != nil {
 		return nil, err
@@ -161,10 +160,9 @@ func DeleteStatefulSet(client *kubernetes.Clientset, namespace, name string) (bo
 //	@return bool
 //	@return error
 func DeleteStatefulSetByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) (bool, error) {
+	labelSelector := fields.SelectorFromSet(labelMap)
 	err := client.AppsV1().StatefulSets(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
-		LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
-			MatchLabels: labelMap,
-		}),
+		LabelSelector: labelSelector.String(),
 	})
 	if err != nil {
 		return false, fmt.Errorf("删除statefulSet资源失败:%s", err.Error())
@@ -181,10 +179,9 @@ func DeleteStatefulSetByLabel(client *kubernetes.Clientset, namespace string, la
 //	@return bool
 //	@return error
 func DeleteStatefulSetByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) (bool, error) {
+	fieldSelector := fields.SelectorFromSet(fieldMap)
 	err := client.AppsV1().StatefulSets(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
-		FieldSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
-			MatchLabels: fieldMap,
-		}),
+		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
 		return false, fmt.Errorf("删除statefulSet资源失败:%s", err.Error())
