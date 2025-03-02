@@ -11,6 +11,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// GetJobList
+//
+//	@Description: 获取job列表
+//	@param client
+//	@param namespace
+//	@return []batchv1.Job
+//	@return error
 func GetJobList(client *kubernetes.Clientset, namespace string) ([]batchv1.Job, error) {
 	jobList, err := client.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -19,6 +26,14 @@ func GetJobList(client *kubernetes.Clientset, namespace string) ([]batchv1.Job, 
 	return jobList.Items, nil
 }
 
+// GetJobByName
+//
+//	@Description: 根据名称获取job
+//	@param client
+//	@param namespace
+//	@param name
+//	@return *batchv1.Job
+//	@return error
 func GetJobByName(client *kubernetes.Clientset, namespace string, name string) (*batchv1.Job, error) {
 	job, err := client.BatchV1().Jobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
@@ -27,6 +42,14 @@ func GetJobByName(client *kubernetes.Clientset, namespace string, name string) (
 	return job, nil
 }
 
+// GetJobByFiled
+//
+//	@Description: 根据字段获取job
+//	@param client
+//	@param namespace
+//	@param fieldMap
+//	@return []batchv1.Job
+//	@return error
 func GetJobByFiled(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]batchv1.Job, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
 	jobList, err := client.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{
@@ -38,6 +61,14 @@ func GetJobByFiled(client *kubernetes.Clientset, namespace string, fieldMap map[
 	return jobList.Items, nil
 }
 
+// GetJobByLabel
+//
+//	@Description: 根据标签获取job
+//	@param client
+//	@param namespace
+//	@param labelMap
+//	@return []batchv1.Job
+//	@return error
 func GetJobByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]batchv1.Job, error) {
 	labelSelector := labels.SelectorFromSet(labelMap)
 	jobList, err := client.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{
@@ -49,6 +80,14 @@ func GetJobByLabel(client *kubernetes.Clientset, namespace string, labelMap map[
 	return jobList.Items, nil
 }
 
+// GetJobYaml
+//
+//	@Description: 获取job的yaml文件
+//	@param client
+//	@param namespace
+//	@param name
+//	@return string
+//	@return error
 func GetJobYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
 	job, err := client.BatchV1().Jobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
@@ -57,6 +96,13 @@ func GetJobYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 	return job.String(), nil
 }
 
+// CreateJob
+//
+//	@Description: 创建job
+//	@param client
+//	@param jobYaml
+//	@return bool
+//	@return error
 func CreateJob(client *kubernetes.Clientset, jobYaml string) (bool, error) {
 	var job batchv1.Job
 	if err := yaml.Unmarshal([]byte(jobYaml), &job); err != nil {
@@ -69,6 +115,13 @@ func CreateJob(client *kubernetes.Clientset, jobYaml string) (bool, error) {
 	return true, nil
 }
 
+// UpdateJob
+//
+//	@Description: 更新job
+//	@param client
+//	@param jobYaml
+//	@return bool
+//	@return error
 func UpdateJob(client *kubernetes.Clientset, jobYaml string) (bool, error) {
 	var job batchv1.Job
 	if err := yaml.Unmarshal([]byte(jobYaml), &job); err != nil {
@@ -81,6 +134,14 @@ func UpdateJob(client *kubernetes.Clientset, jobYaml string) (bool, error) {
 	return true, nil
 }
 
+// DeleteJob
+//
+//	@Description: 删除job
+//	@param client
+//	@param namespace
+//	@param name
+//	@return bool
+//	@return error
 func DeleteJob(client *kubernetes.Clientset, namespace, name string) (bool, error) {
 	err := client.BatchV1().Jobs(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
@@ -89,6 +150,14 @@ func DeleteJob(client *kubernetes.Clientset, namespace, name string) (bool, erro
 	return true, nil
 }
 
+// DeleteJobByField
+//
+//	@Description: 根据字段删除job
+//	@param client
+//	@param namespace
+//	@param fieldMap
+//	@return bool
+//	@return error
 func DeleteJobByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) (bool, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
 	err := client.BatchV1().Jobs(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
@@ -100,6 +169,14 @@ func DeleteJobByField(client *kubernetes.Clientset, namespace string, fieldMap m
 	return true, nil
 }
 
+// DeleteJobByLabel
+//
+//	@Description: 根据标签删除job
+//	@param client
+//	@param namespace
+//	@param labelMap
+//	@return bool
+//	@return error
 func DeleteJobByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) (bool, error) {
 	labelSelector := labels.SelectorFromSet(labelMap)
 	err := client.BatchV1().Jobs(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
