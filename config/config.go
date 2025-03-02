@@ -30,7 +30,7 @@ type Config struct {
 var Conf = new(Config)
 
 func Init() {
-	viper.SetConfigFile("./config.yaml")
+	viper.SetConfigFile("./config/config.yaml")
 
 	pc, _, _, _ := runtime.Caller(0)
 	fn := runtime.FuncForPC(pc)
