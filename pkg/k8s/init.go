@@ -62,3 +62,19 @@ func GetK8sClientByName(name string) (*kubernetes.Clientset, error) {
 	clientSet, err := GetK8sClient(k8sCluster.KubeConfig)
 	return clientSet, err
 }
+
+// GetK8sConf
+//
+//	@Description: 根据名称获取k8s配置信息
+//	@param name
+//	@return string
+//	@return error
+func GetK8sConf(name string) (string, error) {
+	var k8sCluster model.K8SCluster
+	if err := database.DB.Model(&model.K8SCluster{}).
+		Where(map[string]any{"cluster_name": name}).
+		Scan(&k8sCluster).Error; err != nil {
+		return "", err
+	}
+	return k8sCluster.KubeConfig, nil
+}
