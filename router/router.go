@@ -105,7 +105,6 @@ func Engine() *gin.Engine {
 		k8sRouter.GET("container/exec",api.HandleWebSocket) // websocket container
 		k8sRouter.GET("container/record/list",api.RecordList) // 操作记录列表
 		k8sRouter.GET("container/record/url",api.RecordUrl) // 操作审计
-		
 		k8sRouter.GET("/log/:namespace/:pod/:container") // 获取容器日志
 
 	}

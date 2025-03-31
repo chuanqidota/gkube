@@ -1,129 +1,47 @@
 package container
 
-// 使用 gorilla/websocket 处理 WebSocket
 import (
-	"encoding/json"
-	"fmt"
-	"time"
-
 	"context"
+	"fmt"
+	"io"
 
-	"gkube/pkg/asciinema"
-	"gkube/pkg/k8s"
-
-	"gkube/pkg/audit"
-
-	"github.com/gorilla/websocket"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/client-go/kubernetes"
 )
 
-func ExecToPod(key, clusterName, namespace, podName, containerName string, conn *websocket.Conn, record *audit.EsRecord) error {
-	// 创建Clientset
-	clientset, err := k8s.GetK8sClientByName(clusterName)
-	if err != nil {
-		return fmt.Errorf("创建Clientset失败: %v", err)
-	}
-
-	// 构造Exec请求
-	req := clientset.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Namespace(namespace).
-		Name(podName).
-		SubResource("exec").
-		VersionedParams(&corev1.PodExecOptions{
-			Container: containerName,
-			Command:   []string{"/bin/bash"},
-			Stdin:     true,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       true,
-		}, scheme.ParameterCodec)
-
-	// 获取配置
-	conf, err := k8s.GetK8sConf(clusterName)
-	if err != nil {
-		return err
-	}
-	confByte, err := json.Marshal(conf)
-	if err != nil {
-		return err
-	}
-	var config rest.Config
-	err = json.Unmarshal(confByte, &config)
-	if err != nil {
-		return err
-	}
-
-	// 创建SPDY Executor
-	executor, err := remotecommand.NewSPDYExecutor(&config, "POST", req.URL())
-	if err != nil {
-		return fmt.Errorf("创建SPDY执行器失败: %v", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // 确保在操作完成后取消上下文
-
-	err = executor.StreamWithContext(ctx, remotecommand.StreamOptions{
-		Stdin:             &TerminalReader{Conn: conn},
-		Stdout:            &TerminalWriter{Conn: conn, Record: record, Key: key},
-		Stderr:            &TerminalWriter{Conn: conn, Record: record, Key: key},
-		Tty:               true,
-		TerminalSizeQueue: &TerminalSizeHandler{Conn: conn, Record: record, Key: key},
+// GetPodContainerLog 获取指定命名空间、Pod 和容器的日志。
+// 参数:
+// - client: Kubernetes 客户端集。
+// - namespace: Pod 所在的命名空间。
+// - podName: Pod 的名称。
+// - containerName: 容器的名称。
+// - tailLines: 返回日志的最后 N 行。
+// 返回值:
+// - 日志内容字符串。
+// - 如果发生错误，返回错误信息。
+func GetPodContainerLog(client *kubernetes.Clientset, namespace, podName, containerName string, tailLines int64) (string, error) {
+	// 创建一个获取 Pod 日志的请求
+	req := client.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
+		Container:  containerName, // 指定容器名称
+		Follow:     false,         // 是否实时跟踪（类似 -f）
+		TailLines:  &tailLines,    // 获取最后 N 行日志
+		Previous:   false,         // 获取已终止容器的日志
+		Timestamps: true,          // 包含时间戳
 	})
-	return err
-}
 
-// TerminalReader 从WebSocket读取输入
-type TerminalReader struct {
-	Conn *websocket.Conn
-}
-
-func (r *TerminalReader) Read(p []byte) (int, error) {
-	_, msg, err := r.Conn.ReadMessage()
+	// 执行请求并获取日志流
+	stream, err := req.Stream(context.Background())
 	if err != nil {
-		return 0, err
+		return "", fmt.Errorf("创建日志流失败: %v", err.Error())
 	}
-	return copy(p, msg), nil
-}
+	defer stream.Close() // 确保在函数结束时关闭流
 
-// TerminalWriter 将输出写入WebSocket
-type TerminalWriter struct {
-	Conn   *websocket.Conn
-	Record *audit.EsRecord
-	Key    string
-}
-
-func (w *TerminalWriter) Write(p []byte) (int, error) {
-	err := w.Conn.WriteMessage(websocket.BinaryMessage, p)
+	// 读取日志内容
+	logContent, err := io.ReadAll(stream)
 	if err != nil {
-		return 0, err
+		return "", fmt.Errorf("读取日志失败: %v", err.Error())
 	}
-	asciinema.WriteData(w.Key, time.Now(), string(p), w.Record)
-	return len(p), nil
-}
 
-// TerminalSizeHandler 处理终端尺寸调整
-type TerminalSizeHandler struct {
-	Conn   *websocket.Conn
-	Record *audit.EsRecord
-	Key    string
-}
-
-func (t *TerminalSizeHandler) Next() *remotecommand.TerminalSize {
-	var size remotecommand.TerminalSize
-	var data map[string][]int
-	if err := t.Conn.ReadJSON(&size); err != nil {
-		fmt.Printf("读取终端尺寸失败: %v", err)
-		return nil
-	}
-	width := uint16(data["resize"][0])
-	height := uint16(data["resize"][1])
-	asciinema.WriteSize(t.Key, time.Now(), width, height, t.Record)
-	return &remotecommand.TerminalSize{
-		Width:  width,
-		Height: width,
-	}
+	// 返回日志内容字符串
+	return string(logContent), nil
 }
