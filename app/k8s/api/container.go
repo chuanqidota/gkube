@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -83,6 +84,25 @@ func HandleWebSocket(c *gin.Context) {
 	if err := container.ExecToPod(key, clusterName, namespace, podName, containerName, conn, record); err != nil {
 		conn.WriteMessage(websocket.TextMessage, []byte("Error: "+err.Error()))
 	}
+}
+
+// 所有的操作记录
+func RecordList(c *gin.Context) {
+	limit := c.DefaultQuery("limit", "10")
+	offset := c.DefaultQuery("offset", "0")
+	limitInt, _ := strconv.Atoi(limit)
+	offsetInt, _ := strconv.Atoi(offset)
+
+	db := database.DB.Model(&model.TerminalRecord{})
+	var count int64
+	db.Count(&count)
+
+	result := make([]model.TerminalRecord, 0)
+	if err := db.Limit(limitInt).Offset(offsetInt).Find(&result); err != nil {
+		response.Fail(c, "获取失败")
+		return
+	}
+	response.Success(c, "获取成功", map[string]any{"count": count, "result": result})
 }
 
 // 获取记录的url

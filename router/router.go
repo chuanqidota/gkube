@@ -1,8 +1,9 @@
 package router
 
 import (
-	"github.com/gin-gonic/gin"
 	"gkube/app/k8s/api"
+
+	"github.com/gin-gonic/gin"
 )
 
 func Engine() *gin.Engine {
@@ -101,7 +102,10 @@ func Engine() *gin.Engine {
 		k8sRouter.DELETE("secret") // 删除secret
 
 
-		k8sRouter.GET("container/ws",api.HandleWebSocket)
+		k8sRouter.GET("container/exec",api.HandleWebSocket) // websocket container
+		k8sRouter.GET("container/record/list",api.RecordList) // 操作记录列表
+		k8sRouter.GET("container/record/url",api.RecordUrl) // 操作审计
+		
 		k8sRouter.GET("/log/:namespace/:pod/:container") // 获取容器日志
 
 	}
