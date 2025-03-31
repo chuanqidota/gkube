@@ -1,10 +1,26 @@
 package api
 
 import (
+	"bytes"
+	"fmt"
 	"net/http"
+	"strings"
 
-	"gkube/app/k8s/container"
+	"github.com/google/uuid"
+
+	"encoding/json"
+	"gkube/app/k8s/model"
 	"gkube/app/k8s/params"
+	"gkube/pkg/asciinema"
+	"gkube/pkg/audit"
+	"gkube/pkg/database"
+	"gkube/pkg/k8s/container"
+	"gkube/pkg/s3"
+	"time"
+
+	"gkube/config"
+
+	"gkube/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -19,7 +35,7 @@ func HandleWebSocket(c *gin.Context) {
 	}
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		
+
 		return
 	}
 	defer conn.Close()
@@ -35,8 +51,62 @@ func HandleWebSocket(c *gin.Context) {
 	podName := reqQueryParams.PodName
 	containerName := reqQueryParams.Container
 
+	// 写入操作记录
+	key := strings.ReplaceAll(uuid.New().String(), "-", "")
+	if err := database.DB.Model(&model.TerminalRecord{}).Create(&model.TerminalRecord{
+		Key:         key,
+		ClusterName: clusterName,
+		Namespace:   namespace,
+		PodName:     podName,
+	}).Error; err != nil {
+		conn.WriteMessage(websocket.CloseMessage, []byte("数据库错误"))
+		return
+	}
+
+	// 接受第一次消息
+	_, firstMessage, _ := conn.ReadMessage()
+	var firstData map[string][]int
+	err = json.Unmarshal(firstMessage, &firstData)
+	if err != nil {
+		_ = conn.WriteMessage(websocket.TextMessage, []byte("接收窗口大小失败"))
+		return
+	}
+	cols := firstData["resize"][0]
+	rows := firstData["resize"][1]
+
+	// 记录操作到es中
+	startTime := time.Now()
+	record := audit.NewEsRecord()
+	asciinema.WriteHeader(key, cols, rows, startTime, record)
+
 	// 执行Exec到Pod
-	if err := container.ExecToPod(clusterName, namespace, podName, containerName, conn); err != nil {
+	if err := container.ExecToPod(key, clusterName, namespace, podName, containerName, conn, record); err != nil {
 		conn.WriteMessage(websocket.TextMessage, []byte("Error: "+err.Error()))
 	}
+}
+
+// 获取记录的url
+func RecordUrl(c *gin.Context) {
+	key := c.Query("key")
+	if key == "" {
+		return
+	}
+	endpoint := config.Conf.S3.EndPoint
+	bucket := config.Conf.S3.Bucket
+	// 从es中读取数据
+	record := audit.NewEsRecord()
+	result := record.ReadData(key)
+
+	var buffer bytes.Buffer
+	for _, value := range result {
+		history, _ := value["history"].(string)
+		buffer.Write([]byte(history))
+		buffer.WriteByte('\n')
+	}
+	// 上传到as3中-会覆盖更新
+	s3.UploadFile(key, buffer.Bytes())
+
+	url := fmt.Sprintf("http://%s/%s/%s", endpoint, bucket, key)
+	response.Success(c, "执行成功", url)
+
 }

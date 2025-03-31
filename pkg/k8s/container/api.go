@@ -4,10 +4,14 @@ package container
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"context"
 
+	"gkube/pkg/asciinema"
 	"gkube/pkg/k8s"
+
+	"gkube/pkg/audit"
 
 	"github.com/gorilla/websocket"
 	corev1 "k8s.io/api/core/v1"
@@ -16,7 +20,7 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-func ExecToPod(clusterName, namespace, podName, containerName string, conn *websocket.Conn) error {
+func ExecToPod(key, clusterName, namespace, podName, containerName string, conn *websocket.Conn, record *audit.EsRecord) error {
 	// 创建Clientset
 	clientset, err := k8s.GetK8sClientByName(clusterName)
 	if err != nil {
@@ -63,22 +67,22 @@ func ExecToPod(clusterName, namespace, podName, containerName string, conn *webs
 	defer cancel() // 确保在操作完成后取消上下文
 
 	err = executor.StreamWithContext(ctx, remotecommand.StreamOptions{
-		Stdin:             &TerminalReader{conn: conn},
-		Stdout:            &TerminalWriter{conn: conn},
-		Stderr:            &TerminalWriter{conn: conn},
+		Stdin:             &TerminalReader{Conn: conn},
+		Stdout:            &TerminalWriter{Conn: conn, Record: record, Key: key},
+		Stderr:            &TerminalWriter{Conn: conn, Record: record, Key: key},
 		Tty:               true,
-		TerminalSizeQueue: &TerminalSizeHandler{conn: conn},
+		TerminalSizeQueue: &TerminalSizeHandler{Conn: conn, Record: record, Key: key},
 	})
 	return err
 }
 
 // TerminalReader 从WebSocket读取输入
 type TerminalReader struct {
-	conn *websocket.Conn
+	Conn *websocket.Conn
 }
 
 func (r *TerminalReader) Read(p []byte) (int, error) {
-	_, msg, err := r.conn.ReadMessage()
+	_, msg, err := r.Conn.ReadMessage()
 	if err != nil {
 		return 0, err
 	}
@@ -87,27 +91,39 @@ func (r *TerminalReader) Read(p []byte) (int, error) {
 
 // TerminalWriter 将输出写入WebSocket
 type TerminalWriter struct {
-	conn *websocket.Conn
+	Conn   *websocket.Conn
+	Record *audit.EsRecord
+	Key    string
 }
 
 func (w *TerminalWriter) Write(p []byte) (int, error) {
-	err := w.conn.WriteMessage(websocket.BinaryMessage, p)
+	err := w.Conn.WriteMessage(websocket.BinaryMessage, p)
 	if err != nil {
 		return 0, err
 	}
+	asciinema.WriteData(w.Key, time.Now(), string(p), w.Record)
 	return len(p), nil
 }
 
 // TerminalSizeHandler 处理终端尺寸调整
 type TerminalSizeHandler struct {
-	conn *websocket.Conn
+	Conn   *websocket.Conn
+	Record *audit.EsRecord
+	Key    string
 }
 
 func (t *TerminalSizeHandler) Next() *remotecommand.TerminalSize {
 	var size remotecommand.TerminalSize
-	if err := t.conn.ReadJSON(&size); err != nil {
+	var data map[string][]int
+	if err := t.Conn.ReadJSON(&size); err != nil {
 		fmt.Printf("读取终端尺寸失败: %v", err)
 		return nil
 	}
-	return &size
+	width := uint16(data["resize"][0])
+	height := uint16(data["resize"][1])
+	asciinema.WriteSize(t.Key, time.Now(), width, height, t.Record)
+	return &remotecommand.TerminalSize{
+		Width:  width,
+		Height: width,
+	}
 }

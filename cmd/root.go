@@ -10,6 +10,7 @@ import (
 	"gkube/pkg/database"
 	"gkube/pkg/logger"
 	"gkube/pkg/redis"
+	"gkube/pkg/es"
 	"gkube/router"
 	"net/http"
 	"os"
@@ -59,6 +60,8 @@ func init() {
 	logger.Init()
 	database.Init()
 	redis.Init()
+	es.Init()
+	
 }
 
 func Run() {
