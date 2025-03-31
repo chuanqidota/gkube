@@ -1,7 +1,5 @@
 package response
 
-package response
-
 import (
 	"fmt"
 	"net/http"
