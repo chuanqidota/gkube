@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"gkube/config"
 	"gkube/pkg/database"
+	"gkube/pkg/es"
 	"gkube/pkg/logger"
 	"gkube/pkg/redis"
-	"gkube/pkg/es"
 	"gkube/router"
 	"net/http"
 	"os"
@@ -56,12 +56,12 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	config.Init()
-	logger.Init()
-	database.Init()
-	redis.Init()
-	es.Init()
-	
+	config.Init()   // 初始化配置文件
+	logger.Init()   // 初始化日志
+	database.Init() // 初始化数据库
+	redis.Init()    // 初始化redis
+	es.Init()       // 初始化es
+
 }
 
 func Run() {
