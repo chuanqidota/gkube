@@ -23,8 +23,11 @@ import (
 
 	"gkube/pkg/response"
 
+	"gkube/pkg/k8s"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"bufio"
 )
 
 // WebSocket处理函数
@@ -133,5 +136,79 @@ func RecordUrl(c *gin.Context) {
 
 	url := fmt.Sprintf("http://%s/%s/%s", endpoint, bucket, key)
 	response.Success(c, "执行成功", url)
+}
 
+// 获取日志且包含日志行数
+func GetPodContainerLog(c *gin.Context) {
+	var query params.ContainerLogQueryParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, "参数错误")
+		return
+	}
+
+	client, err := k8s.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, "获取k8s客户端失败")
+		return
+	}
+	log, err := container.GetPodContainerLog(client, query.Namespace, query.PodName, query.Container, query.TailLines)
+	if err != nil {
+		response.Fail(c, "获取日志失败")
+		return
+	}
+	response.Success(c, "获取成功", log)
+}
+
+
+// 通过SSE获取日志信息
+
+func StreamPodLogs(c *gin.Context) {
+    var query params.ContainerLogQueryParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, "参数错误")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, "获取k8s客户端失败")
+		return
+	}
+	stream,err:=container.GetPodContainerLogStream(client,query.Namespace, query.PodName, query.Container, query.TailLines)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "日志流创建失败"})
+        return
+    }
+    defer stream.Close()
+
+    // 设置 SSE 响应头
+    c.Header("Content-Type", "text/event-stream")
+    c.Header("Cache-Control", "no-cache")
+    c.Header("Connection", "keep-alive")
+    c.Header("Access-Control-Allow-Origin", "*")
+
+    // 创建带缓冲的读取器
+    reader := bufio.NewReader(stream)
+
+    // 保持连接并持续发送数据
+    for {
+        select {
+        case <-c.Writer.CloseNotify():
+            // 客户端断开连接时退出
+            return
+        default:
+            // 读取日志内容
+            line, err := reader.ReadBytes('\n')
+            if err != nil {
+                    // 发送错误事件
+				c.SSEvent("error", gin.H{"message": "日志读取错误"})
+                return
+            }
+
+            // 发送 SSE 格式数据
+            c.SSEvent("message", string(line))
+            
+            // 手动刷新缓冲区
+            c.Writer.Flush()
+        }
+    }
 }

@@ -45,3 +45,30 @@ func GetPodContainerLog(client *kubernetes.Clientset, namespace, podName, contai
 	// 返回日志内容字符串
 	return string(logContent), nil
 }
+
+// GetPodContainerLogStream 获取指定Pod容器的日志流
+// 参数:
+//   - client: *kubernetes.Clientset Kubernetes客户端实例
+//   - namespace: string 目标Pod所在的命名空间
+//   - podName: string 目标Pod的名称
+//   - containerName: string 需要获取日志的容器名称
+//   - tailLines: int64 要获取的日志行数（从日志末尾开始计算）
+//
+// 返回值:
+//   - io.ReadCloser: 日志流的读取接口，调用方需负责关闭
+//   - error: 执行过程中遇到的错误信息
+func GetPodContainerLogStream(client *kubernetes.Clientset, namespace, podName, containerName string, tailLines int64) (io.ReadCloser, error) {
+	stream, err := client.CoreV1().Pods(namespace).
+		GetLogs(podName, &corev1.PodLogOptions{
+			Container:  containerName, // - 指定容器名称
+			Follow:     true,          // - 实时日志跟踪模式
+			Timestamps: true,          // - 包含时间戳信息
+			TailLines:  &tailLines,    // - 限制获取的日志行数
+		}).
+		Stream(context.Background())
+
+	if err != nil {
+		return nil, fmt.Errorf("创建日志流失败: %v", err.Error())
+	}
+	return stream, nil
+}
