@@ -72,8 +72,13 @@ func HandleWebSocket(c *gin.Context) {
 		_ = conn.WriteMessage(websocket.TextMessage, []byte("接收窗口大小失败"))
 		return
 	}
-	cols := firstData["resize"][0]
-	rows := firstData["resize"][1]
+	resizeData, ok := firstData["resize"]
+	if !ok || len(resizeData) < 2 {
+		fmt.Println("无效的尺寸数据")
+		return
+	}
+	cols := resizeData[0]
+	rows := resizeData[1]
 
 	// 记录操作到es中
 	startTime := time.Now()
