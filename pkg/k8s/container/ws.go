@@ -20,6 +20,16 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
+type AsciinemaEvent struct {
+	Type   string          `json:"type" label:"type"`
+	Key    string          `json:"key" label:"key"`
+	Time   time.Time       `json:"time" label:"time"`
+	Record *audit.EsRecord `json:"record" label:"记录"`
+	Data   string          `json:"data" label:"数据"`
+	Width  uint16          `json:"width" label:"宽"`
+	Height uint16          `json:"height" label:"高"`
+}
+
 func ExecToPod(key, clusterName, namespace, podName, containerName string, conn *websocket.Conn, record *audit.EsRecord) error {
 	// 创建Clientset
 	clientset, err := k8s.GetK8sClientByName(clusterName)
@@ -63,15 +73,21 @@ func ExecToPod(key, clusterName, namespace, podName, containerName string, conn 
 		return fmt.Errorf("创建SPDY执行器失败: %v", err)
 	}
 
+	// 创建带缓冲的事件通道（缓冲区大小可根据需要调整）
+	eventChan := make(chan AsciinemaEvent, 1024*1024*1024)
+	defer close(eventChan)
+	// 启动事件处理协程
+	go handleAsciinemaEvents(eventChan)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel() // 确保在操作完成后取消上下文
 
 	err = executor.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:             &TerminalReader{Conn: conn},
-		Stdout:            &TerminalWriter{Conn: conn, Record: record, Key: key},
-		Stderr:            &TerminalWriter{Conn: conn, Record: record, Key: key},
+		Stdout:            &TerminalWriter{Conn: conn, Record: record, Key: key, Event: eventChan},
+		Stderr:            &TerminalWriter{Conn: conn, Record: record, Key: key, Event: eventChan},
 		Tty:               true,
-		TerminalSizeQueue: &TerminalSizeHandler{Conn: conn, Record: record, Key: key},
+		TerminalSizeQueue: &TerminalSizeHandler{Conn: conn, Record: record, Key: key, Event: eventChan},
 	})
 	return err
 }
@@ -81,6 +97,7 @@ type TerminalReader struct {
 	Conn *websocket.Conn
 }
 
+// 从websocket中读取数据
 func (r *TerminalReader) Read(p []byte) (int, error) {
 	_, msg, err := r.Conn.ReadMessage()
 	if err != nil {
@@ -94,12 +111,21 @@ type TerminalWriter struct {
 	Conn   *websocket.Conn
 	Record *audit.EsRecord
 	Key    string
+	Event  chan AsciinemaEvent
 }
 
+// 将数据输出到websocket
 func (w *TerminalWriter) Write(p []byte) (int, error) {
 	err := w.Conn.WriteMessage(websocket.BinaryMessage, p)
 	if err != nil {
 		return 0, err
+	}
+	// 把数据写到chan中
+	w.Event <- AsciinemaEvent{
+		Type:   "data",
+		Data:   string(p),
+		Record: w.Record,
+		Time:   time.Now(),
 	}
 	asciinema.WriteData(w.Key, time.Now(), string(p), w.Record)
 	return len(p), nil
@@ -110,8 +136,10 @@ type TerminalSizeHandler struct {
 	Conn   *websocket.Conn
 	Record *audit.EsRecord
 	Key    string
+	Event  chan AsciinemaEvent
 }
 
+// 调整终端尺寸
 func (t *TerminalSizeHandler) Next() *remotecommand.TerminalSize {
 	var size remotecommand.TerminalSize
 	var data map[string][]int
@@ -119,11 +147,39 @@ func (t *TerminalSizeHandler) Next() *remotecommand.TerminalSize {
 		fmt.Printf("读取终端尺寸失败: %v", err)
 		return nil
 	}
+
+	resizeData, ok := data["resize"]
+	if !ok || len(resizeData) < 2 {
+		fmt.Println("无效的尺寸数据")
+		return nil
+	}
+
 	width := uint16(data["resize"][0])
 	height := uint16(data["resize"][1])
-	asciinema.WriteSize(t.Key, time.Now(), width, height, t.Record)
+
+	// 把数据推送到chan中
+	t.Event <- AsciinemaEvent{
+		Type:   "resize",
+		Width:  width,
+		Height: height,
+		Record: t.Record,
+		Time:   time.Now(),
+	}
+
 	return &remotecommand.TerminalSize{
 		Width:  width,
 		Height: width,
+	}
+}
+
+// 消费数据
+func handleAsciinemaEvents(eventChan <-chan AsciinemaEvent) {
+	for event := range eventChan {
+		switch event.Type {
+		case "data":
+			asciinema.WriteData(event.Key, event.Time, event.Data, event.Record)
+		case "resize":
+			asciinema.WriteSize(event.Key, event.Time, event.Width, event.Height, event.Record)
+		}
 	}
 }
