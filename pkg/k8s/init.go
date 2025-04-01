@@ -6,6 +6,7 @@ import (
 	"gkube/app/k8s/model"
 	"gkube/pkg/database"
 
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -77,4 +78,33 @@ func GetK8sConf(name string) (string, error) {
 		return "", err
 	}
 	return k8sCluster.KubeConfig, nil
+}
+
+// 从 kubeconfig 字符串创建动态客户端
+func CreateDynamicClient(kubeconfigContent string) (dynamic.Interface, error) {
+	// 将字符串转换为 clientcmdapi.Config 对象
+	config, err := clientcmd.Load([]byte(kubeconfigContent))
+	if err != nil {
+		return nil, fmt.Errorf("加载 kubeconfig 失败: %v", err)
+	}
+
+	// 创建客户端配置
+	clientConfig := clientcmd.NewDefaultClientConfig(
+		*config,
+		&clientcmd.ConfigOverrides{}, // 可在此处覆盖配置参数
+	)
+
+	// 转换为 rest.Config
+	restConfig, err := clientConfig.ClientConfig()
+	if err != nil {
+		return nil, fmt.Errorf("创建 REST 配置失败: %v", err)
+	}
+
+	// 初始化动态客户端
+	dynamicClient, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		return nil, fmt.Errorf("创建动态客户端失败: %v", err)
+	}
+
+	return dynamicClient, nil
 }
