@@ -139,7 +139,7 @@ func RecordUrl(c *gin.Context) {
 }
 
 // 获取日志且包含日志行数
-func GetPodContainerLog(c *gin.Context) {
+func PodContainerLog(c *gin.Context) {
 	var query params.ContainerLogQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Fail(c, "参数错误")
@@ -162,7 +162,7 @@ func GetPodContainerLog(c *gin.Context) {
 
 // 通过SSE获取日志信息
 
-func StreamPodLogs(c *gin.Context) {
+func StreamPodContainerLogs(c *gin.Context) {
     var query params.ContainerLogQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Fail(c, "参数错误")
