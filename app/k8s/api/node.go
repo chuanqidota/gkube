@@ -61,7 +61,7 @@ func (n *node) GetNodePods(c *gin.Context) {
 	response.Success(c, "执行成功", result)
 }
 
-func (n *node) UnschedulableNodeNode(c *gin.Context) {
+func (n *node) UnschedulableNode(c *gin.Context) {
 	var body params.NodeQueryParams
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
@@ -79,6 +79,28 @@ func (n *node) UnschedulableNodeNode(c *gin.Context) {
 	}
 	result := map[string]bool{
 		"isCordon":isCordon,
+	}
+	response.Success(c,"执行成功",result)
+}
+
+func (n *node)EvictsNodePods(c *gin.Context){
+	var body params.NodeQueryParams
+	if err:=c.ShouldBindJSON(&body);err!=nil{
+		response.Fail(c,fmt.Sprintf("参数校验失败:%s",err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(body.ClusterName)
+	if err!=nil{
+		response.Fail(c,fmt.Sprintf("获取k8s客户端失败:%s",err.Error()))
+		return
+	}
+	isEvict,err := k8sNode.EvictsNodePods(client, body.NodeName)
+	if err!=nil{
+		response.Fail(c,fmt.Sprintf("驱逐节点pod失败:%s",err.Error()))
+		return
+	}
+	result := map[string]bool{
+		"isEvict":isEvict,
 	}
 	response.Success(c,"执行成功",result)
 }

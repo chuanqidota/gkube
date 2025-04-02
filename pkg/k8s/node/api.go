@@ -3,7 +3,7 @@ package node
 import (
 	"context"
 	"encoding/json"
-
+	policy "k8s.io/api/policy/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -71,5 +71,32 @@ func UnschedulableNode(client *kubernetes.Clientset, nodeName string) (bool, err
 		return false, err
 	}
 	return true, nil
+}
 
+
+func EvictsNodePods(client *kubernetes.Clientset, nodeName string)(bool,error){
+	// 驱逐后未设置禁止调度策略
+	const systemNamespace = "kube-system"
+	pods, err := client.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{
+		FieldSelector: "spec.nodeName=" + nodeName,
+	})
+	if err != nil {
+		return false,err
+	}
+	for _,pod := pods.Items {
+		if pod.Namespace == systemNamespace {
+			continue
+		}
+		// 可以增加额外的驱逐策略
+		err = client.CoreV1().Pods(pod.Namespace).Evict(context.TODO(), &policy.Eviction{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+			},
+		})
+		if err != nil {
+			return false,err
+		}
+	}
+	return true,nil
 }
