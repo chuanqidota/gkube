@@ -74,7 +74,7 @@ func UnschedulableNode(client *kubernetes.Clientset, nodeName string) (bool, err
 }
 
 
-func EvictsNodePods(client *kubernetes.Clientset, nodeName string)(bool,error){
+func EvictsNodeAllPods(client *kubernetes.Clientset, nodeName string)(bool,error){
 	// 驱逐后未设置禁止调度策略
 	const systemNamespace = "kube-system"
 	pods, err := client.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{
@@ -99,4 +99,17 @@ func EvictsNodePods(client *kubernetes.Clientset, nodeName string)(bool,error){
 		}
 	}
 	return true,nil
+}
+
+func EvictsNodeSinglePod(client *kubernetes.Clientset, nodeName,namespace,podname string)error{
+	if err := client.CoreV1().Pods(namespace).Evict(context.TODO(), &policy.Eviction{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podname,
+			Namespace: namespace,
+		},
+	});err!=nil{
+		return fmt.Errorf("驱逐失败:%s",err.Error())
+	}
+	return nil
+	
 }
