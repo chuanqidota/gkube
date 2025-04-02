@@ -13,12 +13,10 @@ func Engine() *gin.Engine {
 
 	k8sRouter := v1.Group("k8s")
 	{
-		k8sRouter.POST("cluster")    // 集群创建
-		k8sRouter.GET("cluster")     // 获取所有集群信息
-		k8sRouter.GET("cluster/:id") // 获取集群信息
-		k8sRouter.DELETE("cluster")  // 删除集群
+		k8sRouter.GET("cluster/version", api.Cluster.GetClusterVersion) // 获取集群版本信息
+		k8sRouter.GET("cluster/node", api.Cluster.GetClusterNodesInfo)  // 获取所有集群信息
 
-		k8sRouter.GET("namespace") // 获取命名空间
+		k8sRouter.GET("cluster/namespace", api.Namespace.GetClusterNamespaceList) // 获取命名空间
 
 		k8sRouter.GET("events") // 事件
 
