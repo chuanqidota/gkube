@@ -3,8 +3,9 @@ package node
 import (
 	"context"
 	"encoding/json"
-	policy "k8s.io/api/policy/v1beta1"
+	"fmt"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -53,14 +54,14 @@ func GetNodePods(client *kubernetes.Clientset, nodeName string) (*corev1.PodList
 	})
 }
 
-// UnschedulableNode
+// UnscheduledNode
 //
 //	@Description: 禁止调度
 //	@param client
 //	@param nodeName
 //	@return bool
 //	@return error
-func UnschedulableNode(client *kubernetes.Clientset, nodeName string) (bool, error) {
+func UnscheduledNode(client *kubernetes.Clientset, nodeName string) (bool, error) {
 	node, err := client.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		return false, err
@@ -73,43 +74,55 @@ func UnschedulableNode(client *kubernetes.Clientset, nodeName string) (bool, err
 	return true, nil
 }
 
-
-func EvictsNodeAllPods(client *kubernetes.Clientset, nodeName string)(bool,error){
+// EvictsNodeAllPods
+//
+//	@Description: 驱逐节点上的所有pod
+//	@param client
+//	@param nodeName
+//	@return bool
+//	@return error
+func EvictsNodeAllPods(client *kubernetes.Clientset, nodeName string) (bool, error) {
 	// 驱逐后未设置禁止调度策略
 	const systemNamespace = "kube-system"
 	pods, err := client.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{
 		FieldSelector: "spec.nodeName=" + nodeName,
 	})
 	if err != nil {
-		return false,err
+		return false, err
 	}
-	for _,pod := pods.Items {
+	for _, pod := range pods.Items {
 		if pod.Namespace == systemNamespace {
 			continue
 		}
 		// 可以增加额外的驱逐策略
-		err = client.CoreV1().Pods(pod.Namespace).Evict(context.TODO(), &policy.Eviction{
+		err = client.CoreV1().Pods(pod.Namespace).EvictV1(context.TODO(), &policyv1.Eviction{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      pod.Name,
 				Namespace: pod.Namespace,
 			},
 		})
 		if err != nil {
-			return false,err
+			return false, err
 		}
 	}
-	return true,nil
+	return true, nil
 }
 
-func EvictsNodeSinglePod(client *kubernetes.Clientset, nodeName,namespace,podname string)error{
-	if err := client.CoreV1().Pods(namespace).Evict(context.TODO(), &policy.Eviction{
+// EvictsNodeSinglePod
+//
+//	@Description: 驱逐节点上一个pod
+//	@param client
+//	@param namespace
+//	@param podName
+//	@return error
+func EvictsNodeSinglePod(client *kubernetes.Clientset, namespace, podName string) error {
+	if err := client.CoreV1().Pods(namespace).EvictV1(context.TODO(), &policyv1.Eviction{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      podname,
+			Name:      podName,
 			Namespace: namespace,
 		},
-	});err!=nil{
-		return fmt.Errorf("驱逐失败:%s",err.Error())
+	}); err != nil {
+		return fmt.Errorf("驱逐失败:%s", err.Error())
 	}
 	return nil
-	
 }

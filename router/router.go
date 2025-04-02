@@ -20,11 +20,11 @@ func Engine() *gin.Engine {
 
 		k8sRouter.GET("events") // 事件
 
-		k8sRouter.GET("node/yaml", api.Node.GetNodeYaml)                 // 获取节点yaml
-		k8sRouter.GET("node/pods", api.Node.GetNodePods)                 // 获取节点的pods
-		k8sRouter.POST("node/unschedulable", api.Node.UnschedulableNode) // 禁止调度
-		k8sRouter.POST("node/evict-all", api.Node.EvictsNodeAllPods)     // 驱逐节点上所有的pod
-		k8sRouter.POST("node/evict-single",api.Node.EvictsNodeSinglePod) // 驱逐节点上的单个pod
+		k8sRouter.GET("node/yaml", api.Node.GetNodeYaml)                  // 获取节点yaml
+		k8sRouter.GET("node/pods", api.Node.GetNodePods)                  // 获取节点的pods
+		k8sRouter.POST("node/unschedulable", api.Node.UnscheduledNode)    // 禁止调度
+		k8sRouter.POST("node/evict-all", api.Node.EvictsNodeAllPods)      // 驱逐节点上所有的pod
+		k8sRouter.POST("node/evict-single", api.Node.EvictsNodeSinglePod) // 驱逐节点上的单个pod
 
 		k8sRouter.DELETE("node") // 删除节点
 

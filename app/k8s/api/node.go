@@ -16,6 +16,11 @@ type node struct {
 
 var Node = new(node)
 
+// GetNodeYaml
+//
+//	@Description: 获取节点yaml
+//	@receiver n
+//	@param c
 func (n *node) GetNodeYaml(c *gin.Context) {
 	var query params.NodeQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
@@ -39,6 +44,11 @@ func (n *node) GetNodeYaml(c *gin.Context) {
 	response.Success(c, "执行成功", result)
 }
 
+// GetNodePods
+//
+//	@Description: 获取节点中的pod
+//	@receiver n
+//	@param c
 func (n *node) GetNodePods(c *gin.Context) {
 	var query params.NodeQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
@@ -61,64 +71,79 @@ func (n *node) GetNodePods(c *gin.Context) {
 	response.Success(c, "执行成功", result)
 }
 
-func (n *node) UnschedulableNode(c *gin.Context) {
+// UnscheduledNode
+//
+//	@Description: 禁止调度
+//	@receiver n
+//	@param c
+func (n *node) UnscheduledNode(c *gin.Context) {
 	var body params.NodeQueryParams
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
 		return
 	}
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil{
-		response.Fail(c,fmt.Sprintf("获取k8s客户端失败:%s",err.Error()))
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	isCordon,err := k8sNode.UnschedulableNode(client, body.NodeName)
-	if err!=nil{
-		response.Fail(c,fmt.Sprintf("禁止调度失败:%s",err.Error()))
+	isCordon, err := k8sNode.UnscheduledNode(client, body.NodeName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("禁止调度失败:%s", err.Error()))
 		return
 	}
 	result := map[string]bool{
-		"isCordon":isCordon,
+		"isCordon": isCordon,
 	}
-	response.Success(c,"执行成功",result)
+	response.Success(c, "执行成功", result)
 }
 
-func (n *node)EvictsNodeAllPods(c *gin.Context){
+// EvictsNodeAllPods
+//
+//	@Description: 驱逐节点中的所有pod
+//	@receiver n
+//	@param c
+func (n *node) EvictsNodeAllPods(c *gin.Context) {
 	var body params.NodeQueryParams
-	if err:=c.ShouldBindJSON(&body);err!=nil{
-		response.Fail(c,fmt.Sprintf("参数校验失败:%s",err.Error()))
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
 		return
 	}
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err!=nil{
-		response.Fail(c,fmt.Sprintf("获取k8s客户端失败:%s",err.Error()))
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	isEvict,err := k8sNode.EvictsNodeAllPods(client, body.NodeName)
-	if err!=nil{
-		response.Fail(c,fmt.Sprintf("驱逐节点pod失败:%s",err.Error()))
+	isEvict, err := k8sNode.EvictsNodeAllPods(client, body.NodeName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("驱逐节点pod失败:%s", err.Error()))
 		return
 	}
 	result := map[string]bool{
-		"isEvict":isEvict,
+		"isEvict": isEvict,
 	}
-	response.Success(c,"执行成功",result)
+	response.Success(c, "执行成功", result)
 }
 
-func (n *node)EvictsNodeSinglePod(c *gin.Context){
+// EvictsNodeSinglePod
+//
+//	@Description: 驱逐节点中的指定pod
+//	@receiver n
+//	@param c
+func (n *node) EvictsNodeSinglePod(c *gin.Context) {
 	var body params.NodeEvictParams
-	if err:=c.ShouldBindJSON(&body);err!=nil{
-		response.Fail(c,fmt.Sprintf("参数校验失败:%s",err.Error()))
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
 		return
 	}
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err!=nil{
-		response.Fail(c,fmt.Sprintf("驱逐节点pod失败:%s",err.Error()))
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("驱逐节点pod失败:%s", err.Error()))
 	}
-	err = k8sNode.EvictsNodeSinglePod(client, body.NodeName,body.Namespace,body.PodName)
-	if err!=nil{
-		response.Fail(c,fmt.Sprintf("驱逐节点pod失败:%s",err.Error()))
+	err = k8sNode.EvictsNodeSinglePod(client, body.Namespace, body.PodName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("驱逐节点pod失败:%s", err.Error()))
 		return
 	}
-	response.Success(c,"执行成功",nil)
+	response.Success(c, "执行成功", nil)
 }
