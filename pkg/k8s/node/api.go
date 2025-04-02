@@ -53,14 +53,14 @@ func GetNodePods(client *kubernetes.Clientset, nodeName string) (*corev1.PodList
 	})
 }
 
-// CordonNode
+// UnschedulableNode
 //
 //	@Description: 禁止调度
 //	@param client
 //	@param nodeName
 //	@return bool
 //	@return error
-func CordonNode(client *kubernetes.Clientset, nodeName string) (bool, error) {
+func UnschedulableNode(client *kubernetes.Clientset, nodeName string) (bool, error) {
 	node, err := client.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		return false, err
