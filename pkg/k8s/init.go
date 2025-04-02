@@ -80,10 +80,15 @@ func GetK8sConf(name string) (string, error) {
 	return k8sCluster.KubeConfig, nil
 }
 
-// 从 kubeconfig 字符串创建动态客户端
-func CreateDynamicClient(kubeconfigContent string) (dynamic.Interface, error) {
+// CreateDynamicClient
+//
+//	@Description: 从 kubeconfig 字符串创建动态客户端
+//	@param kubeConf
+//	@return dynamic.Interface
+//	@return error
+func CreateDynamicClient(kubeConf string) (dynamic.Interface, error) {
 	// 将字符串转换为 clientcmdapi.Config 对象
-	config, err := clientcmd.Load([]byte(kubeconfigContent))
+	config, err := clientcmd.Load([]byte(kubeConf))
 	if err != nil {
 		return nil, fmt.Errorf("加载 kubeconfig 失败: %v", err)
 	}
