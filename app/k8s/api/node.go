@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gkube/app/k8s/params"
 	"gkube/pkg/response"
+	corev1 "k8s.io/api/core/v1"
 
 	"gkube/pkg/k8s"
 	k8sNode "gkube/pkg/k8s/node"
@@ -138,11 +139,35 @@ func (n *node) EvictsNodeSinglePod(c *gin.Context) {
 	}
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("驱逐节点pod失败:%s", err.Error()))
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 	}
 	err = k8sNode.EvictsNodeSinglePod(client, body.Namespace, body.PodName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("驱逐节点pod失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}
+
+// SetTaintNode
+//
+//	@Description: 给节点设置污点
+//	@receiver n
+//	@param c
+func (n *node) SetTaintNode(c *gin.Context) {
+	var body params.TaintNodeParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+
+	if err := k8sNode.SetTaintNode(client, body.NodeName, body.Key, body.Value, corev1.TaintEffect(body.Effect)); err != nil {
+		response.Fail(c, fmt.Sprintf("设置污点失败:%s", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", nil)

@@ -126,3 +126,29 @@ func EvictsNodeSinglePod(client *kubernetes.Clientset, namespace, podName string
 	}
 	return nil
 }
+
+// SetTaintNode
+//
+//	@Description: 设置污点
+//	@param client
+//	@param nodeName
+//	@param key
+//	@param value
+//	@param effect NoSchedule PreferNoSchedule NoExecute
+//	@return error
+func SetTaintNode(client *kubernetes.Clientset, nodeName, key, value string, effect corev1.TaintEffect) error {
+	node, err := client.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	node.Spec.Taints = append(node.Spec.Taints, corev1.Taint{
+		Key:    key,
+		Value:  value,
+		Effect: effect,
+	})
+	_, err = client.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
