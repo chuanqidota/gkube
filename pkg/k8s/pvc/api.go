@@ -103,16 +103,16 @@ func GetPVCYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 //	@param pvcYaml
 //	@return bool
 //	@return error
-func CreatePVC(client *kubernetes.Clientset, namespace, pvcYaml string) (bool, error) {
+func CreatePVC(client *kubernetes.Clientset, namespace, pvcYaml string) error {
 	var pvc corev1.PersistentVolumeClaim
 	if err := yaml.Unmarshal([]byte(pvcYaml), &pvc); err != nil {
-		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
 	_, err := client.CoreV1().PersistentVolumeClaims(namespace).Create(context.Background(), &pvc, metav1.CreateOptions{})
 	if err != nil {
-		return false, fmt.Errorf("创建pvc资源失败:%s", err.Error())
+		return fmt.Errorf("创建pvc资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // DeletePVCByName
@@ -123,12 +123,12 @@ func CreatePVC(client *kubernetes.Clientset, namespace, pvcYaml string) (bool, e
 //	@param name
 //	@return bool
 //	@return error
-func DeletePVCByName(client *kubernetes.Clientset, namespace, name string) (bool, error) {
+func DeletePVCByName(client *kubernetes.Clientset, namespace, name string) error {
 	err := client.CoreV1().PersistentVolumeClaims(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // DeletePVCByLabel
@@ -139,15 +139,15 @@ func DeletePVCByName(client *kubernetes.Clientset, namespace, name string) (bool
 //	@param labelMap
 //	@return bool
 //	@return error
-func DeletePVCByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) (bool, error) {
+func DeletePVCByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
 	labelSelector := labels.SelectorFromSet(labelMap)
 	err := client.CoreV1().PersistentVolumeClaims(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // DeletePVCByField
@@ -158,13 +158,13 @@ func DeletePVCByLabel(client *kubernetes.Clientset, namespace string, labelMap m
 //	@param fieldMap
 //	@return bool
 //	@return error
-func DeletePVCByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) (bool, error) {
+func DeletePVCByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) error {
 	fieldSelector := labels.SelectorFromSet(fieldMap)
 	err := client.CoreV1().PersistentVolumeClaims(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }

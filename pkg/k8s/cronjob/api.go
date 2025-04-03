@@ -103,17 +103,17 @@ func GetCronJobByField(client *kubernetes.Clientset, namespace string, fieldMap 
 //	@param cronJobYaml
 //	@return bool
 //	@return error
-func CreateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) (bool, error) {
+func CreateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) error {
 	var cronJob batchv1.CronJob
 	if err := yaml.Unmarshal([]byte(cronJobYaml), &cronJob); err != nil {
-		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
 
 	_, err := client.BatchV1().CronJobs(namespace).Create(context.TODO(), &cronJob, metav1.CreateOptions{})
 	if err != nil {
-		return false, fmt.Errorf("创建cronjob资源失败:%s", err.Error())
+		return fmt.Errorf("创建cronjob资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // UpdateCronJob
@@ -124,17 +124,17 @@ func CreateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) 
 //	@param cronJobYaml
 //	@return bool
 //	@return error
-func UpdateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) (bool, error) {
+func UpdateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) error {
 	var cronJob batchv1.CronJob
 	if err := yaml.Unmarshal([]byte(cronJobYaml), &cronJob); err != nil {
-		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
 
 	_, err := client.BatchV1().CronJobs(namespace).Update(context.TODO(), &cronJob, metav1.UpdateOptions{})
 	if err != nil {
-		return false, fmt.Errorf("更新cronjob资源失败:%s", err.Error())
+		return fmt.Errorf("更新cronjob资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteCronJob
@@ -145,12 +145,12 @@ func UpdateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) 
 //	@param name
 //	@return bool
 //	@return error
-func DeleteCronJob(client *kubernetes.Clientset, namespace, name string) (bool, error) {
+func DeleteCronJob(client *kubernetes.Clientset, namespace, name string) error {
 	err := client.BatchV1().CronJobs(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		return false, fmt.Errorf("删除cronjob资源失败:%s", err.Error())
+		return fmt.Errorf("删除cronjob资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteCronJobByField
@@ -161,15 +161,15 @@ func DeleteCronJob(client *kubernetes.Clientset, namespace, name string) (bool, 
 //	@param fieldMap
 //	@return bool
 //	@return error
-func DeleteCronJobByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) (bool, error) {
+func DeleteCronJobByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) error {
 	fieldSelector := labels.SelectorFromSet(fieldMap)
 	err := client.BatchV1().CronJobs(namespace).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
-		return false, fmt.Errorf("删除cronjob资源失败:%s", err.Error())
+		return fmt.Errorf("删除cronjob资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteCronJobByLabel
@@ -180,13 +180,13 @@ func DeleteCronJobByField(client *kubernetes.Clientset, namespace string, fieldM
 //	@param labelMap
 //	@return bool
 //	@return error
-func DeleteCronJobByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) (bool, error) {
+func DeleteCronJobByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
 	labelSelector := labels.SelectorFromSet(labelMap)
 	err := client.BatchV1().CronJobs(namespace).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
 	if err != nil {
-		return false, fmt.Errorf("删除cronjob资源失败:%s", err.Error())
+		return fmt.Errorf("删除cronjob资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }

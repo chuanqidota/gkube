@@ -88,6 +88,16 @@ func Engine() *gin.Engine {
 		k8sRouter.DELETE("pv/delete/by-label", api.Pv.DeletePVByLabel) // 删除存储pv根据标签
 		k8sRouter.DELETE("pv/delete/by-field", api.Pv.DeletePVByField) // 删除存储pv根据字段
 
+		k8sRouter.GET("pvc/list", api.Pvc.GetPVCList)                  //获取存储pvc
+		k8sRouter.GET("pvc/list/by-name", api.Pvc.GetPVCByName)        // 获取存储pvc根据名称
+		k8sRouter.GET("pvc/list/by-label", api.Pvc.GetPVCByLabel)      // 获取存储pvc根据标签
+		k8sRouter.GET("pvc/list/by-field", api.Pvc.GetPVCByField)      // 获取存储pvc根据字段
+		k8sRouter.GET("pvc/yaml", api.Pvc.GetPVCYaml)                  // 获取存储pvc的yaml
+		k8sRouter.GET("pvc/create", api.Pvc.CreatePVC)                 // 创建存储pvc
+		k8sRouter.GET("pvc/delete/by-name", api.Pvc.DeletePVCByName)   // 删除存储pvc根据名称
+		k8sRouter.GET("pvc/delete/by-label", api.Pvc.DeletePVCByLabel) // 删除存储pvc根据标签
+		k8sRouter.GET("pvc/delete/by-field", api.Pvc.DeletePVCByField) // 删除存储pvc根据字段
+
 		k8sRouter.GET("storage/storageclass")        // 获取存储storageclass
 		k8sRouter.GET("storage/storageclass/detail") // 获取存储storageclass详情
 		k8sRouter.DELETE("storage/storageclass")     // 删除存储storageclass
