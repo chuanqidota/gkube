@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
+	"time"
 )
 
 // GetDeploymentList
@@ -171,4 +174,72 @@ func DeleteDeploymentByLabel(client *kubernetes.Clientset, namespace string, lab
 		return false, fmt.Errorf("删除deployment资源失败:%s", err.Error())
 	}
 	return true, nil
+}
+
+// ScaleDeployment
+//
+//	@Description: 扩所容deployment
+//	@param client
+//	@param namespace
+//	@param name
+//	@param replicas
+//	@return bool
+//	@return error
+func ScaleDeployment(client *kubernetes.Clientset, namespace, name string, replicas int32) (bool, error) {
+	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("获取deployment资源失败:%s", err.Error())
+	}
+	deployment.Spec.Replicas = &replicas
+	_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("更新deployment资源失败:%s", err.Error())
+	}
+	return true, nil
+}
+
+// RestartDeployment
+//
+//	@Description: 重启deployment
+//	@param client
+//	@param namespace
+//	@param name
+//	@return bool
+//	@return error
+func RestartDeployment(client *kubernetes.Clientset, namespace, name string) (bool, error) {
+	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("获取deployment资源失败:%s", err.Error())
+	}
+	deployment.Spec.Template.Annotations = map[string]string{
+		"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.DateTime),
+	}
+	_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("更新deployment资源失败:%s", err.Error())
+	}
+	return true, nil
+}
+
+// DpPodList
+//
+//	@Description: deployment关联的pod
+//	@param client
+//	@param namespace
+//	@param name
+//	@return *corev1.PodList
+//	@return error
+func DpPodList(client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
+	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取deployment资源失败:%s", err.Error())
+	}
+	selector := labels.Set(deployment.Spec.Selector.MatchLabels).AsSelectorPreValidated()
+	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: selector.String(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
+	}
+	return podList, nil
 }
