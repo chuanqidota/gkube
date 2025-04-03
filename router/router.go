@@ -26,6 +26,32 @@ func Engine() *gin.Engine {
 		k8sRouter.GET("namespace/list", api.Namespace.GetNamespaceList)   // 获取命名空间
 		k8sRouter.POST("namespace/create", api.Namespace.CreateNamespace) // 创建命名空间
 
+		k8sRouter.GET("job/list", api.Job.GetJobList)                     // 获取任务列表
+		k8sRouter.GET("job/by-name", api.Job.GetJobByName)                // 根据名称获取任务
+		k8sRouter.POST("job/by-field", api.Job.GetJobByFiled)             // 根据字段获取任务
+		k8sRouter.POST("job/by-label", api.Job.GetJobByLabel)             // 根据标签获取任务
+		k8sRouter.GET("job/yaml", api.Job.GetJobYaml)                     // 获取任务的yaml
+		k8sRouter.POST("job/create", api.Job.CreateJob)                   // 创建任务
+		k8sRouter.PUT("job/update", api.Job.UpdateJob)                    // 更新任务
+		k8sRouter.DELETE("job/delete", api.Job.DeleteJob)                 // 删除任务
+		k8sRouter.DELETE("job/delete/by-field", api.Job.DeleteJobByField) // 根据字段删除任务
+		k8sRouter.DELETE("job/delete/by-label", api.Job.DeleteJobByLabel) // 根据标签删除任务
+
+		k8sRouter.GET("cronjob")        // 获取定时任务
+		k8sRouter.GET("cronjob/detail") // 获取定时任务详情
+		k8sRouter.POST("cronjob")       // 创建定时任务
+		k8sRouter.DELETE("cronjob")     // 删除定时任务
+
+		k8sRouter.GET("ingress")        // 获取ingress
+		k8sRouter.GET("ingress/detail") // 获取ingress详情
+		k8sRouter.POST("ingress")       // 创建ingress
+		k8sRouter.DELETE("ingress")     // 删除ingress
+
+		k8sRouter.GET("service")        // 获取服务
+		k8sRouter.GET("service/detail") // 获取服务详情
+		k8sRouter.POST("service")       // 创建服务
+		k8sRouter.DELETE("service")     // 删除服务
+
 		k8sRouter.GET("deployment/list", api.Deployment.GetDeploymentList)                     // 获取deployment
 		k8sRouter.POST("deployment/list-by-field", api.Deployment.GetDeploymentByField)        // 根据字段获取deployment
 		k8sRouter.POST("deployment/list-by-label", api.Deployment.GetDeploymentByLabel)        // 根据标签获取deployment
@@ -55,17 +81,6 @@ func Engine() *gin.Engine {
 		k8sRouter.DELETE("daemonset")       // 删除守护进程集
 		k8sRouter.POST("daemonset/restart") // 重启守护进程集
 
-		k8sRouter.GET("job")        // 获取任务
-		k8sRouter.GET("job/detail") // 获取任务详情
-		k8sRouter.POST("job")       // 创建任务
-		k8sRouter.DELETE("job")     // 删除任务
-		k8sRouter.POST("job/scale") // 扩容任务
-
-		k8sRouter.GET("cronjob")        // 获取定时任务
-		k8sRouter.GET("cronjob/detail") // 获取定时任务详情
-		k8sRouter.POST("cronjob")       // 创建定时任务
-		k8sRouter.DELETE("cronjob")     // 删除定时任务
-
 		k8sRouter.GET("storage/pvc")        // 获取存储pvc
 		k8sRouter.GET("storage/pvc/detail") // 获取存储pvc详情
 		k8sRouter.DELETE("storage/pvc")     // 删除存储pvc
@@ -77,16 +92,6 @@ func Engine() *gin.Engine {
 		k8sRouter.GET("storage/storageclass")        // 获取存储storageclass
 		k8sRouter.GET("storage/storageclass/detail") // 获取存储storageclass详情
 		k8sRouter.DELETE("storage/storageclass")     // 删除存储storageclass
-
-		k8sRouter.GET("service")        // 获取服务
-		k8sRouter.GET("service/detail") // 获取服务详情
-		k8sRouter.POST("service")       // 创建服务
-		k8sRouter.DELETE("service")     // 删除服务
-
-		k8sRouter.GET("ingress")        // 获取ingress
-		k8sRouter.GET("ingress/detail") // 获取ingress详情
-		k8sRouter.POST("ingress")       // 创建ingress
-		k8sRouter.DELETE("ingress")     // 删除ingress
 
 		k8sRouter.GET("configmap")        // 获取configmap
 		k8sRouter.GET("configmap/detail") // 获取configmap详情
