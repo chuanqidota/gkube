@@ -18,21 +18,24 @@ func Engine() *gin.Engine {
 
 		k8sRouter.GET("node/yaml", api.Node.GetNodeYaml)                  // 获取节点yaml
 		k8sRouter.GET("node/pods", api.Node.GetNodePods)                  // 获取节点的pods
-		k8sRouter.POST("node/unscheduled", api.Node.UnscheduledNode)      // 禁止调度
+		k8sRouter.PUT("node/unscheduled", api.Node.UnscheduledNode)       // 禁止调度
 		k8sRouter.POST("node/evict-all", api.Node.EvictsNodeAllPods)      // 驱逐节点上所有的pod
 		k8sRouter.POST("node/evict-single", api.Node.EvictsNodeSinglePod) // 驱逐节点上的单个pod
-		k8sRouter.POST("node/taint", api.Node.SetTaintNode)               // 给节点设置污点
+		k8sRouter.PUT("node/taint", api.Node.SetTaintNode)                // 给节点设置污点
 
-		k8sRouter.GET("cluster/namespace", api.Namespace.GetClusterNamespaceList) // 获取命名空间
-		k8sRouter.GET("events")                                                   // 事件
+		k8sRouter.GET("namespace", api.Namespace.GetNamespaceList) // 获取命名空间
 
-		k8sRouter.GET("deployment") // 获取deployment
-		k8sRouter.GET("deployment/detail")
-		k8sRouter.POST("deployment")   // 创建deployment
-		k8sRouter.DELETE("deployment") // 删除deployment
-
-		k8sRouter.POST("deployment/scale")   // 扩容
-		k8sRouter.POST("deployment/restart") // 重启
+		k8sRouter.GET("deployment/list", api.Deployment.GetDeploymentList)                     // 获取deployment
+		k8sRouter.POST("deployment/list-by-field", api.Deployment.GetDeploymentByField)        // 根据字段获取deployment
+		k8sRouter.POST("deployment/list-by-label", api.Deployment.GetDeploymentByLabel)        // 根据标签获取deployment
+		k8sRouter.POST("deployment/create", api.Deployment.CreateDeployment)                   // 创建deployment                                        // 创建deployment
+		k8sRouter.PUT("deployment/update", api.Deployment.UpdateDeployment)                    // 更新deployment                                        // 创建deployment
+		k8sRouter.DELETE("deployment/delete-by-name", api.Deployment.DeleteDeployment)         // 删除deployment                                         // 删除deployment
+		k8sRouter.DELETE("deployment/delete-by-field", api.Deployment.DeleteDeploymentByField) // 根据字段删除deployment
+		k8sRouter.DELETE("deployment/delete-by-label", api.Deployment.DeleteDeploymentByLabel) // 根据标签删除deployment
+		k8sRouter.POST("deployment/scale", api.Deployment.ScaleDeployment)                     // 扩容deployment
+		k8sRouter.POST("deployment/restart", api.Deployment.RestartDeployment)                 // 重启deployment
+		k8sRouter.GET("deployment/pods", api.Deployment.DeploymentPodList)                     // 获取deployment pods
 
 		k8sRouter.GET("pod")          //  获取pod列表
 		k8sRouter.GET("pod/detail")   // 获取pod详情
@@ -93,6 +96,8 @@ func Engine() *gin.Engine {
 		k8sRouter.GET("secret/detail") // 获取secret详情
 		k8sRouter.POST("secret")       // 创建secret
 		k8sRouter.DELETE("secret")     // 删除secret
+
+		k8sRouter.GET("events") // 事件
 
 		// container资源
 		k8sRouter.GET("container/exec", api.HandleWebSocket)     // websocket container
