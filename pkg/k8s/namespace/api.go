@@ -21,3 +21,21 @@ func GetNamespaceList(client *kubernetes.Clientset) (*corev1.NamespaceList, erro
 	}
 	return namespace, err
 }
+
+// CreateNamespace
+//
+//	@Description: 创建命名空间
+//	@param client
+//	@param namespace
+//	@return error
+func CreateNamespace(client *kubernetes.Clientset, namespace string) error {
+	_, err := client.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	}, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}

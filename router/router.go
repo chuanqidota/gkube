@@ -23,7 +23,8 @@ func Engine() *gin.Engine {
 		k8sRouter.POST("node/evict-single", api.Node.EvictsNodeSinglePod) // 驱逐节点上的单个pod
 		k8sRouter.PUT("node/taint", api.Node.SetTaintNode)                // 给节点设置污点
 
-		k8sRouter.GET("namespace", api.Namespace.GetNamespaceList) // 获取命名空间
+		k8sRouter.GET("namespace/list", api.Namespace.GetNamespaceList)   // 获取命名空间
+		k8sRouter.POST("namespace/create", api.Namespace.CreateNamespace) // 创建命名空间
 
 		k8sRouter.GET("deployment/list", api.Deployment.GetDeploymentList)                     // 获取deployment
 		k8sRouter.POST("deployment/list-by-field", api.Deployment.GetDeploymentByField)        // 根据字段获取deployment
