@@ -1,6 +1,7 @@
 package model
 
-// 记录
+// TerminalRecord
+// @Description: 终端操作记录表
 type TerminalRecord struct {
 	BaseModel
 	Key         string `json:"key" gorm:"column:key;type:string;size:100;comment:唯一标识"`
@@ -8,7 +9,6 @@ type TerminalRecord struct {
 	Namespace   string `json:"namespace" gorm:"column:namespace;type:string;size:100;comment:命名空间"`
 	PodName     string `json:"podName" gorm:"column:pod_name;type:string;size:100;comment:pod名称"`
 }
-
 
 func (TerminalRecord) TableName() string {
 	return "terminal_record"

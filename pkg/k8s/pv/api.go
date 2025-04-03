@@ -96,18 +96,17 @@ func GetPVYaml(client *kubernetes.Clientset, name string) (string, error) {
 //	@Description: 创建PV
 //	@param client
 //	@param pvYaml
-//	@return bool
 //	@return error
-func CreatePV(client *kubernetes.Clientset, pvYaml string) (bool, error) {
+func CreatePV(client *kubernetes.Clientset, pvYaml string) error {
 	var persistentVolume corev1.PersistentVolume
 	if err := yaml.Unmarshal([]byte(pvYaml), &persistentVolume); err != nil {
-		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
-	pv, err := client.CoreV1().PersistentVolumes().Create(context.Background(), &persistentVolume, metav1.CreateOptions{})
+	_, err := client.CoreV1().PersistentVolumes().Create(context.Background(), &persistentVolume, metav1.CreateOptions{})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return pv.Name == pvYaml, nil
+	return nil
 }
 
 // UpdatePV
@@ -115,69 +114,17 @@ func CreatePV(client *kubernetes.Clientset, pvYaml string) (bool, error) {
 //	@Description: 更新PV
 //	@param client
 //	@param pvYaml
-//	@return bool
 //	@return error
-func UpdatePV(client *kubernetes.Clientset, pvYaml string) (bool, error) {
+func UpdatePV(client *kubernetes.Clientset, pvYaml string) error {
 	var persistentVolume corev1.PersistentVolume
 	if err := yaml.Unmarshal([]byte(pvYaml), &persistentVolume); err != nil {
-		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
-	pv, err := client.CoreV1().PersistentVolumes().Update(context.Background(), &persistentVolume, metav1.UpdateOptions{})
+	_, err := client.CoreV1().PersistentVolumes().Update(context.Background(), &persistentVolume, metav1.UpdateOptions{})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return pv.Name == pvYaml, nil
-}
-
-// DeletePV
-//
-//	@Description: 删除PV
-//	@param client
-//	@param name
-//	@return bool
-//	@return error
-func DeletePV(client *kubernetes.Clientset, name string) (bool, error) {
-	err := client.CoreV1().PersistentVolumes().Delete(context.Background(), name, metav1.DeleteOptions{})
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// DeletePVByLabel
-//
-//	@Description: 删除PV通过标签
-//	@param client
-//	@param labelMap
-//	@return bool
-//	@return error
-func DeletePVByLabel(client *kubernetes.Clientset, labelMap map[string]string) (bool, error) {
-	labelSelector := labels.SelectorFromSet(labelMap)
-	err := client.CoreV1().PersistentVolumes().DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
-	})
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// DeletePVByField
-//
-//	@Description: 删除PV通过字段
-//	@param client
-//	@param fieldMap
-//	@return bool
-//	@return error
-func DeletePVByField(client *kubernetes.Clientset, fieldMap map[string]string) (bool, error) {
-	fieldSelector := fields.SelectorFromSet(fieldMap)
-	err := client.CoreV1().PersistentVolumes().DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
-		FieldSelector: fieldSelector.String(),
-	})
-	if err != nil {
-		return false, err
-	}
-	return true, nil
+	return nil
 }
 
 // DeletePVByName
@@ -185,12 +132,45 @@ func DeletePVByField(client *kubernetes.Clientset, fieldMap map[string]string) (
 //	@Description: 删除PV通过名称
 //	@param client
 //	@param name
-//	@return bool
 //	@return error
-func DeletePVByName(client *kubernetes.Clientset, name string) (bool, error) {
+func DeletePVByName(client *kubernetes.Clientset, name string) error {
 	err := client.CoreV1().PersistentVolumes().Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
+}
+
+// DeletePVByLabel
+//
+//	@Description: 删除PV通过标签
+//	@param client
+//	@param labelMap
+//	@return error
+func DeletePVByLabel(client *kubernetes.Clientset, labelMap map[string]string) error {
+	labelSelector := labels.SelectorFromSet(labelMap)
+	err := client.CoreV1().PersistentVolumes().DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
+		LabelSelector: labelSelector.String(),
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeletePVByField
+//
+//	@Description: 删除PV通过字段
+//	@param client
+//	@param fieldMap
+//	@return error
+func DeletePVByField(client *kubernetes.Clientset, fieldMap map[string]string) error {
+	fieldSelector := fields.SelectorFromSet(fieldMap)
+	err := client.CoreV1().PersistentVolumes().DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
+		FieldSelector: fieldSelector.String(),
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }

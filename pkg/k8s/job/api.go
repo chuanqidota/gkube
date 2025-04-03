@@ -100,19 +100,19 @@ func GetJobYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 //
 //	@Description: 创建job
 //	@param client
+//	@param namespace
 //	@param jobYaml
-//	@return bool
 //	@return error
-func CreateJob(client *kubernetes.Clientset, jobYaml string) (bool, error) {
+func CreateJob(client *kubernetes.Clientset, jobYaml string) error {
 	var job batchv1.Job
 	if err := yaml.Unmarshal([]byte(jobYaml), &job); err != nil {
-		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
 	_, err := client.BatchV1().Jobs(job.Namespace).Create(context.Background(), &job, metav1.CreateOptions{})
 	if err != nil {
-		return false, fmt.Errorf("创建job资源失败:%s", err.Error())
+		return fmt.Errorf("创建job资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // UpdateJob
@@ -120,18 +120,17 @@ func CreateJob(client *kubernetes.Clientset, jobYaml string) (bool, error) {
 //	@Description: 更新job
 //	@param client
 //	@param jobYaml
-//	@return bool
 //	@return error
-func UpdateJob(client *kubernetes.Clientset, jobYaml string) (bool, error) {
+func UpdateJob(client *kubernetes.Clientset, jobYaml string) error {
 	var job batchv1.Job
 	if err := yaml.Unmarshal([]byte(jobYaml), &job); err != nil {
-		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
 	_, err := client.BatchV1().Jobs(job.Namespace).Update(context.Background(), &job, metav1.UpdateOptions{})
 	if err != nil {
-		return false, fmt.Errorf("更新失败:%s", err.Error())
+		return fmt.Errorf("更新失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteJob
@@ -140,14 +139,13 @@ func UpdateJob(client *kubernetes.Clientset, jobYaml string) (bool, error) {
 //	@param client
 //	@param namespace
 //	@param name
-//	@return bool
 //	@return error
-func DeleteJob(client *kubernetes.Clientset, namespace, name string) (bool, error) {
+func DeleteJob(client *kubernetes.Clientset, namespace, name string) error {
 	err := client.BatchV1().Jobs(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
-		return false, fmt.Errorf("删除job资源失败:%s", err.Error())
+		return fmt.Errorf("删除job资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteJobByField
@@ -156,17 +154,16 @@ func DeleteJob(client *kubernetes.Clientset, namespace, name string) (bool, erro
 //	@param client
 //	@param namespace
 //	@param fieldMap
-//	@return bool
 //	@return error
-func DeleteJobByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) (bool, error) {
+func DeleteJobByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) error {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
 	err := client.BatchV1().Jobs(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
-		return false, fmt.Errorf("删除job资源失败:%s", err.Error())
+		return fmt.Errorf("删除job资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteJobByLabel
@@ -175,15 +172,14 @@ func DeleteJobByField(client *kubernetes.Clientset, namespace string, fieldMap m
 //	@param client
 //	@param namespace
 //	@param labelMap
-//	@return bool
 //	@return error
-func DeleteJobByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) (bool, error) {
+func DeleteJobByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
 	labelSelector := labels.SelectorFromSet(labelMap)
 	err := client.BatchV1().Jobs(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
 	if err != nil {
-		return false, fmt.Errorf("删除job资源失败:%s", err.Error())
+		return fmt.Errorf("删除job资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
