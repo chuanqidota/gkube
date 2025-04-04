@@ -103,31 +103,33 @@ func Engine() *gin.Engine {
 		k8sRouter.DELETE("pv/delete/by-label", api.Pv.DeletePVByLabel) // 删除存储pv根据标签
 		k8sRouter.DELETE("pv/delete/by-field", api.Pv.DeletePVByField) // 删除存储pv根据字段
 
-		k8sRouter.GET("pvc/list", api.Pvc.GetPVCList)                  //获取存储pvc
-		k8sRouter.GET("pvc/list/by-name", api.Pvc.GetPVCByName)        // 获取存储pvc根据名称
-		k8sRouter.GET("pvc/list/by-label", api.Pvc.GetPVCByLabel)      // 获取存储pvc根据标签
-		k8sRouter.GET("pvc/list/by-field", api.Pvc.GetPVCByField)      // 获取存储pvc根据字段
-		k8sRouter.GET("pvc/yaml", api.Pvc.GetPVCYaml)                  // 获取存储pvc的yaml
-		k8sRouter.GET("pvc/create", api.Pvc.CreatePVC)                 // 创建存储pvc
-		k8sRouter.GET("pvc/delete/by-name", api.Pvc.DeletePVCByName)   // 删除存储pvc根据名称
-		k8sRouter.GET("pvc/delete/by-label", api.Pvc.DeletePVCByLabel) // 删除存储pvc根据标签
-		k8sRouter.GET("pvc/delete/by-field", api.Pvc.DeletePVCByField) // 删除存储pvc根据字段
+		k8sRouter.GET("pvc/list", api.Pvc.GetPVCList)                     //获取存储pvc
+		k8sRouter.GET("pvc/list/by-name", api.Pvc.GetPVCByName)           // 获取存储pvc根据名称
+		k8sRouter.POST("pvc/list/by-label", api.Pvc.GetPVCByLabel)        // 获取存储pvc根据标签
+		k8sRouter.POST("pvc/list/by-field", api.Pvc.GetPVCByField)        // 获取存储pvc根据字段
+		k8sRouter.GET("pvc/yaml", api.Pvc.GetPVCYaml)                     // 获取存储pvc的yaml
+		k8sRouter.POST("pvc/create", api.Pvc.CreatePVC)                   // 创建存储pvc
+		k8sRouter.DELETE("pvc/delete/by-name", api.Pvc.DeletePVCByName)   // 删除存储pvc根据名称
+		k8sRouter.DELETE("pvc/delete/by-label", api.Pvc.DeletePVCByLabel) // 删除存储pvc根据标签
+		k8sRouter.DELETE("pvc/delete/by-field", api.Pvc.DeletePVCByField) // 删除存储pvc根据字段
 
-		k8sRouter.GET("storageClass/list", api.StorageClass.GetStorageClassList)                  // 获取存储sc列表
-		k8sRouter.GET("storageClass/list-by-name", api.StorageClass.GetStorageClassByName)        // 获取存储sc根据名称
-		k8sRouter.GET("storageClass/list-by-field", api.StorageClass.GetStorageClassByField)      // 获取存储sc根据字段
-		k8sRouter.GET("storageClass/list-by-label", api.StorageClass.GetStorageClassByLabel)      // 获取存储sc根据标签
-		k8sRouter.GET("storageClass/yaml", api.StorageClass.GetStorageClassYaml)                  // 获取存储sc的yaml
-		k8sRouter.GET("storageClass/create", api.StorageClass.CreateStorageClass)                 // 创建存储sc
-		k8sRouter.GET("storageClass/update", api.StorageClass.UpdateStorageClass)                 // 更新存储sc
-		k8sRouter.GET("storageClass/delete-by-name", api.StorageClass.DeleteStorageClassByName)   // 删除存储sc根据名称
-		k8sRouter.GET("storageClass/delete-by-field", api.StorageClass.DeleteStorageClassByField) // 删除存储sc根据字段
-		k8sRouter.GET("storageClass/delete-by-label", api.StorageClass.DeleteStorageClassByLabel) // 删除存储sc根据标签
+		k8sRouter.GET("storageClass/list", api.StorageClass.GetStorageClassList)                     // 获取存储sc列表
+		k8sRouter.GET("storageClass/list-by-name", api.StorageClass.GetStorageClassByName)           // 获取存储sc根据名称
+		k8sRouter.POST("storageClass/list-by-field", api.StorageClass.GetStorageClassByField)        // 获取存储sc根据字段
+		k8sRouter.POST("storageClass/list-by-label", api.StorageClass.GetStorageClassByLabel)        // 获取存储sc根据标签
+		k8sRouter.GET("storageClass/yaml", api.StorageClass.GetStorageClassYaml)                     // 获取存储sc的yaml
+		k8sRouter.POST("storageClass/create", api.StorageClass.CreateStorageClass)                   // 创建存储sc
+		k8sRouter.GET("storageClass/update", api.StorageClass.UpdateStorageClass)                    // 更新存储sc
+		k8sRouter.DELETE("storageClass/delete-by-name", api.StorageClass.DeleteStorageClassByName)   // 删除存储sc根据名称
+		k8sRouter.DELETE("storageClass/delete-by-field", api.StorageClass.DeleteStorageClassByField) // 删除存储sc根据字段
+		k8sRouter.DELETE("storageClass/delete-by-label", api.StorageClass.DeleteStorageClassByLabel) // 删除存储sc根据标签
 
-		k8sRouter.GET("configmap")        // 获取configmap
-		k8sRouter.GET("configmap/detail") // 获取configmap详情
-		k8sRouter.POST("configmap")       // 创建configmap
-		k8sRouter.DELETE("configmap")     // 删除configmap
+		k8sRouter.GET("configmap/list", api.ConfigMap.GetConfigMapList)                   // 获取configmap
+		k8sRouter.GET("configmap/by-name", api.ConfigMap.GetConfigMapByName)              // 获取configmap根据名称
+		k8sRouter.GET("configmap/yaml", api.ConfigMap.GetConfigMapYaml)                   // 获取configmap的yaml
+		k8sRouter.POST("configmap/create", api.ConfigMap.CreateConfigMap)                 // 创建configmap
+		k8sRouter.PUT("configmap/update", api.ConfigMap.UpdateConfigMap)                  // 更新configmap
+		k8sRouter.DELETE("configmap/delete-by-name", api.ConfigMap.DeleteConfigMapByName) // 删除configmap根据名称
 
 		k8sRouter.GET("secret")        // 获取secret
 		k8sRouter.GET("secret/detail") // 获取secret详情
