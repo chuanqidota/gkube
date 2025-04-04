@@ -59,10 +59,14 @@ func Engine() *gin.Engine {
 		k8sRouter.DELETE("ingress/delete-by-label", api.Ingress.DeleteIngressByLabel) // 删除ingress根据标签
 		k8sRouter.DELETE("ingress/delete-by-field", api.Ingress.DeleteIngressByField) // 删除ingress根据字段
 
-		k8sRouter.GET("service")        // 获取服务
-		k8sRouter.GET("service/detail") // 获取服务详情
-		k8sRouter.POST("service")       // 创建服务
-		k8sRouter.DELETE("service")     // 删除服务
+		k8sRouter.GET("service/list", api.Service.GetServicesList)                // 获取服务
+		k8sRouter.GET("service/list-by-name", api.Service.GetServicesByName)      // 获取服务根据名称
+		k8sRouter.POST("service/list-by-label", api.Service.GetServicesByLabel)   // 获取服务根据标签
+		k8sRouter.DELETE("service/list-by-field", api.Service.GetServicesByField) // 获取服务根据字段
+		k8sRouter.DELETE("service/yaml", api.Service.GetServicesYaml)             // 获取服务的yaml
+		k8sRouter.DELETE("service/create", api.Service.CreateService)             // 创建服务
+		k8sRouter.DELETE("service/update", api.Service.UpdateService)             // 更新服务
+		k8sRouter.DELETE("service/delete", api.Service.DeleteService)             // 删除服务
 
 		k8sRouter.GET("deployment/list", api.Deployment.GetDeploymentList)                     // 获取deployment
 		k8sRouter.POST("deployment/list-by-field", api.Deployment.GetDeploymentByField)        // 根据字段获取deployment
@@ -137,12 +141,12 @@ func Engine() *gin.Engine {
 		k8sRouter.PUT("configmap/update", api.ConfigMap.UpdateConfigMap)                  // 更新configmap
 		k8sRouter.DELETE("configmap/delete-by-name", api.ConfigMap.DeleteConfigMapByName) // 删除configmap根据名称
 
-		k8sRouter.GET("secret/list")         // 获取secret列表
-		k8sRouter.GET("secret/list-by-name") // 获取secret根据名称
-		k8sRouter.GET("secret/yaml")         // 获取secret的yaml
-		k8sRouter.POST("secret/create")      // 创建secret
-		k8sRouter.PUT("secret/update")       // 更新secret
-		k8sRouter.DELETE("secret/delete")    // 删除secret
+		k8sRouter.GET("secret/list", api.Secret.GetSecretsList)          // 获取secret列表
+		k8sRouter.GET("secret/list-by-name", api.Secret.GetSecretByName) // 获取secret根据名称
+		k8sRouter.GET("secret/yaml", api.Secret.GetSecretYaml)           // 获取secret的yaml
+		k8sRouter.POST("secret/create", api.Secret.CreateSecret)         // 创建secret
+		k8sRouter.PUT("secret/update", api.Secret.UpdateSecret)          // 更新secret
+		k8sRouter.DELETE("secret/delete", api.Secret.DeleteSecret)       // 删除secret
 
 		k8sRouter.GET("events") // 事件
 

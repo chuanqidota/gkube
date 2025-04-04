@@ -64,7 +64,7 @@ func GetServicesByLabel(client *kubernetes.Clientset, namespace string, labelMap
 	return services.Items, nil
 }
 
-// GetServicesByFiled
+// GetServicesByField
 //
 //	@Description: 根据字段获取service列表
 //	@param client
@@ -72,7 +72,7 @@ func GetServicesByLabel(client *kubernetes.Clientset, namespace string, labelMap
 //	@param fieldMap
 //	@return []corev1.Service
 //	@return error
-func GetServicesByFiled(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]corev1.Service, error) {
+func GetServicesByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]corev1.Service, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap) // 创建标签选择器
 	services, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),

@@ -87,12 +87,12 @@ func (s *service) GetServicesByLabel(c *gin.Context) {
 	response.Success(c, "获取成功", services)
 }
 
-// GetServicesByFiled
+// GetServicesByField
 //
 //	@Description: 获取svc根据字段
 //	@receiver s
 //	@param c
-func (s *service) GetServicesByFiled(c *gin.Context) {
+func (s *service) GetServicesByField(c *gin.Context) {
 	var body params.ServiceQueryByFieldParams
 	if err := c.ShouldBindQuery(&body); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
@@ -103,7 +103,7 @@ func (s *service) GetServicesByFiled(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	services, err := k8sService.GetServicesByFiled(client, body.Namespace, body.FieldMap)
+	services, err := k8sService.GetServicesByField(client, body.Namespace, body.FieldMap)
 	if err != nil {
 		response.Fail(c, err.Error())
 		return
