@@ -27,9 +27,9 @@ func Engine() *gin.Engine {
 		k8sRouter.POST("namespace/create", api.Namespace.CreateNamespace) // 创建命名空间
 
 		k8sRouter.GET("job/list", api.Job.GetJobList)                     // 获取任务列表
-		k8sRouter.GET("job/by-name", api.Job.GetJobByName)                // 根据名称获取任务
-		k8sRouter.POST("job/by-field", api.Job.GetJobByFiled)             // 根据字段获取任务
-		k8sRouter.POST("job/by-label", api.Job.GetJobByLabel)             // 根据标签获取任务
+		k8sRouter.GET("job/list-by-name", api.Job.GetJobByName)           // 根据名称获取任务
+		k8sRouter.POST("job/list-by-field", api.Job.GetJobByFiled)        // 根据字段获取任务
+		k8sRouter.POST("job/list-by-label", api.Job.GetJobByLabel)        // 根据标签获取任务
 		k8sRouter.GET("job/yaml", api.Job.GetJobYaml)                     // 获取任务的yaml
 		k8sRouter.POST("job/create", api.Job.CreateJob)                   // 创建任务
 		k8sRouter.PUT("job/update", api.Job.UpdateJob)                    // 更新任务
@@ -37,10 +37,16 @@ func Engine() *gin.Engine {
 		k8sRouter.DELETE("job/delete/by-field", api.Job.DeleteJobByField) // 根据字段删除任务
 		k8sRouter.DELETE("job/delete/by-label", api.Job.DeleteJobByLabel) // 根据标签删除任务
 
-		k8sRouter.GET("cronjob")        // 获取定时任务
-		k8sRouter.GET("cronjob/detail") // 获取定时任务详情
-		k8sRouter.POST("cronjob")       // 创建定时任务
-		k8sRouter.DELETE("cronjob")     // 删除定时任务
+		k8sRouter.GET("cronjob/list", api.Cronjob.GetCronJobList)                     // 获取定时任务
+		k8sRouter.GET("cronjob/list-by-name", api.Cronjob.GetCronJobByName)           // 获取定时任务根据名称
+		k8sRouter.POST("cronjob/list-by-label", api.Cronjob.GetCronJobByLabel)        // 获取定时任务根据标签
+		k8sRouter.POST("cronjob/list-by-field", api.Cronjob.GetCronJobByField)        // 获取定时任务根据字段
+		k8sRouter.GET("cronjob/yaml", api.Cronjob.GetCronJobYaml)                     // 获取定时任务详情
+		k8sRouter.POST("cronjob/create", api.Cronjob.CreateCronJob)                   // 创建定时任务
+		k8sRouter.PUT("cronjob/update", api.Cronjob.UpdateCronJob)                    // 更新定时任务
+		k8sRouter.DELETE("cronjob/delete-by-name", api.Cronjob.DeleteCronJobByName)   // 删除定时任务根据名称
+		k8sRouter.DELETE("cronjob/delete-by-label", api.Cronjob.DeleteCronJobByLabel) // 删除定时任务根据标签
+		k8sRouter.DELETE("cronjob/delete-by-field", api.Cronjob.DeleteCronJobByField) // 删除定时任务根据字段
 
 		k8sRouter.GET("ingress")        // 获取ingress
 		k8sRouter.GET("ingress/detail") // 获取ingress详情

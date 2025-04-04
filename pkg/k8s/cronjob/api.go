@@ -25,7 +25,7 @@ func GetCronJobList(client *kubernetes.Clientset, namespace string) ([]batchv1.C
 	return cronJobList.Items, nil
 }
 
-// GetCronJob
+// GetCronJobByName
 //
 //	@Description: 获取cronjob
 //	@param client
@@ -33,7 +33,7 @@ func GetCronJobList(client *kubernetes.Clientset, namespace string) ([]batchv1.C
 //	@param name
 //	@return *batchv1.CronJob
 //	@return error
-func GetCronJob(client *kubernetes.Clientset, namespace, name string) (*batchv1.CronJob, error) {
+func GetCronJobByName(client *kubernetes.Clientset, namespace, name string) (*batchv1.CronJob, error) {
 	cronJob, err := client.BatchV1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -137,7 +137,7 @@ func UpdateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) 
 	return nil
 }
 
-// DeleteCronJob
+// DeleteCronJobByName
 //
 //	@Description: 删除cronjob
 //	@param client
@@ -145,7 +145,7 @@ func UpdateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) 
 //	@param name
 //	@return bool
 //	@return error
-func DeleteCronJob(client *kubernetes.Clientset, namespace, name string) error {
+func DeleteCronJobByName(client *kubernetes.Clientset, namespace, name string) error {
 	err := client.BatchV1().CronJobs(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("删除cronjob资源失败:%s", err.Error())
