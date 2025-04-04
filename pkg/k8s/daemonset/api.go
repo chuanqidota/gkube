@@ -25,7 +25,7 @@ func GetDaemonSetList(client *kubernetes.Clientset, namespace string) ([]appsv1.
 	return daemonSetList.Items, nil
 }
 
-// GetDaemonSet
+// GetDaemonSetByName
 //
 //	@Description: 获取daemonSet
 //	@param client
@@ -33,7 +33,7 @@ func GetDaemonSetList(client *kubernetes.Clientset, namespace string) ([]appsv1.
 //	@param name
 //	@return *appsv1.DaemonSet
 //	@return error
-func GetDaemonSet(client *kubernetes.Clientset, namespace, name string) (*appsv1.DaemonSet, error) {
+func GetDaemonSetByName(client *kubernetes.Clientset, namespace, name string) (*appsv1.DaemonSet, error) {
 	daemonSet, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -102,19 +102,18 @@ func GetDaemonSetByLabel(client *kubernetes.Clientset, namespace string, labelMa
 //	@param client
 //	@param namespace
 //	@param daemonSetYaml
-//	@return bool
 //	@return error
-func CreateDaemonSet(client *kubernetes.Clientset, namespace, daemonSetYaml string) (bool, error) {
+func CreateDaemonSet(client *kubernetes.Clientset, namespace, daemonSetYaml string) error {
 	daemonSet := &appsv1.DaemonSet{}
 	err := yaml.Unmarshal([]byte(daemonSetYaml), daemonSet)
 	if err != nil {
-		return false, err
+		return err
 	}
 	_, err = client.AppsV1().DaemonSets(namespace).Create(context.Background(), daemonSet, metav1.CreateOptions{})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // UpdateDaemonSet
@@ -123,35 +122,33 @@ func CreateDaemonSet(client *kubernetes.Clientset, namespace, daemonSetYaml stri
 //	@param client
 //	@param namespace
 //	@param daemonSetYaml
-//	@return bool
 //	@return error
-func UpdateDaemonSet(client *kubernetes.Clientset, namespace, daemonSetYaml string) (bool, error) {
+func UpdateDaemonSet(client *kubernetes.Clientset, namespace, daemonSetYaml string) error {
 	daemonSet := &appsv1.DaemonSet{}
 	err := yaml.Unmarshal([]byte(daemonSetYaml), daemonSet)
 	if err != nil {
-		return false, err
+		return err
 	}
 	_, err = client.AppsV1().DaemonSets(namespace).Update(context.Background(), daemonSet, metav1.UpdateOptions{})
 	if err != nil {
-		return false, fmt.Errorf("更新daemonSet资源失败:%s", err.Error())
+		return fmt.Errorf("更新daemonSet资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
-// DeleteDaemonSet
+// DeleteDaemonSetByName
 //
 //	@Description: 删除daemonSet
 //	@param client
 //	@param namespace
 //	@param name
-//	@return bool
 //	@return error
-func DeleteDaemonSet(client *kubernetes.Clientset, namespace, name string) (bool, error) {
+func DeleteDaemonSetByName(client *kubernetes.Clientset, namespace, name string) error {
 	err := client.AppsV1().DaemonSets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
-		return false, fmt.Errorf("删除daemonSet资源失败:%s", err.Error())
+		return fmt.Errorf("删除daemonSet资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteDaemonSetByField
@@ -160,17 +157,16 @@ func DeleteDaemonSet(client *kubernetes.Clientset, namespace, name string) (bool
 //	@param client
 //	@param namespace
 //	@param fieldMap
-//	@return bool
 //	@return error
-func DeleteDaemonSetByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) (bool, error) {
+func DeleteDaemonSetByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) error {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
 	err := client.AppsV1().DaemonSets(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
-		return false, fmt.Errorf("删除daemonSet资源失败:%s", err.Error())
+		return fmt.Errorf("删除daemonSet资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteDaemonSetByLabel
@@ -179,15 +175,14 @@ func DeleteDaemonSetByField(client *kubernetes.Clientset, namespace string, fiel
 //	@param client
 //	@param namespace
 //	@param labelMap
-//	@return bool
 //	@return error
-func DeleteDaemonSetByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) (bool, error) {
+func DeleteDaemonSetByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
 	labelSelector := fields.SelectorFromSet(labelMap)
 	err := client.AppsV1().DaemonSets(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
 	if err != nil {
-		return false, fmt.Errorf("删除daemonSet资源失败:%s", err.Error())
+		return fmt.Errorf("删除daemonSet资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }

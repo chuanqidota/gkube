@@ -70,22 +70,27 @@ func Engine() *gin.Engine {
 		k8sRouter.POST("deployment/restart", api.Deployment.RestartDeployment)                 // 重启deployment
 		k8sRouter.GET("deployment/pods", api.Deployment.DeploymentPodList)                     // 获取deployment pods
 
-		k8sRouter.GET("statefulSet/list", api.StatefulSet.GetStatefulSetList)                   // 获取有状态服务列表
-		k8sRouter.GET("statefulSet/list-by-name", api.StatefulSet.GetStatefulSetByName)         // 获取有状态服务根据名称
-		k8sRouter.POST("statefulSet/list-by-field", api.StatefulSet.GetStatefulSetByField)      // 获取有状态服务根据字段
-		k8sRouter.POST("statefulSet/list-by-label", api.StatefulSet.GetStatefulSetByLabel)      // 获取有状态服务根据标签
-		k8sRouter.POST("statefulSet/yaml", api.StatefulSet.GetStatefulSetYaml)                  // 获取有状态服务的yaml
-		k8sRouter.POST("statefulSet/create", api.StatefulSet.CreateStatefulSet)                 // 创建有状态服务
-		k8sRouter.POST("statefulSet/update", api.StatefulSet.UpdateStatefulSet)                 // 更新有状态服务
-		k8sRouter.POST("statefulSet/delete-by-name", api.StatefulSet.DeleteStatefulSetByName)   // 删除有状态服务根据名称
-		k8sRouter.POST("statefulSet/delete-by-label", api.StatefulSet.DeleteStatefulSetByLabel) // 删除有状态服务根据标签
-		k8sRouter.POST("statefulSet/delete-by-field", api.StatefulSet.DeleteStatefulSetByField) // 删除有状态服务根据字段
+		k8sRouter.GET("statefulSet/list", api.StatefulSet.GetStatefulSetList)                     // 获取有状态服务列表
+		k8sRouter.GET("statefulSet/list-by-name", api.StatefulSet.GetStatefulSetByName)           // 获取有状态服务根据名称
+		k8sRouter.POST("statefulSet/list-by-field", api.StatefulSet.GetStatefulSetByField)        // 获取有状态服务根据字段
+		k8sRouter.POST("statefulSet/list-by-label", api.StatefulSet.GetStatefulSetByLabel)        // 获取有状态服务根据标签
+		k8sRouter.GET("statefulSet/yaml", api.StatefulSet.GetStatefulSetYaml)                     // 获取有状态服务的yaml
+		k8sRouter.POST("statefulSet/create", api.StatefulSet.CreateStatefulSet)                   // 创建有状态服务
+		k8sRouter.PUT("statefulSet/update", api.StatefulSet.UpdateStatefulSet)                    // 更新有状态服务
+		k8sRouter.DELETE("statefulSet/delete-by-name", api.StatefulSet.DeleteStatefulSetByName)   // 删除有状态服务根据名称
+		k8sRouter.DELETE("statefulSet/delete-by-label", api.StatefulSet.DeleteStatefulSetByLabel) // 删除有状态服务根据标签
+		k8sRouter.DELETE("statefulSet/delete-by-field", api.StatefulSet.DeleteStatefulSetByField) // 删除有状态服务根据字段
 
-		k8sRouter.GET("daemonset")          // 获取守护进程集
-		k8sRouter.GET("daemonset/detail")   // 获取守护进程集详情
-		k8sRouter.POST("daemonset")         // 创建守护进程集
-		k8sRouter.DELETE("daemonset")       // 删除守护进程集
-		k8sRouter.POST("daemonset/restart") // 重启守护进程集
+		k8sRouter.GET("daemonSet/list", api.DaemonSet.GetDaemonSetList)                     // 获取守护进程集
+		k8sRouter.GET("daemonSet/list-by-name", api.DaemonSet.GetDaemonSetByName)           // 获取守护进程根据名称
+		k8sRouter.POST("daemonSet/list-by-label", api.DaemonSet.GetDaemonSetByLabel)        // 获取守护进程根据标签
+		k8sRouter.POST("daemonSet/list-by-field", api.DaemonSet.GetDaemonSetByField)        // 获取守护进程根据字段
+		k8sRouter.GET("daemonSet/yaml", api.DaemonSet.GetDaemonSetYaml)                     // 获取守护进程的yaml
+		k8sRouter.POST("daemonSet/create", api.DaemonSet.CreateDaemonSet)                   // 创建守护进程集
+		k8sRouter.PUT("daemonSet/update", api.DaemonSet.UpdateDaemonSet)                    // 更新守护进程
+		k8sRouter.DELETE("daemonSet/delete-by-name", api.DaemonSet.DeleteDaemonSetByName)   // 删除守护进程根据名称
+		k8sRouter.DELETE("daemonSet/delete-by-label", api.DaemonSet.DeleteDaemonSetByLabel) // 删除守护进程根据标签
+		k8sRouter.DELETE("daemonSet/delete-by-field", api.DaemonSet.DeleteDaemonSetByField) // 删除守护进程根据字段
 
 		k8sRouter.GET("pv/list", api.Pv.GetPVList)                     // 获取存储pv
 		k8sRouter.GET("pv/list/by-name", api.Pv.GetPVByName)           // 获取存储pv根据名称
