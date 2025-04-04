@@ -131,10 +131,12 @@ func Engine() *gin.Engine {
 		k8sRouter.PUT("configmap/update", api.ConfigMap.UpdateConfigMap)                  // 更新configmap
 		k8sRouter.DELETE("configmap/delete-by-name", api.ConfigMap.DeleteConfigMapByName) // 删除configmap根据名称
 
-		k8sRouter.GET("secret")        // 获取secret
-		k8sRouter.GET("secret/detail") // 获取secret详情
-		k8sRouter.POST("secret")       // 创建secret
-		k8sRouter.DELETE("secret")     // 删除secret
+		k8sRouter.GET("secret/list")         // 获取secret列表
+		k8sRouter.GET("secret/list-by-name") // 获取secret根据名称
+		k8sRouter.GET("secret/yaml")         // 获取secret的yaml
+		k8sRouter.POST("secret/create")      // 创建secret
+		k8sRouter.PUT("secret/update")       // 更新secret
+		k8sRouter.DELETE("secret/delete")    // 删除secret
 
 		k8sRouter.GET("events") // 事件
 

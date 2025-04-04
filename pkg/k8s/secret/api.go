@@ -10,7 +10,22 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// GetSecret
+// GetSecretsList
+//
+//	@Description: 获取secret列表
+//	@param client
+//	@param namespace
+//	@return []corev1.Secret
+//	@return error
+func GetSecretsList(client *kubernetes.Clientset, namespace string) ([]corev1.Secret, error) {
+	secrets, err := client.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return secrets.Items, nil
+}
+
+// GetSecretByName
 //
 //	@Description: 获取secret
 //	@param client
@@ -18,7 +33,7 @@ import (
 //	@param name
 //	@return *corev1.Secret
 //	@return error
-func GetSecret(client *kubernetes.Clientset, namespace, name string) (*corev1.Secret, error) {
+func GetSecretByName(client *kubernetes.Clientset, namespace, name string) (*corev1.Secret, error) {
 	return client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
@@ -46,21 +61,6 @@ func GetSecretYaml(client *kubernetes.Clientset, namespace, name string) (string
 	return string(secretYAML), nil
 }
 
-// GetSecretsList
-//
-//	@Description: 获取secret列表
-//	@param client
-//	@param namespace
-//	@return []corev1.Secret
-//	@return error
-func GetSecretsList(client *kubernetes.Clientset, namespace string) ([]corev1.Secret, error) {
-	secrets, err := client.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return secrets.Items, nil
-}
-
 // CreateSecret
 //
 //	@Description: 创建secret
@@ -68,9 +68,8 @@ func GetSecretsList(client *kubernetes.Clientset, namespace string) ([]corev1.Se
 //	@param namespace
 //	@param name
 //	@param data
-//	@return bool
 //	@return error
-func CreateSecret(client *kubernetes.Clientset, namespace, name string, data map[string]string) (bool, error) {
+func CreateSecret(client *kubernetes.Clientset, namespace, name string, data map[string]string) error {
 	// 将字符串数据编码为 base64
 	encodedData := make(map[string][]byte)
 	for k, v := range data {
@@ -85,37 +84,9 @@ func CreateSecret(client *kubernetes.Clientset, namespace, name string, data map
 	}
 	_, err := client.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
-}
-
-// CreateTLSSecret
-//
-//	@Description: 创建TLS类型的secret
-//	@param client
-//	@param namespace
-//	@param name
-//	@param cert
-//	@param key
-//	@return bool
-//	@return error
-func CreateTLSSecret(client *kubernetes.Clientset, namespace, name, cert, key string) (bool, error) {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Type: corev1.SecretTypeTLS,
-		Data: map[string][]byte{
-			"tls.crt": []byte(cert),
-			"tls.key": []byte(key),
-		},
-	}
-	_, err := client.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
-	if err != nil {
-		return false, err
-	}
-	return true, nil
+	return nil
 }
 
 // UpdateSecret
@@ -127,10 +98,10 @@ func CreateTLSSecret(client *kubernetes.Clientset, namespace, name, cert, key st
 //	@param data
 //	@return bool
 //	@return error
-func UpdateSecret(client *kubernetes.Clientset, namespace, name string, data map[string]string) (bool, error) {
+func UpdateSecret(client *kubernetes.Clientset, namespace, name string, data map[string]string) error {
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		return false, err
+		return err
 	}
 	// 更新数据
 	encodedData := make(map[string][]byte)
@@ -141,9 +112,9 @@ func UpdateSecret(client *kubernetes.Clientset, namespace, name string, data map
 
 	_, err = client.CoreV1().Secrets(namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteSecret
