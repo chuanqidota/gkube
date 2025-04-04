@@ -29,6 +29,22 @@ func GetIngressList(client *kubernetes.Clientset, namespace string) ([]netv1.Ing
 	return ingress.Items, nil
 }
 
+// GetIngressByName
+//
+//	@Description:
+//	@param client
+//	@param namespace
+//	@param name
+//	@return netv1.Ingress
+//	@return error
+func GetIngressByName(client *kubernetes.Clientset, namespace, name string) (*netv1.Ingress, error) {
+	ingress, err := client.NetworkingV1().Ingresses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return &netv1.Ingress{}, err
+	}
+	return ingress, nil
+}
+
 // GetIngressByLabel
 //
 //	@Description: 根据label获取ingress
@@ -96,54 +112,30 @@ func GetIngressYaml(client *kubernetes.Clientset, namespace, name string) (strin
 //	@Description: 创建ingress
 //	@param client
 //	@param namespace
-//	@param name
-//	@param host
-//	@param path
-//	@param serviceName
-//	@param servicePort
-//	@return bool
+//	@param ingressYAML
 //	@return error
-func CreateIngress(client *kubernetes.Clientset, namespace, name, host, path, serviceName, servicePort string) (bool, error) {
-	ingressYAML := fmt.Sprintf(`
-	apiVersion: networking.k8s.io/v1
-	kind: Ingress
-	metadata:
-	  name: %s
-	  namespace: %s
-	spec:
-	  rules:
-	  - host: %s
-		http:
-		  paths:
-		  - path: %s
-			pathType: Prefix
-			backend:
-			  service:
-				name: %s
-				port:
-				  number: %s
-        `, name, namespace, host, path, serviceName, servicePort)
+func CreateIngress(client *kubernetes.Clientset, namespace, ingressYAML string) error {
 	var ingress netv1.Ingress
 	if err := yaml.Unmarshal([]byte(ingressYAML), &ingress); err != nil {
-		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
 	_, err := client.NetworkingV1().Ingresses(namespace).Create(context.TODO(), &ingress, metav1.CreateOptions{})
 	if err != nil {
-		return false, fmt.Errorf("创建ingress资源失败:%s", err.Error())
+		return fmt.Errorf("创建ingress资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
-func UpdateIngress(client *kubernetes.Clientset, ingressYaml string) (bool, error) {
+func UpdateIngress(client *kubernetes.Clientset, ingressYaml string) error {
 	var ingress netv1.Ingress
 	if err := yaml.Unmarshal([]byte(ingressYaml), &ingress); err != nil {
-		return false, fmt.Errorf("yaml文件错误:%s", err.Error())
+		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
 	_, err := client.NetworkingV1().Ingresses(ingress.Namespace).Update(context.TODO(), &ingress, metav1.UpdateOptions{})
 	if err != nil {
-		return false, fmt.Errorf("更新ingress资源失败:%s", err.Error())
+		return fmt.Errorf("更新ingress资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteIngressByName
@@ -169,15 +161,15 @@ func DeleteIngressByName(client *kubernetes.Clientset, namespace, name string) e
 //	@param labelMap
 //	@return bool
 //	@return error
-func DeleteIngressByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) (bool, error) {
+func DeleteIngressByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
 	labelSelector := labels.SelectorFromSet(labelMap) // 创建标签选择器
 	err := client.NetworkingV1().Ingresses(namespace).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
 	if err != nil {
-		return false, fmt.Errorf("删除ingress资源失败:%s", err.Error())
+		return fmt.Errorf("删除ingress资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteIngressByField
@@ -186,15 +178,14 @@ func DeleteIngressByLabel(client *kubernetes.Clientset, namespace string, labelM
 //	@param client
 //	@param namespace
 //	@param fieldMap
-//	@return bool
 //	@return error
-func DeleteIngressByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) (bool, error) {
+func DeleteIngressByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) error {
 	fieldSelector := fields.SelectorFromSet(fieldMap) // 创建标签选择器
 	err := client.NetworkingV1().Ingresses(namespace).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
-		return false, fmt.Errorf("删除ingress资源失败:%s", err.Error())
+		return fmt.Errorf("删除ingress资源失败:%s", err.Error())
 	}
-	return true, nil
+	return nil
 }

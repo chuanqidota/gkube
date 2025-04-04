@@ -48,10 +48,16 @@ func Engine() *gin.Engine {
 		k8sRouter.DELETE("cronjob/delete-by-label", api.Cronjob.DeleteCronJobByLabel) // 删除定时任务根据标签
 		k8sRouter.DELETE("cronjob/delete-by-field", api.Cronjob.DeleteCronJobByField) // 删除定时任务根据字段
 
-		k8sRouter.GET("ingress")        // 获取ingress
-		k8sRouter.GET("ingress/detail") // 获取ingress详情
-		k8sRouter.POST("ingress")       // 创建ingress
-		k8sRouter.DELETE("ingress")     // 删除ingress
+		k8sRouter.GET("ingress/list", api.Ingress.GetIngressList)                     // 获取ingress列表
+		k8sRouter.GET("ingress/list-by-name", api.Ingress.GetIngressByName)           // 获取ingress根据名称
+		k8sRouter.POST("ingress/list-by-label", api.Ingress.GetIngressByLabel)        // 获取ingress根据标签
+		k8sRouter.POST("ingress/list-by-field", api.Ingress.GetIngressByField)        // 获取ingress根据字段
+		k8sRouter.GET("ingress/yaml", api.Ingress.GetIngressYaml)                     // 获取ingress的yaml
+		k8sRouter.POST("ingress/create", api.Ingress.CreateIngress)                   // 创建ingress
+		k8sRouter.PUT("ingress/update", api.Ingress.UpdateIngress)                    // 更新ingress
+		k8sRouter.DELETE("ingress/delete-by-name", api.Ingress.DeleteIngressByName)   // 删除ingress根据名称
+		k8sRouter.DELETE("ingress/delete-by-label", api.Ingress.DeleteIngressByLabel) // 删除ingress根据标签
+		k8sRouter.DELETE("ingress/delete-by-field", api.Ingress.DeleteIngressByField) // 删除ingress根据字段
 
 		k8sRouter.GET("service")        // 获取服务
 		k8sRouter.GET("service/detail") // 获取服务详情
