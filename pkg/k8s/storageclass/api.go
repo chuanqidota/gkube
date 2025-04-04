@@ -23,14 +23,14 @@ func GetStorageClassList(client *kubernetes.Clientset) ([]storagev1.StorageClass
 	return scList.Items, nil
 }
 
-// GetStorageClass
+// GetStorageClassByName
 //
 //	@Description: 获取StorageClass
 //	@param client
 //	@param name
 //	@return *storagev1.StorageClass
 //	@return error
-func GetStorageClass(client *kubernetes.Clientset, name string) (*storagev1.StorageClass, error) {
+func GetStorageClassByName(client *kubernetes.Clientset, name string) (*storagev1.StorageClass, error) {
 	sc, err := client.StorageV1().StorageClasses().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -94,19 +94,18 @@ func GetStorageClassByLabel(client *kubernetes.Clientset, labelMap map[string]st
 //	@Description: 创建StorageClass
 //	@param client
 //	@param scYaml
-//	@return bool
 //	@return error
-func CreateStorageClass(client *kubernetes.Clientset, scYaml string) (bool, error) {
+func CreateStorageClass(client *kubernetes.Clientset, scYaml string) error {
 	sc := &storagev1.StorageClass{}
 	err := yaml.Unmarshal([]byte(scYaml), sc)
 	if err != nil {
-		return false, err
+		return err
 	}
 	_, err = client.StorageV1().StorageClasses().Create(context.TODO(), sc, metav1.CreateOptions{})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // UpdateStorageClass
@@ -114,34 +113,33 @@ func CreateStorageClass(client *kubernetes.Clientset, scYaml string) (bool, erro
 //	@Description: 更新StorageClass
 //	@param client
 //	@param scYaml
-//	@return bool
 //	@return error
-func UpdateStorageClass(client *kubernetes.Clientset, scYaml string) (bool, error) {
+func UpdateStorageClass(client *kubernetes.Clientset, scYaml string) error {
 	sc := &storagev1.StorageClass{}
 	err := yaml.Unmarshal([]byte(scYaml), sc)
 	if err != nil {
-		return false, err
+		return err
 	}
 	_, err = client.StorageV1().StorageClasses().Update(context.TODO(), sc, metav1.UpdateOptions{})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
-// DeleteStorageClass
+// DeleteStorageClassByName
 //
 //	@Description: 删除StorageClass
 //	@param client
 //	@param name
 //	@return bool
 //	@return error
-func DeleteStorageClass(client *kubernetes.Clientset, name string) (bool, error) {
+func DeleteStorageClassByName(client *kubernetes.Clientset, name string) error {
 	err := client.StorageV1().StorageClasses().Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteStorageClassByField
@@ -151,15 +149,15 @@ func DeleteStorageClass(client *kubernetes.Clientset, name string) (bool, error)
 //	@param fieldMap
 //	@return bool
 //	@return error
-func DeleteStorageClassByField(client *kubernetes.Clientset, fieldMap map[string]string) (bool, error) {
+func DeleteStorageClassByField(client *kubernetes.Clientset, fieldMap map[string]string) error {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
 	err := client.StorageV1().StorageClasses().DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // DeleteStorageClassByLabel
@@ -167,15 +165,14 @@ func DeleteStorageClassByField(client *kubernetes.Clientset, fieldMap map[string
 //	@Description: 删除StorageClass通过标签查询
 //	@param client
 //	@param labelMap
-//	@return bool
 //	@return error
-func DeleteStorageClassByLabel(client *kubernetes.Clientset, labelMap map[string]string) (bool, error) {
+func DeleteStorageClassByLabel(client *kubernetes.Clientset, labelMap map[string]string) error {
 	labelSelector := fields.SelectorFromSet(labelMap)
 	err := client.StorageV1().StorageClasses().DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }

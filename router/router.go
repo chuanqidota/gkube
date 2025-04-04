@@ -113,9 +113,16 @@ func Engine() *gin.Engine {
 		k8sRouter.GET("pvc/delete/by-label", api.Pvc.DeletePVCByLabel) // 删除存储pvc根据标签
 		k8sRouter.GET("pvc/delete/by-field", api.Pvc.DeletePVCByField) // 删除存储pvc根据字段
 
-		k8sRouter.GET("storage/storageclass")        // 获取存储storageclass
-		k8sRouter.GET("storage/storageclass/detail") // 获取存储storageclass详情
-		k8sRouter.DELETE("storage/storageclass")     // 删除存储storageclass
+		k8sRouter.GET("storageClass/list", api.StorageClass.GetStorageClassList)                  // 获取存储sc列表
+		k8sRouter.GET("storageClass/list-by-name", api.StorageClass.GetStorageClassByName)        // 获取存储sc根据名称
+		k8sRouter.GET("storageClass/list-by-field", api.StorageClass.GetStorageClassByField)      // 获取存储sc根据字段
+		k8sRouter.GET("storageClass/list-by-label", api.StorageClass.GetStorageClassByLabel)      // 获取存储sc根据标签
+		k8sRouter.GET("storageClass/yaml", api.StorageClass.GetStorageClassYaml)                  // 获取存储sc的yaml
+		k8sRouter.GET("storageClass/create", api.StorageClass.CreateStorageClass)                 // 创建存储sc
+		k8sRouter.GET("storageClass/update", api.StorageClass.UpdateStorageClass)                 // 更新存储sc
+		k8sRouter.GET("storageClass/delete-by-name", api.StorageClass.DeleteStorageClassByName)   // 删除存储sc根据名称
+		k8sRouter.GET("storageClass/delete-by-field", api.StorageClass.DeleteStorageClassByField) // 删除存储sc根据字段
+		k8sRouter.GET("storageClass/delete-by-label", api.StorageClass.DeleteStorageClassByLabel) // 删除存储sc根据标签
 
 		k8sRouter.GET("configmap")        // 获取configmap
 		k8sRouter.GET("configmap/detail") // 获取configmap详情
