@@ -1,4 +1,4 @@
-FROM golang:1.22.4 AS builder
+FROM golang:1.23.0 AS builder
 RUN go env -w GO111MODULE=on \
     && go env -w CGO_ENABLED=0 \
     && go env -w GOOS=linux \
@@ -11,7 +11,7 @@ RUN go build -o gkube main.go
 
 FROM alpine:3
 RUN mkdir -p /opt
-WORKDIR /root/data
+WORKDIR /opt
 COPY --from=builder /opt/gkube /opt/gkube
 COPY --from=builder /opt/config/config.yaml /opt/config/config.yaml
 RUN chmod +x gkube
