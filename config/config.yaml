@@ -1,0 +1,25 @@
+server:
+  ip: 0.0.0.0
+  port: 8080
+database:
+  user: root
+  password: jinang123
+  host: 127.0.0.1
+  port: 3306
+  name: gkube
+redis:
+  addr: 127.0.0.1:6379
+  password: ""
+  db: 0
+elasticSearch:
+  url: http://localhost:9200
+  username: ""
+  password: ""
+audit:
+  record_audit: "audit"
+s3:
+  endpoint: ""
+  accessKeyID: ""
+  secretAccessKey: ""
+  useSSL: ""
+  bucket: ""
