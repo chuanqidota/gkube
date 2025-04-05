@@ -148,11 +148,18 @@ func Engine() *gin.Engine {
 		k8sRouter.PUT("secret/update", api.Secret.UpdateSecret)          // 更新secret
 		k8sRouter.DELETE("secret/delete", api.Secret.DeleteSecret)       // 删除secret
 
-		k8sRouter.GET("events") // 事件
+		k8sRouter.GET("pod/list", api.Pod.GetPodList)                  // 获取pod列表
+		k8sRouter.GET("pod/list-by-name", api.Pod.GetPodByName)        // 获取pod根据名称
+		k8sRouter.GET("pod/list-by-label", api.Pod.GetPodByLabel)      // 获取pod根据标签
+		k8sRouter.GET("pod/list-by-field", api.Pod.GetPodByField)      // 获取pod根据字段
+		k8sRouter.GET("pod/yaml", api.Pod.GetPodYaml)                  // 获取pod的yaml
+		k8sRouter.GET("pod/create", api.Pod.CreatePod)                 // 创建pod
+		k8sRouter.GET("pod/update", api.Pod.UpdatePod)                 // 更新pod
+		k8sRouter.GET("pod/delete-by-name", api.Pod.DeletePodByName)   // 删除pod根据名称
+		k8sRouter.GET("pod/delete-by-label", api.Pod.DeletePodByLabel) // 删除pod根据标签
+		k8sRouter.GET("pod/delete-by-field", api.Pod.DeletePodByField) // 删除pod根据字段
 
-		k8sRouter.GET("pod")          //  获取pod列表
-		k8sRouter.GET("pod/detail")   // 获取pod详情
-		k8sRouter.GET("pod/selector") // 通过标签查询pod
+		k8sRouter.GET("events") // 事件
 
 		// container资源
 		k8sRouter.GET("container/exec", api.HandleWebSocket)     // websocket container

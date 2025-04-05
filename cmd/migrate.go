@@ -21,7 +21,11 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := database.DB.AutoMigrate(&model.K8SCluster{}); err != nil {
+
+		if err := database.DB.AutoMigrate(
+			&model.K8SCluster{},
+			&model.TerminalRecord{},
+		); err != nil {
 			fmt.Printf("migrate error:%v", err)
 		}
 	},
