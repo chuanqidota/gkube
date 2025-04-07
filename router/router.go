@@ -158,8 +158,7 @@ func Engine() *gin.Engine {
 		k8sRouter.GET("pod/delete-by-name", api.Pod.DeletePodByName)   // 删除pod根据名称
 		k8sRouter.GET("pod/delete-by-label", api.Pod.DeletePodByLabel) // 删除pod根据标签
 		k8sRouter.GET("pod/delete-by-field", api.Pod.DeletePodByField) // 删除pod根据字段
-
-		k8sRouter.GET("events") // 事件
+		k8sRouter.POST("pod/events", api.Pod.WatchPodEvent)            // 监听pod事件
 
 		// container资源
 		k8sRouter.GET("container/exec", api.HandleWebSocket)     // websocket container

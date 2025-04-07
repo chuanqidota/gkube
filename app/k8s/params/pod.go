@@ -50,3 +50,9 @@ type PodDeleteByFieldParams struct {
 	FieldMap    map[string]string `form:"fieldMap" json:"fieldMap" label:"字段"`
 	Namespace   string            `form:"namespace" json:"namespace" label:"命名空间"`
 }
+
+type PodEventQueryParams struct {
+	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	PodName     string `form:"podName" json:"podName" label:"Pod名称"`
+}

@@ -1,12 +1,17 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"gkube/app/k8s/params"
 	"gkube/pkg/k8s"
 	k8sPod "gkube/pkg/k8s/pod"
 	"gkube/pkg/response"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	"time"
 )
 
 type pod struct {
@@ -249,4 +254,60 @@ func (p *pod) DeletePodByField(c *gin.Context) {
 		return
 	}
 	response.Success(c, "执行成功", nil)
+}
+
+// WatchPodEvent
+//
+//	@Description: 监听pod的event事件
+//	@receiver p
+//	@param c
+func (p *pod) WatchPodEvent(c *gin.Context) {
+	var query params.PodEventQueryParams
+	if err := c.ShouldBindJSON(&query); err != nil {
+		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		return
+	}
+	// 1. 初始化客户端
+	client, err := k8s.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	// 2. 创建Watcher
+	watcher, _ := client.CoreV1().Pods(query.Namespace).Watch(context.Background(), metav1.ListOptions{
+		FieldSelector: "metadata.name=" + query.PodName,
+	})
+	defer watcher.Stop()
+	// 3. 设置SSE响应头
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+
+	// 4. 实时推送事件
+	for {
+		select {
+		case event, ok := <-watcher.ResultChan():
+			if !ok {
+				return
+			}
+			if event.Type == watch.Error {
+				c.SSEvent("error", gin.H{"message": "发生错误"})
+				return
+			} else {
+				pod := event.Object.(*corev1.Pod)
+				c.SSEvent("message", gin.H{
+					"type":      event.Type,
+					"name":      pod.Name,
+					"namespace": pod.Namespace,
+					"status":    pod.Status.Phase,
+					"message":   pod.Status.Message,
+					"reason":    pod.Status.Reason,
+					"time":      time.Now().Format(time.DateTime),
+				})
+				c.Writer.Flush()
+			}
+		case <-c.Request.Context().Done():
+			return
+		}
+	}
 }
