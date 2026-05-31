@@ -1,55 +1,59 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { getToken } from '@/utils/auth'
-
-export const routes: RouteRecordRaw[] = [
-  {
-    path: '/login',
-    name: 'Login',
-    component: () => import('@/views/Login.vue'),
-    meta: { title: '登录', hidden: true },
-  },
-  {
-    path: '/',
-    component: () => import('@/components/Layout/AppLayout.vue'),
-    redirect: '/dashboard',
-    children: [
-      {
-        path: 'dashboard',
-        name: 'Dashboard',
-        component: () => import('@/views/Dashboard.vue'),
-        meta: { title: 'Dashboard', icon: 'Odometer' },
-      },
-      {
-        path: 'clusters',
-        name: 'Clusters',
-        component: () => import('@/views/Clusters.vue'),
-        meta: { title: '集群管理', icon: 'Connection' },
-      },
-      {
-        path: 'system/users',
-        name: 'Users',
-        component: () => import('@/views/system/Users.vue'),
-        meta: { title: '用户管理', icon: 'User', parent: '系统管理' },
-      },
-      {
-        path: 'system/roles',
-        name: 'Roles',
-        component: () => import('@/views/system/Roles.vue'),
-        meta: { title: '角色管理', icon: 'UserFilled', parent: '系统管理' },
-      },
-    ],
-  },
-]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes,
+  routes: [
+    {
+      path: '/login',
+      name: 'Login',
+      component: () => import('@/views/Login.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/',
+      redirect: '/dashboard',
+    },
+    {
+      path: '/dashboard',
+      name: 'Dashboard',
+      component: () => import('@/views/Dashboard.vue'),
+    },
+    {
+      path: '/clusters',
+      name: 'ClusterList',
+      component: () => import('@/views/ClusterList.vue'),
+    },
+    {
+      path: '/clusters/create',
+      name: 'ClusterCreate',
+      component: () => import('@/views/ClusterCreate.vue'),
+    },
+    {
+      path: '/clusters/:id',
+      name: 'ClusterDetail',
+      component: () => import('@/views/ClusterDetail.vue'),
+      props: true,
+    },
+    {
+      path: '/users',
+      name: 'UserList',
+      component: () => import('@/views/UserList.vue'),
+    },
+    {
+      path: '/roles',
+      name: 'RoleList',
+      component: () => import('@/views/RoleList.vue'),
+    },
+  ],
 })
 
 router.beforeEach((to, _from, next) => {
   const token = getToken()
-  if (to.path !== '/login' && !token) {
+  if (!to.meta.public && !token) {
     next('/login')
+  } else if (to.path === '/login' && token) {
+    next('/dashboard')
   } else {
     next()
   }

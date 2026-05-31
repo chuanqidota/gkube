@@ -3,7 +3,7 @@
 
 <template>
   <div>
-    <h2>Dashboard</h2>
-    <p>Welcome to gkube.</p>
+    <h2>Clusters</h2>
+    <p>Cluster list placeholder.</p>
   </div>
 </template>
