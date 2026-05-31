@@ -1,172 +1,230 @@
 package router
 
 import (
-	"gkube/app/k8s/api"
-
 	"github.com/gin-gonic/gin"
+
+	authApi "gkube/app/auth/api"
+	clusterApi "gkube/app/cluster/api"
+	dashboardApi "gkube/app/dashboard/api"
+	k8sApi "gkube/app/k8s/api"
+	"gkube/pkg/middleware"
 )
 
 func Engine() *gin.Engine {
 	router := gin.Default()
 
+	// 全局CORS中间件
+	router.Use(middleware.CORSMiddleware())
+
 	v1 := router.Group("v1")
 
-	k8sRouter := v1.Group("k8s")
+	// ============ 公开路由（无需认证）============
+	// 登录 / 刷新Token
+	v1.POST("auth/login", authApi.Auth.Login)
+	v1.POST("auth/refresh", authApi.Auth.Refresh)
+
+	// ============ 需要JWT认证的路由============
+	authorized := v1.Group("", middleware.JWTAuth())
 	{
-		k8sRouter.GET("cluster/version", api.Cluster.GetClusterVersion) // 获取集群版本信息
-		k8sRouter.GET("cluster/node", api.Cluster.GetClusterNodesInfo)  // 获取所有集群信息
+		// ----- Auth: 获取当前用户信息 -----
+		authorized.GET("auth/me", authApi.Auth.GetMe)
 
-		k8sRouter.GET("node/yaml", api.Node.GetNodeYaml)                  // 获取节点yaml
-		k8sRouter.GET("node/pods", api.Node.GetNodePods)                  // 获取节点的pods
-		k8sRouter.PUT("node/unscheduled", api.Node.UnscheduledNode)       // 禁止调度
-		k8sRouter.POST("node/evict-all", api.Node.EvictsNodeAllPods)      // 驱逐节点上所有的pod
-		k8sRouter.POST("node/evict-single", api.Node.EvictsNodeSinglePod) // 驱逐节点上的单个pod
-		k8sRouter.PUT("node/taint", api.Node.SetTaintNode)                // 给节点设置污点
+		// ----- Users: 用户管理 (RBAC user) -----
+		users := authorized.Group("users", middleware.RBAC("user", "*"))
+		{
+			users.GET("", authApi.User.List)
+			users.POST("", authApi.User.Create)
+			users.PUT("", authApi.User.Update)
+			users.DELETE("", authApi.User.Delete)
+			users.PUT("change-password", authApi.User.ChangePassword)
+		}
 
-		k8sRouter.GET("namespace/list", api.Namespace.GetNamespaceList)   // 获取命名空间
-		k8sRouter.POST("namespace/create", api.Namespace.CreateNamespace) // 创建命名空间
+		// ----- Roles: 角色管理 (RBAC role) -----
+		roles := authorized.Group("roles", middleware.RBAC("role", "*"))
+		{
+			roles.GET("", authApi.Role.List)
+			roles.POST("", authApi.Role.Create)
+			roles.PUT("", authApi.Role.Update)
+			roles.DELETE("", authApi.Role.Delete)
+		}
 
-		k8sRouter.GET("job/list", api.Job.GetJobList)                     // 获取任务列表
-		k8sRouter.GET("job/list-by-name", api.Job.GetJobByName)           // 根据名称获取任务
-		k8sRouter.POST("job/list-by-field", api.Job.GetJobByFiled)        // 根据字段获取任务
-		k8sRouter.POST("job/list-by-label", api.Job.GetJobByLabel)        // 根据标签获取任务
-		k8sRouter.GET("job/yaml", api.Job.GetJobYaml)                     // 获取任务的yaml
-		k8sRouter.POST("job/create", api.Job.CreateJob)                   // 创建任务
-		k8sRouter.PUT("job/update", api.Job.UpdateJob)                    // 更新任务
-		k8sRouter.DELETE("job/delete", api.Job.DeleteJob)                 // 删除任务
-		k8sRouter.DELETE("job/delete/by-field", api.Job.DeleteJobByField) // 根据字段删除任务
-		k8sRouter.DELETE("job/delete/by-label", api.Job.DeleteJobByLabel) // 根据标签删除任务
+		// ----- Clusters: 集群管理 (RBAC cluster) -----
+		clusters := authorized.Group("clusters", middleware.RBAC("cluster", "*"))
+		{
+			clusters.GET("", clusterApi.Cluster.List)
+			clusters.POST("", clusterApi.Cluster.Create)
+			clusters.GET("/:id", clusterApi.Cluster.Detail)
+			clusters.PUT("", clusterApi.Cluster.Update)
+			clusters.DELETE("", clusterApi.Cluster.Delete)
+			clusters.GET("/:id/check", clusterApi.Cluster.Check)
+		}
 
-		k8sRouter.GET("cronjob/list", api.Cronjob.GetCronJobList)                     // 获取定时任务
-		k8sRouter.GET("cronjob/list-by-name", api.Cronjob.GetCronJobByName)           // 获取定时任务根据名称
-		k8sRouter.POST("cronjob/list-by-label", api.Cronjob.GetCronJobByLabel)        // 获取定时任务根据标签
-		k8sRouter.POST("cronjob/list-by-field", api.Cronjob.GetCronJobByField)        // 获取定时任务根据字段
-		k8sRouter.GET("cronjob/yaml", api.Cronjob.GetCronJobYaml)                     // 获取定时任务详情
-		k8sRouter.POST("cronjob/create", api.Cronjob.CreateCronJob)                   // 创建定时任务
-		k8sRouter.PUT("cronjob/update", api.Cronjob.UpdateCronJob)                    // 更新定时任务
-		k8sRouter.DELETE("cronjob/delete-by-name", api.Cronjob.DeleteCronJobByName)   // 删除定时任务根据名称
-		k8sRouter.DELETE("cronjob/delete-by-label", api.Cronjob.DeleteCronJobByLabel) // 删除定时任务根据标签
-		k8sRouter.DELETE("cronjob/delete-by-field", api.Cronjob.DeleteCronJobByField) // 删除定时任务根据字段
+		// ----- Dashboard: 仪表盘 -----
+		dashboard := authorized.Group("dashboard")
+		{
+			dashboard.GET("overview", dashboardApi.Dashboard.Overview)
+			dashboard.GET("resources", dashboardApi.Dashboard.Resources)
+			dashboard.GET("workloads", dashboardApi.Dashboard.Workloads)
+			dashboard.GET("events", dashboardApi.Dashboard.Events)
+		}
 
-		k8sRouter.GET("ingress/list", api.Ingress.GetIngressList)                     // 获取ingress列表
-		k8sRouter.GET("ingress/list-by-name", api.Ingress.GetIngressByName)           // 获取ingress根据名称
-		k8sRouter.POST("ingress/list-by-label", api.Ingress.GetIngressByLabel)        // 获取ingress根据标签
-		k8sRouter.POST("ingress/list-by-field", api.Ingress.GetIngressByField)        // 获取ingress根据字段
-		k8sRouter.GET("ingress/yaml", api.Ingress.GetIngressYaml)                     // 获取ingress的yaml
-		k8sRouter.POST("ingress/create", api.Ingress.CreateIngress)                   // 创建ingress
-		k8sRouter.PUT("ingress/update", api.Ingress.UpdateIngress)                    // 更新ingress
-		k8sRouter.DELETE("ingress/delete-by-name", api.Ingress.DeleteIngressByName)   // 删除ingress根据名称
-		k8sRouter.DELETE("ingress/delete-by-label", api.Ingress.DeleteIngressByLabel) // 删除ingress根据标签
-		k8sRouter.DELETE("ingress/delete-by-field", api.Ingress.DeleteIngressByField) // 删除ingress根据字段
+		// ----- K8s: Kubernetes资源管理（暂不加RBAC）-----
+		k8s := authorized.Group("k8s")
+		{
+			k8s.GET("cluster/version", k8sApi.Cluster.GetClusterVersion) // 获取集群版本信息
+			k8s.GET("cluster/node", k8sApi.Cluster.GetClusterNodesInfo)  // 获取所有集群信息
 
-		k8sRouter.GET("service/list", api.Service.GetServicesList)                // 获取服务
-		k8sRouter.GET("service/list-by-name", api.Service.GetServicesByName)      // 获取服务根据名称
-		k8sRouter.POST("service/list-by-label", api.Service.GetServicesByLabel)   // 获取服务根据标签
-		k8sRouter.DELETE("service/list-by-field", api.Service.GetServicesByField) // 获取服务根据字段
-		k8sRouter.DELETE("service/yaml", api.Service.GetServicesYaml)             // 获取服务的yaml
-		k8sRouter.DELETE("service/create", api.Service.CreateService)             // 创建服务
-		k8sRouter.DELETE("service/update", api.Service.UpdateService)             // 更新服务
-		k8sRouter.DELETE("service/delete", api.Service.DeleteService)             // 删除服务
+			k8s.GET("node/yaml", k8sApi.Node.GetNodeYaml)                  // 获取节点yaml
+			k8s.GET("node/pods", k8sApi.Node.GetNodePods)                  // 获取节点的pods
+			k8s.PUT("node/unscheduled", k8sApi.Node.UnscheduledNode)       // 禁止调度
+			k8s.POST("node/evict-all", k8sApi.Node.EvictsNodeAllPods)      // 驱逐节点上所有的pod
+			k8s.POST("node/evict-single", k8sApi.Node.EvictsNodeSinglePod) // 驱逐节点上的单个pod
+			k8s.PUT("node/taint", k8sApi.Node.SetTaintNode)                // 给节点设置污点
 
-		k8sRouter.GET("deployment/list", api.Deployment.GetDeploymentList)                     // 获取deployment
-		k8sRouter.POST("deployment/list-by-field", api.Deployment.GetDeploymentByField)        // 根据字段获取deployment
-		k8sRouter.POST("deployment/list-by-label", api.Deployment.GetDeploymentByLabel)        // 根据标签获取deployment
-		k8sRouter.POST("deployment/create", api.Deployment.CreateDeployment)                   // 创建deployment                                        // 创建deployment
-		k8sRouter.PUT("deployment/update", api.Deployment.UpdateDeployment)                    // 更新deployment                                        // 创建deployment
-		k8sRouter.DELETE("deployment/delete-by-name", api.Deployment.DeleteDeployment)         // 删除deployment                                         // 删除deployment
-		k8sRouter.DELETE("deployment/delete-by-field", api.Deployment.DeleteDeploymentByField) // 根据字段删除deployment
-		k8sRouter.DELETE("deployment/delete-by-label", api.Deployment.DeleteDeploymentByLabel) // 根据标签删除deployment
-		k8sRouter.POST("deployment/scale", api.Deployment.ScaleDeployment)                     // 扩容deployment
-		k8sRouter.POST("deployment/restart", api.Deployment.RestartDeployment)                 // 重启deployment
-		k8sRouter.GET("deployment/pods", api.Deployment.DeploymentPodList)                     // 获取deployment pods
+			k8s.GET("namespace/list", k8sApi.Namespace.GetNamespaceList)   // 获取命名空间
+			k8s.POST("namespace/create", k8sApi.Namespace.CreateNamespace) // 创建命名空间
 
-		k8sRouter.GET("statefulSet/list", api.StatefulSet.GetStatefulSetList)                     // 获取有状态服务列表
-		k8sRouter.GET("statefulSet/list-by-name", api.StatefulSet.GetStatefulSetByName)           // 获取有状态服务根据名称
-		k8sRouter.POST("statefulSet/list-by-field", api.StatefulSet.GetStatefulSetByField)        // 获取有状态服务根据字段
-		k8sRouter.POST("statefulSet/list-by-label", api.StatefulSet.GetStatefulSetByLabel)        // 获取有状态服务根据标签
-		k8sRouter.GET("statefulSet/yaml", api.StatefulSet.GetStatefulSetYaml)                     // 获取有状态服务的yaml
-		k8sRouter.POST("statefulSet/create", api.StatefulSet.CreateStatefulSet)                   // 创建有状态服务
-		k8sRouter.PUT("statefulSet/update", api.StatefulSet.UpdateStatefulSet)                    // 更新有状态服务
-		k8sRouter.DELETE("statefulSet/delete-by-name", api.StatefulSet.DeleteStatefulSetByName)   // 删除有状态服务根据名称
-		k8sRouter.DELETE("statefulSet/delete-by-label", api.StatefulSet.DeleteStatefulSetByLabel) // 删除有状态服务根据标签
-		k8sRouter.DELETE("statefulSet/delete-by-field", api.StatefulSet.DeleteStatefulSetByField) // 删除有状态服务根据字段
+			k8s.GET("job/list", k8sApi.Job.GetJobList)                     // 获取任务列表
+			k8s.GET("job/list-by-name", k8sApi.Job.GetJobByName)           // 根据名称获取任务
+			k8s.POST("job/list-by-field", k8sApi.Job.GetJobByFiled)        // 根据字段获取任务
+			k8s.POST("job/list-by-label", k8sApi.Job.GetJobByLabel)        // 根据标签获取任务
+			k8s.GET("job/yaml", k8sApi.Job.GetJobYaml)                     // 获取任务的yaml
+			k8s.POST("job/create", k8sApi.Job.CreateJob)                   // 创建任务
+			k8s.PUT("job/update", k8sApi.Job.UpdateJob)                    // 更新任务
+			k8s.DELETE("job/delete", k8sApi.Job.DeleteJob)                 // 删除任务
+			k8s.DELETE("job/delete/by-field", k8sApi.Job.DeleteJobByField) // 根据字段删除任务
+			k8s.DELETE("job/delete/by-label", k8sApi.Job.DeleteJobByLabel) // 根据标签删除任务
 
-		k8sRouter.GET("daemonSet/list", api.DaemonSet.GetDaemonSetList)                     // 获取守护进程集
-		k8sRouter.GET("daemonSet/list-by-name", api.DaemonSet.GetDaemonSetByName)           // 获取守护进程根据名称
-		k8sRouter.POST("daemonSet/list-by-label", api.DaemonSet.GetDaemonSetByLabel)        // 获取守护进程根据标签
-		k8sRouter.POST("daemonSet/list-by-field", api.DaemonSet.GetDaemonSetByField)        // 获取守护进程根据字段
-		k8sRouter.GET("daemonSet/yaml", api.DaemonSet.GetDaemonSetYaml)                     // 获取守护进程的yaml
-		k8sRouter.POST("daemonSet/create", api.DaemonSet.CreateDaemonSet)                   // 创建守护进程集
-		k8sRouter.PUT("daemonSet/update", api.DaemonSet.UpdateDaemonSet)                    // 更新守护进程
-		k8sRouter.DELETE("daemonSet/delete-by-name", api.DaemonSet.DeleteDaemonSetByName)   // 删除守护进程根据名称
-		k8sRouter.DELETE("daemonSet/delete-by-label", api.DaemonSet.DeleteDaemonSetByLabel) // 删除守护进程根据标签
-		k8sRouter.DELETE("daemonSet/delete-by-field", api.DaemonSet.DeleteDaemonSetByField) // 删除守护进程根据字段
+			k8s.GET("cronjob/list", k8sApi.Cronjob.GetCronJobList)                     // 获取定时任务
+			k8s.GET("cronjob/list-by-name", k8sApi.Cronjob.GetCronJobByName)           // 获取定时任务根据名称
+			k8s.POST("cronjob/list-by-label", k8sApi.Cronjob.GetCronJobByLabel)        // 获取定时任务根据标签
+			k8s.POST("cronjob/list-by-field", k8sApi.Cronjob.GetCronJobByField)        // 获取定时任务根据字段
+			k8s.GET("cronjob/yaml", k8sApi.Cronjob.GetCronJobYaml)                     // 获取定时任务详情
+			k8s.POST("cronjob/create", k8sApi.Cronjob.CreateCronJob)                   // 创建定时任务
+			k8s.PUT("cronjob/update", k8sApi.Cronjob.UpdateCronJob)                    // 更新定时任务
+			k8s.DELETE("cronjob/delete-by-name", k8sApi.Cronjob.DeleteCronJobByName)   // 删除定时任务根据名称
+			k8s.DELETE("cronjob/delete-by-label", k8sApi.Cronjob.DeleteCronJobByLabel) // 删除定时任务根据标签
+			k8s.DELETE("cronjob/delete-by-field", k8sApi.Cronjob.DeleteCronJobByField) // 删除定时任务根据字段
 
-		k8sRouter.GET("pv/list", api.Pv.GetPVList)                     // 获取存储pv
-		k8sRouter.GET("pv/list/by-name", api.Pv.GetPVByName)           // 获取存储pv根据名称
-		k8sRouter.POST("pv/list/by-label", api.Pv.GetPVByLabel)        // 获取存储pv根据标签
-		k8sRouter.POST("pv/list/by-field", api.Pv.GetPVByField)        // 获取存储pv根据字段
-		k8sRouter.GET("pv/yaml", api.Pv.GetPVYaml)                     // 获取存储pv的yaml
-		k8sRouter.POST("pv/create", api.Pv.CreatePV)                   // 创建存储pv
-		k8sRouter.PUT("pv/update", api.Pv.UpdatePV)                    // 更新存储pv
-		k8sRouter.DELETE("pv/delete/by-name", api.Pv.DeletePVByName)   // 删除存储pv根据名称
-		k8sRouter.DELETE("pv/delete/by-label", api.Pv.DeletePVByLabel) // 删除存储pv根据标签
-		k8sRouter.DELETE("pv/delete/by-field", api.Pv.DeletePVByField) // 删除存储pv根据字段
+			k8s.GET("ingress/list", k8sApi.Ingress.GetIngressList)                     // 获取ingress列表
+			k8s.GET("ingress/list-by-name", k8sApi.Ingress.GetIngressByName)           // 获取ingress根据名称
+			k8s.POST("ingress/list-by-label", k8sApi.Ingress.GetIngressByLabel)        // 获取ingress根据标签
+			k8s.POST("ingress/list-by-field", k8sApi.Ingress.GetIngressByField)        // 获取ingress根据字段
+			k8s.GET("ingress/yaml", k8sApi.Ingress.GetIngressYaml)                     // 获取ingress的yaml
+			k8s.POST("ingress/create", k8sApi.Ingress.CreateIngress)                   // 创建ingress
+			k8s.PUT("ingress/update", k8sApi.Ingress.UpdateIngress)                    // 更新ingress
+			k8s.DELETE("ingress/delete-by-name", k8sApi.Ingress.DeleteIngressByName)   // 删除ingress根据名称
+			k8s.DELETE("ingress/delete-by-label", k8sApi.Ingress.DeleteIngressByLabel) // 删除ingress根据标签
+			k8s.DELETE("ingress/delete-by-field", k8sApi.Ingress.DeleteIngressByField) // 删除ingress根据字段
 
-		k8sRouter.GET("pvc/list", api.Pvc.GetPVCList)                     //获取存储pvc
-		k8sRouter.GET("pvc/list/by-name", api.Pvc.GetPVCByName)           // 获取存储pvc根据名称
-		k8sRouter.POST("pvc/list/by-label", api.Pvc.GetPVCByLabel)        // 获取存储pvc根据标签
-		k8sRouter.POST("pvc/list/by-field", api.Pvc.GetPVCByField)        // 获取存储pvc根据字段
-		k8sRouter.GET("pvc/yaml", api.Pvc.GetPVCYaml)                     // 获取存储pvc的yaml
-		k8sRouter.POST("pvc/create", api.Pvc.CreatePVC)                   // 创建存储pvc
-		k8sRouter.DELETE("pvc/delete/by-name", api.Pvc.DeletePVCByName)   // 删除存储pvc根据名称
-		k8sRouter.DELETE("pvc/delete/by-label", api.Pvc.DeletePVCByLabel) // 删除存储pvc根据标签
-		k8sRouter.DELETE("pvc/delete/by-field", api.Pvc.DeletePVCByField) // 删除存储pvc根据字段
+			k8s.GET("service/list", k8sApi.Service.GetServicesList)                // 获取服务
+			k8s.GET("service/list-by-name", k8sApi.Service.GetServicesByName)      // 获取服务根据名称
+			k8s.POST("service/list-by-label", k8sApi.Service.GetServicesByLabel)   // 获取服务根据标签
+			k8s.POST("service/list-by-field", k8sApi.Service.GetServicesByField)   // 获取服务根据字段
+			k8s.GET("service/yaml", k8sApi.Service.GetServicesYaml)                // 获取服务的yaml
+			k8s.POST("service/create", k8sApi.Service.CreateService)               // 创建服务
+			k8s.PUT("service/update", k8sApi.Service.UpdateService)                // 更新服务
+			k8s.DELETE("service/delete", k8sApi.Service.DeleteService)              // 删除服务
 
-		k8sRouter.GET("storageClass/list", api.StorageClass.GetStorageClassList)                     // 获取存储sc列表
-		k8sRouter.GET("storageClass/list-by-name", api.StorageClass.GetStorageClassByName)           // 获取存储sc根据名称
-		k8sRouter.POST("storageClass/list-by-field", api.StorageClass.GetStorageClassByField)        // 获取存储sc根据字段
-		k8sRouter.POST("storageClass/list-by-label", api.StorageClass.GetStorageClassByLabel)        // 获取存储sc根据标签
-		k8sRouter.GET("storageClass/yaml", api.StorageClass.GetStorageClassYaml)                     // 获取存储sc的yaml
-		k8sRouter.POST("storageClass/create", api.StorageClass.CreateStorageClass)                   // 创建存储sc
-		k8sRouter.GET("storageClass/update", api.StorageClass.UpdateStorageClass)                    // 更新存储sc
-		k8sRouter.DELETE("storageClass/delete-by-name", api.StorageClass.DeleteStorageClassByName)   // 删除存储sc根据名称
-		k8sRouter.DELETE("storageClass/delete-by-field", api.StorageClass.DeleteStorageClassByField) // 删除存储sc根据字段
-		k8sRouter.DELETE("storageClass/delete-by-label", api.StorageClass.DeleteStorageClassByLabel) // 删除存储sc根据标签
+			k8s.GET("deployment/list", k8sApi.Deployment.GetDeploymentList)                     // 获取deployment
+			k8s.POST("deployment/list-by-field", k8sApi.Deployment.GetDeploymentByField)        // 根据字段获取deployment
+			k8s.POST("deployment/list-by-label", k8sApi.Deployment.GetDeploymentByLabel)        // 根据标签获取deployment
+			k8s.POST("deployment/create", k8sApi.Deployment.CreateDeployment)                   // 创建deployment
+			k8s.PUT("deployment/update", k8sApi.Deployment.UpdateDeployment)                    // 更新deployment
+			k8s.DELETE("deployment/delete-by-name", k8sApi.Deployment.DeleteDeployment)         // 删除deployment
+			k8s.DELETE("deployment/delete-by-field", k8sApi.Deployment.DeleteDeploymentByField) // 根据字段删除deployment
+			k8s.DELETE("deployment/delete-by-label", k8sApi.Deployment.DeleteDeploymentByLabel) // 根据标签删除deployment
+			k8s.POST("deployment/scale", k8sApi.Deployment.ScaleDeployment)                     // 扩容deployment
+			k8s.POST("deployment/restart", k8sApi.Deployment.RestartDeployment)                 // 重启deployment
+			k8s.GET("deployment/pods", k8sApi.Deployment.DeploymentPodList)                     // 获取deployment pods
 
-		k8sRouter.GET("configmap/list", api.ConfigMap.GetConfigMapList)                   // 获取configmap
-		k8sRouter.GET("configmap/by-name", api.ConfigMap.GetConfigMapByName)              // 获取configmap根据名称
-		k8sRouter.GET("configmap/yaml", api.ConfigMap.GetConfigMapYaml)                   // 获取configmap的yaml
-		k8sRouter.POST("configmap/create", api.ConfigMap.CreateConfigMap)                 // 创建configmap
-		k8sRouter.PUT("configmap/update", api.ConfigMap.UpdateConfigMap)                  // 更新configmap
-		k8sRouter.DELETE("configmap/delete-by-name", api.ConfigMap.DeleteConfigMapByName) // 删除configmap根据名称
+			k8s.GET("statefulSet/list", k8sApi.StatefulSet.GetStatefulSetList)                     // 获取有状态服务列表
+			k8s.GET("statefulSet/list-by-name", k8sApi.StatefulSet.GetStatefulSetByName)           // 获取有状态服务根据名称
+			k8s.POST("statefulSet/list-by-field", k8sApi.StatefulSet.GetStatefulSetByField)        // 获取有状态服务根据字段
+			k8s.POST("statefulSet/list-by-label", k8sApi.StatefulSet.GetStatefulSetByLabel)        // 获取有状态服务根据标签
+			k8s.GET("statefulSet/yaml", k8sApi.StatefulSet.GetStatefulSetYaml)                     // 获取有状态服务的yaml
+			k8s.POST("statefulSet/create", k8sApi.StatefulSet.CreateStatefulSet)                   // 创建有状态服务
+			k8s.PUT("statefulSet/update", k8sApi.StatefulSet.UpdateStatefulSet)                    // 更新有状态服务
+			k8s.DELETE("statefulSet/delete-by-name", k8sApi.StatefulSet.DeleteStatefulSetByName)   // 删除有状态服务根据名称
+			k8s.DELETE("statefulSet/delete-by-label", k8sApi.StatefulSet.DeleteStatefulSetByLabel) // 删除有状态服务根据标签
+			k8s.DELETE("statefulSet/delete-by-field", k8sApi.StatefulSet.DeleteStatefulSetByField) // 删除有状态服务根据字段
 
-		k8sRouter.GET("secret/list", api.Secret.GetSecretsList)          // 获取secret列表
-		k8sRouter.GET("secret/list-by-name", api.Secret.GetSecretByName) // 获取secret根据名称
-		k8sRouter.GET("secret/yaml", api.Secret.GetSecretYaml)           // 获取secret的yaml
-		k8sRouter.POST("secret/create", api.Secret.CreateSecret)         // 创建secret
-		k8sRouter.PUT("secret/update", api.Secret.UpdateSecret)          // 更新secret
-		k8sRouter.DELETE("secret/delete", api.Secret.DeleteSecret)       // 删除secret
+			k8s.GET("daemonSet/list", k8sApi.DaemonSet.GetDaemonSetList)                     // 获取守护进程集
+			k8s.GET("daemonSet/list-by-name", k8sApi.DaemonSet.GetDaemonSetByName)           // 获取守护进程根据名称
+			k8s.POST("daemonSet/list-by-label", k8sApi.DaemonSet.GetDaemonSetByLabel)        // 获取守护进程根据标签
+			k8s.POST("daemonSet/list-by-field", k8sApi.DaemonSet.GetDaemonSetByField)        // 获取守护进程根据字段
+			k8s.GET("daemonSet/yaml", k8sApi.DaemonSet.GetDaemonSetYaml)                     // 获取守护进程的yaml
+			k8s.POST("daemonSet/create", k8sApi.DaemonSet.CreateDaemonSet)                   // 创建守护进程集
+			k8s.PUT("daemonSet/update", k8sApi.DaemonSet.UpdateDaemonSet)                    // 更新守护进程
+			k8s.DELETE("daemonSet/delete-by-name", k8sApi.DaemonSet.DeleteDaemonSetByName)   // 删除守护进程根据名称
+			k8s.DELETE("daemonSet/delete-by-label", k8sApi.DaemonSet.DeleteDaemonSetByLabel) // 删除守护进程根据标签
+			k8s.DELETE("daemonSet/delete-by-field", k8sApi.DaemonSet.DeleteDaemonSetByField) // 删除守护进程根据字段
 
-		k8sRouter.GET("pod/list", api.Pod.GetPodList)                  // 获取pod列表
-		k8sRouter.GET("pod/list-by-name", api.Pod.GetPodByName)        // 获取pod根据名称
-		k8sRouter.GET("pod/list-by-label", api.Pod.GetPodByLabel)      // 获取pod根据标签
-		k8sRouter.GET("pod/list-by-field", api.Pod.GetPodByField)      // 获取pod根据字段
-		k8sRouter.GET("pod/yaml", api.Pod.GetPodYaml)                  // 获取pod的yaml
-		k8sRouter.GET("pod/create", api.Pod.CreatePod)                 // 创建pod
-		k8sRouter.GET("pod/update", api.Pod.UpdatePod)                 // 更新pod
-		k8sRouter.GET("pod/delete-by-name", api.Pod.DeletePodByName)   // 删除pod根据名称
-		k8sRouter.GET("pod/delete-by-label", api.Pod.DeletePodByLabel) // 删除pod根据标签
-		k8sRouter.GET("pod/delete-by-field", api.Pod.DeletePodByField) // 删除pod根据字段
-		k8sRouter.POST("pod/events", api.Pod.WatchPodEvent)            // 监听pod事件
+			k8s.GET("pv/list", k8sApi.Pv.GetPVList)                     // 获取存储pv
+			k8s.GET("pv/list/by-name", k8sApi.Pv.GetPVByName)           // 获取存储pv根据名称
+			k8s.POST("pv/list/by-label", k8sApi.Pv.GetPVByLabel)        // 获取存储pv根据标签
+			k8s.POST("pv/list/by-field", k8sApi.Pv.GetPVByField)        // 获取存储pv根据字段
+			k8s.GET("pv/yaml", k8sApi.Pv.GetPVYaml)                     // 获取存储pv的yaml
+			k8s.POST("pv/create", k8sApi.Pv.CreatePV)                   // 创建存储pv
+			k8s.PUT("pv/update", k8sApi.Pv.UpdatePV)                    // 更新存储pv
+			k8s.DELETE("pv/delete/by-name", k8sApi.Pv.DeletePVByName)   // 删除存储pv根据名称
+			k8s.DELETE("pv/delete/by-label", k8sApi.Pv.DeletePVByLabel) // 删除存储pv根据标签
+			k8s.DELETE("pv/delete/by-field", k8sApi.Pv.DeletePVByField) // 删除存储pv根据字段
 
-		// container资源
-		k8sRouter.GET("container/exec", api.HandleWebSocket)     // websocket container
-		k8sRouter.GET("container/record/list", api.RecordList)   // 操作记录列表
-		k8sRouter.GET("container/record/url", api.RecordUrl)     // 操作审计
-		k8sRouter.GET("/log", api.PodContainerLog)               // 获取容器日志
-		k8sRouter.GET("/log/stream", api.StreamPodContainerLogs) // 获取容器日志流
+			k8s.GET("pvc/list", k8sApi.Pvc.GetPVCList)                     //获取存储pvc
+			k8s.GET("pvc/list/by-name", k8sApi.Pvc.GetPVCByName)           // 获取存储pvc根据名称
+			k8s.POST("pvc/list/by-label", k8sApi.Pvc.GetPVCByLabel)        // 获取存储pvc根据标签
+			k8s.POST("pvc/list/by-field", k8sApi.Pvc.GetPVCByField)        // 获取存储pvc根据字段
+			k8s.GET("pvc/yaml", k8sApi.Pvc.GetPVCYaml)                     // 获取存储pvc的yaml
+			k8s.POST("pvc/create", k8sApi.Pvc.CreatePVC)                   // 创建存储pvc
+			k8s.DELETE("pvc/delete/by-name", k8sApi.Pvc.DeletePVCByName)   // 删除存储pvc根据名称
+			k8s.DELETE("pvc/delete/by-label", k8sApi.Pvc.DeletePVCByLabel) // 删除存储pvc根据标签
+			k8s.DELETE("pvc/delete/by-field", k8sApi.Pvc.DeletePVCByField) // 删除存储pvc根据字段
 
+			k8s.GET("storageClass/list", k8sApi.StorageClass.GetStorageClassList)                     // 获取存储sc列表
+			k8s.GET("storageClass/list-by-name", k8sApi.StorageClass.GetStorageClassByName)           // 获取存储sc根据名称
+			k8s.POST("storageClass/list-by-field", k8sApi.StorageClass.GetStorageClassByField)        // 获取存储sc根据字段
+			k8s.POST("storageClass/list-by-label", k8sApi.StorageClass.GetStorageClassByLabel)        // 获取存储sc根据标签
+			k8s.GET("storageClass/yaml", k8sApi.StorageClass.GetStorageClassYaml)                     // 获取存储sc的yaml
+			k8s.POST("storageClass/create", k8sApi.StorageClass.CreateStorageClass)                   // 创建存储sc
+			k8s.GET("storageClass/update", k8sApi.StorageClass.UpdateStorageClass)                    // 更新存储sc
+			k8s.DELETE("storageClass/delete-by-name", k8sApi.StorageClass.DeleteStorageClassByName)   // 删除存储sc根据名称
+			k8s.DELETE("storageClass/delete-by-field", k8sApi.StorageClass.DeleteStorageClassByField) // 删除存储sc根据字段
+			k8s.DELETE("storageClass/delete-by-label", k8sApi.StorageClass.DeleteStorageClassByLabel) // 删除存储sc根据标签
+
+			k8s.GET("configmap/list", k8sApi.ConfigMap.GetConfigMapList)                   // 获取configmap
+			k8s.GET("configmap/by-name", k8sApi.ConfigMap.GetConfigMapByName)              // 获取configmap根据名称
+			k8s.GET("configmap/yaml", k8sApi.ConfigMap.GetConfigMapYaml)                   // 获取configmap的yaml
+			k8s.POST("configmap/create", k8sApi.ConfigMap.CreateConfigMap)                 // 创建configmap
+			k8s.PUT("configmap/update", k8sApi.ConfigMap.UpdateConfigMap)                  // 更新configmap
+			k8s.DELETE("configmap/delete-by-name", k8sApi.ConfigMap.DeleteConfigMapByName) // 删除configmap根据名称
+
+			k8s.GET("secret/list", k8sApi.Secret.GetSecretsList)          // 获取secret列表
+			k8s.GET("secret/list-by-name", k8sApi.Secret.GetSecretByName) // 获取secret根据名称
+			k8s.GET("secret/yaml", k8sApi.Secret.GetSecretYaml)           // 获取secret的yaml
+			k8s.POST("secret/create", k8sApi.Secret.CreateSecret)         // 创建secret
+			k8s.PUT("secret/update", k8sApi.Secret.UpdateSecret)          // 更新secret
+			k8s.DELETE("secret/delete", k8sApi.Secret.DeleteSecret)       // 删除secret
+
+			k8s.GET("pod/list", k8sApi.Pod.GetPodList)                  // 获取pod列表
+			k8s.GET("pod/list-by-name", k8sApi.Pod.GetPodByName)        // 获取pod根据名称
+			k8s.GET("pod/list-by-label", k8sApi.Pod.GetPodByLabel)      // 获取pod根据标签
+			k8s.GET("pod/list-by-field", k8sApi.Pod.GetPodByField)      // 获取pod根据字段
+			k8s.GET("pod/yaml", k8sApi.Pod.GetPodYaml)                  // 获取pod的yaml
+			k8s.GET("pod/create", k8sApi.Pod.CreatePod)                 // 创建pod
+			k8s.GET("pod/update", k8sApi.Pod.UpdatePod)                 // 更新pod
+			k8s.GET("pod/delete-by-name", k8sApi.Pod.DeletePodByName)   // 删除pod根据名称
+			k8s.GET("pod/delete-by-label", k8sApi.Pod.DeletePodByLabel) // 删除pod根据标签
+			k8s.GET("pod/delete-by-field", k8sApi.Pod.DeletePodByField) // 删除pod根据字段
+			k8s.POST("pod/events", k8sApi.Pod.WatchPodEvent)            // 监听pod事件
+
+			// container资源
+			k8s.GET("container/exec", k8sApi.HandleWebSocket)     // websocket container
+			k8s.GET("container/record/list", k8sApi.RecordList)   // 操作记录列表
+			k8s.GET("container/record/url", k8sApi.RecordUrl)     // 操作审计
+			k8s.GET("/log", k8sApi.PodContainerLog)               // 获取容器日志
+			k8s.GET("/log/stream", k8sApi.StreamPodContainerLogs) // 获取容器日志流
+		}
 	}
 
 	return router
