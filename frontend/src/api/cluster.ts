@@ -1,6 +1,6 @@
 import request from '@/api/request'
 
-export function getClusterList(params: { page: number; size: number }) {
+export function getClusterList(params?: { page?: number; size?: number }) {
   return request.get('/clusters', { params })
 }
 
@@ -18,4 +18,8 @@ export function updateCluster(id: string, data: any) {
 
 export function deleteCluster(id: string) {
   return request.delete(`/clusters/${id}`)
+}
+
+export function checkCluster(id: string) {
+  return request.get(`/clusters/${id}/check`)
 }
