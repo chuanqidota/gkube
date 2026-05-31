@@ -5,8 +5,10 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/spf13/cobra"
 	authmodel "gkube/app/auth/model"
+	clustermodel "gkube/app/cluster/model"
 	"gkube/app/k8s/model"
 	"gkube/pkg/database"
 )
@@ -24,7 +26,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		if err := database.DB.AutoMigrate(
-			&model.K8SCluster{},
+			&clustermodel.K8SCluster{},
 			&model.TerminalRecord{},
 			&authmodel.Permission{},
 			&authmodel.Role{},
