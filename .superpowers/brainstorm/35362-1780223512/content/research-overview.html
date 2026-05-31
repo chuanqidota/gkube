@@ -1,0 +1,112 @@
+<h2>K8s 多集群管理开源项目调研</h2>
+<p class="subtitle">主流方案对比 — 为 gkube 设计提供参考</p>
+
+<div class="cards">
+  <div class="card" data-choice="kuboard" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>🏠 Kuboard</h3>
+      <p><strong>定位：</strong>国内团队开发的轻量级 K8s 管理界面</p>
+      <p><strong>架构：</strong>Go + Vue.js 3，前后端分离 Web 应用</p>
+      <p><strong>亮点：</strong>中文友好、UI 直观、部署简单</p>
+      <p><strong>多集群：</strong>v3+ 支持，按环境分组</p>
+      <p style="color:#4ade80">✅ 适合国内中小团队快速上手</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="rancher" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>🏢 Rancher</h3>
+      <p><strong>定位：</strong>SUSE 旗下企业级多集群管理平台</p>
+      <p><strong>架构：</strong>Go + React，中心化管理平面</p>
+      <p><strong>亮点：</strong>集群生命周期管理、GitOps、安全合规</p>
+      <p><strong>多集群：</strong>业界领先，支持数百个集群</p>
+      <p style="color:#f59e0b">⚠️ 系统较重，资源占用大</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="kubesphere" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>🌐 KubeSphere</h3>
+      <p><strong>定位：</strong>青云开源的云原生应用管理平台</p>
+      <p><strong>架构：</strong>Go + React，微内核+扩展(LuBan)</p>
+      <p><strong>亮点：</strong>功能全面(监控/日志/DevOps/服务网格)</p>
+      <p><strong>多集群：</strong>主集群+成员集群 Agent 模式</p>
+      <p style="color:#f59e0b">⚠️ 复杂度高，学习曲线陡峭</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="headlamp" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>💡 Headlamp</h3>
+      <p><strong>定位：</strong>Microsoft 支持的轻量级 K8s Web UI</p>
+      <p><strong>架构：</strong>Go + React/TypeScript，插件系统</p>
+      <p><strong>亮点：</strong>轻量、可扩展、Apache 2.0</p>
+      <p><strong>多集群：</strong>基础支持</p>
+      <p style="color:#4ade80">✅ 轻量级可扩展，插件架构优秀</p>
+    </div>
+  </div>
+</div>
+
+<h3>核心能力对比</h3>
+<table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:14px">
+  <thead>
+    <tr style="background:#1e293b;color:#e2e8f0">
+      <th style="padding:8px;text-align:left">维度</th>
+      <th style="padding:8px;text-align:center">Kuboard</th>
+      <th style="padding:8px;text-align:center">Rancher</th>
+      <th style="padding:8px;text-align:center">KubeSphere</th>
+      <th style="padding:8px;text-align:center">Headlamp</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom:1px solid #334155">
+      <td style="padding:8px">多集群管理</td>
+      <td style="padding:8px;text-align:center">✅</td>
+      <td style="padding:8px;text-align:center">⭐</td>
+      <td style="padding:8px;text-align:center">⭐</td>
+      <td style="padding:8px;text-align:center">✅</td>
+    </tr>
+    <tr style="border-bottom:1px solid #334155">
+      <td style="padding:8px">集群生命周期</td>
+      <td style="padding:8px;text-align:center">❌</td>
+      <td style="padding:8px;text-align:center">⭐</td>
+      <td style="padding:8px;text-align:center">部分</td>
+      <td style="padding:8px;text-align:center">❌</td>
+    </tr>
+    <tr style="border-bottom:1px solid #334155">
+      <td style="padding:8px">RBAC 管理</td>
+      <td style="padding:8px;text-align:center">✅</td>
+      <td style="padding:8px;text-align:center">⭐</td>
+      <td style="padding:8px;text-align:center">⭐</td>
+      <td style="padding:8px;text-align:center">✅</td>
+    </tr>
+    <tr style="border-bottom:1px solid #334155">
+      <td style="padding:8px">认证集成</td>
+      <td style="padding:8px;text-align:center">LDAP/OIDC</td>
+      <td style="padding:8px;text-align:center">LDAP/AD/SAML</td>
+      <td style="padding:8px;text-align:center">LDAP/OIDC</td>
+      <td style="padding:8px;text-align:center">kubeconfig</td>
+    </tr>
+    <tr style="border-bottom:1px solid #334155">
+      <td style="padding:8px">监控告警</td>
+      <td style="padding:8px;text-align:center">集成</td>
+      <td style="padding:8px;text-align:center">内置</td>
+      <td style="padding:8px;text-align:center">内置</td>
+      <td style="padding:8px;text-align:center">❌</td>
+    </tr>
+    <tr style="border-bottom:1px solid #334155">
+      <td style="padding:8px">资源占用</td>
+      <td style="padding:8px;text-align:center">🟢 轻</td>
+      <td style="padding:8px;text-align:center">🔴 重</td>
+      <td style="padding:8px;text-align:center">🔴 重</td>
+      <td style="padding:8px;text-align:center">🟢 轻</td>
+    </tr>
+    <tr>
+      <td style="padding:8px">中文支持</td>
+      <td style="padding:8px;text-align:center">⭐</td>
+      <td style="padding:8px;text-align:center">✅</td>
+      <td style="padding:8px;text-align:center">⭐</td>
+      <td style="padding:8px;text-align:center">有限</td>
+    </tr>
+  </tbody>
+</table>

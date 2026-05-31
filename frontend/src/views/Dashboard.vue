@@ -1,9 +1,0 @@
-<script setup lang="ts">
-</script>
-
-<template>
-  <div>
-    <h2>Dashboard</h2>
-    <p>Welcome to gkube.</p>
-  </div>
-</template>

@@ -1,0 +1,55 @@
+<h2>架构方案对比</h2>
+<p class="subtitle">点击选择你倾向的方案</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>方案一：渐进增强（推荐）</h3>
+      <p><strong>思路：</strong>基于现有代码结构，逐步补齐缺失模块，保持架构一致性</p>
+      <ul>
+        <li>后端：在现有 app/k8s/ 和 pkg/k8s/ 基础上，新增 cluster management、auth、dashboard 模块</li>
+        <li>前端：新建 frontend/ 目录，Vue 3 + Element Plus</li>
+        <li>API：保持 RESTful 风格，统一 /v1/ 前缀</li>
+      </ul>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>改动最小，复用现有代码</li><li>学习成本低，团队熟悉</li><li>快速交付第一版</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>现有代码的一些问题会延续</li><li>耦合度可能逐渐增加</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>方案二：Clean Architecture 重构</h3>
+      <p><strong>思路：</strong>按 DDD 思想重新划分领域，采用 Clean Architecture 分层</p>
+      <ul>
+        <li>后端：domain/ → usecase/ → adapter/ → infrastructure/ 四层分离</li>
+        <li>前端：同方案一</li>
+        <li>API：接口定义在 adapter 层，业务逻辑完全隔离</li>
+      </ul>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>架构清晰，职责分明</li><li>易于测试和扩展</li><li>长期维护成本低</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>前期工作量大，需要重写大量代码</li><li>学习曲线陡峭</li><li>交付周期长</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>方案三：模块化单体</h3>
+      <p><strong>思路：</strong>保持单体架构，但严格按业务模块划分目录，每个模块内部分层</p>
+      <ul>
+        <li>后端：internal/cluster/、internal/auth/、internal/dashboard/ 等模块</li>
+        <li>每个模块：handler/ → service/ → repository/ 三层</li>
+        <li>前端：同方案一</li>
+      </ul>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>模块边界清晰</li><li>比 Clean Architecture 简单</li><li>便于后续拆分微服务</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>需要一定的重构工作</li><li>模块间通信需要定义接口</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

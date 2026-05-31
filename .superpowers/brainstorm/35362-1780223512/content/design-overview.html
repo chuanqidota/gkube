@@ -1,0 +1,105 @@
+<h2>gkube 多集群管理 — 整体架构设计</h2>
+<p class="subtitle">渐进增强方案 · 轻量级管理面板</p>
+
+<div class="section">
+  <h3>📁 项目结构</h3>
+  <div class="mockup">
+    <div class="mockup-header">目录结构</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:13px;line-height:1.8">
+gkube/<br>
+├── backend/                    # Go 后端<br>
+│   ├── main.go                 # 入口<br>
+│   ├── cmd/                    # Cobra 命令<br>
+│   ├── config/                 # 配置<br>
+│   ├── router/                 # 路由（重新设计）<br>
+│   ├── middleware/              # 中间件（JWT、RBAC、日志）<br>
+│   ├── app/<br>
+│   │   ├── auth/               # 🆕 认证模块<br>
+│   │   │   ├── api/            # 登录/注册/用户管理<br>
+│   │   │   ├── model/          # User, Role, Permission<br>
+│   │   │   └── params/         # 请求参数<br>
+│   │   ├── cluster/            # 🆕 集群管理模块<br>
+│   │   │   ├── api/            # 集群 CRUD + 健康检测<br>
+│   │   │   ├── model/          # K8SCluster（增强）<br>
+│   │   │   └── params/<br>
+│   │   ├── dashboard/          # 🆕 Dashboard 模块<br>
+│   │   │   ├── api/            # 全局概览数据聚合<br>
+│   │   │   └── params/<br>
+│   │   └── k8s/                # 现有 K8s 资源管理（保留）<br>
+│   ├── pkg/                    # 公共包<br>
+│   │   ├── k8s/                # K8s 客户端（保留）<br>
+│   │   ├── auth/               # 🆕 JWT/密码/权限工具<br>
+│   │   ├── response/           # 统一响应（保留）<br>
+│   │   └── ...<br>
+│   └── docs/                   # Swagger 文档<br>
+│<br>
+├── frontend/                   # 🆕 Vue 3 前端<br>
+│   ├── src/<br>
+│   │   ├── api/                # Axios 请求封装<br>
+│   │   ├── views/              # 页面组件<br>
+│   │   │   ├── dashboard/      # 全局 Dashboard<br>
+│   │   │   ├── cluster/        # 集群管理<br>
+│   │   │   ├── workload/       # 工作负载<br>
+│   │   │   ├── auth/           # 用户/角色管理<br>
+│   │   │   └── terminal/       # Web 终端<br>
+│   │   ├── components/         # 通用组件<br>
+│   │   ├── router/             # Vue Router<br>
+│   │   ├── store/              # Pinia 状态管理<br>
+│   │   └── utils/              # 工具函数<br>
+│   ├── package.json<br>
+│   └── vite.config.ts<br>
+│<br>
+└── docker-compose.yaml         # 开发环境编排
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🔗 API 路由设计（重新规划）</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px">
+    <thead>
+      <tr style="background:#1e293b;color:#e2e8f0">
+        <th style="padding:8px;text-align:left">模块</th>
+        <th style="padding:8px;text-align:left">路由前缀</th>
+        <th style="padding:8px;text-align:left">说明</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:8px">认证</td>
+        <td style="padding:8px;font-family:monospace">/v1/auth/*</td>
+        <td style="padding:8px">登录、注册、Token刷新</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:8px">用户管理</td>
+        <td style="padding:8px;font-family:monospace">/v1/users/*</td>
+        <td style="padding:8px">用户CRUD、角色分配</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:8px">角色管理</td>
+        <td style="padding:8px;font-family:monospace">/v1/roles/*</td>
+        <td style="padding:8px">角色CRUD、权限配置</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:8px">集群管理</td>
+        <td style="padding:8px;font-family:monospace">/v1/clusters/*</td>
+        <td style="padding:8px">集群注册/编辑/删除/健康检测</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:8px">Dashboard</td>
+        <td style="padding:8px;font-family:monospace">/v1/dashboard/*</td>
+        <td style="padding:8px">全局概览、资源统计、事件聚合</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:8px">K8s资源</td>
+        <td style="padding:8px;font-family:monospace">/v1/k8s/:cluster/*</td>
+        <td style="padding:8px">Pod/Deployment/Service等CRUD</td>
+      </tr>
+      <tr>
+        <td style="padding:8px">终端</td>
+        <td style="padding:8px;font-family:monospace">/v1/k8s/:cluster/exec/*</td>
+        <td style="padding:8px">WebSocket终端、日志流</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

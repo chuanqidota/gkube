@@ -1,0 +1,139 @@
+<h2>设计第二部分：数据模型</h2>
+<p class="subtitle">核心实体设计 — 认证、集群、RBAC</p>
+
+<div class="section">
+  <h3>👤 用户与角色模型</h3>
+  <div class="mockup">
+    <div class="mockup-header">User / Role / Permission</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:12px;line-height:1.6">
+<pre style="margin:0">
+// 用户表
+User {
+  ID            uint       `gorm:"primaryKey"`
+  Username      string     `gorm:"unique;size:50"`
+  PasswordHash  string     `gorm:"size:255"`         // bcrypt 加密
+  Email         string     `gorm:"size:100"`
+  DisplayName   string     `gorm:"size:100"`
+  Status        int        `gorm:"default:1"`        // 1=启用 0=禁用
+  Roles         []Role     `gorm:"many2many:user_roles;"`
+  CreatedAt     time.Time
+  UpdatedAt     time.Time
+}
+
+// 角色表
+Role {
+  ID            uint          `gorm:"primaryKey"`
+  Name          string        `gorm:"unique;size:50"`   // admin, viewer, operator
+  Description   string        `gorm:"size:200"`
+  Permissions   []Permission  `gorm:"many2many:role_permissions;"`
+  CreatedAt     time.Time
+  UpdatedAt     time.Time
+}
+
+// 权限表
+Permission {
+  ID            uint   `gorm:"primaryKey"`
+  Resource      string `gorm:"size:100"`   // cluster, pod, deployment, ...
+  Action        string `gorm:"size:50"`    // create, read, update, delete, exec
+  Description   string `gorm:"size:200"`
+}
+</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🖥️ 集群模型（增强版）</h3>
+  <div class="mockup">
+    <div class="mockup-header">K8SCluster — 在现有模型上扩展</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:12px;line-height:1.6">
+<pre style="margin:0">
+K8SCluster {
+  ID              uint       `gorm:"primaryKey"`
+  ClusterName     string     `gorm:"unique;size:100"`    // 集群名称
+  DisplayName     string     `gorm:"size:100"`           // 显示名称
+  Description     string     `gorm:"size:500"`           // 描述
+  KubeConfig      string     `gorm:"size:12800"`         // kubeconfig（AES加密存储）
+  Status          string     `gorm:"size:20"`            // online/offline/unknown
+  ClusterVersion  string     `gorm:"size:100"`           // K8s 版本
+  NodeCount       int                                   // 节点数量
+  LastHealthCheck time.Time                             // 最后健康检查时间
+  Labels          string     `gorm:"size:500"`           // JSON 标签 {"env":"prod","region":"cn-east"}
+  CreatedAt       time.Time
+  UpdatedAt       time.Time
+}
+
+// 集群标签用于分类筛选，如：
+// {"environment": "production", "region": "cn-east", "provider": "aliyun"}
+</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🔐 RBAC 权限模型设计</h3>
+  <div class="mockup">
+    <div class="mockup-header">三级权限控制</div>
+    <div class="mockup-body">
+      <div style="display:flex;gap:16px;padding:16px">
+        <div style="flex:1;background:#1e3a5f;padding:12px;border-radius:8px;text-align:center">
+          <div style="font-weight:bold;color:#60a5fa;margin-bottom:8px">集群级别</div>
+          <div style="font-size:12px;color:#94a3b8">
+            指定用户可访问哪些集群<br>
+            <span style="font-family:monospace">cluster:prod-a → read</span>
+          </div>
+        </div>
+        <div style="flex:1;background:#1e3a5f;padding:12px;border-radius:8px;text-align:center">
+          <div style="font-weight:bold;color:#60a5fa;margin-bottom:8px">命名空间级别</div>
+          <div style="font-size:12px;color:#94a3b8">
+            指定用户可访问哪些命名空间<br>
+            <span style="font-family:monospace">cluster:prod-a/ns:default → read</span>
+          </div>
+        </div>
+        <div style="flex:1;background:#1e3a5f;padding:12px;border-radius:8px;text-align:center">
+          <div style="font-weight:bold;color:#60a5fa;margin-bottom:8px">资源级别</div>
+          <div style="font-size:12px;color:#94a3b8">
+            指定用户可操作哪些资源<br>
+            <span style="font-family:monospace">pod → create,read,delete</span>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 16px 16px;font-size:13px;color:#94a3b8">
+        <strong>预设角色：</strong>
+        <span style="color:#4ade80">super_admin</span>（全部权限） |
+        <span style="color:#60a5fa">cluster_admin</span>（指定集群全部权限） |
+        <span style="color:#fbbf24">developer</span>（指定命名空间读写） |
+        <span style="color:#94a3b8">viewer</span>（只读）
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🔑 认证流程</h3>
+  <div class="mockup">
+    <div class="mockup-header">JWT 认证流程</div>
+    <div class="mockup-body">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:16px;font-family:monospace;font-size:12px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#3b82f6;color:white;padding:6px 12px;border-radius:6px;min-width:80px;text-align:center">用户</div>
+          <div style="color:#64748b">→ POST /v1/auth/login {username, password}</div>
+          <div style="background:#065f46;color:white;padding:6px 12px;border-radius:6px;min-width:80px;text-align:center">后端</div>
+        </div>
+        <div style="text-align:center;color:#64748b">bcrypt 验证密码 → 生成 JWT (access_token + refresh_token)</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#3b82f6;color:white;padding:6px 12px;border-radius:6px;min-width:80px;text-align:center">用户</div>
+          <div style="color:#64748b">← {access_token, refresh_token, user_info}</div>
+          <div style="background:#065f46;color:white;padding:6px 12px;border-radius:6px;min-width:80px;text-align:center">后端</div>
+        </div>
+        <div style="text-align:center;color:#64748b">↓</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#3b82f6;color:white;padding:6px 12px;border-radius:6px;min-width:80px;text-align:center">用户</div>
+          <div style="color:#64748b">→ GET /v1/clusters (Header: Bearer token)</div>
+          <div style="background:#065f46;color:white;padding:6px 12px;border-radius:6px;min-width:80px;text-align:center">后端</div>
+        </div>
+        <div style="text-align:center;color:#64748b">JWT 中间件验证 token → RBAC 中间件检查权限 → 返回数据</div>
+      </div>
+    </div>
+  </div>
+</div>

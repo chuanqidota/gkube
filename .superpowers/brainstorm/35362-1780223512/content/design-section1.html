@@ -1,0 +1,145 @@
+<h2>设计第一部分：项目结构</h2>
+<p class="subtitle">backend/ + frontend/ 分离，模块化组织</p>
+
+<div class="section">
+  <h3>📁 整体目录结构</h3>
+  <div class="mockup">
+    <div class="mockup-header">gkube 项目结构</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:13px;line-height:1.6">
+<pre style="margin:0">
+gkube/
+├── backend/                        # Go 后端
+│   ├── cmd/                        # Cobra 命令
+│   ├── config/                     # 配置文件
+│   ├── internal/                   # 业务模块
+│   │   ├── auth/                   # 认证鉴权模块
+│   │   │   ├── api/                # Handler
+│   │   │   ├── model/              # 数据模型
+│   │   │   ├── params/             # 请求参数
+│   │   │   └── service/            # 业务逻辑
+│   │   ├── cluster/                # 集群管理模块
+│   │   │   ├── api/
+│   │   │   ├── model/
+│   │   │   ├── params/
+│   │   │   └── service/
+│   │   ├── dashboard/              # Dashboard 模块
+│   │   │   ├── api/
+│   │   │   └── service/
+│   │   └── k8sresource/            # K8s 资源管理（重构现有）
+│   │       ├── api/
+│   │       ├── params/
+│   │       └── service/
+│   ├── pkg/                        # 公共包（保留现有）
+│   │   ├── k8s/                    # K8s 客户端工厂
+│   │   ├── middleware/             # JWT、RBAC、CORS 中间件
+│   │   ├── response/               # 统一响应
+│   │   └── ...
+│   ├── router/                     # 路由注册
+│   └── main.go
+│
+├── frontend/                       # Vue 3 前端
+│   ├── src/
+│   │   ├── api/                    # API 请求封装
+│   │   ├── views/                  # 页面
+│   │   │   ├── login/              # 登录页
+│   │   │   ├── dashboard/          # 全局 Dashboard
+│   │   │   ├── cluster/            # 集群管理
+│   │   │   ├── resource/           # K8s 资源浏览
+│   │   │   ├── user/               # 用户管理
+│   │   │   └── terminal/           # Web 终端
+│   │   ├── components/             # 通用组件
+│   │   ├── router/                 # 路由配置
+│   │   ├── stores/                 # Pinia 状态管理
+│   │   └── utils/                  # 工具函数
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── docker-compose.yaml             # 开发环境
+├── Makefile                        # 构建命令
+└── README.md
+</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🔧 模块职责划分</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px">
+    <thead>
+      <tr style="background:#1e293b;color:#e2e8f0">
+        <th style="padding:10px;text-align:left">模块</th>
+        <th style="padding:10px;text-align:left">职责</th>
+        <th style="padding:10px;text-align:left">关键能力</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px"><strong>auth</strong></td>
+        <td style="padding:10px">用户认证与权限管理</td>
+        <td style="padding:10px">登录/注册、JWT Token、用户 CRUD、角色 RBAC</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px"><strong>cluster</strong></td>
+        <td style="padding:10px">集群注册与健康管理</td>
+        <td style="padding:10px">集群 CRUD、kubeconfig 加密存储、健康检测、状态缓存</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px"><strong>dashboard</strong></td>
+        <td style="padding:10px">全局数据聚合</td>
+        <td style="padding:10px">跨集群资源统计、工作负载聚合、事件汇总</td>
+      </tr>
+      <tr>
+        <td style="padding:10px"><strong>k8sresource</strong></td>
+        <td style="padding:10px">K8s 资源操作</td>
+        <td style="padding:10px">Pod/Deployment/Service 等 CRUD（重构现有代码）</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h3>🔗 API 路由设计</h3>
+  <div class="mockup">
+    <div class="mockup-header">新 API 路由结构</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:13px;line-height:1.6">
+<pre style="margin:0">
+# 认证相关
+POST   /v1/auth/login              # 登录
+POST   /v1/auth/refresh            # 刷新 Token
+GET    /v1/auth/me                  # 当前用户信息
+
+# 用户管理
+GET    /v1/users                    # 用户列表
+POST   /v1/users                    # 创建用户
+PUT    /v1/users/:id                # 更新用户
+DELETE /v1/users/:id                # 删除用户
+
+# 角色管理
+GET    /v1/roles                    # 角色列表
+POST   /v1/roles                    # 创建角色
+PUT    /v1/roles/:id                # 更新角色
+DELETE /v1/roles/:id                # 删除角色
+
+# 集群管理
+GET    /v1/clusters                 # 集群列表
+POST   /v1/clusters                 # 添加集群
+GET    /v1/clusters/:id             # 集群详情
+PUT    /v1/clusters/:id             # 更新集群
+DELETE /v1/clusters/:id             # 删除集群
+GET    /v1/clusters/:id/health      # 集群健康状态
+
+# Dashboard
+GET    /v1/dashboard/overview       # 全局概览
+GET    /v1/dashboard/resources      # 资源使用率
+GET    /v1/dashboard/workloads      # 工作负载统计
+GET    /v1/dashboard/events         # 跨集群事件
+
+# K8s 资源（挂在集群下）
+GET    /v1/clusters/:cid/pods
+GET    /v1/clusters/:cid/deployments
+GET    /v1/clusters/:cid/services
+...
+</pre>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,45 @@
+<h2>后端架构方案对比</h2>
+<p class="subtitle">选择 gkube 后端的代码组织方式</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>方案 A：在现有结构上扩展（推荐）</h3>
+      <p>保留现有的 app/k8s/ + pkg/k8s/ 三层结构，新增模块沿用相同模式</p>
+      <ul>
+        <li><strong>新增模块：</strong>app/auth/、app/dashboard/、app/cluster-mgmt/</li>
+        <li><strong>API 路由：</strong>/v1/auth/*、/v1/clusters/*、/v1/dashboard/*</li>
+        <li><strong>优点：</strong>改动最小，与现有代码风格一致，快速交付</li>
+        <li><strong>缺点：</strong>现有结构的一些问题会延续（如 params 和 api 的对应关系不够清晰）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>方案 B：模块化重构</h3>
+      <p>按业务领域重新组织目录，每个模块内部自包含 handler/service/model</p>
+      <ul>
+        <li><strong>目录结构：</strong>internal/cluster/、internal/auth/、internal/resource/、internal/dashboard/</li>
+        <li><strong>每个模块：</strong>api.go + service.go + model.go + params.go</li>
+        <li><strong>优点：</strong>模块边界清晰，便于独立开发和测试</li>
+        <li><strong>缺点：</strong>需要迁移现有代码，工作量较大</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>方案 C：Clean Architecture</h3>
+      <p>采用领域驱动设计，严格的四层架构</p>
+      <ul>
+        <li><strong>四层：</strong>domain/ → usecase/ → adapter/ → infrastructure/</li>
+        <li><strong>优点：</strong>架构最清晰，可测试性最强</li>
+        <li><strong>缺点：</strong>学习曲线陡峭，前期投入大，对轻量级项目可能过度设计</li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,171 @@
+<h2>设计第四部分：前端架构</h2>
+<p class="subtitle">Vue 3 + Element Plus + Vite</p>
+
+<div class="section">
+  <h3>📁 前端目录结构</h3>
+  <div class="mockup">
+    <div class="mockup-header">frontend/ 目录</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:12px;line-height:1.6">
+<pre style="margin:0">
+frontend/
+├── src/
+│   ├── api/                    # API 请求封装
+│   │   ├── request.ts          # Axios 实例 + 拦截器
+│   │   ├── auth.ts             # 认证 API
+│   │   ├── cluster.ts          # 集群管理 API
+│   │   ├── dashboard.ts        # Dashboard API
+│   │   └── resource.ts         # K8s 资源 API
+│   │
+│   ├── views/                  # 页面组件
+│   │   ├── login/              # 登录页
+│   │   ├── dashboard/          # 全局 Dashboard
+│   │   ├── cluster/            # 集群管理
+│   │   │   ├── ClusterList.vue     # 集群列表
+│   │   │   ├── ClusterDetail.vue   # 集群详情
+│   │   │   └── ClusterForm.vue     # 添加/编辑集群
+│   │   ├── resource/           # K8s 资源浏览
+│   │   │   ├── PodList.vue
+│   │   │   ├── DeploymentList.vue
+│   │   │   └── ...
+│   │   ├── user/               # 用户/角色管理
+│   │   └── terminal/           # Web 终端
+│   │
+│   ├── components/             # 通用组件
+│   │   ├── Layout/             # 布局（侧边栏+头部）
+│   │   ├── ClusterSelect/      # 集群选择器
+│   │   ├── YamlEditor/         # YAML 编辑器
+│   │   ├── ResourceTable/      # 资源列表表格
+│   │   └── StatusTag/          # 状态标签
+│   │
+│   ├── router/                 # 路由配置
+│   │   └── index.ts
+│   ├── stores/                 # Pinia 状态管理
+│   │   ├── auth.ts             # 认证状态
+│   │   ├── cluster.ts          # 集群状态
+│   │   └── app.ts              # 全局状态
+│   ├── utils/                  # 工具函数
+│   └── styles/                 # 全局样式
+│
+├── package.json
+├── vite.config.ts
+└── tsconfig.json
+</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🖼️ 页面布局</h3>
+  <div class="mockup">
+    <div class="mockup-header">整体布局结构</div>
+    <div class="mockup-body">
+      <div style="border:2px solid #334155;border-radius:8px;overflow:hidden">
+        <!-- Header -->
+        <div style="background:#0f172a;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-weight:bold;color:#60a5fa;font-size:16px">☸ gkube</span>
+            <span style="color:#475569;font-size:12px">|</span>
+            <span style="color:#94a3b8;font-size:12px">当前集群: <span style="color:#4ade80">prod-cluster-1</span></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#94a3b8">
+            <span>🔔</span>
+            <span>👤 admin</span>
+            <span style="color:#f87171;cursor:pointer">退出</span>
+          </div>
+        </div>
+        <!-- Body -->
+        <div style="display:flex;min-height:400px">
+          <!-- Sidebar -->
+          <div style="background:#1e293b;padding:16px;min-width:200px;border-right:1px solid #334155">
+            <div style="font-size:12px;color:#64748b;margin-bottom:12px">导航菜单</div>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:13px">
+              <div style="background:#3b82f6;color:white;padding:8px 12px;border-radius:6px">📊 Dashboard</div>
+              <div style="color:#94a3b8;padding:8px 12px;border-radius:6px">🖥️ 集群管理</div>
+              <div style="color:#94a3b8;padding:8px 12px;border-radius:6px">📦 工作负载
+                <div style="margin-left:20px;margin-top:4px;font-size:12px;color:#64748b">
+                  <div>Deployments</div>
+                  <div>StatefulSets</div>
+                  <div>DaemonSets</div>
+                  <div>Pods</div>
+                </div>
+              </div>
+              <div style="color:#94a3b8;padding:8px 12px;border-radius:6px">🌐 服务发现
+                <div style="margin-left:20px;margin-top:4px;font-size:12px;color:#64748b">
+                  <div>Services</div>
+                  <div>Ingresses</div>
+                </div>
+              </div>
+              <div style="color:#94a3b8;padding:8px 12px;border-radius:6px">💾 配置存储
+                <div style="margin-left:20px;margin-top:4px;font-size:12px;color:#64748b">
+                  <div>ConfigMaps</div>
+                  <div>Secrets</div>
+                  <div>PV / PVC</div>
+                </div>
+              </div>
+              <div style="color:#94a3b8;padding:8px 12px;border-radius:6px">🖥️ Web 终端</div>
+              <div style="border-top:1px solid #334155;margin-top:8px;padding-top:8px"></div>
+              <div style="color:#94a3b8;padding:8px 12px;border-radius:6px">👤 用户管理</div>
+              <div style="color:#94a3b8;padding:8px 12px;border-radius:6px">🔑 角色管理</div>
+            </div>
+          </div>
+          <!-- Main Content -->
+          <div style="flex:1;padding:16px;background:#0f172a">
+            <div style="color:#64748b;font-size:12px;margin-bottom:12px">Dashboard / 全局概览</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+              <div style="background:#1e293b;padding:12px;border-radius:8px;text-align:center">
+                <div style="font-size:24px;font-weight:bold;color:#60a5fa">5</div>
+                <div style="font-size:11px;color:#64748b">集群总数</div>
+              </div>
+              <div style="background:#1e293b;padding:12px;border-radius:8px;text-align:center">
+                <div style="font-size:24px;font-weight:bold;color:#4ade80">4</div>
+                <div style="font-size:11px;color:#64748b">在线集群</div>
+              </div>
+              <div style="background:#1e293b;padding:12px;border-radius:8px;text-align:center">
+                <div style="font-size:24px;font-weight:bold;color:#fbbf24">25</div>
+                <div style="font-size:11px;color:#64748b">节点总数</div>
+              </div>
+              <div style="background:#1e293b;padding:12px;border-radius:8px;text-align:center">
+                <div style="font-size:24px;font-weight:bold;color:#f87171">1</div>
+                <div style="font-size:11px;color:#64748b">离线集群</div>
+              </div>
+            </div>
+            <div style="background:#1e293b;padding:16px;border-radius:8px">
+              <div style="font-size:13px;color:#e2e8f0;margin-bottom:8px">📈 资源使用率</div>
+              <div style="color:#64748b;font-size:12px">图表区域 — 各集群 CPU/内存使用率柱状图</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🔑 核心交互流程</h3>
+  <div class="mockup">
+    <div class="mockup-header">用户操作流程</div>
+    <div class="mockup-body">
+      <div style="display:flex;flex-direction:column;gap:16px;padding:16px;font-size:13px">
+        <div style="background:#1e3a5f;padding:12px;border-radius:8px">
+          <div style="font-weight:bold;color:#60a5fa;margin-bottom:8px">🔐 登录流程</div>
+          <div style="font-family:monospace;font-size:12px;color:#94a3b8">
+            输入用户名密码 → POST /v1/auth/login → 获取 JWT Token → 存储到 localStorage → 跳转 Dashboard
+          </div>
+        </div>
+        <div style="background:#1e3a5f;padding:12px;border-radius:8px">
+          <div style="font-weight:bold;color:#60a5fa;margin-bottom:8px">🖥️ 集群操作流程</div>
+          <div style="font-family:monospace;font-size:12px;color:#94a3b8">
+            集群列表 → 点击"添加集群" → 填写名称+粘贴kubeconfig → 验证连通性 → 保存<br>
+            集群列表 → 点击某个集群 → 进入集群详情 → 查看节点/命名空间/资源概览
+          </div>
+        </div>
+        <div style="background:#1e3a5f;padding:12px;border-radius:8px">
+          <div style="font-weight:bold;color:#60a5fa;margin-bottom:8px">📦 资源浏览流程</div>
+          <div style="font-family:monospace;font-size:12px;color:#94a3b8">
+            顶部选择集群 → 侧边栏选择资源类型 → 查看列表 → 点击详情 → 查看YAML/日志/终端
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

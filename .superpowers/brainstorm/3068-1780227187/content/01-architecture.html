@@ -1,0 +1,169 @@
+<h2>gkube 整体架构设计</h2>
+<p class="subtitle">轻量级 K8s 多集群管理面板 · 中心化直连模式</p>
+
+<div class="section">
+  <h3>🏗️ 系统架构图</h3>
+  <div class="mockup">
+    <div class="mockup-header">架构总览</div>
+    <div class="mockup-body">
+      <div style="display:flex;flex-direction:column;gap:20px;padding:20px;font-family:monospace;font-size:13px">
+        <!-- 用户层 -->
+        <div style="text-align:center">
+          <div style="display:inline-block;background:#3b82f6;color:white;padding:8px 24px;border-radius:8px;font-weight:bold">👤 用户浏览器</div>
+        </div>
+        <div style="text-align:center;color:#64748b">↓ HTTP / WebSocket</div>
+        <!-- 前端层 -->
+        <div style="background:#1e40af;color:white;padding:16px;border-radius:12px;text-align:center">
+          <div style="font-weight:bold;margin-bottom:8px">🖥️ 前端 (Vue 3 + Element Plus)</div>
+          <div style="font-size:12px;display:flex;justify-content:center;gap:16px">
+            <span>Dashboard</span>
+            <span>|</span>
+            <span>集群管理</span>
+            <span>|</span>
+            <span>资源浏览</span>
+            <span>|</span>
+            <span>Web终端</span>
+            <span>|</span>
+            <span>用户管理</span>
+          </div>
+        </div>
+        <div style="text-align:center;color:#64748b">↓ REST API + WebSocket</div>
+        <!-- 后端层 -->
+        <div style="background:#065f46;color:white;padding:16px;border-radius:12px">
+          <div style="font-weight:bold;text-align:center;margin-bottom:12px">⚙️ 后端 (Go + Gin)</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px">
+            <div style="background:#047857;padding:8px;border-radius:6px;text-align:center">
+              <div>🔐 Auth</div>
+              <div style="font-size:10px;opacity:0.7">JWT + RBAC</div>
+            </div>
+            <div style="background:#047857;padding:8px;border-radius:6px;text-align:center">
+              <div>🖥️ Cluster</div>
+              <div style="font-size:10px;opacity:0.7">注册/健康检测</div>
+            </div>
+            <div style="background:#047857;padding:8px;border-radius:6px;text-align:center">
+              <div>📊 Dashboard</div>
+              <div style="font-size:10px;opacity:0.7">全局概览聚合</div>
+            </div>
+            <div style="background:#047857;padding:8px;border-radius:6px;text-align:center">
+              <div>☸️ K8s Resource</div>
+              <div style="font-size:10px;opacity:0.7">Pod/Deploy/Svc...</div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;color:#64748b">↓ client-go · kubeconfig</div>
+        <!-- 存储层 -->
+        <div style="display:flex;gap:12px">
+          <div style="flex:1;background:#7c3aed;color:white;padding:12px;border-radius:8px;text-align:center">
+            <div style="font-weight:bold">🗄️ MySQL</div>
+            <div style="font-size:11px;opacity:0.8">用户/角色/集群配置</div>
+          </div>
+          <div style="flex:1;background:#dc2626;color:white;padding:12px;border-radius:8px;text-align:center">
+            <div style="font-weight:bold">📦 Redis</div>
+            <div style="font-size:11px;opacity:0.8">Token/集群状态缓存</div>
+          </div>
+          <div style="flex:1;background:#ea580c;color:white;padding:12px;border-radius:8px;text-align:center">
+            <div style="font-weight:bold">🔍 Elasticsearch</div>
+            <div style="font-size:11px;opacity:0.8">终端录屏/审计日志</div>
+          </div>
+        </div>
+        <!-- K8s 集群层 -->
+        <div style="text-align:center;color:#64748b">↓ kubeconfig (加密存储)</div>
+        <div style="display:flex;gap:12px">
+          <div style="flex:1;background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;text-align:center;border:2px solid #3b82f6">
+            <div style="font-weight:bold">☸️ 集群 A</div>
+            <div style="font-size:11px;opacity:0.7">开发环境</div>
+          </div>
+          <div style="flex:1;background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;text-align:center;border:2px solid #3b82f6">
+            <div style="font-weight:bold">☸️ 集群 B</div>
+            <div style="font-size:11px;opacity:0.7">测试环境</div>
+          </div>
+          <div style="flex:1;background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;text-align:center;border:2px solid #3b82f6">
+            <div style="font-weight:bold">☸️ 集群 C</div>
+            <div style="font-size:11px;opacity:0.7">生产环境</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>📦 后端模块划分</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px">
+    <thead>
+      <tr style="background:#1e293b;color:#e2e8f0">
+        <th style="padding:10px;text-align:left">模块</th>
+        <th style="padding:10px;text-align:left">职责</th>
+        <th style="padding:10px;text-align:left">关键文件</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px"><strong>auth</strong></td>
+        <td style="padding:10px">认证鉴权：登录、JWT、用户/角色/权限 CRUD</td>
+        <td style="padding:10px;font-family:monospace;font-size:12px">app/auth/{api,model,params}/</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px"><strong>cluster</strong></td>
+        <td style="padding:10px">集群管理：注册、编辑、删除、健康检测、状态缓存</td>
+        <td style="padding:10px;font-family:monospace;font-size:12px">app/cluster/{api,model,params}/</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px"><strong>dashboard</strong></td>
+        <td style="padding:10px">全局概览：跨集群资源统计、工作负载聚合、事件汇总</td>
+        <td style="padding:10px;font-family:monospace;font-size:12px">app/dashboard/{api,params}/</td>
+      </tr>
+      <tr>
+        <td style="padding:10px"><strong>k8s resource</strong></td>
+        <td style="padding:10px">K8s 资源操作：Pod/Deployment/Service 等 CRUD（重构现有）</td>
+        <td style="padding:10px;font-family:monospace;font-size:12px">app/k8s/{api,params}/ (保留)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h3>🔗 API 路由重新设计</h3>
+  <div class="mockup">
+    <div class="mockup-header">新 API 路由结构</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:12px;line-height:1.7">
+      <div style="color:#94a3b8">// 认证</div>
+      POST   /v1/auth/login<br>
+      POST   /v1/auth/refresh<br>
+      GET    /v1/auth/me<br>
+      <br>
+      <div style="color:#94a3b8">// 用户管理</div>
+      GET    /v1/users<br>
+      POST   /v1/users<br>
+      PUT    /v1/users/:id<br>
+      DELETE /v1/users/:id<br>
+      <br>
+      <div style="color:#94a3b8">// 角色管理</div>
+      GET    /v1/roles<br>
+      POST   /v1/roles<br>
+      PUT    /v1/roles/:id<br>
+      DELETE /v1/roles/:id<br>
+      <br>
+      <div style="color:#94a3b8">// 集群管理</div>
+      GET    /v1/clusters<br>
+      POST   /v1/clusters<br>
+      GET    /v1/clusters/:id<br>
+      PUT    /v1/clusters/:id<br>
+      DELETE /v1/clusters/:id<br>
+      GET    /v1/clusters/:id/health<br>
+      <br>
+      <div style="color:#94a3b8">// Dashboard</div>
+      GET    /v1/dashboard/overview<br>
+      GET    /v1/dashboard/resources<br>
+      GET    /v1/dashboard/workloads<br>
+      GET    /v1/dashboard/events<br>
+      <br>
+      <div style="color:#94a3b8">// K8s 资源（挂载在集群路由下）</div>
+      GET    /v1/clusters/:cid/pods<br>
+      GET    /v1/clusters/:cid/deployments<br>
+      GET    /v1/clusters/:cid/services<br>
+      GET    /v1/clusters/:cid/namespaces<br>
+      ...<br>
+    </div>
+  </div>
+</div>

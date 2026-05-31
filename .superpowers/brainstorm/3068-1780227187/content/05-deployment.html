@@ -1,0 +1,204 @@
+<h2>设计第五部分：部署方案</h2>
+<p class="subtitle">独立部署 + 集群内部署 双模式</p>
+
+<div class="section">
+  <h3>🐳 部署模式一：独立部署</h3>
+  <div class="mockup">
+    <div class="mockup-header">Docker Compose 编排</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:12px;line-height:1.6">
+<pre style="margin:0">
+# docker-compose.yaml
+version: '3.8'
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+      - redis
+    environment:
+      - DB_HOST=mysql
+      - REDIS_ADDR=redis:6379
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  mysql:
+    image: mysql:8.0
+    volumes:
+      - mysql-data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=xxx
+      - MYSQL_DATABASE=gkube
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>☸️ 部署模式二：集群内部署</h3>
+  <div class="mockup">
+    <div class="mockup-header">Helm Chart 部署</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:12px;line-height:1.6">
+<pre style="margin:0">
+# 使用 Helm Chart 部署到 K8s 集群
+helm install gkube ./deploy/helm/gkube \
+  --namespace gkube-system \
+  --create-namespace \
+  --set backend.replicas=2 \
+  --set frontend.replicas=2 \
+  --set mysql.enabled=true \
+  --set redis.enabled=true
+
+# 或使用外部数据库
+helm install gkube ./deploy/helm/gkube \
+  --set mysql.enabled=false \
+  --set externalMySQL.host=your-mysql-host \
+  --set externalMySQL.password=your-password
+</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>📋 Makefile 常用命令</h3>
+  <div class="mockup">
+    <div class="mockup-header">开发与构建命令</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:12px;line-height:1.6">
+<pre style="margin:0">
+# 后端开发
+make backend-dev        # 热重载开发
+make backend-build      # 编译二进制
+make backend-test       # 运行测试
+make migrate            # 数据库迁移
+
+# 前端开发
+make frontend-dev       # Vite 开发服务器
+make frontend-build     # 生产构建
+
+# Docker
+make docker-build       # 构建所有镜像
+make docker-up          # 启动开发环境
+make docker-down        # 停止开发环境
+
+# 生产部署
+make build              # 构建生产版本
+make deploy             # 部署到 K8s
+</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🔒 安全设计</h3>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px">
+    <div class="mockup">
+      <div class="mockup-header">后端安全</div>
+      <div class="mockup-body" style="padding:16px;font-size:13px">
+        <ul style="list-style:none;padding:0;line-height:2;color:#94a3b8">
+          <li>🔒 kubeconfig AES-256 加密存储</li>
+          <li>🔒 密码 bcrypt 加盐哈希</li>
+          <li>🔒 JWT Token 过期时间 2 小时</li>
+          <li>🔒 Refresh Token 过期时间 7 天</li>
+          <li>🔒 RBAC 权限校验中间件</li>
+          <li>🔒 请求频率限制（防暴力破解）</li>
+          <li>🔒 操作审计日志</li>
+        </ul>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">前端安全</div>
+      <div class="mockup-body" style="padding:16px;font-size:13px">
+        <ul style="list-style:none;padding:0;line-height:2;color:#94a3b8">
+          <li>🔒 Token 存储在 localStorage</li>
+          <li>🔒 Axios 拦截器自动附加 Token</li>
+          <li>🔒 401 自动跳转登录页</li>
+          <li>🔒 路由守卫防止未授权访问</li>
+          <li>🔒 敏感操作二次确认弹窗</li>
+          <li>🔒 XSS 防护（Vue 模板转义）</li>
+          <li>🔒 CSRF Token（可选）</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>📊 技术选型汇总</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead>
+      <tr style="background:#1e293b;color:#e2e8f0">
+        <th style="padding:10px;text-align:left">层级</th>
+        <th style="padding:10px;text-align:left">技术</th>
+        <th style="padding:10px;text-align:left">说明</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px">后端框架</td>
+        <td style="padding:10px">Go + Gin</td>
+        <td style="padding:10px">保留现有技术栈</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px">前端框架</td>
+        <td style="padding:10px">Vue 3 + TypeScript</td>
+        <td style="padding:10px">Composition API</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px">UI 组件库</td>
+        <td style="padding:10px">Element Plus</td>
+        <td style="padding:10px">与 Kuboard 一致</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px">构建工具</td>
+        <td style="padding:10px">Vite</td>
+        <td style="padding:10px">快速开发体验</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px">状态管理</td>
+        <td style="padding:10px">Pinia</td>
+        <td style="padding:10px">Vue 3 官方推荐</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px">路由</td>
+        <td style="padding:10px">Vue Router 4</td>
+        <td style="padding:10px">动态路由 + 路由守卫</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px">HTTP 客户端</td>
+        <td style="padding:10px">Axios</td>
+        <td style="padding:10px">拦截器统一处理</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px">K8s 客户端</td>
+        <td style="padding:10px">client-go</td>
+        <td style="padding:10px">保留现有</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px">数据库</td>
+        <td style="padding:10px">MySQL + GORM</td>
+        <td style="padding:10px">保留现有</td>
+      </tr>
+      <tr style="border-bottom:1px solid #334155">
+        <td style="padding:10px">缓存</td>
+        <td style="padding:10px">Redis</td>
+        <td style="padding:10px">Token + 集群状态缓存</td>
+      </tr>
+      <tr>
+        <td style="padding:10px">终端</td>
+        <td style="padding:10px">Xterm.js + WebSocket</td>
+        <td style="padding:10px">Web 终端</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

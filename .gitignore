@@ -24,3 +24,9 @@ go.work.sum
 # env file
 .env
 .idea
+
+# Superpowers brainstorm
+.superpowers/
+
+# Logs
+log/

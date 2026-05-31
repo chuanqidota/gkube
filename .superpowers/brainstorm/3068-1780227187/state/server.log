@@ -1,0 +1,10 @@
+{"type":"server-started","port":53926,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:53926","screen_dir":"/Users/zqqzqq/05_github/gkube/.superpowers/brainstorm/3068-1780227187/content","state_dir":"/Users/zqqzqq/05_github/gkube/.superpowers/brainstorm/3068-1780227187/state"}
+{"type":"screen-added","file":"/Users/zqqzqq/05_github/gkube/.superpowers/brainstorm/3068-1780227187/content/01-architecture.html"}
+{"type":"screen-added","file":"/Users/zqqzqq/05_github/gkube/.superpowers/brainstorm/3068-1780227187/content/02-data-model.html"}
+{"type":"screen-added","file":"/Users/zqqzqq/05_github/gkube/.superpowers/brainstorm/3068-1780227187/content/03-cluster-dashboard.html"}
+{"type":"screen-updated","file":"/Users/zqqzqq/05_github/gkube/.superpowers/brainstorm/3068-1780227187/content/03-cluster-dashboard.html"}
+{"type":"screen-added","file":"/Users/zqqzqq/05_github/gkube/.superpowers/brainstorm/3068-1780227187/content/04-frontend.html"}
+{"type":"screen-updated","file":"/Users/zqqzqq/05_github/gkube/.superpowers/brainstorm/3068-1780227187/content/04-frontend.html"}
+{"type":"screen-added","file":"/Users/zqqzqq/05_github/gkube/.superpowers/brainstorm/3068-1780227187/content/05-deployment.html"}
+{"type":"screen-updated","file":"/Users/zqqzqq/05_github/gkube/.superpowers/brainstorm/3068-1780227187/content/05-deployment.html"}
+{"type":"server-stopped","reason":"idle timeout"}

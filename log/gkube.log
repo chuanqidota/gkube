@@ -1,0 +1,6 @@
+time="2026-05-31 20:24:19" level=error msg="连接数据库出错：dial tcp :0: connect: can't assign requested address" func="gkube/pkg/logger.Error()" file="/Users/zqqzqq/05_github/gkube/pkg/logger/logger.go:51"
+time="2026-05-31 20:24:24" level=error msg="es连接失败-health check timeout: no Elasticsearch node available" func="gkube/pkg/logger.Error()" file="/Users/zqqzqq/05_github/gkube/pkg/logger/logger.go:51"
+time="2026-05-31 20:24:37" level=error msg="连接数据库出错：dial tcp :0: connect: can't assign requested address" func="gkube/pkg/logger.Error()" file="/Users/zqqzqq/05_github/gkube/pkg/logger/logger.go:51"
+time="2026-05-31 20:24:42" level=error msg="es连接失败-health check timeout: no Elasticsearch node available" func="gkube/pkg/logger.Error()" file="/Users/zqqzqq/05_github/gkube/pkg/logger/logger.go:51"
+time="2026-05-31 20:24:47" level=error msg="连接数据库出错：dial tcp :0: connect: can't assign requested address" func="gkube/pkg/logger.Error()" file="/Users/zqqzqq/05_github/gkube/pkg/logger/logger.go:51"
+time="2026-05-31 20:24:52" level=error msg="es连接失败-health check timeout: no Elasticsearch node available" func="gkube/pkg/logger.Error()" file="/Users/zqqzqq/05_github/gkube/pkg/logger/logger.go:51"
