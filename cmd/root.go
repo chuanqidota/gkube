@@ -17,6 +17,8 @@ import (
 	"os/signal"
 	"time"
 
+	clusterService "gkube/app/cluster/service"
+
 	"github.com/spf13/cobra"
 )
 
@@ -73,6 +75,12 @@ func Run() {
 		WriteTimeout:   60 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
+
+	// Start health checker for clusters
+	healthChecker := clusterService.NewHealthChecker(30 * time.Second)
+	healthChecker.Start()
+	defer healthChecker.Stop()
+
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
 			fmt.Println(err.Error())
