@@ -7,7 +7,7 @@ const router = createRouter({
     {
       path: '/login',
       name: 'Login',
-      component: () => import('@/views/Login.vue'),
+      component: () => import('@/views/login/LoginView.vue'),
       meta: { public: true },
     },
     {
@@ -17,7 +17,7 @@ const router = createRouter({
     {
       path: '/dashboard',
       name: 'Dashboard',
-      component: () => import('@/views/Dashboard.vue'),
+      component: () => import('@/views/dashboard/DashboardView.vue'),
     },
     {
       path: '/clusters',
