@@ -1,21 +1,52 @@
-import request from '@/utils/request'
+import request from './request'
 
-export function getClusterList(params: { page: number; size: number }) {
-  return request.get('/clusters', { params })
+export interface Cluster {
+  id: number
+  name: string
+  description: string
+  api_server: string
+  status: string
+  created_at: string
+  updated_at: string
 }
 
-export function getCluster(id: string) {
-  return request.get(`/clusters/${id}`)
+export interface ClusterCreateParams {
+  name: string
+  description?: string
+  api_server: string
+  token: string
+  ca_cert?: string
 }
 
-export function createCluster(data: any) {
-  return request.post('/clusters', data)
+export interface ClusterUpdateParams {
+  id: number
+  name?: string
+  description?: string
+  api_server?: string
+  token?: string
+  ca_cert?: string
 }
 
-export function updateCluster(id: string, data: any) {
-  return request.put(`/clusters/${id}`, data)
+export function getClusterList() {
+  return request.get<Cluster[]>('/clusters')
 }
 
-export function deleteCluster(id: string) {
-  return request.delete(`/clusters/${id}`)
+export function createCluster(data: ClusterCreateParams) {
+  return request.post<Cluster>('/clusters', data)
+}
+
+export function getClusterDetail(id: number) {
+  return request.get<Cluster>(`/clusters/${id}`)
+}
+
+export function updateCluster(data: ClusterUpdateParams) {
+  return request.put<Cluster>('/clusters', data)
+}
+
+export function deleteCluster(id: number) {
+  return request.delete('/clusters', { data: { id } })
+}
+
+export function checkCluster(id: number) {
+  return request.get(`/clusters/${id}/check`)
 }

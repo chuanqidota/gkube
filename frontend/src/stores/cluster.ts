@@ -7,8 +7,8 @@ export const useClusterStore = defineStore('cluster', () => {
   const currentCluster = ref<any>(null)
 
   async function fetchClusters() {
-    const res: any = await getClusterList({ page: 1, size: 100 })
-    clusterList.value = res.data.items || []
+    const res: any = await getClusterList()
+    clusterList.value = res.data || []
   }
 
   function setCurrentCluster(cluster: any) {
