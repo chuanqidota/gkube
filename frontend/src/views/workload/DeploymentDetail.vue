@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { getDeploymentDetail, getDeploymentYaml } from '@/api/resource'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  getDeploymentDetail,
+  getDeploymentYaml,
+  restartDeployment,
+  rollbackDeployment,
+} from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const route = useRoute()
@@ -12,6 +17,11 @@ const deployment = ref<any>(null)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
 const activeTab = ref('info')
+
+// Rollback dialog
+const rollbackDialogVisible = ref(false)
+const rollbackRevision = ref<number>(1)
+const rollbackLoading = ref(false)
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
@@ -47,6 +57,52 @@ function handleTabChange(tab: string) {
   }
 }
 
+async function handleRestart() {
+  try {
+    await ElMessageBox.confirm(
+      `Restart deployment "${name}"? This will trigger a rolling update.`,
+      'Confirm Restart',
+      { type: 'warning' }
+    )
+    await restartDeployment({ clusterName, namespace, name })
+    ElMessage.success('Deployment restarted')
+    fetchDetail()
+  } catch {
+    // cancelled
+  }
+}
+
+function handleRollback() {
+  // Try to parse current revision from annotations
+  const annotations = deployment.value?.annotations || {}
+  const currentRevision = parseInt(annotations['deployment.kubernetes.io/revision'] || '0', 10)
+  rollbackRevision.value = Math.max(1, currentRevision - 1)
+  rollbackDialogVisible.value = true
+}
+
+async function handleRollbackConfirm() {
+  if (!rollbackRevision.value || rollbackRevision.value < 1) {
+    ElMessage.warning('Please enter a valid revision number')
+    return
+  }
+  rollbackLoading.value = true
+  try {
+    await rollbackDeployment({
+      clusterName,
+      namespace,
+      name,
+      revision: rollbackRevision.value,
+    })
+    ElMessage.success(`Deployment rolled back to revision ${rollbackRevision.value}`)
+    rollbackDialogVisible.value = false
+    fetchDetail()
+  } catch (e: any) {
+    ElMessage.error(e?.message || 'Failed to rollback deployment')
+  } finally {
+    rollbackLoading.value = false
+  }
+}
+
 onMounted(fetchDetail)
 </script>
 
@@ -54,7 +110,11 @@ onMounted(fetchDetail)
   <div v-loading="loading">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <h2 style="margin: 0;">Deployment: {{ name }}</h2>
-      <el-button @click="router.push('/workloads/deployments')">Back to List</el-button>
+      <div style="display: flex; gap: 8px;">
+        <el-button type="warning" @click="handleRestart">Restart</el-button>
+        <el-button type="danger" @click="handleRollback">Rollback</el-button>
+        <el-button @click="router.push('/workloads/deployments')">Back to List</el-button>
+      </div>
     </div>
 
     <template v-if="deployment">
@@ -122,5 +182,34 @@ onMounted(fetchDetail)
         </el-tab-pane>
       </el-tabs>
     </template>
+
+    <!-- Rollback Dialog -->
+    <el-dialog v-model="rollbackDialogVisible" title="Rollback Deployment" width="480px" destroy-on-close>
+      <div>
+        <p style="margin-bottom: 16px;">
+          Rollback deployment <strong>{{ name }}</strong> in namespace <strong>{{ namespace }}</strong>.
+        </p>
+        <el-alert
+          v-if="deployment?.annotations?.['deployment.kubernetes.io/revision']"
+          :title="`Current revision: ${deployment.annotations['deployment.kubernetes.io/revision']}`"
+          type="info"
+          :closable="false"
+          style="margin-bottom: 16px;"
+        />
+        <el-form-item label="Target Revision">
+          <el-input-number v-model="rollbackRevision" :min="1" style="width: 200px;" />
+        </el-form-item>
+        <el-alert
+          title="This will roll back the deployment to the specified revision by restoring the Pod template from that revision's ReplicaSet."
+          type="warning"
+          :closable="false"
+          show-icon
+        />
+      </div>
+      <template #footer>
+        <el-button @click="rollbackDialogVisible = false">Cancel</el-button>
+        <el-button type="danger" :loading="rollbackLoading" @click="handleRollbackConfirm">Rollback</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>

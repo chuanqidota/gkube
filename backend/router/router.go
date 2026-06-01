@@ -127,6 +127,8 @@ func Engine() *gin.Engine {
 			k8s.DELETE("service/delete", k8sApi.Service.DeleteService)              // 删除服务
 
 			k8s.GET("deployment/list", k8sApi.Deployment.GetDeploymentList)                     // 获取deployment
+			k8s.GET("deployment/detail", k8sApi.Deployment.GetDeploymentDetail)                // 获取deployment详情
+			k8s.GET("deployment/get-yaml", k8sApi.Deployment.GetDeploymentYaml)                // 获取deployment yaml
 			k8s.POST("deployment/list-by-field", k8sApi.Deployment.GetDeploymentByField)        // 根据字段获取deployment
 			k8s.POST("deployment/list-by-label", k8sApi.Deployment.GetDeploymentByLabel)        // 根据标签获取deployment
 			k8s.POST("deployment/create", k8sApi.Deployment.CreateDeployment)                   // 创建deployment
@@ -136,6 +138,7 @@ func Engine() *gin.Engine {
 			k8s.DELETE("deployment/delete-by-label", k8sApi.Deployment.DeleteDeploymentByLabel) // 根据标签删除deployment
 			k8s.POST("deployment/scale", k8sApi.Deployment.ScaleDeployment)                     // 扩容deployment
 			k8s.POST("deployment/restart", k8sApi.Deployment.RestartDeployment)                 // 重启deployment
+			k8s.POST("deployment/rollback", k8sApi.Deployment.RollbackDeployment)               // 回滚deployment
 			k8s.GET("deployment/pods", k8sApi.Deployment.DeploymentPodList)                     // 获取deployment pods
 
 			k8s.GET("statefulSet/list", k8sApi.StatefulSet.GetStatefulSetList)                     // 获取有状态服务列表

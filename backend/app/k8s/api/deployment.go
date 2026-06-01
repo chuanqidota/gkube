@@ -37,6 +37,82 @@ func (dp *deployment) GetDeploymentList(c *gin.Context) {
 	response.Success(c, "执行成功", deployments)
 }
 
+// GetDeploymentDetail
+//
+//	@Description: 获取deployment详情
+//	@receiver dp
+//	@param c
+func (dp *deployment) GetDeploymentDetail(c *gin.Context) {
+	var query params.DeploymentDeleteParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	deploymentDetail, err := k8sDeployment.GetDeploymentDetail(client, query.Namespace, query.Name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取deployment详情失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", deploymentDetail)
+}
+
+// GetDeploymentYaml
+//
+//	@Description: 获取deployment yaml
+//	@receiver dp
+//	@param c
+func (dp *deployment) GetDeploymentYaml(c *gin.Context) {
+	var query params.DeploymentDeleteParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	yamlContent, err := k8sDeployment.GetDeploymentYaml(client, query.Namespace, query.Name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取deployment yaml失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", map[string]string{"yaml": yamlContent})
+}
+
+// RollbackDeployment
+//
+//	@Description: 回滚deployment
+//	@receiver dp
+//	@param c
+func (dp *deployment) RollbackDeployment(c *gin.Context) {
+	var body params.DeploymentRollbackParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	ok, err := k8sDeployment.RollbackDeployment(client, body.Namespace, body.Name, body.Revision)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("回滚deployment失败:%s", err.Error()))
+		return
+	}
+	if !ok {
+		response.Fail(c, "回滚deployment失败")
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}
+
 // GetDeploymentByField
 //
 //	@Description: 根据字段查询deployment列表

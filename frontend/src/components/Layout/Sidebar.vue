@@ -106,6 +106,10 @@
         <el-icon><FolderOpened /></el-icon>
         <template #title>命名空间</template>
       </el-menu-item>
+      <el-menu-item index="/events">
+        <el-icon><Bell /></el-icon>
+        <template #title>Events</template>
+      </el-menu-item>
       <el-sub-menu index="tools">
         <template #title>
           <el-icon><Monitor /></el-icon>
@@ -159,6 +163,7 @@ import {
   FolderOpened,
   Tickets,
   Key,
+  Bell,
 } from '@element-plus/icons-vue'
 
 defineProps<{

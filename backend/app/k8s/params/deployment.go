@@ -65,3 +65,10 @@ type DeploymentPodParams struct {
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
 	Name        string `form:"name" json:"name" label:"名称"`
 }
+
+type DeploymentRollbackParams struct {
+	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	Name        string `form:"name" json:"name" label:"名称"`
+	Revision    int64  `form:"revision" json:"revision" label:"回滚版本"`
+}

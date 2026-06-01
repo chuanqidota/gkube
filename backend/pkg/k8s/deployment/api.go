@@ -221,6 +221,69 @@ func RestartDeployment(client *kubernetes.Clientset, namespace, name string) (bo
 	return true, nil
 }
 
+// GetDeploymentDetail
+//
+//	@Description: 获取deployment详情
+//	@param client
+//	@param namespace
+//	@param name
+//	@return *appsv1.Deployment
+//	@return error
+func GetDeploymentDetail(client *kubernetes.Clientset, namespace, name string) (*appsv1.Deployment, error) {
+	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取deployment详情失败:%s", err.Error())
+	}
+	return deployment, nil
+}
+
+// RollbackDeployment
+//
+//	@Description: 回滚deployment到指定revision
+//	@param client
+//	@param namespace
+//	@param name
+//	@param revision
+//	@return bool
+//	@return error
+func RollbackDeployment(client *kubernetes.Clientset, namespace, name string, revision int64) (bool, error) {
+	// Get ReplicaSets for this deployment
+	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("获取deployment资源失败:%s", err.Error())
+	}
+
+	labelSelector := labels.Set(deployment.Spec.Selector.MatchLabels).String()
+	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return false, fmt.Errorf("获取ReplicaSet列表失败:%s", err.Error())
+	}
+
+	// Find the target ReplicaSet with matching revision
+	var targetRS *appsv1.ReplicaSet
+	for i, rs := range rsList.Items {
+		revStr := rs.Annotations["deployment.kubernetes.io/revision"]
+		if revStr == fmt.Sprintf("%d", revision) {
+			targetRS = &rsList.Items[i]
+			break
+		}
+	}
+
+	if targetRS == nil {
+		return false, fmt.Errorf("未找到 revision %d 对应的ReplicaSet", revision)
+	}
+
+	// Apply the template from the target ReplicaSet
+	deployment.Spec.Template = targetRS.Spec.Template
+	_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("回滚deployment失败:%s", err.Error())
+	}
+	return true, nil
+}
+
 // DpPodList
 //
 //	@Description: deployment关联的pod
