@@ -22,6 +22,34 @@
         <el-icon><Connection /></el-icon>
         <template #title>集群管理</template>
       </el-menu-item>
+      <el-sub-menu index="workloads">
+        <template #title>
+          <el-icon><Box /></el-icon>
+          <span>工作负载</span>
+        </template>
+        <el-menu-item index="/workloads/pods">
+          <el-icon><Coin /></el-icon>
+          <template #title>Pods</template>
+        </el-menu-item>
+        <el-menu-item index="/workloads/deployments">
+          <el-icon><Files /></el-icon>
+          <template #title>Deployments</template>
+        </el-menu-item>
+      </el-sub-menu>
+      <el-sub-menu index="tools">
+        <template #title>
+          <el-icon><Monitor /></el-icon>
+          <span>运维工具</span>
+        </template>
+        <el-menu-item index="/terminal">
+          <el-icon><Promotion /></el-icon>
+          <template #title>Web 终端</template>
+        </el-menu-item>
+        <el-menu-item index="/logs">
+          <el-icon><Document /></el-icon>
+          <template #title>日志查看</template>
+        </el-menu-item>
+      </el-sub-menu>
       <el-sub-menu index="system">
         <template #title>
           <el-icon><Setting /></el-icon>
@@ -49,6 +77,12 @@ import {
   Setting,
   User,
   UserFilled,
+  Monitor,
+  Promotion,
+  Document,
+  Box,
+  Coin,
+  Files,
 } from '@element-plus/icons-vue'
 
 defineProps<{

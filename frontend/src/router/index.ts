@@ -45,6 +45,70 @@ const router = createRouter({
       name: 'RoleList',
       component: () => import('@/views/RoleList.vue'),
     },
+    {
+      path: '/terminal',
+      name: 'Terminal',
+      component: () => import('@/views/terminal/TerminalView.vue'),
+      meta: { title: 'Web 终端' },
+    },
+    {
+      path: '/logs',
+      name: 'Logs',
+      component: () => import('@/views/log/LogView.vue'),
+      meta: { title: '日志查看' },
+    },
+    // Workload routes
+    {
+      path: '/workloads/pods',
+      name: 'PodList',
+      component: () => import('@/views/workload/PodList.vue'),
+    },
+    {
+      path: '/workloads/pods/:namespace/:name',
+      name: 'PodDetail',
+      component: () => import('@/views/workload/PodDetail.vue'),
+      props: true,
+    },
+    {
+      path: '/workloads/deployments',
+      name: 'DeploymentList',
+      component: () => import('@/views/workload/DeploymentList.vue'),
+    },
+    {
+      path: '/workloads/deployments/:namespace/:name',
+      name: 'DeploymentDetail',
+      component: () => import('@/views/workload/DeploymentDetail.vue'),
+      props: true,
+    },
+    // Network routes
+    {
+      path: '/services',
+      name: 'ServiceList',
+      component: () => import('@/views/network/ServiceList.vue'),
+    },
+    {
+      path: '/ingresses',
+      name: 'IngressList',
+      component: () => import('@/views/network/IngressList.vue'),
+    },
+    // Node routes
+    {
+      path: '/nodes',
+      name: 'NodeList',
+      component: () => import('@/views/node/NodeList.vue'),
+    },
+    {
+      path: '/nodes/:name',
+      name: 'NodeDetail',
+      component: () => import('@/views/node/NodeDetail.vue'),
+      props: true,
+    },
+    // Namespace routes
+    {
+      path: '/namespaces',
+      name: 'NamespaceList',
+      component: () => import('@/views/namespace/NamespaceList.vue'),
+    },
   ],
 })
 
