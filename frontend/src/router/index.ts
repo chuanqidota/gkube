@@ -111,9 +111,19 @@ const router = createRouter({
       component: () => import('@/views/workload/JobList.vue'),
     },
     {
+      path: '/workloads/jobs/create',
+      name: 'JobCreate',
+      component: () => import('@/views/workload/JobCreate.vue'),
+    },
+    {
       path: '/workloads/cronjobs',
       name: 'CronJobList',
       component: () => import('@/views/workload/CronJobList.vue'),
+    },
+    {
+      path: '/workloads/cronjobs/create',
+      name: 'CronJobCreate',
+      component: () => import('@/views/workload/CronJobCreate.vue'),
     },
     // Network routes
     {
