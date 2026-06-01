@@ -50,6 +50,28 @@
           <template #title>日志查看</template>
         </el-menu-item>
       </el-sub-menu>
+      <el-sub-menu index="network">
+        <template #title>
+          <el-icon><Share /></el-icon>
+          <span>网络</span>
+        </template>
+        <el-menu-item index="/services">
+          <el-icon><Connection /></el-icon>
+          <template #title>Services</template>
+        </el-menu-item>
+        <el-menu-item index="/ingresses">
+          <el-icon><Link /></el-icon>
+          <template #title>Ingresses</template>
+        </el-menu-item>
+      </el-sub-menu>
+      <el-menu-item index="/nodes">
+        <el-icon><Cpu /></el-icon>
+        <template #title>节点管理</template>
+      </el-menu-item>
+      <el-menu-item index="/namespaces">
+        <el-icon><FolderOpened /></el-icon>
+        <template #title>命名空间</template>
+      </el-menu-item>
       <el-sub-menu index="system">
         <template #title>
           <el-icon><Setting /></el-icon>
@@ -83,6 +105,10 @@ import {
   Box,
   Coin,
   Files,
+  Share,
+  Link,
+  Cpu,
+  FolderOpened,
 } from '@element-plus/icons-vue'
 
 defineProps<{
