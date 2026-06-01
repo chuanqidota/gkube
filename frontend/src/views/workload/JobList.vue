@@ -136,8 +136,9 @@ onMounted(() => {
       <el-table-column prop="completions" label="Completions" width="120" />
       <el-table-column prop="succeeded" label="Succeeded" width="120" />
       <el-table-column prop="age" label="Age" width="120" />
-      <el-table-column label="Actions" width="180" fixed="right">
+      <el-table-column label="Actions" width="260" fixed="right">
         <template #default="{ row }">
+          <el-button size="small" @click="router.push(`/workloads/jobs/${row.namespace}/${row.name}?cluster=${clusterName}`)">Detail</el-button>
           <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
           <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
         </template>

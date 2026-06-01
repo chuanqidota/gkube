@@ -251,6 +251,9 @@ export function createStatefulSet(data: { clusterName: string; namespace: string
 export function getStatefulSetList(params: any) {
   return request.get('/k8s/statefulset/list', { params })
 }
+export function getStatefulSetDetail(params: any) {
+  return request.get('/k8s/statefulset/detail', { params })
+}
 export function getStatefulSetYaml(params: any) {
   return request.get('/k8s/statefulset/get-yaml', { params })
 }
@@ -265,6 +268,9 @@ export function createDaemonSet(data: { clusterName: string; namespace: string; 
 
 export function getDaemonSetList(params: any) {
   return request.get('/k8s/daemonset/list', { params })
+}
+export function getDaemonSetDetail(params: any) {
+  return request.get('/k8s/daemonset/detail', { params })
 }
 export function getDaemonSetYaml(params: any) {
   return request.get('/k8s/daemonset/get-yaml', { params })
@@ -281,6 +287,9 @@ export function createJob(data: { clusterName: string; namespace: string; yamlCo
 export function getJobList(params: any) {
   return request.get('/k8s/job/list', { params })
 }
+export function getJobDetail(params: any) {
+  return request.get('/k8s/job/detail', { params })
+}
 export function getJobYaml(params: any) {
   return request.get('/k8s/job/get-yaml', { params })
 }
@@ -295,6 +304,9 @@ export function createCronJob(data: { clusterName: string; namespace: string; ya
 
 export function getCronJobList(params: any) {
   return request.get('/k8s/cronjob/list', { params })
+}
+export function getCronJobDetail(params: any) {
+  return request.get('/k8s/cronjob/detail', { params })
 }
 export function getCronJobYaml(params: any) {
   return request.get('/k8s/cronjob/get-yaml', { params })

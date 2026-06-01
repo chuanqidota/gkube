@@ -96,6 +96,12 @@ const router = createRouter({
       component: () => import('@/views/workload/StatefulSetCreate.vue'),
     },
     {
+      path: '/workloads/statefulsets/:namespace/:name',
+      name: 'StatefulSetDetail',
+      component: () => import('@/views/workload/StatefulSetDetail.vue'),
+      props: true,
+    },
+    {
       path: '/workloads/daemonsets',
       name: 'DaemonSetList',
       component: () => import('@/views/workload/DaemonSetList.vue'),
@@ -104,6 +110,12 @@ const router = createRouter({
       path: '/workloads/daemonsets/create',
       name: 'DaemonSetCreate',
       component: () => import('@/views/workload/DaemonSetCreate.vue'),
+    },
+    {
+      path: '/workloads/daemonsets/:namespace/:name',
+      name: 'DaemonSetDetail',
+      component: () => import('@/views/workload/DaemonSetDetail.vue'),
+      props: true,
     },
     {
       path: '/workloads/jobs',
@@ -116,6 +128,12 @@ const router = createRouter({
       component: () => import('@/views/workload/JobCreate.vue'),
     },
     {
+      path: '/workloads/jobs/:namespace/:name',
+      name: 'JobDetail',
+      component: () => import('@/views/workload/JobDetail.vue'),
+      props: true,
+    },
+    {
       path: '/workloads/cronjobs',
       name: 'CronJobList',
       component: () => import('@/views/workload/CronJobList.vue'),
@@ -124,6 +142,12 @@ const router = createRouter({
       path: '/workloads/cronjobs/create',
       name: 'CronJobCreate',
       component: () => import('@/views/workload/CronJobCreate.vue'),
+    },
+    {
+      path: '/workloads/cronjobs/:namespace/:name',
+      name: 'CronJobDetail',
+      component: () => import('@/views/workload/CronJobDetail.vue'),
+      props: true,
     },
     // Network routes
     {
