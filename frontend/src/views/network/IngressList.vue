@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getIngressList, getIngressYaml, deleteIngress } from '@/api/resource'
 import { useClusterStore } from '@/stores/cluster'
 import YamlEditor from '@/components/YamlEditor.vue'
+
+const router = useRouter()
 
 const clusterStore = useClusterStore()
 const loading = ref(false)
@@ -29,11 +32,11 @@ async function handleViewYaml(row: any) {
   yamlLoading.value = true
   yamlDialogVisible.value = true
   try {
-    const clusterId = clusterStore.currentCluster?.id
+    const clusterName = clusterStore.currentCluster?.clusterName || ''
     const res: any = await getIngressYaml({
+      clusterName,
       name: row.name,
       namespace: row.namespace,
-      cluster_id: clusterId,
     })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
@@ -51,8 +54,8 @@ async function handleDelete(row: any) {
       'Confirm',
       { type: 'warning' }
     )
-    const clusterId = clusterStore.currentCluster?.id
-    await deleteIngress({ name: row.name, namespace: row.namespace, cluster_id: clusterId })
+    const clusterName = clusterStore.currentCluster?.clusterName || ''
+    await deleteIngress({ clusterName, name: row.name, namespace: row.namespace })
     ElMessage.success('Deleted')
     fetchIngresses()
   } catch {
@@ -79,8 +82,9 @@ onMounted(fetchIngresses)
       <el-table-column prop="hosts" label="Hosts" min-width="200" show-overflow-tooltip />
       <el-table-column prop="address" label="Address" min-width="160" />
       <el-table-column prop="age" label="Age" min-width="100" />
-      <el-table-column label="Actions" width="180" fixed="right">
+      <el-table-column label="Actions" width="260" fixed="right">
         <template #default="{ row }">
+          <el-button size="small" type="primary" @click="router.push(`/ingresses/${row.namespace}/${row.name}?cluster=${clusterStore.currentCluster?.clusterName || ''}`)">Detail</el-button>
           <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
           <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
         </template>

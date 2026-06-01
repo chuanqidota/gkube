@@ -60,15 +60,15 @@ export function getNamespaceList(params?: { cluster_id?: number }) {
 }
 
 // Service
-export function getServiceDetail(params: { name: string; namespace: string; cluster_id?: number }) {
+export function getServiceDetail(params: { clusterName: string; namespace: string; name: string }) {
   return request.get('/k8s/service/detail', { params })
 }
 
-export function getServiceYaml(params: { name: string; namespace: string; cluster_id?: number }) {
+export function getServiceYaml(params: { clusterName: string; namespace: string; name: string }) {
   return request.get('/k8s/service/get-yaml', { params })
 }
 
-export function deleteService(data: { name: string; namespace: string; cluster_id?: number }) {
+export function deleteService(data: { clusterName: string; namespace: string; name: string }) {
   return request.delete('/k8s/service/delete', { data })
 }
 
@@ -103,11 +103,15 @@ export function getIngressList(params?: { namespace?: string; cluster_id?: numbe
   return request.get('/k8s/ingress/list', { params })
 }
 
-export function getIngressYaml(params: { name: string; namespace: string; cluster_id?: number }) {
+export function getIngressDetail(params: { clusterName: string; namespace: string; name: string }) {
+  return request.get('/k8s/ingress/detail', { params })
+}
+
+export function getIngressYaml(params: { clusterName: string; namespace: string; name: string }) {
   return request.get('/k8s/ingress/get-yaml', { params })
 }
 
-export function deleteIngress(data: { name: string; namespace: string; cluster_id?: number }) {
+export function deleteIngress(data: { clusterName: string; namespace: string; name: string }) {
   return request.delete('/k8s/ingress/delete', { data })
 }
 
@@ -179,15 +183,15 @@ export function getConfigMapList(params?: { namespace?: string; cluster_id?: num
   return request.get('/k8s/configmap/list', { params })
 }
 
-export function getConfigMapDetail(params: { name: string; namespace: string; cluster_id?: number }) {
+export function getConfigMapDetail(params: { clusterName: string; namespace: string; name: string }) {
   return request.get('/k8s/configmap/detail', { params })
 }
 
-export function getConfigMapYaml(params: { name: string; namespace: string; cluster_id?: number }) {
+export function getConfigMapYaml(params: { clusterName: string; namespace: string; name: string }) {
   return request.get('/k8s/configmap/get-yaml', { params })
 }
 
-export function deleteConfigMap(data: { name: string; namespace: string; cluster_id?: number }) {
+export function deleteConfigMap(data: { clusterName: string; namespace: string; name: string }) {
   return request.delete('/k8s/configmap/delete', { data })
 }
 
@@ -196,50 +200,62 @@ export function getSecretList(params?: { namespace?: string; cluster_id?: number
   return request.get('/k8s/secret/list', { params })
 }
 
-export function getSecretDetail(params: { name: string; namespace: string; cluster_id?: number }) {
+export function getSecretDetail(params: { clusterName: string; namespace: string; name: string }) {
   return request.get('/k8s/secret/detail', { params })
 }
 
-export function getSecretYaml(params: { name: string; namespace: string; cluster_id?: number }) {
+export function getSecretYaml(params: { clusterName: string; namespace: string; name: string }) {
   return request.get('/k8s/secret/get-yaml', { params })
 }
 
-export function deleteSecret(data: { name: string; namespace: string; cluster_id?: number }) {
+export function deleteSecret(data: { clusterName: string; namespace: string; name: string }) {
   return request.delete('/k8s/secret/delete', { data })
 }
 
 // PV
+export function getPvDetail(params: { clusterName: string; name: string }) {
+  return request.get('/k8s/pv/detail', { params })
+}
+
 export function getPvList(params?: { cluster_id?: number }) {
   return request.get('/k8s/pv/list', { params })
 }
 
-export function getPvYaml(params: { name: string; cluster_id?: number }) {
+export function getPvYaml(params: { clusterName: string; name: string }) {
   return request.get('/k8s/pv/get-yaml', { params })
 }
 
-export function deletePv(data: { name: string; cluster_id?: number }) {
+export function deletePv(data: { clusterName: string; name: string }) {
   return request.delete('/k8s/pv/delete', { data })
 }
 
 // PVC
+export function getPvcDetail(params: { clusterName: string; namespace: string; name: string }) {
+  return request.get('/k8s/pvc/detail', { params })
+}
+
 export function getPvcList(params?: { namespace?: string; cluster_id?: number }) {
   return request.get('/k8s/pvc/list', { params })
 }
 
-export function getPvcYaml(params: { name: string; namespace: string; cluster_id?: number }) {
+export function getPvcYaml(params: { clusterName: string; namespace: string; name: string }) {
   return request.get('/k8s/pvc/get-yaml', { params })
 }
 
-export function deletePvc(data: { name: string; namespace: string; cluster_id?: number }) {
+export function deletePvc(data: { clusterName: string; namespace: string; name: string }) {
   return request.delete('/k8s/pvc/delete', { data })
 }
 
 // StorageClass
+export function getStorageClassDetail(params: { clusterName: string; name: string }) {
+  return request.get('/k8s/storageclass/detail', { params })
+}
+
 export function getStorageClassList(params?: { cluster_id?: number }) {
   return request.get('/k8s/storageclass/list', { params })
 }
 
-export function getStorageClassYaml(params: { name: string; cluster_id?: number }) {
+export function getStorageClassYaml(params: { clusterName: string; name: string }) {
   return request.get('/k8s/storageclass/get-yaml', { params })
 }
 

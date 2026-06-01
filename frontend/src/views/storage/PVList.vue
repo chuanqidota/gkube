@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getPvList, getPvYaml, deletePv } from '@/api/resource'
 import { useClusterStore } from '@/stores/cluster'
 import YamlEditor from '@/components/YamlEditor.vue'
+
+const router = useRouter()
 
 const clusterStore = useClusterStore()
 const loading = ref(false)
@@ -29,10 +32,10 @@ async function handleViewYaml(row: any) {
   yamlLoading.value = true
   yamlDialogVisible.value = true
   try {
-    const clusterId = clusterStore.currentCluster?.id
+    const clusterName = clusterStore.currentCluster?.clusterName || ''
     const res: any = await getPvYaml({
+      clusterName,
       name: row.name,
-      cluster_id: clusterId,
     })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
@@ -50,8 +53,8 @@ async function handleDelete(row: any) {
       'Confirm',
       { type: 'warning' }
     )
-    const clusterId = clusterStore.currentCluster?.id
-    await deletePv({ name: row.name, cluster_id: clusterId })
+    const clusterName = clusterStore.currentCluster?.clusterName || ''
+    await deletePv({ clusterName, name: row.name })
     ElMessage.success('Deleted')
     fetchPvs()
   } catch {
@@ -90,8 +93,9 @@ onMounted(fetchPvs)
       <el-table-column prop="claim" label="Claim" min-width="180" show-overflow-tooltip />
       <el-table-column prop="storage_class" label="Storage Class" min-width="140" show-overflow-tooltip />
       <el-table-column prop="age" label="Age" width="120" />
-      <el-table-column label="Actions" width="160" fixed="right">
+      <el-table-column label="Actions" width="240" fixed="right">
         <template #default="{ row }">
+          <el-button size="small" type="primary" @click="router.push(`/storage/pvs/${row.name}?cluster=${clusterStore.currentCluster?.clusterName || ''}`)">Detail</el-button>
           <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
           <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
         </template>

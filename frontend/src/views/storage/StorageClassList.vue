@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getStorageClassList, getStorageClassYaml } from '@/api/resource'
 import { useClusterStore } from '@/stores/cluster'
 import YamlEditor from '@/components/YamlEditor.vue'
+
+const router = useRouter()
 
 const clusterStore = useClusterStore()
 const loading = ref(false)
@@ -29,10 +32,10 @@ async function handleViewYaml(row: any) {
   yamlLoading.value = true
   yamlDialogVisible.value = true
   try {
-    const clusterId = clusterStore.currentCluster?.id
+    const clusterName = clusterStore.currentCluster?.clusterName || ''
     const res: any = await getStorageClassYaml({
+      clusterName,
       name: row.name,
-      cluster_id: clusterId,
     })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
@@ -59,8 +62,9 @@ onMounted(fetchStorageClasses)
       <el-table-column prop="reclaim_policy" label="Reclaim Policy" width="140" />
       <el-table-column prop="volume_binding_mode" label="Volume Binding Mode" min-width="180" show-overflow-tooltip />
       <el-table-column prop="age" label="Age" width="120" />
-      <el-table-column label="Actions" width="100" fixed="right">
+      <el-table-column label="Actions" width="180" fixed="right">
         <template #default="{ row }">
+          <el-button size="small" type="primary" @click="router.push(`/storage/storageclasses/${row.name}?cluster=${clusterStore.currentCluster?.clusterName || ''}`)">Detail</el-button>
           <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
         </template>
       </el-table-column>

@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getSecretList, getSecretYaml, getSecretDetail, deleteSecret } from '@/api/resource'
 import { useClusterStore } from '@/stores/cluster'
 import YamlEditor from '@/components/YamlEditor.vue'
+
+const router = useRouter()
 
 const clusterStore = useClusterStore()
 const loading = ref(false)
@@ -36,11 +39,11 @@ async function handleViewYaml(row: any) {
   yamlLoading.value = true
   yamlDialogVisible.value = true
   try {
-    const clusterId = clusterStore.currentCluster?.id
+    const clusterName = clusterStore.currentCluster?.clusterName || ''
     const res: any = await getSecretYaml({
+      clusterName,
       name: row.name,
       namespace: row.namespace,
-      cluster_id: clusterId,
     })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
@@ -65,11 +68,11 @@ async function handleViewData(row: any) {
   dataDialogTitle.value = `Secret: ${row.name}`
   dataEntries.value = []
   try {
-    const clusterId = clusterStore.currentCluster?.id
+    const clusterName = clusterStore.currentCluster?.clusterName || ''
     const res: any = await getSecretDetail({
+      clusterName,
       name: row.name,
       namespace: row.namespace,
-      cluster_id: clusterId,
     })
     const data = res.data?.data || res.data || {}
     dataEntries.value = Object.entries(data).map(([key, value]) => {
@@ -95,8 +98,8 @@ async function handleDelete(row: any) {
       'Confirm',
       { type: 'warning' }
     )
-    const clusterId = clusterStore.currentCluster?.id
-    await deleteSecret({ name: row.name, namespace: row.namespace, cluster_id: clusterId })
+    const clusterName = clusterStore.currentCluster?.clusterName || ''
+    await deleteSecret({ clusterName, name: row.name, namespace: row.namespace })
     ElMessage.success('Deleted')
     fetchSecrets()
   } catch {
@@ -127,8 +130,9 @@ onMounted(fetchSecrets)
         </template>
       </el-table-column>
       <el-table-column prop="age" label="Age" width="120" />
-      <el-table-column label="Actions" width="240" fixed="right">
+      <el-table-column label="Actions" width="310" fixed="right">
         <template #default="{ row }">
+          <el-button size="small" type="primary" @click="router.push(`/config/secrets/${row.namespace}/${row.name}?cluster=${clusterStore.currentCluster?.clusterName || ''}`)">Detail</el-button>
           <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
           <el-button size="small" type="primary" @click="handleViewData(row)">Data</el-button>
           <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>

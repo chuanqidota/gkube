@@ -161,6 +161,12 @@ const router = createRouter({
       component: () => import('@/views/network/ServiceCreate.vue'),
     },
     {
+      path: '/services/:namespace/:name',
+      name: 'ServiceDetail',
+      component: () => import('@/views/network/ServiceDetail.vue'),
+      props: true,
+    },
+    {
       path: '/ingresses',
       name: 'IngressList',
       component: () => import('@/views/network/IngressList.vue'),
@@ -169,6 +175,12 @@ const router = createRouter({
       path: '/ingresses/create',
       name: 'IngressCreate',
       component: () => import('@/views/network/IngressCreate.vue'),
+    },
+    {
+      path: '/ingresses/:namespace/:name',
+      name: 'IngressDetail',
+      component: () => import('@/views/network/IngressDetail.vue'),
+      props: true,
     },
     // Node routes
     {
@@ -200,6 +212,12 @@ const router = createRouter({
       component: () => import('@/views/config/ConfigMapCreate.vue'),
     },
     {
+      path: '/config/configmaps/:namespace/:name',
+      name: 'ConfigMapDetail',
+      component: () => import('@/views/config/ConfigMapDetail.vue'),
+      props: true,
+    },
+    {
       path: '/config/secrets',
       name: 'SecretList',
       component: () => import('@/views/config/SecretList.vue'),
@@ -209,6 +227,12 @@ const router = createRouter({
       name: 'SecretCreate',
       component: () => import('@/views/config/SecretCreate.vue'),
     },
+    {
+      path: '/config/secrets/:namespace/:name',
+      name: 'SecretDetail',
+      component: () => import('@/views/config/SecretDetail.vue'),
+      props: true,
+    },
     // Storage routes
     {
       path: '/storage/pvs',
@@ -216,14 +240,32 @@ const router = createRouter({
       component: () => import('@/views/storage/PVList.vue'),
     },
     {
+      path: '/storage/pvs/:name',
+      name: 'PVDetail',
+      component: () => import('@/views/storage/PVDetail.vue'),
+      props: true,
+    },
+    {
       path: '/storage/pvcs',
       name: 'PVCList',
       component: () => import('@/views/storage/PVCList.vue'),
     },
     {
+      path: '/storage/pvcs/:namespace/:name',
+      name: 'PVCDetail',
+      component: () => import('@/views/storage/PVCDetail.vue'),
+      props: true,
+    },
+    {
       path: '/storage/storageclasses',
       name: 'StorageClassList',
       component: () => import('@/views/storage/StorageClassList.vue'),
+    },
+    {
+      path: '/storage/storageclasses/:name',
+      name: 'StorageClassDetail',
+      component: () => import('@/views/storage/StorageClassDetail.vue'),
+      props: true,
     },
   ],
 })
