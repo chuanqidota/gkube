@@ -54,7 +54,7 @@ const router = createRouter({
     {
       path: '/logs',
       name: 'Logs',
-      component: () => import('@/views/log/LogView.vue'),
+      component: () => import('@/views/logviewer/LogView.vue'),
       meta: { title: '日志查看' },
     },
     // Workload routes
