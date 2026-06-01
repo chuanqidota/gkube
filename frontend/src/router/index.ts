@@ -109,6 +109,33 @@ const router = createRouter({
       name: 'NamespaceList',
       component: () => import('@/views/namespace/NamespaceList.vue'),
     },
+    // Config routes
+    {
+      path: '/config/configmaps',
+      name: 'ConfigMapList',
+      component: () => import('@/views/config/ConfigMapList.vue'),
+    },
+    {
+      path: '/config/secrets',
+      name: 'SecretList',
+      component: () => import('@/views/config/SecretList.vue'),
+    },
+    // Storage routes
+    {
+      path: '/storage/pvs',
+      name: 'PVList',
+      component: () => import('@/views/storage/PVList.vue'),
+    },
+    {
+      path: '/storage/pvcs',
+      name: 'PVCList',
+      component: () => import('@/views/storage/PVCList.vue'),
+    },
+    {
+      path: '/storage/storageclasses',
+      name: 'StorageClassList',
+      component: () => import('@/views/storage/StorageClassList.vue'),
+    },
   ],
 })
 

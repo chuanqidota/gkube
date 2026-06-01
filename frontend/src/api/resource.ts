@@ -148,3 +148,72 @@ export function restartDeployment(data: { clusterName: string; namespace: string
 export function deleteDeployment(data: { clusterName: string; namespace: string; name: string }) {
   return request.delete('/k8s/deployment/delete', { data })
 }
+
+// ConfigMap
+export function getConfigMapList(params?: { namespace?: string; cluster_id?: number }) {
+  return request.get('/k8s/configmap/list', { params })
+}
+
+export function getConfigMapDetail(params: { name: string; namespace: string; cluster_id?: number }) {
+  return request.get('/k8s/configmap/detail', { params })
+}
+
+export function getConfigMapYaml(params: { name: string; namespace: string; cluster_id?: number }) {
+  return request.get('/k8s/configmap/get-yaml', { params })
+}
+
+export function deleteConfigMap(data: { name: string; namespace: string; cluster_id?: number }) {
+  return request.delete('/k8s/configmap/delete', { data })
+}
+
+// Secret
+export function getSecretList(params?: { namespace?: string; cluster_id?: number }) {
+  return request.get('/k8s/secret/list', { params })
+}
+
+export function getSecretDetail(params: { name: string; namespace: string; cluster_id?: number }) {
+  return request.get('/k8s/secret/detail', { params })
+}
+
+export function getSecretYaml(params: { name: string; namespace: string; cluster_id?: number }) {
+  return request.get('/k8s/secret/get-yaml', { params })
+}
+
+export function deleteSecret(data: { name: string; namespace: string; cluster_id?: number }) {
+  return request.delete('/k8s/secret/delete', { data })
+}
+
+// PV
+export function getPvList(params?: { cluster_id?: number }) {
+  return request.get('/k8s/pv/list', { params })
+}
+
+export function getPvYaml(params: { name: string; cluster_id?: number }) {
+  return request.get('/k8s/pv/get-yaml', { params })
+}
+
+export function deletePv(data: { name: string; cluster_id?: number }) {
+  return request.delete('/k8s/pv/delete', { data })
+}
+
+// PVC
+export function getPvcList(params?: { namespace?: string; cluster_id?: number }) {
+  return request.get('/k8s/pvc/list', { params })
+}
+
+export function getPvcYaml(params: { name: string; namespace: string; cluster_id?: number }) {
+  return request.get('/k8s/pvc/get-yaml', { params })
+}
+
+export function deletePvc(data: { name: string; namespace: string; cluster_id?: number }) {
+  return request.delete('/k8s/pvc/delete', { data })
+}
+
+// StorageClass
+export function getStorageClassList(params?: { cluster_id?: number }) {
+  return request.get('/k8s/storageclass/list', { params })
+}
+
+export function getStorageClassYaml(params: { name: string; cluster_id?: number }) {
+  return request.get('/k8s/storageclass/get-yaml', { params })
+}

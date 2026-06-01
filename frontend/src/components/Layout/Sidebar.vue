@@ -35,25 +35,59 @@
           <el-icon><Files /></el-icon>
           <template #title>Deployments</template>
         </el-menu-item>
-      </el-sub-menu>
-      <el-sub-menu index="tools">
-        <template #title>
-          <el-icon><Monitor /></el-icon>
-          <span>运维工具</span>
-        </template>
-        <el-menu-item index="/terminal">
-          <el-icon><Promotion /></el-icon>
-          <template #title>Web 终端</template>
+        <el-menu-item index="/workloads/statefulsets">
+          <el-icon><Files /></el-icon>
+          <template #title>StatefulSets</template>
         </el-menu-item>
-        <el-menu-item index="/logs">
-          <el-icon><Document /></el-icon>
-          <template #title>日志查看</template>
+        <el-menu-item index="/workloads/daemonsets">
+          <el-icon><Files /></el-icon>
+          <template #title>DaemonSets</template>
+        </el-menu-item>
+        <el-menu-item index="/workloads/jobs">
+          <el-icon><Files /></el-icon>
+          <template #title>Jobs</template>
+        </el-menu-item>
+        <el-menu-item index="/workloads/cronjobs">
+          <el-icon><Files /></el-icon>
+          <template #title>CronJobs</template>
+        </el-menu-item>
+      </el-sub-menu>
+      <el-sub-menu index="config">
+        <template #title>
+          <el-icon><Tickets /></el-icon>
+          <span>配置</span>
+        </template>
+        <el-menu-item index="/config/configmaps">
+          <el-icon><Tickets /></el-icon>
+          <template #title>ConfigMaps</template>
+        </el-menu-item>
+        <el-menu-item index="/config/secrets">
+          <el-icon><Key /></el-icon>
+          <template #title>Secrets</template>
+        </el-menu-item>
+      </el-sub-menu>
+      <el-sub-menu index="storage">
+        <template #title>
+          <el-icon><Coin /></el-icon>
+          <span>存储</span>
+        </template>
+        <el-menu-item index="/storage/pvs">
+          <el-icon><Coin /></el-icon>
+          <template #title>PVs</template>
+        </el-menu-item>
+        <el-menu-item index="/storage/pvcs">
+          <el-icon><Box /></el-icon>
+          <template #title>PVCs</template>
+        </el-menu-item>
+        <el-menu-item index="/storage/storageclasses">
+          <el-icon><Files /></el-icon>
+          <template #title>StorageClasses</template>
         </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="network">
         <template #title>
           <el-icon><Share /></el-icon>
-          <span>网络</span>
+          <span>服务发现</span>
         </template>
         <el-menu-item index="/services">
           <el-icon><Connection /></el-icon>
@@ -72,6 +106,20 @@
         <el-icon><FolderOpened /></el-icon>
         <template #title>命名空间</template>
       </el-menu-item>
+      <el-sub-menu index="tools">
+        <template #title>
+          <el-icon><Monitor /></el-icon>
+          <span>工具</span>
+        </template>
+        <el-menu-item index="/terminal">
+          <el-icon><Promotion /></el-icon>
+          <template #title>Web 终端</template>
+        </el-menu-item>
+        <el-menu-item index="/logs">
+          <el-icon><Document /></el-icon>
+          <template #title>日志查看</template>
+        </el-menu-item>
+      </el-sub-menu>
       <el-sub-menu index="system">
         <template #title>
           <el-icon><Setting /></el-icon>
@@ -109,6 +157,8 @@ import {
   Link,
   Cpu,
   FolderOpened,
+  Tickets,
+  Key,
 } from '@element-plus/icons-vue'
 
 defineProps<{
