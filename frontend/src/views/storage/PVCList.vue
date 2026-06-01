@@ -78,7 +78,10 @@ onMounted(fetchPvcs)
   <div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <h2 style="margin: 0;">PersistentVolumeClaims</h2>
-      <el-button @click="fetchPvcs" :loading="loading">Refresh</el-button>
+      <div>
+        <el-button type="primary" @click="router.push('/storage/pvcs/create')">Create</el-button>
+        <el-button @click="fetchPvcs" :loading="loading">Refresh</el-button>
+      </div>
     </div>
 
     <el-table :data="pvcList" v-loading="loading" stripe style="width: 100%">

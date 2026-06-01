@@ -200,6 +200,12 @@ const router = createRouter({
       name: 'NamespaceList',
       component: () => import('@/views/namespace/NamespaceList.vue'),
     },
+    // Events
+    {
+      path: '/events',
+      name: 'EventList',
+      component: () => import('@/views/event/EventList.vue'),
+    },
     // Config routes
     {
       path: '/config/configmaps',
@@ -240,6 +246,11 @@ const router = createRouter({
       component: () => import('@/views/storage/PVList.vue'),
     },
     {
+      path: '/storage/pvs/create',
+      name: 'PVCreate',
+      component: () => import('@/views/storage/PVCreate.vue'),
+    },
+    {
       path: '/storage/pvs/:name',
       name: 'PVDetail',
       component: () => import('@/views/storage/PVDetail.vue'),
@@ -249,6 +260,11 @@ const router = createRouter({
       path: '/storage/pvcs',
       name: 'PVCList',
       component: () => import('@/views/storage/PVCList.vue'),
+    },
+    {
+      path: '/storage/pvcs/create',
+      name: 'PVCCreate',
+      component: () => import('@/views/storage/PVCCreate.vue'),
     },
     {
       path: '/storage/pvcs/:namespace/:name',

@@ -174,8 +174,17 @@ export function restartDeployment(data: { clusterName: string; namespace: string
   return request.post('/k8s/deployment/restart', data)
 }
 
+export function rollbackDeployment(data: { clusterName: string; namespace: string; name: string; revision: number }) {
+  return request.post('/k8s/deployment/rollback', data)
+}
+
 export function deleteDeployment(data: { clusterName: string; namespace: string; name: string }) {
   return request.delete('/k8s/deployment/delete', { data })
+}
+
+// Dashboard events
+export function getDashboardEvents(params?: { clusterId?: number; type?: string; limit?: number }) {
+  return request.get('/dashboard/events', { params })
 }
 
 // ConfigMap
@@ -229,6 +238,10 @@ export function deletePv(data: { clusterName: string; name: string }) {
   return request.delete('/k8s/pv/delete', { data })
 }
 
+export function createPv(data: { clusterName: string; yamlContent: string }) {
+  return request.post('/k8s/pv/create', data)
+}
+
 // PVC
 export function getPvcDetail(params: { clusterName: string; namespace: string; name: string }) {
   return request.get('/k8s/pvc/detail', { params })
@@ -244,6 +257,10 @@ export function getPvcYaml(params: { clusterName: string; namespace: string; nam
 
 export function deletePvc(data: { clusterName: string; namespace: string; name: string }) {
   return request.delete('/k8s/pvc/delete', { data })
+}
+
+export function createPvc(data: { clusterName: string; namespace: string; yamlContent: string }) {
+  return request.post('/k8s/pvc/create', data)
 }
 
 // StorageClass
