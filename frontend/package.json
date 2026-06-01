@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
+    "@guolao/vue-monaco-editor": "^1.6.0",
     "axios": "^1.16.1",
     "element-plus": "^2.14.1",
     "pinia": "^3.0.4",

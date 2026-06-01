@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+import { install as MonacoVueEditor } from '@guolao/vue-monaco-editor'
 import router from './router'
 import App from './App.vue'
 import './style.css'
@@ -16,5 +17,6 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 
 app.use(createPinia())
 app.use(ElementPlus)
+app.use(MonacoVueEditor)
 app.use(router)
 app.mount('#app')
