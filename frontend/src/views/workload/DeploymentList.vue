@@ -182,6 +182,7 @@ onMounted(() => {
           />
         </el-select>
         <el-button type="primary" @click="fetchDeployments">Refresh</el-button>
+        <el-button type="success" @click="router.push('/workloads/deployments/create')">Create</el-button>
       </div>
     </div>
 

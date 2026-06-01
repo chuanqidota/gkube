@@ -16,11 +16,13 @@
     "@xterm/xterm": "^6.0.0",
     "axios": "^1.16.1",
     "element-plus": "^2.14.1",
+    "js-yaml": "^4.2.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.34",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.12.4",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue/tsconfig": "^0.9.1",

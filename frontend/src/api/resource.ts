@@ -128,6 +128,11 @@ export function getPodEvents(params: { clusterName: string; namespace: string; n
   return request.get('/k8s/pod/events', { params })
 }
 
+// Deployment create
+export function createDeployment(data: { clusterName: string; namespace: string; yamlContent: string }) {
+  return request.post('/k8s/deployment/create', data)
+}
+
 // Deployment detail / actions
 export function getDeploymentDetail(params: { clusterName: string; namespace: string; name: string }) {
   return request.get('/k8s/deployment/detail', { params })
@@ -219,6 +224,10 @@ export function getStorageClassYaml(params: { name: string; cluster_id?: number 
 }
 
 // StatefulSet
+export function createStatefulSet(data: { clusterName: string; namespace: string; yamlContent: string }) {
+  return request.post('/k8s/statefulset/create', data)
+}
+
 export function getStatefulSetList(params: any) {
   return request.get('/k8s/statefulset/list', { params })
 }
@@ -230,6 +239,10 @@ export function deleteStatefulSet(data: any) {
 }
 
 // DaemonSet
+export function createDaemonSet(data: { clusterName: string; namespace: string; yamlContent: string }) {
+  return request.post('/k8s/daemonset/create', data)
+}
+
 export function getDaemonSetList(params: any) {
   return request.get('/k8s/daemonset/list', { params })
 }

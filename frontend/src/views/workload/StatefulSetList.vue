@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getStatefulSetList, getStatefulSetYaml, deleteStatefulSet, getNamespaceList } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
+const router = useRouter()
 const loading = ref(false)
 const statefulSetList = ref<any[]>([])
 const namespaceList = ref<string[]>([])
@@ -123,6 +125,7 @@ onMounted(() => {
           />
         </el-select>
         <el-button type="primary" @click="fetchStatefulSets">Refresh</el-button>
+        <el-button type="success" @click="router.push('/workloads/statefulsets/create')">Create</el-button>
       </div>
     </div>
 

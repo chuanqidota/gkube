@@ -75,6 +75,11 @@ const router = createRouter({
       component: () => import('@/views/workload/DeploymentList.vue'),
     },
     {
+      path: '/workloads/deployments/create',
+      name: 'DeploymentCreate',
+      component: () => import('@/views/workload/DeploymentCreate.vue'),
+    },
+    {
       path: '/workloads/deployments/:namespace/:name',
       name: 'DeploymentDetail',
       component: () => import('@/views/workload/DeploymentDetail.vue'),
@@ -86,9 +91,19 @@ const router = createRouter({
       component: () => import('@/views/workload/StatefulSetList.vue'),
     },
     {
+      path: '/workloads/statefulsets/create',
+      name: 'StatefulSetCreate',
+      component: () => import('@/views/workload/StatefulSetCreate.vue'),
+    },
+    {
       path: '/workloads/daemonsets',
       name: 'DaemonSetList',
       component: () => import('@/views/workload/DaemonSetList.vue'),
+    },
+    {
+      path: '/workloads/daemonsets/create',
+      name: 'DaemonSetCreate',
+      component: () => import('@/views/workload/DaemonSetCreate.vue'),
     },
     {
       path: '/workloads/jobs',
