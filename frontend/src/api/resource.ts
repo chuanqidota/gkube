@@ -217,3 +217,47 @@ export function getStorageClassList(params?: { cluster_id?: number }) {
 export function getStorageClassYaml(params: { name: string; cluster_id?: number }) {
   return request.get('/k8s/storageclass/get-yaml', { params })
 }
+
+// StatefulSet
+export function getStatefulSetList(params: any) {
+  return request.get('/k8s/statefulset/list', { params })
+}
+export function getStatefulSetYaml(params: any) {
+  return request.get('/k8s/statefulset/get-yaml', { params })
+}
+export function deleteStatefulSet(data: any) {
+  return request.delete('/k8s/statefulset/delete', { data })
+}
+
+// DaemonSet
+export function getDaemonSetList(params: any) {
+  return request.get('/k8s/daemonset/list', { params })
+}
+export function getDaemonSetYaml(params: any) {
+  return request.get('/k8s/daemonset/get-yaml', { params })
+}
+export function deleteDaemonSet(data: any) {
+  return request.delete('/k8s/daemonset/delete', { data })
+}
+
+// Job
+export function getJobList(params: any) {
+  return request.get('/k8s/job/list', { params })
+}
+export function getJobYaml(params: any) {
+  return request.get('/k8s/job/get-yaml', { params })
+}
+export function deleteJob(data: any) {
+  return request.delete('/k8s/job/delete', { data })
+}
+
+// CronJob
+export function getCronJobList(params: any) {
+  return request.get('/k8s/cronjob/list', { params })
+}
+export function getCronJobYaml(params: any) {
+  return request.get('/k8s/cronjob/get-yaml', { params })
+}
+export function deleteCronJob(data: any) {
+  return request.delete('/k8s/cronjob/delete', { data })
+}

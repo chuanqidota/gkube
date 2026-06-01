@@ -80,6 +80,26 @@ const router = createRouter({
       component: () => import('@/views/workload/DeploymentDetail.vue'),
       props: true,
     },
+    {
+      path: '/workloads/statefulsets',
+      name: 'StatefulSetList',
+      component: () => import('@/views/workload/StatefulSetList.vue'),
+    },
+    {
+      path: '/workloads/daemonsets',
+      name: 'DaemonSetList',
+      component: () => import('@/views/workload/DaemonSetList.vue'),
+    },
+    {
+      path: '/workloads/jobs',
+      name: 'JobList',
+      component: () => import('@/views/workload/JobList.vue'),
+    },
+    {
+      path: '/workloads/cronjobs',
+      name: 'CronJobList',
+      component: () => import('@/views/workload/CronJobList.vue'),
+    },
     // Network routes
     {
       path: '/services',
