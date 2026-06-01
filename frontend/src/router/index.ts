@@ -165,6 +165,11 @@ const router = createRouter({
       name: 'IngressList',
       component: () => import('@/views/network/IngressList.vue'),
     },
+    {
+      path: '/ingresses/create',
+      name: 'IngressCreate',
+      component: () => import('@/views/network/IngressCreate.vue'),
+    },
     // Node routes
     {
       path: '/nodes',
@@ -198,6 +203,11 @@ const router = createRouter({
       path: '/config/secrets',
       name: 'SecretList',
       component: () => import('@/views/config/SecretList.vue'),
+    },
+    {
+      path: '/config/secrets/create',
+      name: 'SecretCreate',
+      component: () => import('@/views/config/SecretCreate.vue'),
     },
     // Storage routes
     {

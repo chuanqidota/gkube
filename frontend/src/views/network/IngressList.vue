@@ -67,7 +67,10 @@ onMounted(fetchIngresses)
   <div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <h2 style="margin: 0;">Ingresses</h2>
-      <el-button @click="fetchIngresses" :loading="loading">Refresh</el-button>
+      <div>
+        <el-button type="primary" @click="$router.push('/ingresses/create')">Create</el-button>
+        <el-button @click="fetchIngresses" :loading="loading">Refresh</el-button>
+      </div>
     </div>
 
     <el-table :data="ingressList" v-loading="loading" stripe style="width: 100%">
