@@ -98,7 +98,10 @@ onMounted(fetchConfigMaps)
   <div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <h2 style="margin: 0;">ConfigMaps</h2>
-      <el-button @click="fetchConfigMaps" :loading="loading">Refresh</el-button>
+      <div>
+        <el-button type="primary" @click="$router.push('/config/configmaps/create')">Create</el-button>
+        <el-button @click="fetchConfigMaps" :loading="loading">Refresh</el-button>
+      </div>
     </div>
 
     <el-table :data="configMapList" v-loading="loading" stripe style="width: 100%">

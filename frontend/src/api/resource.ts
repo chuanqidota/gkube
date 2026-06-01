@@ -111,6 +111,26 @@ export function deleteIngress(data: { name: string; namespace: string; cluster_i
   return request.delete('/k8s/ingress/delete', { data })
 }
 
+// Service create
+export function createService(data: { clusterName: string; namespace: string; yamlContent: string }) {
+  return request.post('/k8s/service/create', data)
+}
+
+// Ingress create
+export function createIngress(data: { clusterName: string; namespace: string; yamlContent: string }) {
+  return request.post('/k8s/ingress/create', data)
+}
+
+// ConfigMap create
+export function createConfigMap(data: { clusterName: string; namespace: string; yamlContent: string }) {
+  return request.post('/k8s/configmap/create', data)
+}
+
+// Secret create
+export function createSecret(data: { clusterName: string; namespace: string; yamlContent: string }) {
+  return request.post('/k8s/secret/create', data)
+}
+
 // Pod detail / actions
 export function getPodDetail(params: { clusterName: string; namespace: string; name: string }) {
   return request.get('/k8s/pod/detail', { params })
@@ -254,6 +274,10 @@ export function deleteDaemonSet(data: any) {
 }
 
 // Job
+export function createJob(data: { clusterName: string; namespace: string; yamlContent: string }) {
+  return request.post('/k8s/job/create', data)
+}
+
 export function getJobList(params: any) {
   return request.get('/k8s/job/list', { params })
 }
@@ -265,6 +289,10 @@ export function deleteJob(data: any) {
 }
 
 // CronJob
+export function createCronJob(data: { clusterName: string; namespace: string; yamlContent: string }) {
+  return request.post('/k8s/cronjob/create', data)
+}
+
 export function getCronJobList(params: any) {
   return request.get('/k8s/cronjob/list', { params })
 }

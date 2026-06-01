@@ -122,6 +122,11 @@ const router = createRouter({
       component: () => import('@/views/network/ServiceList.vue'),
     },
     {
+      path: '/services/create',
+      name: 'ServiceCreate',
+      component: () => import('@/views/network/ServiceCreate.vue'),
+    },
+    {
       path: '/ingresses',
       name: 'IngressList',
       component: () => import('@/views/network/IngressList.vue'),
@@ -149,6 +154,11 @@ const router = createRouter({
       path: '/config/configmaps',
       name: 'ConfigMapList',
       component: () => import('@/views/config/ConfigMapList.vue'),
+    },
+    {
+      path: '/config/configmaps/create',
+      name: 'ConfigMapCreate',
+      component: () => import('@/views/config/ConfigMapCreate.vue'),
     },
     {
       path: '/config/secrets',
