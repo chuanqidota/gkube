@@ -1,17 +1,35 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { getOverview, getWorkloads, getEvents } from '@/api/dashboard'
-import type { Overview, WorkloadSummary, K8sEvent } from '@/api/dashboard'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { getOverview, getWorkloads, getEvents, getResources } from '@/api/dashboard'
+import type { Overview, WorkloadSummary, K8sEvent, ResourceMetrics } from '@/api/dashboard'
+import {
+  Monitor,
+  CircleCheck,
+  Cpu,
+  Box,
+  DataLine,
+  Bell,
+} from '@element-plus/icons-vue'
+
+const router = useRouter()
 
 const overviewLoading = ref(false)
 const workloadsLoading = ref(false)
 const eventsLoading = ref(false)
+const resourcesLoading = ref(false)
 
 const overview = ref<Overview>({
   cluster_count: 0,
   node_count: 0,
   pod_count: 0,
   namespace_count: 0,
+})
+
+const resources = ref<ResourceMetrics>({
+  cpu: { used: 0, total: 0 },
+  memory: { used: 0, total: 0 },
+  storage: { used: 0, total: 0 },
 })
 
 const workloads = ref<WorkloadSummary>({
@@ -24,6 +42,35 @@ const workloads = ref<WorkloadSummary>({
 
 const events = ref<K8sEvent[]>([])
 
+const cpuPercent = computed(() => {
+  if (!resources.value.cpu.total) return 0
+  return Math.round((resources.value.cpu.used / resources.value.cpu.total) * 100)
+})
+
+const memoryPercent = computed(() => {
+  if (!resources.value.memory.total) return 0
+  return Math.round((resources.value.memory.used / resources.value.memory.total) * 100)
+})
+
+const storagePercent = computed(() => {
+  if (!resources.value.storage.total) return 0
+  return Math.round((resources.value.storage.used / resources.value.storage.total) * 100)
+})
+
+function progressColor(percent: number) {
+  if (percent >= 90) return '#F56C6C'
+  if (percent >= 70) return '#E6A23C'
+  return '#409EFF'
+}
+
+const workloadItems = computed(() => [
+  { label: 'Deployments', value: workloads.value.deployments },
+  { label: 'StatefulSets', value: workloads.value.statefulsets },
+  { label: 'DaemonSets', value: workloads.value.daemonsets },
+  { label: 'Jobs', value: workloads.value.jobs },
+  { label: 'CronJobs', value: workloads.value.cronjobs },
+])
+
 async function fetchOverview() {
   overviewLoading.value = true
   try {
@@ -33,6 +80,18 @@ async function fetchOverview() {
     // silently fail
   } finally {
     overviewLoading.value = false
+  }
+}
+
+async function fetchResources() {
+  resourcesLoading.value = true
+  try {
+    const res = await getResources()
+    resources.value = res.data
+  } catch {
+    // silently fail
+  } finally {
+    resourcesLoading.value = false
   }
 }
 
@@ -62,6 +121,7 @@ async function fetchEvents() {
 
 onMounted(() => {
   fetchOverview()
+  fetchResources()
   fetchWorkloads()
   fetchEvents()
 })
@@ -69,103 +129,299 @@ onMounted(() => {
 
 <template>
   <div class="dashboard">
-    <h2>Dashboard</h2>
-
     <!-- Stat Cards -->
-    <el-row :gutter="20" class="stat-row">
+    <el-row :gutter="16" class="stat-row">
       <el-col :span="6">
-        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card">
-          <div class="stat-label">Total Clusters</div>
-          <div class="stat-value">{{ overview.cluster_count }}</div>
+        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card stat-card-blue">
+          <div class="stat-content">
+            <div class="stat-icon">
+              <el-icon :size="40"><Monitor /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ overview.cluster_count }}</div>
+              <div class="stat-label">集群总数</div>
+            </div>
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card">
-          <div class="stat-label">Nodes</div>
-          <div class="stat-value">{{ overview.node_count }}</div>
+        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card stat-card-green">
+          <div class="stat-content">
+            <div class="stat-icon">
+              <el-icon :size="40"><CircleCheck /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ overview.node_count }}</div>
+              <div class="stat-label">节点总数</div>
+            </div>
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card">
-          <div class="stat-label">Pods</div>
-          <div class="stat-value">{{ overview.pod_count }}</div>
+        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card stat-card-orange">
+          <div class="stat-content">
+            <div class="stat-icon">
+              <el-icon :size="40"><Cpu /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ overview.pod_count }}</div>
+              <div class="stat-label">Pod 总数</div>
+            </div>
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card">
-          <div class="stat-label">Namespaces</div>
-          <div class="stat-value">{{ overview.namespace_count }}</div>
+        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card stat-card-purple">
+          <div class="stat-content">
+            <div class="stat-icon">
+              <el-icon :size="40"><Box /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ overview.namespace_count }}</div>
+              <div class="stat-label">命名空间</div>
+            </div>
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <!-- Workloads Section -->
-    <el-card v-loading="workloadsLoading" shadow="hover" class="section-card">
+    <!-- Resource Usage -->
+    <el-card v-loading="resourcesLoading" shadow="hover" class="section-card">
       <template #header>
-        <span>Workloads</span>
+        <div class="card-header">
+          <span><el-icon><Cpu /></el-icon> 资源使用</span>
+        </div>
       </template>
-      <el-descriptions :column="3" border>
-        <el-descriptions-item label="Deployments">
-          {{ workloads.deployments }}
-        </el-descriptions-item>
-        <el-descriptions-item label="StatefulSets">
-          {{ workloads.statefulsets }}
-        </el-descriptions-item>
-        <el-descriptions-item label="DaemonSets">
-          {{ workloads.daemonsets }}
-        </el-descriptions-item>
-        <el-descriptions-item label="Jobs">
-          {{ workloads.jobs }}
-        </el-descriptions-item>
-        <el-descriptions-item label="CronJobs">
-          {{ workloads.cronjobs }}
-        </el-descriptions-item>
-      </el-descriptions>
+      <el-row :gutter="24">
+        <el-col :span="8">
+          <div class="resource-item">
+            <div class="resource-header">
+              <span class="resource-title">CPU</span>
+              <span class="resource-detail">{{ resources.cpu.used }} / {{ resources.cpu.total }} Core</span>
+            </div>
+            <el-progress
+              :percentage="cpuPercent"
+              :color="progressColor(cpuPercent)"
+              :stroke-width="18"
+              :text-inside="true"
+            />
+          </div>
+        </el-col>
+        <el-col :span="8">
+          <div class="resource-item">
+            <div class="resource-header">
+              <span class="resource-title">内存</span>
+              <span class="resource-detail">{{ resources.memory.used }} / {{ resources.memory.total }} Gi</span>
+            </div>
+            <el-progress
+              :percentage="memoryPercent"
+              :color="progressColor(memoryPercent)"
+              :stroke-width="18"
+              :text-inside="true"
+            />
+          </div>
+        </el-col>
+        <el-col :span="8">
+          <div class="resource-item">
+            <div class="resource-header">
+              <span class="resource-title">存储</span>
+              <span class="resource-detail">{{ resources.storage.used }} / {{ resources.storage.total }} Gi</span>
+            </div>
+            <el-progress
+              :percentage="storagePercent"
+              :color="progressColor(storagePercent)"
+              :stroke-width="18"
+              :text-inside="true"
+            />
+          </div>
+        </el-col>
+      </el-row>
     </el-card>
 
-    <!-- Events Section -->
-    <el-card v-loading="eventsLoading" shadow="hover" class="section-card">
-      <template #header>
-        <span>Recent Events</span>
-      </template>
-      <el-table :data="events" stripe style="width: 100%">
-        <el-table-column prop="type" label="Type" width="80" />
-        <el-table-column prop="reason" label="Reason" width="160" />
-        <el-table-column prop="namespace" label="Namespace" width="140" />
-        <el-table-column prop="involved_object" label="Object" width="180" />
-        <el-table-column prop="message" label="Message" show-overflow-tooltip />
-        <el-table-column prop="last_seen" label="Last Seen" width="180" />
-      </el-table>
-    </el-card>
+    <!-- Workloads and Events -->
+    <el-row :gutter="16">
+      <el-col :span="12">
+        <el-card v-loading="workloadsLoading" shadow="hover" class="section-card">
+          <template #header>
+            <div class="card-header">
+              <span><el-icon><DataLine /></el-icon> 工作负载统计</span>
+            </div>
+          </template>
+          <div class="workload-grid">
+            <div v-for="item in workloadItems" :key="item.label" class="workload-item">
+              <div class="workload-count">{{ item.value }}</div>
+              <div class="workload-label">{{ item.label }}</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card v-loading="eventsLoading" shadow="hover" class="section-card">
+          <template #header>
+            <div class="card-header">
+              <span><el-icon><Bell /></el-icon> 最新事件</span>
+              <el-button text size="small" @click="router.push('/events')">查看全部</el-button>
+            </div>
+          </template>
+          <el-table :data="events" style="width: 100%" max-height="300" size="small">
+            <el-table-column prop="type" label="类型" width="80">
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.type === 'Warning' ? 'danger' : 'info'"
+                  size="small"
+                  effect="plain"
+                >
+                  {{ row.type }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="reason" label="原因" width="120" />
+            <el-table-column prop="involved_object" label="对象" show-overflow-tooltip />
+            <el-table-column prop="last_seen" label="时间" width="160" />
+          </el-table>
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <style scoped>
 .dashboard {
-  padding: 24px;
+  padding: 20px;
+  background: #f5f7fa;
+  min-height: calc(100vh - 84px);
 }
 
 .stat-row {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .stat-card {
-  text-align: center;
+  border-radius: 8px;
+  overflow: hidden;
+  border: none;
 }
 
-.stat-label {
-  font-size: 14px;
-  color: #909399;
-  margin-bottom: 8px;
+.stat-card :deep(.el-card__body) {
+  padding: 20px;
+}
+
+.stat-card-blue {
+  background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%);
+  color: #fff;
+}
+
+.stat-card-green {
+  background: linear-gradient(135deg, #67C23A 0%, #85ce61 100%);
+  color: #fff;
+}
+
+.stat-card-orange {
+  background: linear-gradient(135deg, #E6A23C 0%, #ebb563 100%);
+  color: #fff;
+}
+
+.stat-card-purple {
+  background: linear-gradient(135deg, #8B5CF6 0%, #a78bfa 100%);
+  color: #fff;
+}
+
+.stat-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.stat-icon {
+  opacity: 0.85;
+}
+
+.stat-info {
+  flex: 1;
 }
 
 .stat-value {
   font-size: 32px;
-  font-weight: 600;
-  color: #303133;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-top: 4px;
 }
 
 .section-card {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.card-header .el-icon {
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* Resource usage */
+.resource-item {
+  padding: 8px 0;
+}
+
+.resource-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.resource-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #303133;
+}
+
+.resource-detail {
+  font-size: 13px;
+  color: #909399;
+}
+
+/* Workload grid */
+.workload-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.workload-item {
+  text-align: center;
+  padding: 16px 8px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.workload-item:hover {
+  background: #ecf5ff;
+  transform: translateY(-2px);
+}
+
+.workload-count {
+  font-size: 28px;
+  font-weight: 700;
+  color: #409EFF;
+  line-height: 1.2;
+}
+
+.workload-label {
+  font-size: 13px;
+  color: #909399;
+  margin-top: 6px;
 }
 </style>
