@@ -2,10 +2,11 @@ package config
 
 import (
 	"fmt"
-	"github.com/spf13/viper"
 	"gkube/pkg/logger"
 	"path/filepath"
 	"runtime"
+
+	"github.com/spf13/viper"
 )
 
 type Config struct {
@@ -45,13 +46,12 @@ type Config struct {
 var Conf = new(Config)
 
 func Init() {
-	viper.SetConfigFile("./config/config.yaml")
-
+	// 获取 config 包所在目录，config.yaml 与其同级
 	pc, _, _, _ := runtime.Caller(0)
 	fn := runtime.FuncForPC(pc)
 	filePath, _ := fn.FileLine(0)
-	dirPath := filepath.Dir(filepath.Dir(filePath))
-	absolutePath := filepath.Join(dirPath, "config.yaml")
+	configDir := filepath.Dir(filePath)
+	absolutePath := filepath.Join(configDir, "config.yaml")
 	viper.SetConfigFile(absolutePath)
 
 	if err := viper.ReadInConfig(); err != nil {
