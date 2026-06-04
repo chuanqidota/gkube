@@ -16,7 +16,7 @@
     >
       <el-menu-item index="/dashboard">
         <el-icon><Odometer /></el-icon>
-        <template #title>Dashboard</template>
+        <template #title>仪表盘</template>
       </el-menu-item>
       <el-menu-item index="/clusters">
         <el-icon><Connection /></el-icon>
@@ -29,27 +29,27 @@
         </template>
         <el-menu-item index="/workloads/pods">
           <el-icon><Coin /></el-icon>
-          <template #title>Pods</template>
+          <template #title>容器组</template>
         </el-menu-item>
         <el-menu-item index="/workloads/deployments">
           <el-icon><Files /></el-icon>
-          <template #title>Deployments</template>
+          <template #title>无状态负载</template>
         </el-menu-item>
         <el-menu-item index="/workloads/statefulsets">
           <el-icon><Files /></el-icon>
-          <template #title>StatefulSets</template>
+          <template #title>有状态负载</template>
         </el-menu-item>
         <el-menu-item index="/workloads/daemonsets">
           <el-icon><Files /></el-icon>
-          <template #title>DaemonSets</template>
+          <template #title>守护进程集</template>
         </el-menu-item>
         <el-menu-item index="/workloads/jobs">
           <el-icon><Files /></el-icon>
-          <template #title>Jobs</template>
+          <template #title>任务</template>
         </el-menu-item>
         <el-menu-item index="/workloads/cronjobs">
           <el-icon><Files /></el-icon>
-          <template #title>CronJobs</template>
+          <template #title>定时任务</template>
         </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="config">
@@ -59,11 +59,11 @@
         </template>
         <el-menu-item index="/config/configmaps">
           <el-icon><Tickets /></el-icon>
-          <template #title>ConfigMaps</template>
+          <template #title>配置字典</template>
         </el-menu-item>
         <el-menu-item index="/config/secrets">
           <el-icon><Key /></el-icon>
-          <template #title>Secrets</template>
+          <template #title>保密字典</template>
         </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="storage">
@@ -73,15 +73,15 @@
         </template>
         <el-menu-item index="/storage/pvs">
           <el-icon><Coin /></el-icon>
-          <template #title>PVs</template>
+          <template #title>持久卷</template>
         </el-menu-item>
         <el-menu-item index="/storage/pvcs">
           <el-icon><Box /></el-icon>
-          <template #title>PVCs</template>
+          <template #title>持久卷声明</template>
         </el-menu-item>
         <el-menu-item index="/storage/storageclasses">
           <el-icon><Files /></el-icon>
-          <template #title>StorageClasses</template>
+          <template #title>存储类</template>
         </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="network">
@@ -91,11 +91,11 @@
         </template>
         <el-menu-item index="/services">
           <el-icon><Connection /></el-icon>
-          <template #title>Services</template>
+          <template #title>服务</template>
         </el-menu-item>
         <el-menu-item index="/ingresses">
           <el-icon><Link /></el-icon>
-          <template #title>Ingresses</template>
+          <template #title>路由</template>
         </el-menu-item>
       </el-sub-menu>
       <el-menu-item index="/nodes">
@@ -108,7 +108,7 @@
       </el-menu-item>
       <el-menu-item index="/events">
         <el-icon><Bell /></el-icon>
-        <template #title>Events</template>
+        <template #title>事件</template>
       </el-menu-item>
       <el-sub-menu index="tools">
         <template #title>
@@ -129,11 +129,11 @@
           <el-icon><Setting /></el-icon>
           <span>系统管理</span>
         </template>
-        <el-menu-item index="/system/users">
+        <el-menu-item index="/users">
           <el-icon><User /></el-icon>
           <template #title>用户管理</template>
         </el-menu-item>
-        <el-menu-item index="/system/roles">
+        <el-menu-item index="/roles">
           <el-icon><UserFilled /></el-icon>
           <template #title>角色管理</template>
         </el-menu-item>

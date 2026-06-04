@@ -1,13 +1,13 @@
 <template>
-  <el-container style="height: 100vh">
-    <el-aside :width="isCollapse ? '64px' : '220px'" style="transition: width 0.3s">
+  <el-container class="app-layout">
+    <el-aside :width="isCollapse ? '64px' : '220px'" class="app-aside">
       <Sidebar :is-collapse="isCollapse" />
     </el-aside>
     <el-container>
-      <el-header style="padding: 0; border-bottom: 1px solid #e4e7ed">
+      <el-header class="app-header">
         <Header @toggle-collapse="isCollapse = !isCollapse" />
       </el-header>
-      <el-main style="background: #f5f7fa">
+      <el-main class="app-main">
         <router-view />
       </el-main>
     </el-container>
@@ -21,3 +21,26 @@ import Header from './Header.vue'
 
 const isCollapse = ref(false)
 </script>
+
+<style scoped>
+.app-layout {
+  height: 100vh;
+}
+
+.app-aside {
+  background: #001529;
+  transition: width 0.3s;
+  overflow: hidden;
+}
+
+.app-header {
+  padding: 0;
+  height: 60px;
+}
+
+.app-main {
+  background: #f0f2f5;
+  padding: 20px;
+  overflow-y: auto;
+}
+</style>
