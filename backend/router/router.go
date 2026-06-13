@@ -264,6 +264,22 @@ func Engine() *gin.Engine {
 			k8s.GET("rolebinding/list", k8sApi.Rbac.GetRoleBindingList)              // 获取RoleBinding列表
 			k8s.GET("rolebinding/yaml", k8sApi.Rbac.GetRoleBindingYaml)              // 获取RoleBinding YAML
 			k8s.DELETE("rolebinding/delete", k8sApi.Rbac.DeleteRoleBinding)          // 删除RoleBinding
+
+			// PDB资源
+			k8s.GET("pdb/list", k8sApi.Pdb.GetPDBList)       // 获取PDB列表
+			k8s.GET("pdb/detail", k8sApi.Pdb.GetPDBDetail)   // 获取PDB详情
+			k8s.GET("pdb/yaml", k8sApi.Pdb.GetPDBYaml)       // 获取PDB YAML
+			k8s.POST("pdb/create", k8sApi.Pdb.CreatePDB)     // 创建PDB
+			k8s.PUT("pdb/update", k8sApi.Pdb.UpdatePDB)      // 更新PDB
+			k8s.DELETE("pdb/delete", k8sApi.Pdb.DeletePDB)   // 删除PDB
+
+			// CRD资源
+			k8s.GET("crd/list", k8sApi.Crd.GetCRDList)                           // 获取CRD列表
+			k8s.GET("crd/detail", k8sApi.Crd.GetCRDDetail)                       // 获取CRD详情
+			k8s.GET("crd/yaml", k8sApi.Crd.GetCRDYaml)                           // 获取CRD YAML
+			k8s.GET("crd/resources", k8sApi.Crd.GetCustomResourceList)            // 获取自定义资源列表
+			k8s.GET("crd/resource/yaml", k8sApi.Crd.GetCustomResourceYaml)        // 获取自定义资源YAML
+			k8s.DELETE("crd/resource", k8sApi.Crd.DeleteCustomResource)            // 删除自定义资源
 		}
 	}
 

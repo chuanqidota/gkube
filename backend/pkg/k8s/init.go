@@ -6,8 +6,10 @@ import (
 	"gkube/app/k8s/model"
 	"gkube/pkg/database"
 
+	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -112,4 +114,50 @@ func CreateDynamicClient(kubeConf string) (dynamic.Interface, error) {
 	}
 
 	return dynamicClient, nil
+}
+
+// GetApiExtensionsClientByName
+//
+//	@Description: 根据名称获取apiextensions客户端（用于CRD操作）
+//	@param name
+//	@return *apiextensionsclientset.Clientset
+//	@return error
+func GetApiExtensionsClientByName(name string) (*apiextensionsclientset.Clientset, error) {
+	var k8sCluster model.K8SCluster
+	if err := database.DB.Model(&model.K8SCluster{}).
+		Where(map[string]any{"cluster_name": name}).
+		Scan(&k8sCluster).Error; err != nil {
+		return nil, err
+	}
+	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(k8sCluster.KubeConfig))
+	if err != nil {
+		return nil, fmt.Errorf("初始化客户端配置错误:%s", err.Error())
+	}
+	config.TLSClientConfig.Insecure = true
+	clientSet, err := apiextensionsclientset.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("初始化apiextensions客户端错误:%s", err.Error())
+	}
+	return clientSet, nil
+}
+
+// GetRestConfigByName
+//
+//	@Description: 根据名称获取REST配置（用于动态客户端操作）
+//	@param name
+//	@return *rest.Config
+//	@return error
+func GetRestConfigByName(name string) (*rest.Config, error) {
+	var k8sCluster model.K8SCluster
+	if err := database.DB.Model(&model.K8SCluster{}).
+		Where(map[string]any{"cluster_name": name}).
+		Scan(&k8sCluster).Error; err != nil {
+		return nil, err
+	}
+	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(k8sCluster.KubeConfig))
+	if err != nil {
+		return nil, fmt.Errorf("初始化客户端配置错误:%s", err.Error())
+	}
+	config.TLSClientConfig.Insecure = true
+	return config, nil
 }

@@ -166,6 +166,23 @@ const router = createRouter({
       component: () => import('@/views/workload/hpa/HPADetail.vue'),
       props: true,
     },
+    // PDB routes
+    {
+      path: '/workloads/pdb',
+      name: 'PDBList',
+      component: () => import('@/views/workload/pdb/PDBList.vue'),
+    },
+    // CRD routes
+    {
+      path: '/crd',
+      name: 'CRDList',
+      component: () => import('@/views/crd/CRDList.vue'),
+    },
+    {
+      path: '/crd/resources',
+      name: 'CustomResourceList',
+      component: () => import('@/views/crd/CustomResourceList.vue'),
+    },
     // Network routes
     {
       path: '/services',

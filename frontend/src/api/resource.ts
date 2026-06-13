@@ -415,6 +415,56 @@ export function deleteRoleBinding(params: { namespace: string; name: string }) {
   return request.delete('/k8s/rolebinding/delete', { params })
 }
 
+// PDB
+export function getPdbList(params?: { namespace?: string }) {
+  return request.get('/k8s/pdb/list', { params })
+}
+
+export function getPdbDetail(params: { namespace: string; name: string }) {
+  return request.get('/k8s/pdb/detail', { params })
+}
+
+export function getPdbYaml(params: { namespace: string; name: string }) {
+  return request.get('/k8s/pdb/yaml', { params })
+}
+
+export function createPdb(data: { namespace: string; yamlContent: string }) {
+  return request.post('/k8s/pdb/create', data)
+}
+
+export function updatePdb(data: { namespace: string; yamlContent: string }) {
+  return request.put('/k8s/pdb/update', data)
+}
+
+export function deletePdb(params: { namespace: string; name: string }) {
+  return request.delete('/k8s/pdb/delete', { params })
+}
+
+// CRD
+export function getCrdList() {
+  return request.get('/k8s/crd/list')
+}
+
+export function getCrdDetail(params: { name: string }) {
+  return request.get('/k8s/crd/detail', { params })
+}
+
+export function getCrdYaml(params: { name: string }) {
+  return request.get('/k8s/crd/yaml', { params })
+}
+
+export function getCustomResourceList(params: { group: string; version: string; resource: string; namespace?: string }) {
+  return request.get('/k8s/crd/resources', { params })
+}
+
+export function getCustomResourceYaml(params: { group: string; version: string; resource: string; namespace?: string; name: string }) {
+  return request.get('/k8s/crd/resource/yaml', { params })
+}
+
+export function deleteCustomResource(params: { group: string; version: string; resource: string; namespace?: string; name: string }) {
+  return request.delete('/k8s/crd/resource', { params })
+}
+
 // StatefulSet
 export function createStatefulSet(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/statefulset/create', data)

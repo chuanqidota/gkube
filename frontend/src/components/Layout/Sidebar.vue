@@ -55,6 +55,10 @@
           <el-icon><DataLine /></el-icon>
           <template #title>弹性伸缩</template>
         </el-menu-item>
+        <el-menu-item index="/workloads/pdb">
+          <el-icon><Warning /></el-icon>
+          <template #title>中断预算</template>
+        </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="config">
         <template #title>
@@ -122,6 +126,10 @@
         <el-icon><UserFilled /></el-icon>
         <template #title>RBAC</template>
       </el-menu-item>
+      <el-menu-item index="/crd">
+        <el-icon><Grid /></el-icon>
+        <template #title>CRD</template>
+      </el-menu-item>
       <el-sub-menu index="tools">
         <template #title>
           <el-icon><Monitor /></el-icon>
@@ -178,6 +186,8 @@ import {
   Bell,
   DataLine,
   Lock,
+  Warning,
+  Grid,
 } from '@element-plus/icons-vue'
 
 defineProps<{
