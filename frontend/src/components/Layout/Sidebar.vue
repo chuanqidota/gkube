@@ -142,6 +142,14 @@
         <el-icon><Grid /></el-icon>
         <template #title>应用目录</template>
       </el-menu-item>
+      <el-menu-item index="/gitops">
+        <el-icon><Connection /></el-icon>
+        <template #title>GitOps</template>
+      </el-menu-item>
+      <el-menu-item index="/tenancy">
+        <el-icon><UserFilled /></el-icon>
+        <template #title>多租户</template>
+      </el-menu-item>
       <el-sub-menu index="tools">
         <template #title>
           <el-icon><Monitor /></el-icon>

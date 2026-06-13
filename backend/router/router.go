@@ -318,6 +318,30 @@ func Engine() *gin.Engine {
 			k8s.GET("topology/deployment", k8sApi.Topology.GetDeploymentTopology)
 			k8s.GET("topology/statefulset", k8sApi.Topology.GetStatefulSetTopology)
 			k8s.GET("topology/daemonset", k8sApi.Topology.GetDaemonSetTopology)
+
+			// Catalog
+			k8s.GET("catalog/charts", k8sApi.Catalog.ListCharts)
+			k8s.GET("catalog/chart", k8sApi.Catalog.GetChartDetails)
+			k8s.POST("catalog/install", k8sApi.Catalog.InstallChart)
+			k8s.GET("catalog/releases", k8sApi.Catalog.ListReleases)
+			k8s.DELETE("catalog/release", k8sApi.Catalog.UninstallRelease)
+
+			// GitOps
+			k8s.GET("gitops/applications", k8sApi.GitOps.ListApplications)
+			k8s.GET("gitops/application", k8sApi.GitOps.GetApplication)
+			k8s.POST("gitops/sync", k8sApi.GitOps.SyncApplication)
+			k8s.GET("gitops/history", k8sApi.GitOps.GetApplicationHistory)
+			k8s.POST("gitops/rollback", k8sApi.GitOps.RollbackApplication)
+			k8s.POST("gitops/create", k8sApi.GitOps.CreateApplication)
+			k8s.DELETE("gitops/delete", k8sApi.GitOps.DeleteApplication)
+
+			// Tenancy
+			k8s.GET("tenancy/tenants", k8sApi.Tenancy.ListTenants)
+			k8s.GET("tenancy/tenant", k8sApi.Tenancy.GetTenant)
+			k8s.POST("tenancy/create", k8sApi.Tenancy.CreateTenant)
+			k8s.DELETE("tenancy/delete", k8sApi.Tenancy.DeleteTenant)
+			k8s.POST("tenancy/namespace/add", k8sApi.Tenancy.AddNamespaceToTenant)
+			k8s.POST("tenancy/namespace/remove", k8sApi.Tenancy.RemoveNamespaceFromTenant)
 		}
 	}
 

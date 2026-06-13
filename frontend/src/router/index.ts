@@ -431,6 +431,20 @@ const router = createRouter({
       name: 'AppCatalog',
       component: () => import('@/views/catalog/AppCatalog.vue'),
     },
+
+    // GitOps routes
+    {
+      path: '/gitops',
+      name: 'GitOpsView',
+      component: () => import('@/views/gitops/GitOpsView.vue'),
+    },
+
+    // Tenancy routes
+    {
+      path: '/tenancy',
+      name: 'TenantList',
+      component: () => import('@/views/tenancy/TenantList.vue'),
+    },
   ],
 })
 
