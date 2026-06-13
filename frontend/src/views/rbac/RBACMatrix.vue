@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh, Download } from '@element-plus/icons-vue'
+import { Refresh, Download, Setting } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
 const loading = ref(false)
 const roles = ref<any[]>([])
-const permissions = ref<any[]>([])
 const selectedRole = ref('')
 const viewMode = ref('matrix') // 'matrix' or 'list'
 
@@ -22,67 +21,41 @@ const verbs = ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']
 
 const matrixData = ref<Record<string, Record<string, string[]>>>({})
 
-async function fetchRoles() {
-  try {
-    const res: any = await request.get('/roles')
-    roles.value = res.data || []
-  } catch {
-    roles.value = [
-      { id: 1, name: 'super_admin', description: 'Super Administrator' },
-      { id: 2, name: 'admin', description: 'Administrator' },
-      { id: 3, name: 'developer', description: 'Developer' },
-      { id: 4, name: 'viewer', description: 'Read-only User' },
-    ]
-  }
-}
-
-async function fetchPermissions() {
+async function fetchMatrix() {
   loading.value = true
   try {
-    const res: any = await request.get('/roles')
-    const rolesData = res.data || []
+    const res: any = await request.get('/rbac/matrix')
+    const matrixArray = res.data || []
 
-    // Build matrix data
+    // Build matrix data from API response
     const matrix: Record<string, Record<string, string[]>> = {}
-    for (const role of rolesData) {
-      matrix[role.name] = {}
-      for (const resource of resources) {
-        matrix[role.name][resource] = []
-      }
-    }
-
-    // Simulate permissions for demo
-    if (rolesData.length > 0) {
-      matrix['super_admin'] = {}
-      for (const resource of resources) {
-        matrix['super_admin'][resource] = [...verbs]
-      }
-
-      matrix['admin'] = {}
-      for (const resource of resources) {
-        matrix['admin'][resource] = ['get', 'list', 'watch', 'create', 'update', 'delete']
-      }
-
-      matrix['developer'] = {
-        pods: ['get', 'list', 'watch', 'create', 'update', 'delete'],
-        deployments: ['get', 'list', 'watch', 'create', 'update'],
-        statefulsets: ['get', 'list', 'watch'],
-        services: ['get', 'list', 'watch', 'create', 'update'],
-        configmaps: ['get', 'list', 'watch', 'create', 'update'],
-        secrets: ['get', 'list', 'watch'],
-      }
-
-      matrix['viewer'] = {}
-      for (const resource of resources) {
-        matrix['viewer'][resource] = ['get', 'list', 'watch']
-      }
+    for (const roleMatrix of matrixArray) {
+      matrix[roleMatrix.roleName] = roleMatrix.permissions || {}
     }
 
     matrixData.value = matrix
+    roles.value = matrixArray.map((m: any) => ({ id: m.roleId, name: m.roleName }))
   } catch (e: any) {
-    ElMessage.warning('Failed to load permissions')
+    ElMessage.warning('Failed to load RBAC matrix')
+    // Fallback to roles API
+    try {
+      const res: any = await request.get('/roles')
+      roles.value = res.data || []
+    } catch {
+      roles.value = []
+    }
   } finally {
     loading.value = false
+  }
+}
+
+async function initializeMatrix() {
+  try {
+    await request.post('/rbac/matrix/init')
+    ElMessage.success('Matrix initialized')
+    fetchMatrix()
+  } catch (e: any) {
+    ElMessage.error('Failed to initialize matrix')
   }
 }
 
@@ -90,19 +63,33 @@ function hasPermission(role: string, resource: string, verb: string): boolean {
   return matrixData.value[role]?.[resource]?.includes(verb) || false
 }
 
-function togglePermission(role: string, resource: string, verb: string) {
-  if (!matrixData.value[role]) {
-    matrixData.value[role] = {}
-  }
-  if (!matrixData.value[role][resource]) {
-    matrixData.value[role][resource] = []
-  }
+async function togglePermission(role: string, resource: string, verb: string) {
+  const roleObj = roles.value.find(r => r.name === role)
+  if (!roleObj) return
 
-  const index = matrixData.value[role][resource].indexOf(verb)
-  if (index >= 0) {
-    matrixData.value[role][resource].splice(index, 1)
-  } else {
-    matrixData.value[role][resource].push(verb)
+  try {
+    await request.post('/rbac/matrix/toggle', {
+      roleId: roleObj.id,
+      resource: resource,
+      verb: verb,
+    })
+
+    // Update local state
+    if (!matrixData.value[role]) {
+      matrixData.value[role] = {}
+    }
+    if (!matrixData.value[role][resource]) {
+      matrixData.value[role][resource] = []
+    }
+
+    const index = matrixData.value[role][resource].indexOf(verb)
+    if (index >= 0) {
+      matrixData.value[role][resource].splice(index, 1)
+    } else {
+      matrixData.value[role][resource].push(verb)
+    }
+  } catch (e: any) {
+    ElMessage.error('Failed to update permission')
   }
 }
 
@@ -135,8 +122,7 @@ const filteredRoles = computed(() => {
 })
 
 onMounted(() => {
-  fetchRoles()
-  fetchPermissions()
+  fetchMatrix()
 })
 </script>
 
@@ -153,8 +139,9 @@ onMounted(() => {
             <el-radio-button value="matrix">Matrix</el-radio-button>
             <el-radio-button value="list">List</el-radio-button>
           </el-radio-group>
+          <el-button @click="initializeMatrix"><el-icon><Setting /></el-icon> Init</el-button>
           <el-button @click="exportMatrix"><el-icon><Download /></el-icon> Export</el-button>
-          <el-button @click="fetchPermissions"><el-icon><Refresh /></el-icon></el-button>
+          <el-button @click="fetchMatrix"><el-icon><Refresh /></el-icon></el-button>
         </div>
       </div>
     </el-card>

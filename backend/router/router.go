@@ -49,6 +49,13 @@ func Engine() *gin.Engine {
 			roles.DELETE("", authApi.Role.Delete)
 		}
 
+		// RBAC Matrix
+		authorized.GET("rbac/matrix", authApi.RBACMatrix.GetMatrix)
+		authorized.GET("rbac/matrix/role", authApi.RBACMatrix.GetRoleMatrix)
+		authorized.PUT("rbac/matrix", authApi.RBACMatrix.UpdateMatrix)
+		authorized.POST("rbac/matrix/toggle", authApi.RBACMatrix.TogglePermission)
+		authorized.POST("rbac/matrix/init", authApi.RBACMatrix.InitializeMatrix)
+
 		// Clusters
 		clusters := authorized.Group("clusters", middleware.RBAC("cluster", "*"))
 		{
