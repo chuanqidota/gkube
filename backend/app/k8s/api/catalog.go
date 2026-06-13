@@ -33,7 +33,6 @@ type InstallRequest struct {
 
 // ListCharts lists available Helm charts
 func (h *catalogHandler) ListCharts(c *gin.Context) {
-	// Try to list charts from Helm repos
 	charts, err := listHelmCharts()
 	if err != nil {
 		// Return sample charts if Helm is not available
@@ -51,10 +50,8 @@ func (h *catalogHandler) GetChartDetails(c *gin.Context) {
 		return
 	}
 
-	// Try to get chart details from Helm
 	details, err := getChartDetails(chartName)
 	if err != nil {
-		// Return sample details
 		details = &ChartInfo{
 			Name:        chartName,
 			Version:     "1.0.0",
@@ -79,7 +76,6 @@ func (h *catalogHandler) InstallChart(c *gin.Context) {
 		return
 	}
 
-	// Try to install using Helm
 	err := installHelmChart(req)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("安装失败: %s", err.Error()))
@@ -206,13 +202,7 @@ func installHelmChart(req InstallRequest) error {
 	}
 
 	if req.Values != "" {
-		// Write values to temp file
-		valuesFile := "/tmp/helm-values-" + req.Name + ".yaml"
-		err := writeToFile(valuesFile, req.Values)
-		if err != nil {
-			return err
-		}
-		args = append(args, "-f", valuesFile)
+		args = append(args, "--set", req.Values)
 	}
 
 	cmd := exec.Command("helm", args...)
@@ -299,9 +289,4 @@ func getSampleCharts() []ChartInfo {
 		{Name: "minio", Version: "5.0.0", AppVersion: "2023.09.07", Description: "Object storage", Category: "Storage", Repository: "bitnami"},
 		{Name: "keycloak", Version: "16.0.0", AppVersion: "22.0.0", Description: "Identity and access management", Category: "Security", Repository: "bitnami"},
 	}
-}
-
-func writeToFile(path, content string) error {
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("echo '%s' > %s", content, path))
-	return cmd.Run()
 }
