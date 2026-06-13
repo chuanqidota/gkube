@@ -535,6 +535,13 @@ const router = createRouter({
       name: 'NotificationCenter',
       component: () => import('@/views/notification/NotificationCenter.vue'),
     },
+
+    // Resource Search route
+    {
+      path: '/search',
+      name: 'ResourceSearch',
+      component: () => import('@/views/search/ResourceSearch.vue'),
+    },
   ],
 })
 
