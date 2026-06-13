@@ -8,6 +8,7 @@ import {
   updateDeploymentYaml,
   restartDeployment,
   rollbackDeployment,
+  scaleDeployment,
   getPodList,
   getDeploymentEvents,
 } from '@/api/resource'
@@ -31,6 +32,11 @@ const eventsLoading = ref(false)
 const rollbackDialogVisible = ref(false)
 const rollbackRevision = ref<number>(1)
 const rollbackLoading = ref(false)
+
+// Scale dialog
+const scaleDialogVisible = ref(false)
+const scaleReplicas = ref<number>(1)
+const scaleLoading = ref(false)
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
@@ -121,6 +127,25 @@ function handleRollback() {
   rollbackDialogVisible.value = true
 }
 
+function handleScale() {
+  scaleReplicas.value = deployment.value?.replicas ?? 1
+  scaleDialogVisible.value = true
+}
+
+async function handleScaleConfirm() {
+  scaleLoading.value = true
+  try {
+    await scaleDeployment({ namespace, name, replicas: scaleReplicas.value })
+    ElMessage.success(`Deployment scaled to ${scaleReplicas.value} replicas`)
+    scaleDialogVisible.value = false
+    fetchDetail()
+  } catch (e: any) {
+    ElMessage.error(e?.message || 'Failed to scale deployment')
+  } finally {
+    scaleLoading.value = false
+  }
+}
+
 async function handleRollbackConfirm() {
   if (!rollbackRevision.value || rollbackRevision.value < 1) {
     ElMessage.warning('Please enter a valid revision number')
@@ -168,6 +193,7 @@ onMounted(fetchDetail)
     <div class="page-header">
       <h2 style="margin: 0;">Deployment: {{ name }}</h2>
       <div style="display: flex; gap: 8px;">
+        <el-button type="primary" @click="handleScale">Scale</el-button>
         <el-button type="warning" @click="handleRestart">Restart</el-button>
         <el-button type="danger" @click="handleRollback">Rollback</el-button>
         <el-button @click="router.push('/workloads/deployments')">Back to List</el-button>
@@ -285,6 +311,25 @@ onMounted(fetchDetail)
       <template #footer>
         <el-button @click="rollbackDialogVisible = false">Cancel</el-button>
         <el-button type="danger" :loading="rollbackLoading" @click="handleRollbackConfirm">Rollback</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Scale Dialog -->
+    <el-dialog v-model="scaleDialogVisible" title="Scale Deployment" width="480px" destroy-on-close>
+      <div>
+        <p style="margin-bottom: 16px;">Scale deployment <strong>{{ name }}</strong> in namespace <strong>{{ namespace }}</strong>.</p>
+        <el-descriptions :column="1" border style="margin-bottom: 16px;">
+          <el-descriptions-item label="Current Replicas">{{ deployment?.replicas ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Ready Replicas">{{ deployment?.ready ?? '-' }}</el-descriptions-item>
+        </el-descriptions>
+        <el-form-item label="Target Replicas">
+          <el-input-number v-model="scaleReplicas" :min="0" :max="100" style="width: 200px;" />
+        </el-form-item>
+        <el-alert v-if="scaleReplicas === 0" title="Setting replicas to 0 will stop all pods." type="warning" :closable="false" show-icon style="margin-top: 8px;" />
+      </div>
+      <template #footer>
+        <el-button @click="scaleDialogVisible = false">Cancel</el-button>
+        <el-button type="primary" :loading="scaleLoading" @click="handleScaleConfirm">Scale</el-button>
       </template>
     </el-dialog>
   </div>
