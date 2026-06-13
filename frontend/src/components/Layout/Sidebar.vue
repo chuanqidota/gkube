@@ -138,6 +138,10 @@
         <el-icon><Grid /></el-icon>
         <template #title>CRD</template>
       </el-menu-item>
+      <el-menu-item index="/catalog">
+        <el-icon><Grid /></el-icon>
+        <template #title>应用目录</template>
+      </el-menu-item>
       <el-sub-menu index="tools">
         <template #title>
           <el-icon><Monitor /></el-icon>
@@ -155,6 +159,10 @@
           <el-icon><TrendCharts /></el-icon>
           <template #title>资源监控</template>
         </el-menu-item>
+        <el-menu-item index="/monitoring/dashboard">
+          <el-icon><TrendCharts /></el-icon>
+          <template #title>监控面板</template>
+        </el-menu-item>
         <el-menu-item index="/monitoring/prometheus">
           <el-icon><TrendCharts /></el-icon>
           <template #title>Prometheus</template>
@@ -166,6 +174,10 @@
         <el-menu-item index="/topology/graph">
           <el-icon><Share /></el-icon>
           <template #title>拓扑图</template>
+        </el-menu-item>
+        <el-menu-item index="/tools/diff">
+          <el-icon><Document /></el-icon>
+          <template #title>资源对比</template>
         </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="system">

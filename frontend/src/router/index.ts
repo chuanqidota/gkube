@@ -298,6 +298,11 @@ const router = createRouter({
       component: () => import('@/views/monitoring/MonitoringView.vue'),
     },
     {
+      path: '/monitoring/dashboard',
+      name: 'MonitoringDashboard',
+      component: () => import('@/views/monitoring/MonitoringDashboard.vue'),
+    },
+    {
       path: '/monitoring/prometheus',
       name: 'PrometheusView',
       component: () => import('@/views/monitoring/PrometheusView.vue'),
@@ -411,6 +416,20 @@ const router = createRouter({
       name: 'StorageClassDetail',
       component: () => import('@/views/storage/StorageClassDetail.vue'),
       props: true,
+    },
+
+    // Tools routes
+    {
+      path: '/tools/diff',
+      name: 'ResourceDiff',
+      component: () => import('@/views/tools/ResourceDiff.vue'),
+    },
+
+    // Catalog routes
+    {
+      path: '/catalog',
+      name: 'AppCatalog',
+      component: () => import('@/views/catalog/AppCatalog.vue'),
     },
   ],
 })
