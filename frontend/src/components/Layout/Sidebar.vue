@@ -16,242 +16,202 @@
     >
       <el-menu-item index="/dashboard">
         <el-icon><Odometer /></el-icon>
-        <template #title>仪表盘</template>
+        <template #title>{{ t('sidebar.dashboard') }}</template>
       </el-menu-item>
       <el-menu-item index="/search">
         <el-icon><Search /></el-icon>
-        <template #title>资源搜索</template>
+        <template #title>{{ t('sidebar.search') }}</template>
       </el-menu-item>
       <el-menu-item index="/system/overview">
         <el-icon><Monitor /></el-icon>
-        <template #title>系统概览</template>
+        <template #title>{{ t('sidebar.systemOverview') }}</template>
       </el-menu-item>
       <el-menu-item index="/clusters">
         <el-icon><Connection /></el-icon>
-        <template #title>集群管理</template>
+        <template #title>{{ t('sidebar.clusters') }}</template>
       </el-menu-item>
       <el-sub-menu index="workloads">
         <template #title>
           <el-icon><Box /></el-icon>
-          <span>工作负载</span>
+          <span>{{ t('sidebar.workloads') }}</span>
         </template>
         <el-menu-item index="/workloads/pods">
           <el-icon><Coin /></el-icon>
-          <template #title>容器组</template>
+          <template #title>{{ t('sidebar.pods') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/deployments">
           <el-icon><Files /></el-icon>
-          <template #title>无状态负载</template>
+          <template #title>{{ t('sidebar.deployments') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/statefulsets">
           <el-icon><Files /></el-icon>
-          <template #title>有状态负载</template>
+          <template #title>{{ t('sidebar.statefulsets') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/daemonsets">
           <el-icon><Files /></el-icon>
-          <template #title>守护进程集</template>
+          <template #title>{{ t('sidebar.daemonsets') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/jobs">
           <el-icon><Files /></el-icon>
-          <template #title>任务</template>
+          <template #title>{{ t('sidebar.jobs') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/cronjobs">
           <el-icon><Files /></el-icon>
-          <template #title>定时任务</template>
+          <template #title>{{ t('sidebar.cronjobs') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/hpa">
           <el-icon><DataLine /></el-icon>
-          <template #title>弹性伸缩</template>
+          <template #title>{{ t('sidebar.hpa') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/pdb">
           <el-icon><Warning /></el-icon>
-          <template #title>中断预算</template>
+          <template #title>{{ t('sidebar.pdb') }}</template>
         </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="config">
         <template #title>
           <el-icon><Tickets /></el-icon>
-          <span>配置</span>
+          <span>{{ t('sidebar.config') }}</span>
         </template>
         <el-menu-item index="/config/configmaps">
           <el-icon><Tickets /></el-icon>
-          <template #title>配置字典</template>
+          <template #title>{{ t('sidebar.configmaps') }}</template>
         </el-menu-item>
         <el-menu-item index="/config/secrets">
           <el-icon><Key /></el-icon>
-          <template #title>保密字典</template>
+          <template #title>{{ t('sidebar.secrets') }}</template>
         </el-menu-item>
         <el-menu-item index="/config/resourcequotas">
           <el-icon><Coin /></el-icon>
-          <template #title>资源配额</template>
+          <template #title>{{ t('sidebar.resourcequotas') }}</template>
         </el-menu-item>
         <el-menu-item index="/config/limitranges">
           <el-icon><ScaleToOriginal /></el-icon>
-          <template #title>资源限制</template>
+          <template #title>{{ t('sidebar.limitranges') }}</template>
         </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="storage">
         <template #title>
           <el-icon><Coin /></el-icon>
-          <span>存储</span>
+          <span>{{ t('sidebar.storage') }}</span>
         </template>
         <el-menu-item index="/storage/pvs">
           <el-icon><Coin /></el-icon>
-          <template #title>持久卷</template>
+          <template #title>{{ t('sidebar.pvs') }}</template>
         </el-menu-item>
         <el-menu-item index="/storage/pvcs">
           <el-icon><Box /></el-icon>
-          <template #title>持久卷声明</template>
+          <template #title>{{ t('sidebar.pvcs') }}</template>
         </el-menu-item>
         <el-menu-item index="/storage/storageclasses">
           <el-icon><Files /></el-icon>
-          <template #title>存储类</template>
+          <template #title>{{ t('sidebar.storageclasses') }}</template>
         </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="network">
         <template #title>
           <el-icon><Share /></el-icon>
-          <span>服务发现</span>
+          <span>{{ t('sidebar.network') }}</span>
         </template>
         <el-menu-item index="/services">
           <el-icon><Connection /></el-icon>
-          <template #title>服务</template>
+          <template #title>{{ t('sidebar.services') }}</template>
         </el-menu-item>
         <el-menu-item index="/ingresses">
           <el-icon><Link /></el-icon>
-          <template #title>路由</template>
+          <template #title>{{ t('sidebar.ingresses') }}</template>
         </el-menu-item>
         <el-menu-item index="/network/networkpolicies">
           <el-icon><Lock /></el-icon>
-          <template #title>网络策略</template>
+          <template #title>{{ t('sidebar.networkpolicies') }}</template>
         </el-menu-item>
       </el-sub-menu>
       <el-menu-item index="/nodes">
         <el-icon><Cpu /></el-icon>
-        <template #title>节点管理</template>
+        <template #title>{{ t('sidebar.nodes') }}</template>
       </el-menu-item>
       <el-menu-item index="/namespaces">
         <el-icon><FolderOpened /></el-icon>
-        <template #title>命名空间</template>
-      </el-menu-item>
-      <el-menu-item index="/namespaces/manager">
-        <el-icon><Setting /></el-icon>
-        <template #title>命名空间管理</template>
+        <template #title>{{ t('sidebar.namespaces') }}</template>
       </el-menu-item>
       <el-menu-item index="/events">
         <el-icon><Bell /></el-icon>
-        <template #title>事件</template>
-      </el-menu-item>
-      <el-menu-item index="/notifications">
-        <el-icon><Bell /></el-icon>
-        <template #title>通知中心</template>
-      </el-menu-item>
-      <el-menu-item index="/events/viewer">
-        <el-icon><Bell /></el-icon>
-        <template #title>事件查看器</template>
-      </el-menu-item>
-      <el-menu-item index="/watcher">
-        <el-icon><VideoPlay /></el-icon>
-        <template #title>资源监视器</template>
+        <template #title>{{ t('sidebar.events') }}</template>
       </el-menu-item>
       <el-menu-item index="/rbac">
         <el-icon><UserFilled /></el-icon>
-        <template #title>RBAC</template>
-      </el-menu-item>
-      <el-menu-item index="/rbac/matrix">
-        <el-icon><Grid /></el-icon>
-        <template #title>权限矩阵</template>
+        <template #title>{{ t('sidebar.rbac') }}</template>
       </el-menu-item>
       <el-menu-item index="/crd">
         <el-icon><Grid /></el-icon>
-        <template #title>CRD</template>
+        <template #title>{{ t('sidebar.crd') }}</template>
       </el-menu-item>
       <el-menu-item index="/catalog">
         <el-icon><Grid /></el-icon>
-        <template #title>应用目录</template>
+        <template #title>{{ t('sidebar.catalog') }}</template>
       </el-menu-item>
       <el-menu-item index="/gitops">
         <el-icon><Connection /></el-icon>
-        <template #title>GitOps</template>
+        <template #title>{{ t('sidebar.gitops') }}</template>
       </el-menu-item>
       <el-menu-item index="/tenancy">
         <el-icon><UserFilled /></el-icon>
-        <template #title>多租户</template>
+        <template #title>{{ t('sidebar.tenancy') }}</template>
       </el-menu-item>
       <el-menu-item index="/approvals">
         <el-icon><CircleCheck /></el-icon>
-        <template #title>审批流程</template>
+        <template #title>{{ t('sidebar.approvals') }}</template>
       </el-menu-item>
       <el-sub-menu index="tools">
         <template #title>
           <el-icon><Monitor /></el-icon>
-          <span>工具</span>
+          <span>{{ t('sidebar.tools') }}</span>
         </template>
         <el-menu-item index="/terminal">
           <el-icon><Promotion /></el-icon>
-          <template #title>Web 终端</template>
+          <template #title>{{ t('sidebar.terminal') }}</template>
         </el-menu-item>
         <el-menu-item index="/logs">
           <el-icon><Document /></el-icon>
-          <template #title>日志查看</template>
+          <template #title>{{ t('sidebar.logs') }}</template>
         </el-menu-item>
         <el-menu-item index="/monitoring">
           <el-icon><TrendCharts /></el-icon>
-          <template #title>资源监控</template>
-        </el-menu-item>
-        <el-menu-item index="/monitoring/dashboard">
-          <el-icon><TrendCharts /></el-icon>
-          <template #title>监控面板</template>
-        </el-menu-item>
-        <el-menu-item index="/monitoring/resources">
-          <el-icon><TrendCharts /></el-icon>
-          <template #title>资源仪表盘</template>
-        </el-menu-item>
-        <el-menu-item index="/monitoring/prometheus">
-          <el-icon><TrendCharts /></el-icon>
-          <template #title>Prometheus</template>
+          <template #title>{{ t('sidebar.monitoring') }}</template>
         </el-menu-item>
         <el-menu-item index="/topology">
           <el-icon><Share /></el-icon>
-          <template #title>资源拓扑</template>
-        </el-menu-item>
-        <el-menu-item index="/topology/graph">
-          <el-icon><Share /></el-icon>
-          <template #title>拓扑图</template>
+          <template #title>{{ t('sidebar.topology') }}</template>
         </el-menu-item>
         <el-menu-item index="/tools/diff">
           <el-icon><Document /></el-icon>
-          <template #title>资源对比</template>
-        </el-menu-item>
-        <el-menu-item index="/tools/batch">
-          <el-icon><Setting /></el-icon>
-          <template #title>批量操作</template>
+          <template #title>{{ t('sidebar.diff') }}</template>
         </el-menu-item>
         <el-menu-item index="/tools/yaml-editor">
           <el-icon><Document /></el-icon>
-          <template #title>YAML 编辑器</template>
+          <template #title>{{ t('sidebar.yamlEditor') }}</template>
         </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="system">
         <template #title>
           <el-icon><Setting /></el-icon>
-          <span>系统管理</span>
+          <span>{{ t('sidebar.system') }}</span>
         </template>
         <el-menu-item index="/users">
           <el-icon><User /></el-icon>
-          <template #title>用户管理</template>
+          <template #title>{{ t('sidebar.users') }}</template>
         </el-menu-item>
         <el-menu-item index="/roles">
           <el-icon><UserFilled /></el-icon>
-          <template #title>角色管理</template>
+          <template #title>{{ t('sidebar.roles') }}</template>
         </el-menu-item>
         <el-menu-item index="/settings/auth">
           <el-icon><Setting /></el-icon>
-          <template #title>认证设置</template>
+          <template #title>{{ t('sidebar.authSettings') }}</template>
         </el-menu-item>
         <el-menu-item index="/audit">
           <el-icon><Document /></el-icon>
-          <template #title>审计日志</template>
+          <template #title>{{ t('sidebar.audit') }}</template>
         </el-menu-item>
       </el-sub-menu>
     </el-menu>
@@ -261,6 +221,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   Odometer,
   Connection,
@@ -294,6 +255,7 @@ defineProps<{
 }>()
 
 const route = useRoute()
+const { t } = useI18n()
 const activeMenu = computed(() => route.path)
 </script>
 
