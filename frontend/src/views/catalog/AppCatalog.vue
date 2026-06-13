@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Search, Download, Setting } from '@element-plus/icons-vue'
+import { Refresh, Search, Download, Setting, View, Delete } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
 const loading = ref(false)
@@ -9,6 +9,8 @@ const searchQuery = ref('')
 const selectedCategory = ref('')
 const charts = ref<any[]>([])
 const categories = ref<string[]>([])
+const releases = ref<any[]>([])
+const showReleases = ref(false)
 
 // Install dialog
 const showInstallDialog = ref(false)
@@ -49,24 +51,19 @@ async function fetchCharts() {
     categories.value = [...new Set(charts.value.map((c: any) => c.category).filter(Boolean))] as string[]
   } catch (e: any) {
     ElMessage.warning('Chart catalog not available')
-    // Provide sample charts for demo
-    charts.value = [
-      { name: 'nginx', description: 'High performance web server', category: 'Web', version: '15.0.0', appVersion: '1.25.0' },
-      { name: 'redis', description: 'In-memory data store', category: 'Database', version: '18.0.0', appVersion: '7.2.0' },
-      { name: 'mysql', description: 'Relational database', category: 'Database', version: '9.0.0', appVersion: '8.0.0' },
-      { name: 'postgresql', description: 'Advanced relational database', category: 'Database', version: '13.0.0', appVersion: '16.0.0' },
-      { name: 'mongodb', description: 'NoSQL document database', category: 'Database', version: '14.0.0', appVersion: '7.0.0' },
-      { name: 'elasticsearch', description: 'Search and analytics engine', category: 'Search', version: '19.0.0', appVersion: '8.10.0' },
-      { name: 'grafana', description: 'Observability platform', category: 'Monitoring', version: '7.0.0', appVersion: '10.0.0' },
-      { name: 'prometheus', description: 'Monitoring system', category: 'Monitoring', version: '25.0.0', appVersion: '2.47.0' },
-      { name: 'jenkins', description: 'CI/CD automation server', category: 'CI/CD', version: '4.0.0', appVersion: '2.420.0' },
-      { name: 'gitlab', description: 'DevOps platform', category: 'CI/CD', version: '7.0.0', appVersion: '16.0.0' },
-      { name: 'harbor', description: 'Container registry', category: 'Registry', version: '1.0.0', appVersion: '2.9.0' },
-      { name: 'minio', description: 'Object storage', category: 'Storage', version: '5.0.0', appVersion: '2023.09.07' },
-    ]
-    categories.value = ['Web', 'Database', 'Search', 'Monitoring', 'CI/CD', 'Registry', 'Storage']
+    charts.value = getSampleCharts()
+    categories.value = ['Web', 'Database', 'Search', 'Monitoring', 'CI/CD', 'Registry', 'Storage', 'Security']
   } finally {
     loading.value = false
+  }
+}
+
+async function fetchReleases() {
+  try {
+    const res: any = await request.get('/k8s/catalog/releases')
+    releases.value = res.data || []
+  } catch {
+    releases.value = []
   }
 }
 
@@ -83,7 +80,6 @@ function viewChartDetails(chart: any) {
   selectedChart.value = chart
   chartDetails.value = chart
   showChartDetails.value = true
-  // Fetch versions
   chartVersions.value = [
     { version: chart.version, appVersion: chart.appVersion, created: '2024-01-01' },
     { version: '1.0.0', appVersion: '1.0.0', created: '2023-01-01' },
@@ -117,8 +113,24 @@ async function installChart() {
     })
     ElMessage.success('Application installed successfully')
     showInstallDialog.value = false
+    fetchReleases()
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to install application')
+  }
+}
+
+async function uninstallRelease(release: any) {
+  try {
+    await ElMessageBox.confirm(`Uninstall "${release.name}"?`, 'Confirm')
+    await request.delete('/k8s/catalog/release', {
+      params: { name: release.name, namespace: release.namespace }
+    })
+    ElMessage.success('Uninstalled')
+    fetchReleases()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e?.message || 'Failed to uninstall')
+    }
   }
 }
 
@@ -131,12 +143,32 @@ function getCategoryIcon(category: string) {
     'CI/CD': '🔄',
     'Registry': '📦',
     'Storage': '💾',
+    'Security': '🔒',
+    'Messaging': '📨',
   }
   return icons[category] || '📦'
 }
 
+function getSampleCharts() {
+  return [
+    { name: 'nginx', version: '15.0.0', appVersion: '1.25.0', description: 'High performance web server', category: 'Web', repository: 'bitnami' },
+    { name: 'redis', version: '18.0.0', appVersion: '7.2.0', description: 'In-memory data store', category: 'Database', repository: 'bitnami' },
+    { name: 'mysql', version: '9.0.0', appVersion: '8.0.0', description: 'Relational database', category: 'Database', repository: 'bitnami' },
+    { name: 'postgresql', version: '13.0.0', appVersion: '16.0.0', description: 'Advanced relational database', category: 'Database', repository: 'bitnami' },
+    { name: 'mongodb', version: '14.0.0', appVersion: '7.0.0', description: 'NoSQL document database', category: 'Database', repository: 'bitnami' },
+    { name: 'elasticsearch', version: '19.0.0', appVersion: '8.10.0', description: 'Search and analytics engine', category: 'Search', repository: 'elastic' },
+    { name: 'grafana', version: '7.0.0', appVersion: '10.0.0', description: 'Observability platform', category: 'Monitoring', repository: 'grafana' },
+    { name: 'prometheus', version: '25.0.0', appVersion: '2.47.0', description: 'Monitoring system', category: 'Monitoring', repository: 'prometheus' },
+    { name: 'jenkins', version: '4.0.0', appVersion: '2.420.0', description: 'CI/CD automation server', category: 'CI/CD', repository: 'jenkins' },
+    { name: 'harbor', version: '1.0.0', appVersion: '2.9.0', description: 'Container registry', category: 'Registry', repository: 'harbor' },
+    { name: 'minio', version: '5.0.0', appVersion: '2023.09.07', description: 'Object storage', category: 'Storage', repository: 'bitnami' },
+    { name: 'keycloak', version: '16.0.0', appVersion: '22.0.0', description: 'Identity and access management', category: 'Security', repository: 'bitnami' },
+  ]
+}
+
 onMounted(() => {
   fetchCharts()
+  fetchReleases()
   fetchNamespaces()
 })
 </script>
@@ -145,23 +177,50 @@ onMounted(() => {
   <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <h3 style="margin: 0;">Application Catalog</h3>
+        <h3 style="margin: 0;"><el-icon><Download /></el-icon> 应用目录</h3>
         <div class="filter-right">
           <el-input
             v-model="searchQuery"
-            placeholder="Search charts..."
+            placeholder="搜索应用..."
             :prefix-icon="Search"
             style="width: 250px;"
             clearable
           />
-          <el-select v-model="selectedCategory" placeholder="All Categories" clearable style="width: 150px;">
+          <el-select v-model="selectedCategory" placeholder="所有分类" clearable style="width: 150px;">
             <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
           </el-select>
-          <el-button type="primary" @click="fetchCharts"><el-icon><Refresh /></el-icon> Refresh</el-button>
+          <el-button :type="showReleases ? 'success' : 'default'" @click="showReleases = !showReleases">
+            已安装 ({{ releases.length }})
+          </el-button>
+          <el-button type="primary" @click="fetchCharts"><el-icon><Refresh /></el-icon> 刷新</el-button>
         </div>
       </div>
     </el-card>
 
+    <!-- Installed Releases -->
+    <el-card v-if="showReleases" shadow="never" style="margin-bottom: 16px;">
+      <template #header>
+        <h4 style="margin: 0;">已安装应用</h4>
+      </template>
+      <el-table :data="releases" stripe size="small" empty-text="暂无已安装应用">
+        <el-table-column prop="name" label="名称" min-width="150" />
+        <el-table-column prop="namespace" label="命名空间" width="120" />
+        <el-table-column prop="chart" label="Chart" width="150" />
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'deployed' ? 'success' : 'warning'" size="small">{{ row.status }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="revision" label="版本" width="80" />
+        <el-table-column label="操作" width="100">
+          <template #default="{ row }">
+            <el-button type="danger" size="small" @click="uninstallRelease(row)">卸载</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <!-- Chart Grid -->
     <div class="chart-grid" v-loading="loading">
       <el-card
         v-for="chart in filteredCharts"
@@ -181,57 +240,58 @@ onMounted(() => {
         <div class="chart-footer">
           <span class="chart-version">v{{ chart.version }}</span>
           <el-button type="primary" size="small" @click.stop="openInstallDialog(chart)">
-            <el-icon><Download /></el-icon> Install
+            <el-icon><Download /></el-icon> 安装
           </el-button>
         </div>
       </el-card>
     </div>
 
-    <el-empty v-if="!loading && filteredCharts.length === 0" description="No charts found" />
+    <el-empty v-if="!loading && filteredCharts.length === 0" description="未找到应用" />
 
     <!-- Chart Details Dialog -->
     <el-dialog v-model="showChartDetails" :title="chartDetails?.name" width="600px">
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="Name">{{ chartDetails?.name }}</el-descriptions-item>
-        <el-descriptions-item label="Category">{{ chartDetails?.category || 'Other' }}</el-descriptions-item>
-        <el-descriptions-item label="Version">{{ chartDetails?.version }}</el-descriptions-item>
-        <el-descriptions-item label="App Version">{{ chartDetails?.appVersion }}</el-descriptions-item>
-        <el-descriptions-item label="Description" :span="2">{{ chartDetails?.description }}</el-descriptions-item>
+        <el-descriptions-item label="名称">{{ chartDetails?.name }}</el-descriptions-item>
+        <el-descriptions-item label="分类">{{ chartDetails?.category || 'Other' }}</el-descriptions-item>
+        <el-descriptions-item label="版本">{{ chartDetails?.version }}</el-descriptions-item>
+        <el-descriptions-item label="应用版本">{{ chartDetails?.appVersion }}</el-descriptions-item>
+        <el-descriptions-item label="仓库">{{ chartDetails?.repository || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="描述" :span="2">{{ chartDetails?.description }}</el-descriptions-item>
       </el-descriptions>
 
-      <h4 style="margin-top: 20px;">Available Versions</h4>
+      <h4 style="margin-top: 20px;">可用版本</h4>
       <el-table :data="chartVersions" size="small">
-        <el-table-column prop="version" label="Version" />
-        <el-table-column prop="appVersion" label="App Version" />
-        <el-table-column prop="created" label="Created" />
-        <el-table-column label="Action" width="100">
+        <el-table-column prop="version" label="版本" />
+        <el-table-column prop="appVersion" label="应用版本" />
+        <el-table-column prop="created" label="创建时间" />
+        <el-table-column label="操作" width="100">
           <template #default="{ row }">
-            <el-button type="primary" size="small" @click="installForm.version = row.version; openInstallDialog(chartDetails)">Install</el-button>
+            <el-button type="primary" size="small" @click="installForm.version = row.version; openInstallDialog(chartDetails)">安装</el-button>
           </template>
         </el-table-column>
       </el-table>
 
       <template #footer>
-        <el-button @click="showChartDetails = false">Close</el-button>
-        <el-button type="primary" @click="openInstallDialog(chartDetails)">Install</el-button>
+        <el-button @click="showChartDetails = false">关闭</el-button>
+        <el-button type="primary" @click="openInstallDialog(chartDetails)">安装</el-button>
       </template>
     </el-dialog>
 
     <!-- Install Dialog -->
-    <el-dialog v-model="showInstallDialog" :title="'Install ' + selectedChart?.name" width="500px">
-      <el-form :model="installForm" label-width="120px">
-        <el-form-item label="Release Name" required>
+    <el-dialog v-model="showInstallDialog" :title="'安装 ' + selectedChart?.name" width="500px">
+      <el-form :model="installForm" label-width="100px">
+        <el-form-item label="发布名称" required>
           <el-input v-model="installForm.name" placeholder="my-release" />
         </el-form-item>
-        <el-form-item label="Namespace" required>
+        <el-form-item label="命名空间" required>
           <el-select v-model="installForm.namespace" style="width: 100%;">
             <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Version">
+        <el-form-item label="版本">
           <el-input v-model="installForm.version" />
         </el-form-item>
-        <el-form-item label="Custom Values">
+        <el-form-item label="自定义配置">
           <el-input
             v-model="installForm.values"
             type="textarea"
@@ -241,8 +301,8 @@ onMounted(() => {
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showInstallDialog = false">Cancel</el-button>
-        <el-button type="primary" @click="installChart">Install</el-button>
+        <el-button @click="showInstallDialog = false">取消</el-button>
+        <el-button type="primary" @click="installChart">安装</el-button>
       </template>
     </el-dialog>
   </div>
