@@ -269,6 +269,12 @@ const router = createRouter({
       name: 'MonitoringView',
       component: () => import('@/views/monitoring/MonitoringView.vue'),
     },
+    // Topology routes
+    {
+      path: '/topology',
+      name: 'TopologyView',
+      component: () => import('@/views/topology/TopologyView.vue'),
+    },
     // Config routes
     {
       path: '/config/configmaps',

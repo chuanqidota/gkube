@@ -284,6 +284,11 @@ func Engine() *gin.Engine {
 			// 指标监控
 			k8s.GET("metrics/nodes", k8sApi.Metrics.GetNodeMetrics)   // 获取节点指标
 			k8s.GET("metrics/pods", k8sApi.Metrics.GetPodMetrics)     // 获取Pod指标
+
+			// 资源拓扑
+			k8s.GET("topology/deployment", k8sApi.Topology.GetDeploymentTopology)   // 获取Deployment拓扑
+			k8s.GET("topology/statefulset", k8sApi.Topology.GetStatefulSetTopology) // 获取StatefulSet拓扑
+			k8s.GET("topology/daemonset", k8sApi.Topology.GetDaemonSetTopology)    // 获取DaemonSet拓扑
 		}
 	}
 
