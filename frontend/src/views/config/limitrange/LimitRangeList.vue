@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
 import { getLimitRangeList, getLimitRangeYaml, deleteLimitRange, getNamespaceList } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
+const router = useRouter()
 const loading = ref(false)
 const lrList = ref<any[]>([])
 const namespaceList = ref<string[]>([])
@@ -42,6 +44,7 @@ async function fetchLimitRanges() {
 
 function handleNamespaceChange() { fetchLimitRanges() }
 function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
+function handleDetail(row: any) { router.push(`/config/limitranges/${row.namespace}/${row.name}`) }
 
 async function handleViewYaml(row: any) {
   yamlDialogVisible.value = true; yamlLoading.value = true; yamlContent.value = ''
@@ -93,7 +96,9 @@ onMounted(() => { fetchNamespaces(); fetchLimitRanges() })
     <el-card shadow="never" class="table-card">
       <el-table :data="filteredList" v-loading="loading" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
+        </el-table-column>
         <el-table-column prop="namespace" label="Namespace" width="140" />
         <el-table-column label="Limits" min-width="300">
           <template #default="{ row }">

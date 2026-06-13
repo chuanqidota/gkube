@@ -189,6 +189,11 @@ const router = createRouter({
       name: 'PDBCreate',
       component: () => import('@/views/workload/pdb/PDBCreate.vue'),
     },
+    {
+      path: '/workloads/pdb/:namespace/:name',
+      name: 'PDBDetail',
+      component: () => import('@/views/workload/pdb/PDBDetail.vue'),
+    },
     // CRD routes
     {
       path: '/crd',
@@ -378,6 +383,11 @@ const router = createRouter({
       name: 'LimitRangeCreate',
       component: () => import('@/views/config/limitrange/LimitRangeCreate.vue'),
     },
+    {
+      path: '/config/limitranges/:namespace/:name',
+      name: 'LimitRangeDetail',
+      component: () => import('@/views/config/limitrange/LimitRangeDetail.vue'),
+    },
     // Storage routes
     {
       path: '/storage/pvs',
@@ -415,6 +425,11 @@ const router = createRouter({
       path: '/storage/storageclasses',
       name: 'StorageClassList',
       component: () => import('@/views/storage/StorageClassList.vue'),
+    },
+    {
+      path: '/storage/storageclasses/create',
+      name: 'StorageClassCreate',
+      component: () => import('@/views/storage/StorageClassCreate.vue'),
     },
     {
       path: '/storage/storageclasses/:name',

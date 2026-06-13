@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Refresh, Search } from '@element-plus/icons-vue'
+import { Refresh, Search, Plus } from '@element-plus/icons-vue'
 import { getStorageClassList, getStorageClassYaml } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
@@ -52,6 +52,7 @@ onMounted(fetchStorageClasses)
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
         <el-button type="primary" @click="fetchStorageClasses"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <el-button type="success" @click="router.push('/storage/storageclasses/create')"><el-icon><Plus /></el-icon> Create</el-button>
       </div>
     </el-card>
     <el-card shadow="never" class="table-card">

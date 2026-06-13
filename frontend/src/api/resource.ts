@@ -316,6 +316,14 @@ export function getStorageClassYaml(params: { name: string }) {
   return request.get('/k8s/storageclass/get-yaml', { params })
 }
 
+export function createStorageClass(data: any) {
+  return request.post('/k8s/storageclass/create', data)
+}
+
+export function deleteStorageClass(params: { name: string }) {
+  return request.delete('/k8s/storageclass/delete', { params })
+}
+
 // HPA
 export function getHpaList(params?: { namespace?: string }) {
   return request.get('/k8s/hpa/list', { params })
