@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { getOverview, getWorkloads, getEvents, getResources } from '@/api/dashboard'
 import type { Overview, WorkloadSummary, K8sEvent, ResourceMetrics } from '@/api/dashboard'
 import {
@@ -13,6 +14,7 @@ import {
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const overviewLoading = ref(false)
 const workloadsLoading = ref(false)
@@ -64,11 +66,11 @@ function progressColor(percent: number) {
 }
 
 const workloadItems = computed(() => [
-  { label: 'Deployments', value: workloads.value.deployments },
-  { label: 'StatefulSets', value: workloads.value.statefulsets },
-  { label: 'DaemonSets', value: workloads.value.daemonsets },
-  { label: 'Jobs', value: workloads.value.jobs },
-  { label: 'CronJobs', value: workloads.value.cronjobs },
+  { label: t('workload.deployment'), value: workloads.value.deployments },
+  { label: t('workload.statefulset'), value: workloads.value.statefulsets },
+  { label: t('workload.daemonset'), value: workloads.value.daemonsets },
+  { label: t('workload.job'), value: workloads.value.jobs },
+  { label: t('workload.cronjob'), value: workloads.value.cronjobs },
 ])
 
 async function fetchOverview() {
@@ -139,7 +141,7 @@ onMounted(() => {
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ overview.cluster_count }}</div>
-              <div class="stat-label">集群总数</div>
+              <div class="stat-label">{{ t('dashboard.clusterCount') }}</div>
             </div>
           </div>
         </el-card>
@@ -152,7 +154,7 @@ onMounted(() => {
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ overview.node_count }}</div>
-              <div class="stat-label">节点总数</div>
+              <div class="stat-label">{{ t('dashboard.nodeCount') }}</div>
             </div>
           </div>
         </el-card>
@@ -165,7 +167,7 @@ onMounted(() => {
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ overview.pod_count }}</div>
-              <div class="stat-label">Pod 总数</div>
+              <div class="stat-label">{{ t('dashboard.podCount') }}</div>
             </div>
           </div>
         </el-card>
@@ -178,7 +180,7 @@ onMounted(() => {
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ overview.namespace_count }}</div>
-              <div class="stat-label">命名空间</div>
+              <div class="stat-label">{{ t('dashboard.namespaceCount') }}</div>
             </div>
           </div>
         </el-card>
@@ -189,14 +191,14 @@ onMounted(() => {
     <el-card v-loading="resourcesLoading" shadow="hover" class="section-card">
       <template #header>
         <div class="card-header">
-          <span><el-icon><Cpu /></el-icon> 资源使用</span>
+          <span><el-icon><Cpu /></el-icon> {{ t('dashboard.resourceUsage') }}</span>
         </div>
       </template>
       <el-row :gutter="24">
         <el-col :span="8">
           <div class="resource-item">
             <div class="resource-header">
-              <span class="resource-title">CPU</span>
+              <span class="resource-title">{{ t('dashboard.cpu') }}</span>
               <span class="resource-detail">{{ resources.cpu.used }} / {{ resources.cpu.total }} Core</span>
             </div>
             <el-progress
@@ -210,7 +212,7 @@ onMounted(() => {
         <el-col :span="8">
           <div class="resource-item">
             <div class="resource-header">
-              <span class="resource-title">内存</span>
+              <span class="resource-title">{{ t('dashboard.memory') }}</span>
               <span class="resource-detail">{{ resources.memory.used }} / {{ resources.memory.total }} Gi</span>
             </div>
             <el-progress
@@ -224,7 +226,7 @@ onMounted(() => {
         <el-col :span="8">
           <div class="resource-item">
             <div class="resource-header">
-              <span class="resource-title">存储</span>
+              <span class="resource-title">{{ t('dashboard.storage') }}</span>
               <span class="resource-detail">{{ resources.storage.used }} / {{ resources.storage.total }} Gi</span>
             </div>
             <el-progress
@@ -244,7 +246,7 @@ onMounted(() => {
         <el-card v-loading="workloadsLoading" shadow="hover" class="section-card">
           <template #header>
             <div class="card-header">
-              <span><el-icon><DataLine /></el-icon> 工作负载统计</span>
+              <span><el-icon><DataLine /></el-icon> {{ t('dashboard.workloadStats') }}</span>
             </div>
           </template>
           <div class="workload-grid">
@@ -259,12 +261,12 @@ onMounted(() => {
         <el-card v-loading="eventsLoading" shadow="hover" class="section-card">
           <template #header>
             <div class="card-header">
-              <span><el-icon><Bell /></el-icon> 最新事件</span>
-              <el-button text size="small" @click="router.push('/events')">查看全部</el-button>
+              <span><el-icon><Bell /></el-icon> {{ t('dashboard.recentEvents') }}</span>
+              <el-button text size="small" @click="router.push('/events')">{{ t('dashboard.viewAll') }}</el-button>
             </div>
           </template>
           <el-table :data="events" style="width: 100%" max-height="300" size="small">
-            <el-table-column prop="type" label="类型" width="80">
+            <el-table-column prop="type" :label="t('event.type')" width="80">
               <template #default="{ row }">
                 <el-tag
                   :type="row.type === 'Warning' ? 'danger' : 'info'"
@@ -275,9 +277,9 @@ onMounted(() => {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="reason" label="原因" width="120" />
-            <el-table-column prop="involved_object" label="对象" show-overflow-tooltip />
-            <el-table-column prop="last_seen" label="时间" width="160" />
+            <el-table-column prop="reason" :label="t('event.reason')" width="120" />
+            <el-table-column prop="involved_object" :label="t('event.involvedObject')" show-overflow-tooltip />
+            <el-table-column prop="last_seen" :label="t('event.lastSeen')" width="160" />
           </el-table>
         </el-card>
       </el-col>
