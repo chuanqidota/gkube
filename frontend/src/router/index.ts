@@ -263,6 +263,12 @@ const router = createRouter({
       name: 'RBACView',
       component: () => import('@/views/rbac/RBACView.vue'),
     },
+    // Monitoring routes
+    {
+      path: '/monitoring',
+      name: 'MonitoringView',
+      component: () => import('@/views/monitoring/MonitoringView.vue'),
+    },
     // Config routes
     {
       path: '/config/configmaps',

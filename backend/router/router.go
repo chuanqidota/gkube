@@ -280,6 +280,10 @@ func Engine() *gin.Engine {
 			k8s.GET("crd/resources", k8sApi.Crd.GetCustomResourceList)            // 获取自定义资源列表
 			k8s.GET("crd/resource/yaml", k8sApi.Crd.GetCustomResourceYaml)        // 获取自定义资源YAML
 			k8s.DELETE("crd/resource", k8sApi.Crd.DeleteCustomResource)            // 删除自定义资源
+
+			// 指标监控
+			k8s.GET("metrics/nodes", k8sApi.Metrics.GetNodeMetrics)   // 获取节点指标
+			k8s.GET("metrics/pods", k8sApi.Metrics.GetPodMetrics)     // 获取Pod指标
 		}
 	}
 

@@ -143,6 +143,10 @@
           <el-icon><Document /></el-icon>
           <template #title>日志查看</template>
         </el-menu-item>
+        <el-menu-item index="/monitoring">
+          <el-icon><TrendCharts /></el-icon>
+          <template #title>资源监控</template>
+        </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="system">
         <template #title>
@@ -188,6 +192,7 @@ import {
   Lock,
   Warning,
   Grid,
+  TrendCharts,
 } from '@element-plus/icons-vue'
 
 defineProps<{
