@@ -215,6 +215,10 @@
           <el-icon><Setting /></el-icon>
           <template #title>批量操作</template>
         </el-menu-item>
+        <el-menu-item index="/tools/yaml-editor">
+          <el-icon><Document /></el-icon>
+          <template #title>YAML 编辑器</template>
+        </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="system">
         <template #title>

@@ -507,6 +507,13 @@ const router = createRouter({
       component: () => import('@/views/config/ResourceQuotaDetail.vue'),
       props: true,
     },
+
+    // YAML Editor route
+    {
+      path: '/tools/yaml-editor',
+      name: 'YAMLEditor',
+      component: () => import('@/views/tools/YAMLEditor.vue'),
+    },
   ],
 })
 
