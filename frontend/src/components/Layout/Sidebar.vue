@@ -179,6 +179,10 @@
           <el-icon><TrendCharts /></el-icon>
           <template #title>监控面板</template>
         </el-menu-item>
+        <el-menu-item index="/monitoring/resources">
+          <el-icon><TrendCharts /></el-icon>
+          <template #title>资源仪表盘</template>
+        </el-menu-item>
         <el-menu-item index="/monitoring/prometheus">
           <el-icon><TrendCharts /></el-icon>
           <template #title>Prometheus</template>

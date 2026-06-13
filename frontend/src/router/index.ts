@@ -303,6 +303,11 @@ const router = createRouter({
       component: () => import('@/views/monitoring/MonitoringDashboard.vue'),
     },
     {
+      path: '/monitoring/resources',
+      name: 'ResourceDashboard',
+      component: () => import('@/views/monitoring/ResourceDashboard.vue'),
+    },
+    {
       path: '/monitoring/prometheus',
       name: 'PrometheusView',
       component: () => import('@/views/monitoring/PrometheusView.vue'),
