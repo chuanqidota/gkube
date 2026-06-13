@@ -22,6 +22,8 @@ func Engine() *gin.Engine {
 	// ============ 公开路由（无需认证）============
 	v1.POST("auth/login", authApi.Auth.Login)
 	v1.POST("auth/refresh", authApi.Auth.Refresh)
+	v1.GET("auth/oidc/login", authApi.OIDC.GetLoginURL)
+	v1.GET("auth/oidc/callback", authApi.OIDC.HandleCallback)
 
 	// ============ 需要JWT认证的路由============
 	authorized := v1.Group("", middleware.JWTAuth())

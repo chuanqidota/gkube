@@ -11,6 +11,12 @@ const router = createRouter({
       meta: { public: true },
     },
     {
+      path: '/oidc/callback',
+      name: 'OIDCCallback',
+      component: () => import('@/views/login/OIDCCallback.vue'),
+      meta: { public: true },
+    },
+    {
       path: '/',
       redirect: '/dashboard',
     },

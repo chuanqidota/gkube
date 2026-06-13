@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Ship, User, Lock } from '@element-plus/icons-vue'
+import { Ship, User, Lock, Connection } from '@element-plus/icons-vue'
+import { getOidcLoginUrl } from '@/api/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const oidcLoading = ref(false)
+const oidcEnabled = ref(false)
 const rememberMe = ref(false)
 
 const form = reactive({
@@ -21,6 +24,15 @@ const rules: FormRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 }
+
+onMounted(async () => {
+  try {
+    await getOidcLoginUrl()
+    oidcEnabled.value = true
+  } catch {
+    oidcEnabled.value = false
+  }
+})
 
 async function handleLogin() {
   const valid = await formRef.value?.validate().catch(() => false)
@@ -34,6 +46,22 @@ async function handleLogin() {
     ElMessage.error(e?.message || '登录失败')
   } finally {
     loading.value = false
+  }
+}
+
+async function handleOIDCLogin() {
+  oidcLoading.value = true
+  try {
+    const res = await getOidcLoginUrl()
+    if (res.data?.url) {
+      window.location.href = res.data.url
+    } else {
+      ElMessage.error('获取 OIDC 登录地址失败')
+    }
+  } catch {
+    ElMessage.error('OIDC 登录失败')
+  } finally {
+    oidcLoading.value = false
   }
 }
 </script>
@@ -89,6 +117,24 @@ async function handleLogin() {
             @click="handleLogin"
           >
             登 录
+          </el-button>
+        </el-form-item>
+
+        <div v-if="oidcEnabled" class="oidc-divider">
+          <el-divider>
+            <span class="divider-text">或</span>
+          </el-divider>
+        </div>
+
+        <el-form-item v-if="oidcEnabled">
+          <el-button
+            :loading="oidcLoading"
+            size="large"
+            class="oidc-btn"
+            @click="handleOIDCLogin"
+          >
+            <el-icon class="oidc-icon"><Connection /></el-icon>
+            使用 OIDC 登录
           </el-button>
         </el-form-item>
       </el-form>
@@ -191,6 +237,35 @@ async function handleLogin() {
   font-weight: 600;
   border-radius: 8px;
   letter-spacing: 4px;
+}
+
+.oidc-divider {
+  margin: 0 0 16px;
+}
+
+.divider-text {
+  color: #909399;
+  font-size: 12px;
+}
+
+.oidc-btn {
+  width: 100%;
+  height: 44px;
+  font-size: 14px;
+  border-radius: 8px;
+  background: #f5f7fa;
+  border-color: #dcdfe6;
+  color: #606266;
+}
+
+.oidc-btn:hover {
+  background: #ecf5ff;
+  border-color: #b3d8ff;
+  color: #409eff;
+}
+
+.oidc-icon {
+  margin-right: 8px;
 }
 
 .login-footer {
