@@ -63,8 +63,12 @@ async function fetchApplications() {
   loading.value = true
   try {
     const res: any = await request.get('/k8s/gitops/applications')
-    applications.value = res.data || []
-    argocdAvailable.value = true
+    const data = res.data || {}
+    applications.value = data.applications || data || []
+    argocdAvailable.value = data.source === 'argocd'
+    if (data.source === 'sample') {
+      ElMessage.warning(data.message || 'Using sample data. Install ArgoCD for live data.')
+    }
   } catch (e: any) {
     argocdAvailable.value = false
     applications.value = [

@@ -39,12 +39,18 @@ func (h *gitopsHandler) ListApplications(c *gin.Context) {
 	namespace := c.Query("namespace")
 
 	apps, err := listArgoApplications(namespace)
+	source := "argocd"
 	if err != nil {
 		// Return sample apps if ArgoCD is not available
 		apps = getSampleApplications()
+		source = "sample"
 	}
 
-	response.Success(c, "获取成功", apps)
+	response.Success(c, "获取成功", gin.H{
+		"applications": apps,
+		"source":       source,
+		"message":      getSourceMessage(source, "argocd"),
+	})
 }
 
 // GetApplication gets details of a specific application

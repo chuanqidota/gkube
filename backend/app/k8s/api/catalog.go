@@ -34,12 +34,18 @@ type InstallRequest struct {
 // ListCharts lists available Helm charts
 func (h *catalogHandler) ListCharts(c *gin.Context) {
 	charts, err := listHelmCharts()
+	source := "helm"
 	if err != nil {
 		// Return sample charts if Helm is not available
 		charts = getSampleCharts()
+		source = "sample"
 	}
 
-	response.Success(c, "获取成功", charts)
+	response.Success(c, "获取成功", gin.H{
+		"charts":  charts,
+		"source":  source,
+		"message": getSourceMessage(source, "helm"),
+	})
 }
 
 // GetChartDetails gets details of a specific chart
@@ -247,6 +253,13 @@ func uninstallHelmRelease(name, namespace string) error {
 	}
 
 	return nil
+}
+
+func getSourceMessage(source, tool string) string {
+	if source == "sample" {
+		return fmt.Sprintf("Using sample data. Install %s for live data.", tool)
+	}
+	return "Connected to " + tool
 }
 
 func categorizeChart(name string) string {

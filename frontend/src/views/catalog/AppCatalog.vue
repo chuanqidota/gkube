@@ -47,7 +47,11 @@ async function fetchCharts() {
   loading.value = true
   try {
     const res: any = await request.get('/k8s/catalog/charts')
-    charts.value = res.data || []
+    const data = res.data || {}
+    charts.value = data.charts || data || []
+    if (data.source === 'sample') {
+      ElMessage.warning(data.message || 'Using sample data. Install Helm for live data.')
+    }
     categories.value = [...new Set(charts.value.map((c: any) => c.category).filter(Boolean))] as string[]
   } catch (e: any) {
     ElMessage.warning('Chart catalog not available')
