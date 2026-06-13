@@ -86,6 +86,7 @@ onMounted(() => { fetchNamespaces(); fetchLimitRanges() })
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
         <el-button type="primary" @click="fetchLimitRanges"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <el-button type="success" @click="$router.push('/config/limitranges/create')"><el-icon><Plus /></el-icon> Create</el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})</el-button>
       </div>
     </el-card>

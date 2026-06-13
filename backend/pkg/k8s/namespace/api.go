@@ -2,10 +2,12 @@ package namespace
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/yaml"
 )
 
 // GetNamespaceList
@@ -38,4 +40,60 @@ func CreateNamespace(client *kubernetes.Clientset, namespace string) error {
 		return err
 	}
 	return nil
+}
+
+// GetNamespaceDetail
+//
+//	@Description: 获取命名空间详情
+//	@param client
+//	@param name
+//	@return *corev1.Namespace
+//	@return error
+func GetNamespaceDetail(client *kubernetes.Clientset, name string) (*corev1.Namespace, error) {
+	return client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
+}
+
+// GetNamespaceYaml
+//
+//	@Description: 获取命名空间YAML
+//	@param client
+//	@param name
+//	@return string
+//	@return error
+func GetNamespaceYaml(client *kubernetes.Clientset, name string) (string, error) {
+	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	ns.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "Namespace"}
+	out, err := yaml.Marshal(ns)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal Namespace to YAML: %w", err)
+	}
+	return string(out), nil
+}
+
+// UpdateNamespace
+//
+//	@Description: 更新命名空间
+//	@param client
+//	@param yamlContent
+//	@return error
+func UpdateNamespace(client *kubernetes.Clientset, yamlContent string) error {
+	var ns corev1.Namespace
+	if err := yaml.Unmarshal([]byte(yamlContent), &ns); err != nil {
+		return fmt.Errorf("failed to unmarshal Namespace YAML: %w", err)
+	}
+	_, err := client.CoreV1().Namespaces().Update(context.TODO(), &ns, metav1.UpdateOptions{})
+	return err
+}
+
+// DeleteNamespace
+//
+//	@Description: 删除命名空间
+//	@param client
+//	@param name
+//	@return error
+func DeleteNamespace(client *kubernetes.Clientset, name string) error {
+	return client.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{})
 }

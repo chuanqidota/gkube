@@ -84,7 +84,11 @@ func Engine() *gin.Engine {
 
 			// Namespace
 			k8s.GET("namespace/list", k8sApi.Namespace.GetNamespaceList)
+			k8s.GET("namespace/detail", k8sApi.Namespace.GetNamespaceDetail)
+			k8s.GET("namespace/get-yaml", k8sApi.Namespace.GetNamespaceYaml)
 			k8s.POST("namespace/create", k8sApi.Namespace.CreateNamespace)
+			k8s.PUT("namespace/update", k8sApi.Namespace.UpdateNamespace)
+			k8s.DELETE("namespace/delete", k8sApi.Namespace.DeleteNamespace)
 
 			// Deployment
 			k8s.GET("deployment/list", k8sApi.Deployment.GetDeploymentList)
@@ -194,7 +198,8 @@ func Engine() *gin.Engine {
 			k8s.GET("storageclass/detail", k8sApi.StorageClass.GetStorageClassByName) // /detail
 			k8s.GET("storageclass/get-yaml", k8sApi.StorageClass.GetStorageClassYaml) // /get-yaml
 			k8s.POST("storageclass/create", k8sApi.StorageClass.CreateStorageClass)
-			k8s.PUT("storageclass/update", k8sApi.StorageClass.UpdateStorageClass) // PUT not GET
+			k8s.PUT("storageclass/update", k8sApi.StorageClass.UpdateStorageClass)
+			k8s.DELETE("storageclass/delete", k8sApi.StorageClass.DeleteStorageClassByName)
 
 			// Container
 			k8s.GET("container/exec", k8sApi.HandleWebSocket)

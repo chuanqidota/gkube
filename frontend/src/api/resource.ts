@@ -59,6 +59,22 @@ export function getNamespaceList(params?: { cluster_id?: number }) {
   return request.get<Namespace[]>('/k8s/namespace/list', { params })
 }
 
+export function getNamespaceDetail(params: { name: string }) {
+  return request.get('/k8s/namespace/detail', { params })
+}
+
+export function getNamespaceYaml(params: { name: string }) {
+  return request.get('/k8s/namespace/get-yaml', { params })
+}
+
+export function updateNamespace(data: { yamlContent: string }) {
+  return request.put('/k8s/namespace/update', data)
+}
+
+export function deleteNamespace(params: { name: string }) {
+  return request.delete('/k8s/namespace/delete', { params })
+}
+
 // Service
 export function getServiceDetail(params: { namespace: string; name: string }) {
   return request.get('/k8s/service/detail', { params })

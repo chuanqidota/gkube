@@ -172,6 +172,11 @@ const router = createRouter({
       name: 'PDBList',
       component: () => import('@/views/workload/pdb/PDBList.vue'),
     },
+    {
+      path: '/workloads/pdb/create',
+      name: 'PDBCreate',
+      component: () => import('@/views/workload/pdb/PDBCreate.vue'),
+    },
     // CRD routes
     {
       path: '/crd',
@@ -314,11 +319,21 @@ const router = createRouter({
       name: 'ResourceQuotaList',
       component: () => import('@/views/config/resourcequota/ResourceQuotaList.vue'),
     },
+    {
+      path: '/config/resourcequotas/create',
+      name: 'ResourceQuotaCreate',
+      component: () => import('@/views/config/resourcequota/ResourceQuotaCreate.vue'),
+    },
     // LimitRange routes
     {
       path: '/config/limitranges',
       name: 'LimitRangeList',
       component: () => import('@/views/config/limitrange/LimitRangeList.vue'),
+    },
+    {
+      path: '/config/limitranges/create',
+      name: 'LimitRangeCreate',
+      component: () => import('@/views/config/limitrange/LimitRangeCreate.vue'),
     },
     // Storage routes
     {
