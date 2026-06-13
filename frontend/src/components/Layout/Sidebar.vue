@@ -126,6 +126,10 @@
         <el-icon><FolderOpened /></el-icon>
         <template #title>命名空间</template>
       </el-menu-item>
+      <el-menu-item index="/namespaces/manager">
+        <el-icon><Setting /></el-icon>
+        <template #title>命名空间管理</template>
+      </el-menu-item>
       <el-menu-item index="/events">
         <el-icon><Bell /></el-icon>
         <template #title>事件</template>

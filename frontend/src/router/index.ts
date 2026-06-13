@@ -485,6 +485,13 @@ const router = createRouter({
       name: 'ResourceWatcher',
       component: () => import('@/views/watcher/ResourceWatcher.vue'),
     },
+
+    // Namespace Manager route
+    {
+      path: '/namespaces/manager',
+      name: 'NamespaceManager',
+      component: () => import('@/views/namespace/NamespaceManager.vue'),
+    },
   ],
 })
 
