@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Delete, Search, Monitor } from '@element-plus/icons-vue'
 import { getPodList, getPodYaml, deletePod, getNamespaceList } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const loading = ref(false)
 const podList = ref<any[]>([])
@@ -152,7 +154,7 @@ onMounted(() => {
       <div class="filter-bar">
         <el-input
           v-model="searchName"
-          placeholder="Search by name"
+          :placeholder="t('common.searchByName')"
           style="width: 220px;"
           clearable
         >
@@ -160,7 +162,7 @@ onMounted(() => {
         </el-input>
         <el-select
           v-model="selectedNamespace"
-          placeholder="All Namespaces"
+          :placeholder="t('common.allNamespaces')"
           clearable
           style="width: 180px;"
           @change="handleNamespaceChange"

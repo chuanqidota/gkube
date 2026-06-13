@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
 import { getHpaList, getHpaYaml, deleteHpa, getNamespaceList } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const loading = ref(false)
 const hpaList = ref<any[]>([])
