@@ -1,4 +1,18 @@
 export default {
+  login: {
+    subtitle: 'Kubernetes Cluster Management Platform',
+    usernamePlaceholder: 'Enter username',
+    passwordPlaceholder: 'Enter password',
+    usernameRequired: 'Please enter username',
+    passwordRequired: 'Please enter password',
+    rememberMe: 'Remember me',
+    loginButton: 'Login',
+    or: 'or',
+    oidcLogin: 'Login with OIDC',
+    loginFailed: 'Login failed',
+    oidcUrlFailed: 'Failed to get OIDC login URL',
+    oidcFailed: 'OIDC login failed',
+  },
   common: {
     home: 'Home',
     dashboard: 'Dashboard',

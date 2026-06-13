@@ -1,4 +1,18 @@
 export default {
+  login: {
+    subtitle: 'Kubernetes 集群管理平台',
+    usernamePlaceholder: '请输入用户名',
+    passwordPlaceholder: '请输入密码',
+    usernameRequired: '请输入用户名',
+    passwordRequired: '请输入密码',
+    rememberMe: '记住我',
+    loginButton: '登 录',
+    or: '或',
+    oidcLogin: '使用 OIDC 登录',
+    loginFailed: '登录失败',
+    oidcUrlFailed: '获取 OIDC 登录地址失败',
+    oidcFailed: 'OIDC 登录失败',
+  },
   common: {
     home: '首页',
     dashboard: '仪表盘',

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Ship, User, Lock, Connection } from '@element-plus/icons-vue'
@@ -8,6 +9,7 @@ import { getOidcLoginUrl } from '@/api/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -21,8 +23,8 @@ const form = reactive({
 })
 
 const rules: FormRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  username: [{ required: true, message: t('login.usernameRequired'), trigger: 'blur' }],
+  password: [{ required: true, message: t('login.passwordRequired'), trigger: 'blur' }],
 }
 
 onMounted(async () => {
@@ -43,7 +45,7 @@ async function handleLogin() {
     await authStore.login({ username: form.username, password: form.password })
     router.push('/dashboard')
   } catch (e: any) {
-    ElMessage.error(e?.message || '登录失败')
+    ElMessage.error(e?.message || t('login.loginFailed'))
   } finally {
     loading.value = false
   }
@@ -56,10 +58,10 @@ async function handleOIDCLogin() {
     if (res.data?.url) {
       window.location.href = res.data.url
     } else {
-      ElMessage.error('获取 OIDC 登录地址失败')
+      ElMessage.error(t('login.oidcUrlFailed'))
     }
   } catch {
-    ElMessage.error('OIDC 登录失败')
+    ElMessage.error(t('login.oidcFailed'))
   } finally {
     oidcLoading.value = false
   }
@@ -74,7 +76,7 @@ async function handleOIDCLogin() {
         <el-icon :size="48" color="#409EFF"><Ship /></el-icon>
       </div>
       <h1 class="login-title">gkube</h1>
-      <p class="login-subtitle">Kubernetes 集群管理平台</p>
+      <p class="login-subtitle">{{ t('login.subtitle') }}</p>
 
       <!-- Form -->
       <el-form
@@ -87,7 +89,7 @@ async function handleOIDCLogin() {
         <el-form-item prop="username">
           <el-input
             v-model="form.username"
-            placeholder="请输入用户名"
+            :placeholder="t('login.usernamePlaceholder')"
             size="large"
             :prefix-icon="User"
           />
@@ -96,7 +98,7 @@ async function handleOIDCLogin() {
           <el-input
             v-model="form.password"
             type="password"
-            placeholder="请输入密码"
+            :placeholder="t('login.passwordPlaceholder')"
             size="large"
             show-password
             :prefix-icon="Lock"
@@ -105,7 +107,7 @@ async function handleOIDCLogin() {
         </el-form-item>
 
         <div class="login-options">
-          <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+          <el-checkbox v-model="rememberMe">{{ t('login.rememberMe') }}</el-checkbox>
         </div>
 
         <el-form-item>
@@ -116,13 +118,13 @@ async function handleOIDCLogin() {
             class="login-btn"
             @click="handleLogin"
           >
-            登 录
+            {{ t('login.loginButton') }}
           </el-button>
         </el-form-item>
 
         <div v-if="oidcEnabled" class="oidc-divider">
           <el-divider>
-            <span class="divider-text">或</span>
+            <span class="divider-text">{{ t('login.or') }}</span>
           </el-divider>
         </div>
 
@@ -134,7 +136,7 @@ async function handleOIDCLogin() {
             @click="handleOIDCLogin"
           >
             <el-icon class="oidc-icon"><Connection /></el-icon>
-            使用 OIDC 登录
+            {{ t('login.oidcLogin') }}
           </el-button>
         </el-form-item>
       </el-form>
