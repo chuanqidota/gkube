@@ -118,6 +118,10 @@
         <el-icon><Bell /></el-icon>
         <template #title>事件</template>
       </el-menu-item>
+      <el-menu-item index="/rbac">
+        <el-icon><UserFilled /></el-icon>
+        <template #title>RBAC</template>
+      </el-menu-item>
       <el-sub-menu index="tools">
         <template #title>
           <el-icon><Monitor /></el-icon>

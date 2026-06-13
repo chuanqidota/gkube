@@ -350,6 +350,71 @@ export function deleteNetworkPolicy(params: { namespace: string; name: string })
   return request.delete('/k8s/networkpolicy/delete', { params })
 }
 
+// RBAC - ServiceAccount
+export function getServiceAccountList(params?: { namespace?: string }) {
+  return request.get('/k8s/serviceaccount/list', { params })
+}
+
+export function getServiceAccountYaml(params: { namespace: string; name: string }) {
+  return request.get('/k8s/serviceaccount/yaml', { params })
+}
+
+export function deleteServiceAccount(params: { namespace: string; name: string }) {
+  return request.delete('/k8s/serviceaccount/delete', { params })
+}
+
+// RBAC - ClusterRole
+export function getClusterRoleList() {
+  return request.get('/k8s/clusterrole/list')
+}
+
+export function getClusterRoleYaml(params: { name: string }) {
+  return request.get('/k8s/clusterrole/yaml', { params })
+}
+
+export function deleteClusterRole(params: { name: string }) {
+  return request.delete('/k8s/clusterrole/delete', { params })
+}
+
+// RBAC - Role
+export function getRoleList(params?: { namespace?: string }) {
+  return request.get('/k8s/role/list', { params })
+}
+
+export function getRoleYaml(params: { namespace: string; name: string }) {
+  return request.get('/k8s/role/yaml', { params })
+}
+
+export function deleteRole(params: { namespace: string; name: string }) {
+  return request.delete('/k8s/role/delete', { params })
+}
+
+// RBAC - ClusterRoleBinding
+export function getClusterRoleBindingList() {
+  return request.get('/k8s/clusterrolebinding/list')
+}
+
+export function getClusterRoleBindingYaml(params: { name: string }) {
+  return request.get('/k8s/clusterrolebinding/yaml', { params })
+}
+
+export function deleteClusterRoleBinding(params: { name: string }) {
+  return request.delete('/k8s/clusterrolebinding/delete', { params })
+}
+
+// RBAC - RoleBinding
+export function getRoleBindingList(params?: { namespace?: string }) {
+  return request.get('/k8s/rolebinding/list', { params })
+}
+
+export function getRoleBindingYaml(params: { namespace: string; name: string }) {
+  return request.get('/k8s/rolebinding/yaml', { params })
+}
+
+export function deleteRoleBinding(params: { namespace: string; name: string }) {
+  return request.delete('/k8s/rolebinding/delete', { params })
+}
+
 // StatefulSet
 export function createStatefulSet(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/statefulset/create', data)

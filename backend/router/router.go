@@ -243,6 +243,27 @@ func Engine() *gin.Engine {
 			k8s.POST("networkpolicy/create", k8sApi.NetworkPolicy.CreateNetworkPolicy)     // 创建NetworkPolicy
 			k8s.PUT("networkpolicy/update", k8sApi.NetworkPolicy.UpdateNetworkPolicy)      // 更新NetworkPolicy
 			k8s.DELETE("networkpolicy/delete", k8sApi.NetworkPolicy.DeleteNetworkPolicy)   // 删除NetworkPolicy
+
+			// RBAC资源
+			k8s.GET("serviceaccount/list", k8sApi.Rbac.GetServiceAccountList)         // 获取ServiceAccount列表
+			k8s.GET("serviceaccount/yaml", k8sApi.Rbac.GetServiceAccountYaml)         // 获取ServiceAccount YAML
+			k8s.DELETE("serviceaccount/delete", k8sApi.Rbac.DeleteServiceAccount)     // 删除ServiceAccount
+
+			k8s.GET("clusterrole/list", k8sApi.Rbac.GetClusterRoleList)              // 获取ClusterRole列表
+			k8s.GET("clusterrole/yaml", k8sApi.Rbac.GetClusterRoleYaml)              // 获取ClusterRole YAML
+			k8s.DELETE("clusterrole/delete", k8sApi.Rbac.DeleteClusterRole)          // 删除ClusterRole
+
+			k8s.GET("role/list", k8sApi.Rbac.GetRoleList)                            // 获取Role列表
+			k8s.GET("role/yaml", k8sApi.Rbac.GetRoleYaml)                            // 获取Role YAML
+			k8s.DELETE("role/delete", k8sApi.Rbac.DeleteRole)                        // 删除Role
+
+			k8s.GET("clusterrolebinding/list", k8sApi.Rbac.GetClusterRoleBindingList)    // 获取ClusterRoleBinding列表
+			k8s.GET("clusterrolebinding/yaml", k8sApi.Rbac.GetClusterRoleBindingYaml)    // 获取ClusterRoleBinding YAML
+			k8s.DELETE("clusterrolebinding/delete", k8sApi.Rbac.DeleteClusterRoleBinding) // 删除ClusterRoleBinding
+
+			k8s.GET("rolebinding/list", k8sApi.Rbac.GetRoleBindingList)              // 获取RoleBinding列表
+			k8s.GET("rolebinding/yaml", k8sApi.Rbac.GetRoleBindingYaml)              // 获取RoleBinding YAML
+			k8s.DELETE("rolebinding/delete", k8sApi.Rbac.DeleteRoleBinding)          // 删除RoleBinding
 		}
 	}
 

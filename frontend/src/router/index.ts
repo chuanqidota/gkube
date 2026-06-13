@@ -240,6 +240,12 @@ const router = createRouter({
       name: 'EventList',
       component: () => import('@/views/event/EventList.vue'),
     },
+    // RBAC routes
+    {
+      path: '/rbac',
+      name: 'RBACView',
+      component: () => import('@/views/rbac/RBACView.vue'),
+    },
     // Config routes
     {
       path: '/config/configmaps',
