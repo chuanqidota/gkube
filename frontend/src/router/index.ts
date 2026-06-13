@@ -492,6 +492,13 @@ const router = createRouter({
       name: 'NamespaceManager',
       component: () => import('@/views/namespace/NamespaceManager.vue'),
     },
+
+    // Batch Operations route
+    {
+      path: '/tools/batch',
+      name: 'BatchOperations',
+      component: () => import('@/views/tools/BatchOperations.vue'),
+    },
   ],
 })
 
