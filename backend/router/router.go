@@ -227,6 +227,14 @@ func Engine() *gin.Engine {
 			k8s.GET("container/record/url", k8sApi.RecordUrl)     // 操作审计
 			k8s.GET("/log", k8sApi.PodContainerLog)               // 获取容器日志
 			k8s.GET("/log/stream", k8sApi.StreamPodContainerLogs) // 获取容器日志流
+
+			// HPA资源
+			k8s.GET("hpa/list", k8sApi.Hpa.GetHPAList)       // 获取HPA列表
+			k8s.GET("hpa/detail", k8sApi.Hpa.GetHPADetail)   // 获取HPA详情
+			k8s.GET("hpa/yaml", k8sApi.Hpa.GetHPAYaml)       // 获取HPA YAML
+			k8s.POST("hpa/create", k8sApi.Hpa.CreateHPA)     // 创建HPA
+			k8s.PUT("hpa/update", k8sApi.Hpa.UpdateHPA)      // 更新HPA
+			k8s.DELETE("hpa/delete", k8sApi.Hpa.DeleteHPA)   // 删除HPA
 		}
 	}
 

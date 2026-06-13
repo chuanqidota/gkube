@@ -6,12 +6,28 @@ const request = axios.create({
   timeout: 15000,
 })
 
-// Request interceptor: attach Bearer token
+// Request interceptor: attach Bearer token and cluster name
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = getToken()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+    // Inject cluster name from localStorage for all K8s API requests
+    try {
+      const saved = localStorage.getItem('gkube_cluster')
+      if (saved) {
+        const cluster = JSON.parse(saved)
+        const clusterName = cluster?.clusterName
+        if (clusterName && config.url?.startsWith('/k8s/')) {
+          if (!config.params) config.params = {}
+          if (!config.params.clusterName && !config.data?.clusterName) {
+            config.params.clusterName = clusterName
+          }
+        }
+      }
+    } catch {
+      // ignore
     }
     return config
   },

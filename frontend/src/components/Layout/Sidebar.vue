@@ -51,6 +51,10 @@
           <el-icon><Files /></el-icon>
           <template #title>定时任务</template>
         </el-menu-item>
+        <el-menu-item index="/workloads/hpa">
+          <el-icon><DataLine /></el-icon>
+          <template #title>弹性伸缩</template>
+        </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="config">
         <template #title>
@@ -164,6 +168,7 @@ import {
   Tickets,
   Key,
   Bell,
+  DataLine,
 } from '@element-plus/icons-vue'
 
 defineProps<{

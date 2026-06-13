@@ -300,6 +300,31 @@ export function getStorageClassYaml(params: { name: string }) {
   return request.get('/k8s/storageclass/get-yaml', { params })
 }
 
+// HPA
+export function getHpaList(params?: { namespace?: string }) {
+  return request.get('/k8s/hpa/list', { params })
+}
+
+export function getHpaDetail(params: { namespace: string; name: string }) {
+  return request.get('/k8s/hpa/detail', { params })
+}
+
+export function getHpaYaml(params: { namespace: string; name: string }) {
+  return request.get('/k8s/hpa/yaml', { params })
+}
+
+export function createHpa(data: { namespace: string; yamlContent: string }) {
+  return request.post('/k8s/hpa/create', data)
+}
+
+export function updateHpa(data: { namespace: string; yamlContent: string }) {
+  return request.put('/k8s/hpa/update', data)
+}
+
+export function deleteHpa(params: { namespace: string; name: string }) {
+  return request.delete('/k8s/hpa/delete', { params })
+}
+
 // StatefulSet
 export function createStatefulSet(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/statefulset/create', data)

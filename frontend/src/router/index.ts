@@ -149,6 +149,23 @@ const router = createRouter({
       component: () => import('@/views/workload/CronJobDetail.vue'),
       props: true,
     },
+    // HPA routes
+    {
+      path: '/workloads/hpa',
+      name: 'HPAList',
+      component: () => import('@/views/workload/hpa/HPAList.vue'),
+    },
+    {
+      path: '/workloads/hpa/create',
+      name: 'HPACreate',
+      component: () => import('@/views/workload/hpa/HPACreate.vue'),
+    },
+    {
+      path: '/workloads/hpa/:namespace/:name',
+      name: 'HPADetail',
+      component: () => import('@/views/workload/hpa/HPADetail.vue'),
+      props: true,
+    },
     // Network routes
     {
       path: '/services',
