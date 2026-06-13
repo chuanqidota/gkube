@@ -256,6 +256,24 @@ func Engine() *gin.Engine {
 			k8s.PUT("pdb/update", k8sApi.Pdb.UpdatePDB)
 			k8s.DELETE("pdb/delete", k8sApi.Pdb.DeletePDB)
 
+			// ResourceQuota
+			k8s.GET("resourcequota/list", k8sApi.ResourceQuota.GetResourceQuotaList)
+			k8s.GET("resourcequota/detail", k8sApi.ResourceQuota.GetResourceQuotaDetail)
+			k8s.GET("resourcequota/yaml", k8sApi.ResourceQuota.GetResourceQuotaYaml)
+			k8s.GET("resourcequota/get-yaml", k8sApi.ResourceQuota.GetResourceQuotaYaml) // alias
+			k8s.POST("resourcequota/create", k8sApi.ResourceQuota.CreateResourceQuota)
+			k8s.PUT("resourcequota/update", k8sApi.ResourceQuota.UpdateResourceQuota)
+			k8s.DELETE("resourcequota/delete", k8sApi.ResourceQuota.DeleteResourceQuota)
+
+			// LimitRange
+			k8s.GET("limitrange/list", k8sApi.LimitRange.GetLimitRangeList)
+			k8s.GET("limitrange/detail", k8sApi.LimitRange.GetLimitRangeDetail)
+			k8s.GET("limitrange/yaml", k8sApi.LimitRange.GetLimitRangeYaml)
+			k8s.GET("limitrange/get-yaml", k8sApi.LimitRange.GetLimitRangeYaml) // alias
+			k8s.POST("limitrange/create", k8sApi.LimitRange.CreateLimitRange)
+			k8s.PUT("limitrange/update", k8sApi.LimitRange.UpdateLimitRange)
+			k8s.DELETE("limitrange/delete", k8sApi.LimitRange.DeleteLimitRange)
+
 			// CRD
 			k8s.GET("crd/list", k8sApi.Crd.GetCRDList)
 			k8s.GET("crd/detail", k8sApi.Crd.GetCRDDetail)

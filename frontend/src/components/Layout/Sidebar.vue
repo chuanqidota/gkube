@@ -73,6 +73,14 @@
           <el-icon><Key /></el-icon>
           <template #title>保密字典</template>
         </el-menu-item>
+        <el-menu-item index="/config/resourcequotas">
+          <el-icon><Coin /></el-icon>
+          <template #title>资源配额</template>
+        </el-menu-item>
+        <el-menu-item index="/config/limitranges">
+          <el-icon><ScaleToOriginal /></el-icon>
+          <template #title>资源限制</template>
+        </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="storage">
         <template #title>
@@ -197,6 +205,7 @@ import {
   Warning,
   Grid,
   TrendCharts,
+  ScaleToOriginal,
 } from '@element-plus/icons-vue'
 
 defineProps<{

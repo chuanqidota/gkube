@@ -440,6 +440,56 @@ export function deletePdb(params: { namespace: string; name: string }) {
   return request.delete('/k8s/pdb/delete', { params })
 }
 
+// ResourceQuota
+export function getResourceQuotaList(params?: { namespace?: string }) {
+  return request.get('/k8s/resourcequota/list', { params })
+}
+
+export function getResourceQuotaDetail(params: { namespace: string; name: string }) {
+  return request.get('/k8s/resourcequota/detail', { params })
+}
+
+export function getResourceQuotaYaml(params: { namespace: string; name: string }) {
+  return request.get('/k8s/resourcequota/get-yaml', { params })
+}
+
+export function createResourceQuota(data: { namespace: string; yamlContent: string }) {
+  return request.post('/k8s/resourcequota/create', data)
+}
+
+export function updateResourceQuota(data: { namespace: string; yamlContent: string }) {
+  return request.put('/k8s/resourcequota/update', data)
+}
+
+export function deleteResourceQuota(params: { namespace: string; name: string }) {
+  return request.delete('/k8s/resourcequota/delete', { params })
+}
+
+// LimitRange
+export function getLimitRangeList(params?: { namespace?: string }) {
+  return request.get('/k8s/limitrange/list', { params })
+}
+
+export function getLimitRangeDetail(params: { namespace: string; name: string }) {
+  return request.get('/k8s/limitrange/detail', { params })
+}
+
+export function getLimitRangeYaml(params: { namespace: string; name: string }) {
+  return request.get('/k8s/limitrange/get-yaml', { params })
+}
+
+export function createLimitRange(data: { namespace: string; yamlContent: string }) {
+  return request.post('/k8s/limitrange/create', data)
+}
+
+export function updateLimitRange(data: { namespace: string; yamlContent: string }) {
+  return request.put('/k8s/limitrange/update', data)
+}
+
+export function deleteLimitRange(params: { namespace: string; name: string }) {
+  return request.delete('/k8s/limitrange/delete', { params })
+}
+
 // CRD
 export function getCrdList() {
   return request.get('/k8s/crd/list')

@@ -308,6 +308,18 @@ const router = createRouter({
       component: () => import('@/views/config/SecretDetail.vue'),
       props: true,
     },
+    // ResourceQuota routes
+    {
+      path: '/config/resourcequotas',
+      name: 'ResourceQuotaList',
+      component: () => import('@/views/config/resourcequota/ResourceQuotaList.vue'),
+    },
+    // LimitRange routes
+    {
+      path: '/config/limitranges',
+      name: 'LimitRangeList',
+      component: () => import('@/views/config/limitrange/LimitRangeList.vue'),
+    },
     // Storage routes
     {
       path: '/storage/pvs',
