@@ -514,6 +514,13 @@ const router = createRouter({
       name: 'YAMLEditor',
       component: () => import('@/views/tools/YAMLEditor.vue'),
     },
+
+    // System Overview route
+    {
+      path: '/system/overview',
+      name: 'SystemOverview',
+      component: () => import('@/views/dashboard/SystemOverview.vue'),
+    },
   ],
 })
 

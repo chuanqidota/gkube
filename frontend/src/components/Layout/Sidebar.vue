@@ -18,6 +18,10 @@
         <el-icon><Odometer /></el-icon>
         <template #title>仪表盘</template>
       </el-menu-item>
+      <el-menu-item index="/system/overview">
+        <el-icon><Monitor /></el-icon>
+        <template #title>系统概览</template>
+      </el-menu-item>
       <el-menu-item index="/clusters">
         <el-icon><Connection /></el-icon>
         <template #title>集群管理</template>
