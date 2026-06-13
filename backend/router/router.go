@@ -300,6 +300,14 @@ func Engine() *gin.Engine {
 			k8s.GET("metrics/nodes", k8sApi.Metrics.GetNodeMetrics)
 			k8s.GET("metrics/pods", k8sApi.Metrics.GetPodMetrics)
 
+			// Prometheus代理
+			k8s.GET("prometheus/query", k8sApi.Prometheus.QueryPrometheus)
+			k8s.GET("prometheus/query_range", k8sApi.Prometheus.QueryPrometheusRange)
+			k8s.GET("prometheus/targets", k8sApi.Prometheus.GetPrometheusTargets)
+			k8s.GET("prometheus/alerts", k8sApi.Prometheus.GetPrometheusAlerts)
+			k8s.GET("prometheus/config", k8sApi.Prometheus.GetPrometheusConfig)
+			k8s.PUT("prometheus/config", k8sApi.Prometheus.UpdatePrometheusConfig)
+
 			// Topology
 			k8s.GET("topology/deployment", k8sApi.Topology.GetDeploymentTopology)
 			k8s.GET("topology/statefulset", k8sApi.Topology.GetStatefulSetTopology)

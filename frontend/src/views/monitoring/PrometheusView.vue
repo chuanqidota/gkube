@@ -14,13 +14,12 @@ const activeTab = ref('nodes')
 const chartRef = ref<HTMLElement>()
 const chartInstance = ref<echarts.ECharts | null>(null)
 
-// Prometheus query functions
+// Prometheus query functions via backend proxy
 async function queryPrometheus(query: string): Promise<any[]> {
   try {
-    const res = await fetch(`${prometheusUrl.value}/api/v1/query?query=${encodeURIComponent(query)}`)
-    const data = await res.json()
-    if (data.status === 'success' && data.data?.result) {
-      return data.data.result
+    const res = await request.get('/k8s/prometheus/query', { params: { query } })
+    if (res.data?.status === 'success' && res.data?.data?.result) {
+      return res.data.data.result
     }
     return []
   } catch (e) {
@@ -31,10 +30,9 @@ async function queryPrometheus(query: string): Promise<any[]> {
 
 async function queryPrometheusRange(query: string, start: number, end: number, step: string = '60s'): Promise<any[]> {
   try {
-    const res = await fetch(`${prometheusUrl.value}/api/v1/query_range?query=${encodeURIComponent(query)}&start=${start}&end=${end}&step=${step}`)
-    const data = await res.json()
-    if (data.status === 'success' && data.data?.result) {
-      return data.data.result
+    const res = await request.get('/k8s/prometheus/query_range', { params: { query, start, end, step } })
+    if (res.data?.status === 'success' && res.data?.data?.result) {
+      return res.data.data.result
     }
     return []
   } catch (e) {
