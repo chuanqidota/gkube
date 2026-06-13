@@ -262,6 +262,12 @@ const router = createRouter({
       name: 'NamespaceList',
       component: () => import('@/views/namespace/NamespaceList.vue'),
     },
+    {
+      path: '/namespaces/:name',
+      name: 'NamespaceDetail',
+      component: () => import('@/views/namespace/NamespaceDetail.vue'),
+      props: true,
+    },
     // Events
     {
       path: '/events',

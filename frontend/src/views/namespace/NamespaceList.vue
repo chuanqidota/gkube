@@ -74,7 +74,11 @@ onMounted(fetchNamespaces)
 
     <el-card shadow="never" class="table-card">
       <el-table :data="filteredList" v-loading="loading" stripe>
-        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-button link type="primary" @click="$router.push(`/namespaces/${row.name}`)">{{ row.name }}</el-button>
+          </template>
+        </el-table-column>
         <el-table-column label="Status" width="120">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)" size="small">{{ row.status || 'Unknown' }}</el-tag>
