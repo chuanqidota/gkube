@@ -155,9 +155,17 @@
           <el-icon><TrendCharts /></el-icon>
           <template #title>资源监控</template>
         </el-menu-item>
+        <el-menu-item index="/monitoring/prometheus">
+          <el-icon><TrendCharts /></el-icon>
+          <template #title>Prometheus</template>
+        </el-menu-item>
         <el-menu-item index="/topology">
           <el-icon><Share /></el-icon>
           <template #title>资源拓扑</template>
+        </el-menu-item>
+        <el-menu-item index="/topology/graph">
+          <el-icon><Share /></el-icon>
+          <template #title>拓扑图</template>
         </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="system">

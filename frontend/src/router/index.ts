@@ -274,11 +274,21 @@ const router = createRouter({
       name: 'MonitoringView',
       component: () => import('@/views/monitoring/MonitoringView.vue'),
     },
+    {
+      path: '/monitoring/prometheus',
+      name: 'PrometheusView',
+      component: () => import('@/views/monitoring/PrometheusView.vue'),
+    },
     // Topology routes
     {
       path: '/topology',
       name: 'TopologyView',
       component: () => import('@/views/topology/TopologyView.vue'),
+    },
+    {
+      path: '/topology/graph',
+      name: 'TopologyGraph',
+      component: () => import('@/views/topology/TopologyGraph.vue'),
     },
     // Config routes
     {
