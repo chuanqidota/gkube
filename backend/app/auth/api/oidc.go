@@ -123,7 +123,7 @@ func (h *oidcHandler) HandleCallback(c *gin.Context) {
 	}
 
 	response.Success(c, "登录成功", gin.H{
-		"accessToken":  tokenResp.AccessToken,
+		"accessToken":  tokenPair.AccessToken,
 		"refreshToken": tokenPair.RefreshToken,
 		"user": gin.H{
 			"id":           user.ID,
