@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Refresh, Monitor, Cpu, Coin, FolderOpened, Bell, Connection } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import * as echarts from 'echarts'
 
+const { t } = useI18n()
 const loading = ref(false)
 const refreshTimer = ref<ReturnType<typeof setInterval> | null>(null)
 
@@ -90,7 +92,7 @@ function updateCharts() {
     : 0
 
   cpuChart.setOption({
-    title: { text: 'CPU 使用率', left: 'center', textStyle: { fontSize: 14 } },
+    title: { text: t('systemOverview.cpuUsage'), left: 'center', textStyle: { fontSize: 14 } },
     series: [{
       type: 'gauge',
       progress: { show: true, width: 18 },
@@ -110,7 +112,7 @@ function updateCharts() {
     : 0
 
   memChart.setOption({
-    title: { text: '内存使用率', left: 'center', textStyle: { fontSize: 14 } },
+    title: { text: t('systemOverview.memoryUsage'), left: 'center', textStyle: { fontSize: 14 } },
     series: [{
       type: 'gauge',
       progress: { show: true, width: 18 },
@@ -126,7 +128,7 @@ function updateCharts() {
 
   // Pod Distribution Chart
   podChart.setOption({
-    title: { text: 'Pod 分布', left: 'center', textStyle: { fontSize: 14 } },
+    title: { text: t('systemOverview.podDistribution'), left: 'center', textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     series: [{
       type: 'pie',
@@ -163,9 +165,9 @@ function formatTime(time: string) {
   const minutes = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
 
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes} 分钟前`
-  return `${hours} 小时前`
+  if (minutes < 1) return t('event.justNow')
+  if (minutes < 60) return t('event.minutesAgo', { n: minutes })
+  return t('event.hoursAgo', { n: hours })
 }
 
 async function fetchAll() {
@@ -194,8 +196,8 @@ onUnmounted(() => {
   <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <h3 style="margin: 0;"><el-icon><Monitor /></el-icon> 系统概览</h3>
-        <el-button type="primary" @click="fetchAll"><el-icon><Refresh /></el-icon> 刷新</el-button>
+        <h3 style="margin: 0;"><el-icon><Monitor /></el-icon> {{ t('systemOverview.title') }}</h3>
+        <el-button type="primary" @click="fetchAll"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
       </div>
     </el-card>
 
@@ -206,7 +208,7 @@ onUnmounted(() => {
           <div class="stat-icon" style="background: #409EFF;"><el-icon><Connection /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.clusters }}</div>
-            <div class="stat-label">集群</div>
+            <div class="stat-label">{{ t('systemOverview.clusters') }}</div>
           </div>
         </el-card>
       </el-col>
@@ -215,7 +217,7 @@ onUnmounted(() => {
           <div class="stat-icon" style="background: #67C23A;"><el-icon><Cpu /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.nodes }}</div>
-            <div class="stat-label">节点</div>
+            <div class="stat-label">{{ t('systemOverview.nodes') }}</div>
           </div>
         </el-card>
       </el-col>
@@ -224,7 +226,7 @@ onUnmounted(() => {
           <div class="stat-icon" style="background: #E6A23C;"><el-icon><Coin /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.pods }}</div>
-            <div class="stat-label">Pod</div>
+            <div class="stat-label">{{ t('systemOverview.pods') }}</div>
           </div>
         </el-card>
       </el-col>
@@ -233,7 +235,7 @@ onUnmounted(() => {
           <div class="stat-icon" style="background: #F56C6C;"><el-icon><FolderOpened /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.namespaces }}</div>
-            <div class="stat-label">命名空间</div>
+            <div class="stat-label">{{ t('systemOverview.namespaces') }}</div>
           </div>
         </el-card>
       </el-col>
@@ -242,7 +244,7 @@ onUnmounted(() => {
           <div class="stat-icon" style="background: #909399;"><el-icon><Monitor /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.deployments }}</div>
-            <div class="stat-label">Deployment</div>
+            <div class="stat-label">{{ t('systemOverview.deployments') }}</div>
           </div>
         </el-card>
       </el-col>
@@ -251,7 +253,7 @@ onUnmounted(() => {
           <div class="stat-icon" style="background: #606266;"><el-icon><Connection /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.services }}</div>
-            <div class="stat-label">Service</div>
+            <div class="stat-label">{{ t('systemOverview.services') }}</div>
           </div>
         </el-card>
       </el-col>
@@ -279,17 +281,17 @@ onUnmounted(() => {
       <el-col :span="16">
         <el-card shadow="never">
           <template #header>
-            <h4 style="margin: 0;"><el-icon><Bell /></el-icon> 最近事件</h4>
+            <h4 style="margin: 0;"><el-icon><Bell /></el-icon> {{ t('systemOverview.recentEvents') }}</h4>
           </template>
-          <el-table :data="recentEvents" stripe size="small" empty-text="暂无事件">
-            <el-table-column label="类型" width="60">
+          <el-table :data="recentEvents" stripe size="small" :empty-text="t('common.noData')">
+            <el-table-column :label="t('event.type')" width="60">
               <template #default="{ row }">
                 <el-tag :type="eventType(row.type)" size="small">{{ row.type }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="reason" label="原因" width="120" />
-            <el-table-column prop="message" label="消息" min-width="250" show-overflow-tooltip />
-            <el-table-column label="时间" width="120">
+            <el-table-column prop="reason" :label="t('event.reason')" width="120" />
+            <el-table-column prop="message" :label="t('event.message')" min-width="250" show-overflow-tooltip />
+            <el-table-column :label="t('event.time')" width="120">
               <template #default="{ row }">{{ formatTime(row.lastTimestamp) }}</template>
             </el-table-column>
           </el-table>
@@ -299,13 +301,13 @@ onUnmounted(() => {
       <el-col :span="8">
         <el-card shadow="never">
           <template #header>
-            <h4 style="margin: 0;">资源使用</h4>
+            <h4 style="margin: 0;">{{ t('systemOverview.resourceUsage') }}</h4>
           </template>
           <div class="resource-usage">
             <div class="usage-item">
               <div class="usage-header">
                 <span>CPU</span>
-                <span>{{ resourceUsage.cpu.used }} / {{ resourceUsage.cpu.total }} 核</span>
+                <span>{{ resourceUsage.cpu.used }} / {{ resourceUsage.cpu.total }} {{ t('systemOverview.cores') }}</span>
               </div>
               <el-progress
                 :percentage="resourceUsage.cpu.total > 0 ? Math.round((resourceUsage.cpu.used / resourceUsage.cpu.total) * 100) : 0"
@@ -314,7 +316,7 @@ onUnmounted(() => {
             </div>
             <div class="usage-item">
               <div class="usage-header">
-                <span>内存</span>
+                <span>{{ t('monitoring.memory') }}</span>
                 <span>{{ resourceUsage.memory.used }} / {{ resourceUsage.memory.total }} Gi</span>
               </div>
               <el-progress
@@ -324,7 +326,7 @@ onUnmounted(() => {
             </div>
             <div class="usage-item">
               <div class="usage-header">
-                <span>存储</span>
+                <span>{{ t('dashboard.storage') }}</span>
                 <span>{{ resourceUsage.storage.used }} / {{ resourceUsage.storage.total }} Gi</span>
               </div>
               <el-progress

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Delete, Search, Monitor } from '@element-plus/icons-vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { getPodList, getPodYaml, deletePod, getNamespaceList } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
@@ -142,6 +143,8 @@ function statusType(status: string) {
   return 'info'
 }
 
+const { isRunning, countdown, toggle, refresh: autoRefresh } = useAutoRefresh(fetchPods, 15000)
+
 onMounted(() => {
   fetchNamespaces()
   fetchPods()
@@ -169,8 +172,11 @@ onMounted(() => {
         >
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="fetchPods">
-          <el-icon><Refresh /></el-icon> Refresh
+        <el-button type="primary" @click="autoRefresh()">
+          <el-icon><Refresh /></el-icon> {{ t('common.refresh') }} ({{ countdown }}s)
+        </el-button>
+        <el-button @click="toggle()" :type="isRunning ? 'warning' : 'success'" size="default">
+          {{ isRunning ? t('common.paused') : t('common.resume') }}
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
           <el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})

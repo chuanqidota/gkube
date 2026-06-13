@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
 import { getToken } from '@/utils/auth'
+
+const { t } = useI18n()
 
 interface ClusterOption {
   name: string
@@ -109,7 +112,7 @@ function connectTerminal() {
 
   ws.onopen = () => {
     isConnected.value = true
-    terminal?.writeln('\x1b[32m[Connected to container]\x1b[0m')
+    terminal?.writeln('\x1b[32m' + t('terminal.connectedToContainer') + '\x1b[0m')
     terminal?.focus()
   }
 
@@ -125,12 +128,12 @@ function connectTerminal() {
 
   ws.onclose = () => {
     isConnected.value = false
-    terminal?.writeln('\r\n\x1b[31m[Connection closed]\x1b[0m')
+    terminal?.writeln('\r\n\x1b[31m' + t('terminal.connectionClosed') + '\x1b[0m')
   }
 
   ws.onerror = () => {
     isConnected.value = false
-    terminal?.writeln('\r\n\x1b[31m[Connection error]\x1b[0m')
+    terminal?.writeln('\r\n\x1b[31m' + t('terminal.connectionError') + '\x1b[0m')
   }
 
   if (terminal) {
@@ -183,8 +186,8 @@ onMounted(async () => {
     terminal.open(terminalRef.value)
     fitAddon.fit()
 
-    terminal.writeln('\x1b[36mWelcome to GKube Web Terminal\x1b[0m')
-    terminal.writeln('Select cluster, namespace, pod, and container to connect.\r\n')
+    terminal.writeln('\x1b[36m' + t('terminal.welcome') + '\x1b[0m')
+    terminal.writeln(t('terminal.selectInstructions') + '\r\n')
 
     window.addEventListener('resize', handleResize)
   }
@@ -211,9 +214,9 @@ watch(selectedNamespace, () => {
     <el-card shadow="hover">
       <template #header>
         <div class="card-header">
-          <span>Web 终端</span>
+          <span>{{ t('terminal.title') }}</span>
           <el-tag :type="isConnected ? 'success' : 'info'" size="small">
-            {{ isConnected ? '已连接' : '未连接' }}
+            {{ isConnected ? t('terminal.connected') : t('terminal.notConnected') }}
           </el-tag>
         </div>
       </template>
@@ -221,7 +224,7 @@ watch(selectedNamespace, () => {
       <div class="selector-bar">
         <el-select
           v-model="selectedCluster"
-          placeholder="选择集群"
+          :placeholder="t('terminal.selectCluster')"
           style="width: 200px"
           filterable
         >
@@ -235,7 +238,7 @@ watch(selectedNamespace, () => {
 
         <el-select
           v-model="selectedNamespace"
-          placeholder="选择命名空间"
+          :placeholder="t('terminal.selectNamespace')"
           style="width: 200px"
           filterable
           :disabled="!selectedCluster"
@@ -250,7 +253,7 @@ watch(selectedNamespace, () => {
 
         <el-select
           v-model="selectedPod"
-          placeholder="选择 Pod"
+          :placeholder="t('terminal.selectPod')"
           style="width: 240px"
           filterable
           :disabled="!selectedNamespace"
@@ -265,7 +268,7 @@ watch(selectedNamespace, () => {
 
         <el-input
           v-model="selectedContainer"
-          placeholder="容器名称"
+          :placeholder="t('terminal.containerName')"
           style="width: 180px"
           :disabled="!selectedPod"
         />
@@ -275,14 +278,14 @@ watch(selectedNamespace, () => {
           :disabled="!selectedCluster || !selectedNamespace || !selectedPod || !selectedContainer"
           @click="connectTerminal"
         >
-          连接
+          {{ t('terminal.connect') }}
         </el-button>
 
         <el-button
           :disabled="!isConnected"
           @click="disconnectTerminal"
         >
-          断开
+          {{ t('terminal.disconnect') }}
         </el-button>
       </div>
 

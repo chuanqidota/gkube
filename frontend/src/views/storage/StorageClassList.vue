@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Refresh, Search, Plus } from '@element-plus/icons-vue'
 import { getStorageClassList, getStorageClassYaml } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const loading = ref(false)
 const storageClassList = ref<any[]>([])

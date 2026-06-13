@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getOverview, getWorkloads, getEvents, getResources } from '@/api/dashboard'
 import type { Overview, WorkloadSummary, K8sEvent, ResourceMetrics } from '@/api/dashboard'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import {
   Monitor,
   CircleCheck,
@@ -11,6 +12,7 @@ import {
   Box,
   DataLine,
   Bell,
+  Refresh,
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -121,16 +123,28 @@ async function fetchEvents() {
   }
 }
 
+async function fetchAll() {
+  await Promise.all([fetchOverview(), fetchResources(), fetchWorkloads(), fetchEvents()])
+}
+
+const { isRunning, countdown, toggle, refresh: autoRefresh } = useAutoRefresh(fetchAll, 15000)
+
 onMounted(() => {
-  fetchOverview()
-  fetchResources()
-  fetchWorkloads()
-  fetchEvents()
+  fetchAll()
 })
 </script>
 
 <template>
   <div class="dashboard">
+    <!-- Auto-refresh toolbar -->
+    <div class="refresh-toolbar">
+      <el-button @click="autoRefresh()" :icon="Refresh" size="small">
+        {{ t('common.refresh') }} ({{ countdown }}s)
+      </el-button>
+      <el-button @click="toggle()" :type="isRunning ? 'warning' : 'success'" size="small">
+        {{ isRunning ? t('common.paused') : t('common.resume') }}
+      </el-button>
+    </div>
     <!-- Stat Cards -->
     <el-row :gutter="16" class="stat-row">
       <el-col :span="6">
@@ -292,6 +306,13 @@ onMounted(() => {
   padding: 20px;
   background: #f5f7fa;
   min-height: calc(100vh - 84px);
+}
+
+.refresh-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .stat-row {

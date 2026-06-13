@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Refresh, Plus, Search } from '@element-plus/icons-vue'
 import { getNamespaceList, createNamespace } from '@/api/resource'
 
+const { t } = useI18n()
 const loading = ref(false)
 const namespaceList = ref<any[]>([])
 const searchName = ref('')

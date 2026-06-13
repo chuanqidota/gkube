@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Refresh, Bell, Warning, CircleCheck, InfoFilled } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
+const { t } = useI18n()
 const loading = ref(false)
 const events = ref<any[]>([])
 const namespaces = ref<string[]>([])
@@ -14,8 +16,8 @@ const autoRefresh = ref(true)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const eventTypes = [
-  { value: 'Normal', label: '正常', type: 'info' },
-  { value: 'Warning', label: '警告', type: 'warning' },
+  { value: 'Normal', label: t('event.normal'), type: 'info' },
+  { value: 'Warning', label: t('event.warning'), type: 'warning' },
 ]
 
 const filteredEvents = computed(() => {
@@ -54,10 +56,10 @@ function formatTime(time: string) {
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
 
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes} 分钟前`
-  if (hours < 24) return `${hours} 小时前`
-  return `${days} 天前`
+  if (minutes < 1) return t('event.justNow')
+  if (minutes < 60) return t('event.minutesAgo', { n: minutes })
+  if (hours < 24) return t('event.hoursAgo', { n: hours })
+  return t('event.daysAgo', { n: days })
 }
 
 async function fetchEvents() {
@@ -105,34 +107,34 @@ onMounted(() => {
   <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <h3 style="margin: 0;"><el-icon><Bell /></el-icon> 事件查看器</h3>
+        <h3 style="margin: 0;"><el-icon><Bell /></el-icon> {{ t('event.eventViewerTitle') }}</h3>
         <div class="filter-right">
-          <el-input v-model="searchQuery" placeholder="搜索事件..." style="width: 250px;" clearable />
-          <el-select v-model="selectedNamespace" placeholder="所有命名空间" clearable style="width: 150px;">
+          <el-input v-model="searchQuery" :placeholder="t('event.searchEvents')" style="width: 250px;" clearable />
+          <el-select v-model="selectedNamespace" :placeholder="t('event.allNamespaces')" clearable style="width: 150px;">
             <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
           </el-select>
-          <el-select v-model="selectedType" placeholder="所有类型" clearable style="width: 120px;">
+          <el-select v-model="selectedType" :placeholder="t('event.allTypes')" clearable style="width: 120px;">
             <el-option v-for="t in eventTypes" :key="t.value" :label="t.label" :value="t.value" />
           </el-select>
           <el-button :type="autoRefresh ? 'success' : 'info'" @click="toggleAutoRefresh">
-            {{ autoRefresh ? '自动刷新' : '手动刷新' }}
+            {{ autoRefresh ? t('common.autoRefresh') : t('common.manualRefresh') }}
           </el-button>
-          <el-button type="primary" @click="fetchEvents"><el-icon><Refresh /></el-icon> 刷新</el-button>
+          <el-button type="primary" @click="fetchEvents"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
         </div>
       </div>
     </el-card>
 
     <el-card shadow="never">
       <el-table :data="filteredEvents" v-loading="loading" stripe>
-        <el-table-column label="类型" width="80">
+        <el-table-column :label="t('event.type')" width="80">
           <template #default="{ row }">
             <el-icon :style="{ color: row.type === 'Warning' ? '#E6A23C' : '#409EFF' }">
               <component :is="eventIcon(row.type)" />
             </el-icon>
           </template>
         </el-table-column>
-        <el-table-column prop="namespace" label="命名空间" width="120" />
-        <el-table-column label="资源" min-width="150">
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="120" />
+        <el-table-column :label="t('event.resource')" min-width="150">
           <template #default="{ row }">
             <div>
               <div style="font-weight: 500;">{{ row.involvedObject?.name }}</div>
@@ -140,15 +142,15 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="reason" label="原因" width="150" />
-        <el-table-column prop="message" label="消息" min-width="300" show-overflow-tooltip />
-        <el-table-column label="时间" width="150">
+        <el-table-column prop="reason" :label="t('event.reason')" width="150" />
+        <el-table-column prop="message" :label="t('event.message')" min-width="300" show-overflow-tooltip />
+        <el-table-column :label="t('event.time')" width="150">
           <template #default="{ row }">{{ formatTime(row.lastTimestamp || row.eventTime) }}</template>
         </el-table-column>
-        <el-table-column prop="count" label="次数" width="80" />
+        <el-table-column prop="count" :label="t('event.count')" width="80" />
       </el-table>
 
-      <el-empty v-if="!loading && filteredEvents.length === 0" description="暂无事件" />
+      <el-empty v-if="!loading && filteredEvents.length === 0" :description="t('event.noEvents')" />
     </el-card>
   </div>
 </template>

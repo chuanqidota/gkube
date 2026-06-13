@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, VideoPlay, View, Connection } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
+const { t } = useI18n()
 const loading = ref(false)
 const applications = ref<any[]>([])
 const namespaces = ref<string[]>([])

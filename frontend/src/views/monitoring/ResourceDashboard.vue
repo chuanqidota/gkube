@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Refresh, Monitor, Cpu, Coin, FolderOpened } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import * as echarts from 'echarts'
 
+const { t } = useI18n()
 const loading = ref(false)
 const nodeMetrics = ref<any[]>([])
 const podMetrics = ref<any[]>([])
@@ -123,7 +125,7 @@ function updateCharts() {
 
   // CPU Chart - Node usage
   cpuChart.setOption({
-    title: { text: 'CPU 使用率', left: 'center', textStyle: { fontSize: 14 } },
+    title: { text: t('monitoring.cpuUsageChart'), left: 'center', textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     xAxis: {
       type: 'category',
@@ -143,7 +145,7 @@ function updateCharts() {
 
   // Memory Chart - Node usage
   memChart.setOption({
-    title: { text: '内存使用率', left: 'center', textStyle: { fontSize: 14 } },
+    title: { text: t('monitoring.memoryUsageChart'), left: 'center', textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     xAxis: {
       type: 'category',
@@ -170,7 +172,7 @@ function updateCharts() {
   const nsCounts = Object.values(podsByNs)
 
   storageChart.setOption({
-    title: { text: 'Pod 分布（按命名空间）', left: 'center', textStyle: { fontSize: 14 } },
+    title: { text: t('monitoring.podDistribution'), left: 'center', textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     series: [{
       type: 'pie',
@@ -219,9 +221,9 @@ onMounted(fetchAll)
   <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <h3 style="margin: 0;"><el-icon><Monitor /></el-icon> 资源监控</h3>
+        <h3 style="margin: 0;"><el-icon><Monitor /></el-icon> {{ t('monitoring.resourceMonitoring') }}</h3>
         <div class="filter-right">
-          <el-button type="primary" @click="fetchAll"><el-icon><Refresh /></el-icon> 刷新</el-button>
+          <el-button type="primary" @click="fetchAll"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
         </div>
       </div>
     </el-card>
@@ -233,7 +235,7 @@ onMounted(fetchAll)
           <div class="stat-icon" style="background: #409EFF;"><el-icon><Cpu /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.totalNodes }}</div>
-            <div class="stat-label">节点数量</div>
+            <div class="stat-label">{{ t('monitoring.nodeCount') }}</div>
           </div>
         </el-card>
       </el-col>
@@ -242,7 +244,7 @@ onMounted(fetchAll)
           <div class="stat-icon" style="background: #67C23A;"><el-icon><Coin /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.totalPods }}</div>
-            <div class="stat-label">Pod 数量</div>
+            <div class="stat-label">{{ t('monitoring.podCount') }}</div>
           </div>
         </el-card>
       </el-col>
@@ -251,7 +253,7 @@ onMounted(fetchAll)
           <div class="stat-icon" style="background: #E6A23C;"><el-icon><FolderOpened /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.totalNamespaces }}</div>
-            <div class="stat-label">命名空间</div>
+            <div class="stat-label">{{ t('monitoring.namespaces') }}</div>
           </div>
         </el-card>
       </el-col>
@@ -260,7 +262,7 @@ onMounted(fetchAll)
           <div class="stat-icon" style="background: #F56C6C;"><el-icon><Monitor /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.avgCpuUsage }}%</div>
-            <div class="stat-label">平均 CPU 使用率</div>
+            <div class="stat-label">{{ t('monitoring.avgCpuUsage') }}</div>
           </div>
         </el-card>
       </el-col>
@@ -288,11 +290,11 @@ onMounted(fetchAll)
     <!-- Node Metrics Table -->
     <el-card shadow="never" style="margin-bottom: 16px;">
       <template #header>
-        <h4 style="margin: 0;">节点指标</h4>
+        <h4 style="margin: 0;">{{ t('monitoring.nodeMetrics') }}</h4>
       </template>
       <el-table :data="nodeMetrics" v-loading="loading" stripe size="small">
-        <el-table-column prop="name" label="节点" min-width="180" show-overflow-tooltip />
-        <el-table-column label="CPU" min-width="200">
+        <el-table-column prop="name" :label="t('node.title')" min-width="180" show-overflow-tooltip />
+        <el-table-column :label="t('monitoring.cpu')" min-width="200">
           <template #default="{ row }">
             <div style="display: flex; align-items: center; gap: 8px;">
               <el-progress :percentage="cpuPercent(row)" :color="progressColor(cpuPercent(row))" :stroke-width="12" style="flex: 1;" />
@@ -300,7 +302,7 @@ onMounted(fetchAll)
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="内存" min-width="200">
+        <el-table-column :label="t('monitoring.memory')" min-width="200">
           <template #default="{ row }">
             <div style="display: flex; align-items: center; gap: 8px;">
               <el-progress :percentage="memoryPercent(row)" :color="progressColor(memoryPercent(row))" :stroke-width="12" style="flex: 1;" />
@@ -315,19 +317,19 @@ onMounted(fetchAll)
     <el-card shadow="never">
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h4 style="margin: 0;">Pod 指标</h4>
-          <el-select v-model="selectedNamespace" placeholder="所有命名空间" clearable style="width: 200px;" size="small">
+          <h4 style="margin: 0;">{{ t('monitoring.podMetrics') }}</h4>
+          <el-select v-model="selectedNamespace" :placeholder="t('monitoring.allNamespaces')" clearable style="width: 200px;" size="small">
             <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
           </el-select>
         </div>
       </template>
       <el-table :data="filteredPods" v-loading="loading" stripe size="small">
         <el-table-column prop="name" label="Pod" min-width="250" show-overflow-tooltip />
-        <el-table-column prop="namespace" label="命名空间" width="140" />
-        <el-table-column label="CPU" width="150">
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
+        <el-table-column :label="t('monitoring.cpu')" width="150">
           <template #default="{ row }">{{ formatCpu(parseCpu(row.cpuUsage)) }}</template>
         </el-table-column>
-        <el-table-column label="内存" width="150">
+        <el-table-column :label="t('monitoring.memory')" width="150">
           <template #default="{ row }">{{ formatMemory(parseMemory(row.memoryUsage)) }}</template>
         </el-table-column>
       </el-table>

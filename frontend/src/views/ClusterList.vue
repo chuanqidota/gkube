@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, Connection, Delete, View, CircleCheck } from '@element-plus/icons-vue'
 import { getClusterList, deleteCluster, checkCluster } from '@/api/cluster'
 
+const { t } = useI18n()
 const router = useRouter()
 const loading = ref(false)
 const clusterList = ref<any[]>([])
@@ -73,9 +75,9 @@ function statusType(status: string) {
 }
 
 function statusText(status: string) {
-  if (status === 'online' || status === 'connected') return '在线'
-  if (status === 'offline' || status === 'disconnected') return '离线'
-  return status || '未知'
+  if (status === 'online' || status === 'connected') return t('cluster.online')
+  if (status === 'offline' || status === 'disconnected') return t('cluster.offline')
+  return status || t('common.unknown')
 }
 
 onMounted(fetchClusters)
@@ -85,10 +87,10 @@ onMounted(fetchClusters)
   <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <h3 style="margin: 0;">集群管理</h3>
+        <h3 style="margin: 0;">{{ t('cluster.clusterManagement') }}</h3>
         <div class="filter-right">
-          <el-button @click="fetchClusters"><el-icon><Refresh /></el-icon> 刷新</el-button>
-          <el-button type="primary" @click="router.push('/clusters/create')"><el-icon><Plus /></el-icon> 添加集群</el-button>
+          <el-button @click="fetchClusters"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
+          <el-button type="primary" @click="router.push('/clusters/create')"><el-icon><Plus /></el-icon> {{ t('cluster.add') }}</el-button>
         </div>
       </div>
     </el-card>
@@ -107,33 +109,33 @@ onMounted(fetchClusters)
           </template>
           <div class="cluster-body">
             <div class="cluster-detail">
-              <span class="label">集群名称:</span>
+              <span class="label">{{ t('cluster.name') }}:</span>
               <span class="value">{{ cluster.clusterName }}</span>
             </div>
             <div class="cluster-detail">
-              <span class="label">版本:</span>
+              <span class="label">{{ t('cluster.version') }}:</span>
               <span class="value">{{ cluster.clusterVersion || '-' }}</span>
             </div>
             <div class="cluster-detail">
-              <span class="label">节点数:</span>
+              <span class="label">{{ t('cluster.nodes') }}:</span>
               <span class="value">{{ cluster.nodeCount || 0 }}</span>
             </div>
             <div class="cluster-detail" v-if="cluster.description">
-              <span class="label">描述:</span>
+              <span class="label">{{ t('cluster.description') }}:</span>
               <span class="value">{{ cluster.description }}</span>
             </div>
           </div>
           <div class="cluster-footer">
-            <el-button size="small" @click="handleCheck(cluster)"><el-icon><CircleCheck /></el-icon> 检测</el-button>
-            <el-button size="small" @click="handleDetail(cluster)"><el-icon><View /></el-icon> 详情</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(cluster)"><el-icon><Delete /></el-icon> 删除</el-button>
+            <el-button size="small" @click="handleCheck(cluster)"><el-icon><CircleCheck /></el-icon> {{ t('cluster.checkConnection') }}</el-button>
+            <el-button size="small" @click="handleDetail(cluster)"><el-icon><View /></el-icon> {{ t('common.detail') }}</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(cluster)"><el-icon><Delete /></el-icon> {{ t('common.delete') }}</el-button>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-empty v-if="!loading && clusterList.length === 0" description="暂无集群">
-      <el-button type="primary" @click="router.push('/clusters/create')"><el-icon><Plus /></el-icon> 添加集群</el-button>
+    <el-empty v-if="!loading && clusterList.length === 0" :description="t('cluster.noClusters')">
+      <el-button type="primary" @click="router.push('/clusters/create')"><el-icon><Plus /></el-icon> {{ t('cluster.add') }}</el-button>
     </el-empty>
 
     <div style="display: flex; justify-content: flex-end; margin-top: 16px;">

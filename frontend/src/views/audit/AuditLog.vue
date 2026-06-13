@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Delete, Download, Search } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
+const { t } = useI18n()
 const loading = ref(false)
 const auditLogs = ref<any[]>([])
 const selectedUser = ref('')
@@ -75,14 +77,14 @@ async function fetchStats() {
 
 async function clearLogs() {
   try {
-    await ElMessageBox.confirm('Clear all audit logs?', 'Confirm')
+    await ElMessageBox.confirm(t('audit.clearConfirm'), t('common.confirm'))
     await request.delete('/k8s/audit/clear')
-    ElMessage.success('Audit logs cleared')
+    ElMessage.success(t('audit.cleared'))
     fetchAuditLogs()
     fetchStats()
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error('Failed to clear logs')
+      ElMessage.error(t('audit.clearFailed'))
     }
   }
 }
@@ -123,25 +125,25 @@ onMounted(() => {
   <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <h3 style="margin: 0;">审计日志</h3>
+        <h3 style="margin: 0;">{{ t('audit.title') }}</h3>
         <div class="filter-right">
-          <el-input v-model="searchQuery" placeholder="搜索..." :prefix-icon="Search" style="width: 200px;" clearable />
-          <el-select v-model="selectedUser" placeholder="所有用户" clearable style="width: 120px;">
+          <el-input v-model="searchQuery" :placeholder="t('audit.search')" :prefix-icon="Search" style="width: 200px;" clearable />
+          <el-select v-model="selectedUser" :placeholder="t('audit.allUsers')" clearable style="width: 120px;">
             <el-option v-for="u in users" :key="u" :label="u" :value="u" />
           </el-select>
-          <el-select v-model="selectedAction" placeholder="所有操作" clearable style="width: 120px;">
+          <el-select v-model="selectedAction" :placeholder="t('audit.allActions')" clearable style="width: 120px;">
             <el-option v-for="a in actions" :key="a" :label="a" :value="a" />
           </el-select>
-          <el-select v-model="selectedResource" placeholder="所有资源" clearable style="width: 120px;">
+          <el-select v-model="selectedResource" :placeholder="t('audit.allResources')" clearable style="width: 120px;">
             <el-option v-for="r in resources" :key="r" :label="r" :value="r" />
           </el-select>
-          <el-select v-model="selectedStatus" placeholder="所有状态" clearable style="width: 100px;">
-            <el-option label="成功" value="success" />
-            <el-option label="失败" value="failure" />
+          <el-select v-model="selectedStatus" :placeholder="t('audit.allStatus')" clearable style="width: 100px;">
+            <el-option :label="t('audit.success')" value="success" />
+            <el-option :label="t('audit.failure')" value="failure" />
           </el-select>
-          <el-button @click="exportLogs"><el-icon><Download /></el-icon> 导出</el-button>
-          <el-button type="danger" @click="clearLogs"><el-icon><Delete /></el-icon> 清除</el-button>
-          <el-button type="primary" @click="fetchAuditLogs"><el-icon><Refresh /></el-icon> 刷新</el-button>
+          <el-button @click="exportLogs"><el-icon><Download /></el-icon> {{ t('common.export') }}</el-button>
+          <el-button type="danger" @click="clearLogs"><el-icon><Delete /></el-icon> {{ t('common.clear') }}</el-button>
+          <el-button type="primary" @click="fetchAuditLogs"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
         </div>
       </div>
     </el-card>
@@ -150,53 +152,53 @@ onMounted(() => {
       <el-col :span="6">
         <el-card shadow="never" class="stat-card">
           <div class="stat-value">{{ stats.total || 0 }}</div>
-          <div class="stat-label">总记录数</div>
+          <div class="stat-label">{{ t('audit.totalRecords') }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="never" class="stat-card success">
           <div class="stat-value">{{ stats.byStatus?.success || 0 }}</div>
-          <div class="stat-label">成功操作</div>
+          <div class="stat-label">{{ t('audit.successfulOps') }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="never" class="stat-card danger">
           <div class="stat-value">{{ stats.byStatus?.failure || 0 }}</div>
-          <div class="stat-label">失败操作</div>
+          <div class="stat-label">{{ t('audit.failedOps') }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="never" class="stat-card">
           <div class="stat-value">{{ Object.keys(stats.byUser || {}).length }}</div>
-          <div class="stat-label">活跃用户</div>
+          <div class="stat-label">{{ t('audit.activeUsers') }}</div>
         </el-card>
       </el-col>
     </el-row>
 
     <el-card shadow="never">
       <el-table :data="filteredLogs" v-loading="loading" stripe>
-        <el-table-column prop="timestamp" label="时间" width="180">
+        <el-table-column prop="timestamp" :label="t('audit.time')" width="180">
           <template #default="{ row }">{{ formatTime(row.timestamp) }}</template>
         </el-table-column>
-        <el-table-column prop="user" label="用户" width="120" />
-        <el-table-column prop="action" label="操作" width="100">
+        <el-table-column prop="user" :label="t('audit.user')" width="120" />
+        <el-table-column prop="action" :label="t('audit.action')" width="100">
           <template #default="{ row }">
             <el-tag :type="actionType(row.action)" size="small">{{ row.action }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="resource" label="资源" width="120" />
-        <el-table-column prop="name" label="资源名称" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="namespace" label="命名空间" width="120" />
-        <el-table-column prop="status" label="状态" width="80">
+        <el-table-column prop="resource" :label="t('audit.resource')" width="120" />
+        <el-table-column prop="name" :label="t('audit.resourceName')" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="120" />
+        <el-table-column prop="status" :label="t('common.status')" width="80">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="ip" label="IP 地址" width="120" />
-        <el-table-column prop="error" label="错误信息" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="ip" :label="t('audit.ipAddress')" width="120" />
+        <el-table-column prop="error" :label="t('audit.errorMessage')" min-width="150" show-overflow-tooltip />
       </el-table>
 
-      <el-empty v-if="!loading && filteredLogs.length === 0" description="暂无审计日志" />
+      <el-empty v-if="!loading && filteredLogs.length === 0" :description="t('audit.noAuditLogs')" />
     </el-card>
   </div>
 </template>

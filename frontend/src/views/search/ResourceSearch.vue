@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Search, Refresh, View } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import request from '@/api/request'
 
+const { t } = useI18n()
 const router = useRouter()
 const loading = ref(false)
 const searchQuery = ref('')
@@ -51,7 +53,7 @@ async function fetchNamespaces() {
 
 async function performSearch() {
   if (!searchQuery.value) {
-    ElMessage.warning('请输入搜索关键词')
+    ElMessage.warning(t('search.enterKeyword'))
     return
   }
 
@@ -92,7 +94,7 @@ async function performSearch() {
     const results = await Promise.all(promises)
     searchResults.value = results.flat()
   } catch (e: any) {
-    ElMessage.error('搜索失败')
+    ElMessage.error(t('search.searchFailed'))
   } finally {
     loading.value = false
   }
@@ -138,28 +140,28 @@ onMounted(fetchNamespaces)
   <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <h3 style="margin: 0;"><el-icon><Search /></el-icon> 资源搜索</h3>
+        <h3 style="margin: 0;"><el-icon><Search /></el-icon> {{ t('search.title') }}</h3>
       </div>
     </el-card>
 
     <el-card shadow="never" style="margin-bottom: 16px;">
       <el-form :inline="true">
-        <el-form-item label="关键词">
-          <el-input v-model="searchQuery" placeholder="搜索资源名称..." style="width: 300px;" @keyup.enter="performSearch" />
+        <el-form-item :label="t('search.keyword')">
+          <el-input v-model="searchQuery" :placeholder="t('search.searchPlaceholder')" style="width: 300px;" @keyup.enter="performSearch" />
         </el-form-item>
-        <el-form-item label="资源类型">
-          <el-select v-model="selectedType" placeholder="所有资源" clearable style="width: 180px;">
+        <el-form-item :label="t('search.resourceType')">
+          <el-select v-model="selectedType" :placeholder="t('search.allResources')" clearable style="width: 180px;">
             <el-option v-for="r in resourceTypes" :key="r.value" :label="r.label" :value="r.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="命名空间">
-          <el-select v-model="selectedNamespace" placeholder="所有命名空间" clearable style="width: 150px;">
+        <el-form-item :label="t('search.namespace')">
+          <el-select v-model="selectedNamespace" :placeholder="t('search.allNamespaces')" clearable style="width: 150px;">
             <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="performSearch" :loading="loading"><el-icon><Search /></el-icon> 搜索</el-button>
-          <el-button @click="searchResults = []"><el-icon><Refresh /></el-icon> 重置</el-button>
+          <el-button type="primary" @click="performSearch" :loading="loading"><el-icon><Search /></el-icon> {{ t('search.search') }}</el-button>
+          <el-button @click="searchResults = []"><el-icon><Refresh /></el-icon> {{ t('common.reset') }}</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -167,38 +169,38 @@ onMounted(fetchNamespaces)
     <el-card shadow="never" v-if="searchResults.length > 0">
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h4 style="margin: 0;">搜索结果</h4>
-          <el-tag>找到 {{ searchResults.length }} 个资源</el-tag>
+          <h4 style="margin: 0;">{{ t('search.searchResults') }}</h4>
+          <el-tag>{{ t('search.foundResources', { count: searchResults.length }) }}</el-tag>
         </div>
       </template>
       <el-table :data="searchResults" stripe>
-        <el-table-column prop="type" label="类型" width="150">
+        <el-table-column prop="type" :label="t('common.type')" width="150">
           <template #default="{ row }">
             <el-tag size="small">{{ getResourceTypeLabel(row.type) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="displayName" label="名称" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="namespace" label="命名空间" width="120" />
-        <el-table-column label="状态" width="100">
+        <el-table-column prop="displayName" :label="t('common.name')" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="120" />
+        <el-table-column :label="t('common.status')" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusType(getResourceStatus(row))" size="small">
               {{ getResourceStatus(row) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="creationTimestamp" label="创建时间" width="180">
+        <el-table-column prop="creationTimestamp" :label="t('search.createdAt')" width="180">
           <template #default="{ row }">{{ formatTime(row.creationTimestamp) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="100">
+        <el-table-column :label="t('common.actions')" width="100">
           <template #default="{ row }">
-            <el-button size="small" @click="viewResource(row)"><el-icon><View /></el-icon> 查看</el-button>
+            <el-button size="small" @click="viewResource(row)"><el-icon><View /></el-icon> {{ t('common.view') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     <el-card shadow="never" v-else-if="searchQuery && !loading">
-      <el-empty description="未找到匹配的资源" />
+      <el-empty :description="t('search.noResults')" />
     </el-card>
   </div>
 </template>

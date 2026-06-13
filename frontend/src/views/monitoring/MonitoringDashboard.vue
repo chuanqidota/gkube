@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Refresh, Setting, Download, Monitor, Cpu, Coin } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import * as echarts from 'echarts'
 
+const { t } = useI18n()
 const loading = ref(false)
 const prometheusConnected = ref(false)
 const activeTab = ref('overview')
@@ -207,7 +209,7 @@ function updateOverviewCharts() {
   }
 
   cpuChart.setOption({
-    title: { text: 'CPU 使用率 (%)', left: 'center', textStyle: { fontSize: 14 } },
+    title: { text: t('monitoring.cpuUsage') + ' (%)', left: 'center', textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'axis', formatter: timeFormatter },
     xAxis: { type: 'time' },
     yAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
@@ -221,7 +223,7 @@ function updateOverviewCharts() {
   })
 
   memChart.setOption({
-    title: { text: '内存使用率 (%)', left: 'center', textStyle: { fontSize: 14 } },
+    title: { text: t('monitoring.memoryUsage') + ' (%)', left: 'center', textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'axis', formatter: timeFormatter },
     xAxis: { type: 'time' },
     yAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
@@ -235,7 +237,7 @@ function updateOverviewCharts() {
   })
 
   netChart.setOption({
-    title: { text: '网络 I/O (bytes/s)', left: 'center', textStyle: { fontSize: 14 } },
+    title: { text: t('monitoring.networkIO') + ' (bytes/s)', left: 'center', textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'axis', formatter: timeFormatter },
     xAxis: { type: 'time' },
     yAxis: { type: 'value', axisLabel: { formatter: (v: number) => (v / 1024 / 1024).toFixed(1) + ' MB' } },
@@ -370,32 +372,32 @@ onUnmounted(() => {
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
         <div class="filter-left">
-          <h3 style="margin: 0;"><el-icon><Monitor /></el-icon> 监控面板</h3>
-          <el-tag v-if="prometheusConnected" type="success" size="small">Prometheus 已连接</el-tag>
-          <el-tag v-else type="warning" size="small">Prometheus 未连接</el-tag>
+          <h3 style="margin: 0;"><el-icon><Monitor /></el-icon> {{ t('monitoring.title') }}</h3>
+          <el-tag v-if="prometheusConnected" type="success" size="small">{{ t('monitoring.prometheusConnected') }}</el-tag>
+          <el-tag v-else type="warning" size="small">{{ t('monitoring.prometheusNotConnected') }}</el-tag>
         </div>
         <div class="filter-right">
           <el-select v-model="timeRange" size="small" style="width: 100px;" @change="fetchPrometheusData">
             <el-option v-for="r in timeRanges" :key="r.value" :label="r.label" :value="r.value" />
           </el-select>
           <el-button size="small" :type="autoRefresh ? 'success' : 'info'" @click="toggleAutoRefresh">
-            {{ autoRefresh ? '自动刷新' : '手动刷新' }}
+            {{ autoRefresh ? t('common.autoRefresh') : t('common.manualRefresh') }}
           </el-button>
-          <el-button type="primary" size="small" @click="fetchAll"><el-icon><Refresh /></el-icon> 刷新</el-button>
+          <el-button type="primary" size="small" @click="fetchAll"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
         </div>
       </div>
     </el-card>
 
     <el-card shadow="never">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="概览" name="overview">
+        <el-tab-pane :label="t('monitoring.overview')" name="overview">
           <el-row :gutter="16" style="margin-bottom: 16px;">
             <el-col :span="8">
               <el-card shadow="never" class="stat-card">
                 <div class="stat-icon" style="background: #409EFF;"><el-icon><Cpu /></el-icon></div>
                 <div class="stat-info">
                   <div class="stat-value">{{ nodeMetrics.length }}</div>
-                  <div class="stat-label">节点数量</div>
+                  <div class="stat-label">{{ t('monitoring.nodeCount') }}</div>
                 </div>
               </el-card>
             </el-col>
@@ -404,7 +406,7 @@ onUnmounted(() => {
                 <div class="stat-icon" style="background: #67C23A;"><el-icon><Coin /></el-icon></div>
                 <div class="stat-info">
                   <div class="stat-value">{{ podMetrics.length }}</div>
-                  <div class="stat-label">Pod 数量</div>
+                  <div class="stat-label">{{ t('monitoring.podCount') }}</div>
                 </div>
               </el-card>
             </el-col>
@@ -413,7 +415,7 @@ onUnmounted(() => {
                 <div class="stat-icon" style="background: #E6A23C;"><el-icon><Monitor /></el-icon></div>
                 <div class="stat-info">
                   <div class="stat-value">{{ alerts.length }}</div>
-                  <div class="stat-label">告警数量</div>
+                  <div class="stat-label">{{ t('monitoring.alertCount') }}</div>
                 </div>
               </el-card>
             </el-col>
@@ -433,10 +435,10 @@ onUnmounted(() => {
 
           <el-divider />
 
-          <h4>节点指标</h4>
+          <h4>{{ t('monitoring.nodeMetrics') }}</h4>
           <el-table :data="nodeMetrics" v-loading="loading" stripe size="small">
-            <el-table-column prop="name" label="节点" min-width="180" show-overflow-tooltip />
-            <el-table-column label="CPU" min-width="200">
+            <el-table-column prop="name" :label="t('node.title')" min-width="180" show-overflow-tooltip />
+            <el-table-column :label="t('monitoring.cpu')" min-width="200">
               <template #default="{ row }">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <el-progress :percentage="cpuPercent(row)" :color="progressColor(cpuPercent(row))" :stroke-width="12" style="flex: 1;" />
@@ -444,7 +446,7 @@ onUnmounted(() => {
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="内存" min-width="200">
+            <el-table-column :label="t('monitoring.memory')" min-width="200">
               <template #default="{ row }">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <el-progress :percentage="memoryPercent(row)" :color="progressColor(memoryPercent(row))" :stroke-width="12" style="flex: 1;" />
@@ -456,18 +458,18 @@ onUnmounted(() => {
 
           <el-divider />
 
-          <h4>活跃告警</h4>
-          <el-table :data="alerts" v-loading="loading" stripe size="small" empty-text="暂无告警">
-            <el-table-column prop="labels.alertname" label="告警名称" min-width="150" />
-            <el-table-column prop="labels.severity" label="严重程度" width="100">
+          <h4>{{ t('monitoring.activeAlerts') }}</h4>
+          <el-table :data="alerts" v-loading="loading" stripe size="small" :empty-text="t('common.noData')">
+            <el-table-column prop="labels.alertname" :label="t('monitoring.alertName')" min-width="150" />
+            <el-table-column prop="labels.severity" :label="t('monitoring.severity')" width="100">
               <template #default="{ row }">
                 <el-tag :type="row.labels?.severity === 'critical' ? 'danger' : row.labels?.severity === 'warning' ? 'warning' : 'info'" size="small">
                   {{ row.labels?.severity || 'unknown' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="annotations.description" label="描述" min-width="300" show-overflow-tooltip />
-            <el-table-column prop="state" label="状态" width="100">
+            <el-table-column prop="annotations.description" :label="t('common.description')" min-width="300" show-overflow-tooltip />
+            <el-table-column prop="state" :label="t('common.status')" width="100">
               <template #default="{ row }">
                 <el-tag :type="row.state === 'firing' ? 'danger' : 'success'" size="small">{{ row.state }}</el-tag>
               </template>
@@ -475,8 +477,8 @@ onUnmounted(() => {
           </el-table>
         </el-tab-pane>
 
-        <el-tab-pane label="节点详情" name="nodes">
-          <el-select v-model="selectedNode" placeholder="选择节点" style="width: 300px; margin-bottom: 16px;" @change="updateNodeCharts">
+        <el-tab-pane :label="t('monitoring.nodeDetails')" name="nodes">
+          <el-select v-model="selectedNode" :placeholder="t('monitoring.selectNode')" style="width: 300px; margin-bottom: 16px;" @change="updateNodeCharts">
             <el-option v-for="node in nodeMetrics" :key="node.name" :label="node.name" :value="node.name" />
           </el-select>
 
@@ -486,21 +488,21 @@ onUnmounted(() => {
             <div ref="nodeNetworkChartRef" class="chart-container"></div>
           </div>
 
-          <el-empty v-else description="请选择节点查看详细指标" />
+          <el-empty v-else :description="t('monitoring.selectNodeHint')" />
         </el-tab-pane>
 
-        <el-tab-pane label="Pod 指标" name="pods">
-          <el-select v-model="selectedNamespace" placeholder="所有命名空间" clearable style="width: 200px; margin-bottom: 16px;">
+        <el-tab-pane :label="t('monitoring.podMetrics')" name="pods">
+          <el-select v-model="selectedNamespace" :placeholder="t('monitoring.allNamespaces')" clearable style="width: 200px; margin-bottom: 16px;">
             <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
           </el-select>
 
           <el-table :data="podMetrics.filter(p => !selectedNamespace || p.namespace === selectedNamespace)" v-loading="loading" stripe size="small">
             <el-table-column prop="name" label="Pod" min-width="250" show-overflow-tooltip />
-            <el-table-column prop="namespace" label="命名空间" width="140" />
-            <el-table-column label="CPU" width="150">
+            <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
+            <el-table-column :label="t('monitoring.cpu')" width="150">
               <template #default="{ row }">{{ formatCpu(parseCpu(row.cpuUsage)) }}</template>
             </el-table-column>
-            <el-table-column label="内存" width="150">
+            <el-table-column :label="t('monitoring.memory')" width="150">
               <template #default="{ row }">{{ formatMemory(parseMemory(row.memoryUsage)) }}</template>
             </el-table-column>
           </el-table>

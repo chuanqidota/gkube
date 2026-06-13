@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { createCluster } from '@/api/cluster'
 import type { FormInstance, FormRules } from 'element-plus'
 
+const { t } = useI18n()
 const router = useRouter()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -18,8 +20,8 @@ const form = reactive({
 })
 
 const rules: FormRules = {
-  clusterName: [{ required: true, message: '请输入集群名称', trigger: 'blur' }],
-  kubeConfig: [{ required: true, message: '请输入 KubeConfig', trigger: 'blur' }],
+  clusterName: [{ required: true, message: t('cluster.name'), trigger: 'blur' }],
+  kubeConfig: [{ required: true, message: 'KubeConfig', trigger: 'blur' }],
 }
 
 function addLabel() {
@@ -48,10 +50,10 @@ async function handleSubmit() {
       kubeConfig: form.kubeConfig,
       labels,
     })
-    ElMessage.success('集群创建成功')
+    ElMessage.success(t('cluster.clusterCreated'))
     router.push('/clusters')
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || t('cluster.createFailed'))
   } finally {
     loading.value = false
   }
@@ -63,8 +65,8 @@ async function handleSubmit() {
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
-          <h3 style="margin: 0;">添加集群</h3>
-          <el-button @click="router.push('/clusters')">返回</el-button>
+          <h3 style="margin: 0;">{{ t('cluster.addCluster') }}</h3>
+          <el-button @click="router.push('/clusters')">{{ t('common.back') }}</el-button>
         </div>
       </template>
 
@@ -75,17 +77,17 @@ async function handleSubmit() {
         label-width="120px"
         style="max-width: 700px;"
       >
-        <el-form-item label="集群名称" prop="clusterName">
-          <el-input v-model="form.clusterName" placeholder="例如: prod-cluster-01" />
-          <div class="form-tip">集群唯一标识，创建后不可修改</div>
+        <el-form-item :label="t('cluster.name')" prop="clusterName">
+          <el-input v-model="form.clusterName" :placeholder="t('cluster.clusterNamePlaceholder')" />
+          <div class="form-tip">{{ t('cluster.clusterNameTip') }}</div>
         </el-form-item>
 
-        <el-form-item label="显示名称" prop="displayName">
-          <el-input v-model="form.displayName" placeholder="例如: 生产集群" />
+        <el-form-item :label="t('cluster.displayName')" prop="displayName">
+          <el-input v-model="form.displayName" :placeholder="t('cluster.displayNamePlaceholder')" />
         </el-form-item>
 
-        <el-form-item label="描述" prop="description">
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="可选描述信息" />
+        <el-form-item :label="t('cluster.description')" prop="description">
+          <el-input v-model="form.description" type="textarea" :rows="3" :placeholder="t('cluster.descriptionPlaceholder')" />
         </el-form-item>
 
         <el-form-item label="KubeConfig" prop="kubeConfig">
@@ -93,29 +95,29 @@ async function handleSubmit() {
             v-model="form.kubeConfig"
             type="textarea"
             :rows="12"
-            placeholder="粘贴您的 kubeconfig YAML 内容"
+            :placeholder="t('cluster.kubeConfigPlaceholder')"
           />
-          <div class="form-tip">系统将验证 kubeconfig 的连通性</div>
+          <div class="form-tip">{{ t('cluster.kubeConfigTip') }}</div>
         </el-form-item>
 
-        <el-form-item label="标签">
+        <el-form-item :label="t('cluster.labels')">
           <div style="width: 100%;">
             <div
               v-for="(label, index) in form.labels"
               :key="index"
               style="display: flex; gap: 8px; margin-bottom: 8px;"
             >
-              <el-input v-model="label.key" placeholder="键" style="flex: 1;" />
-              <el-input v-model="label.value" placeholder="值" style="flex: 1;" />
+              <el-input v-model="label.key" :placeholder="t('cluster.keyPlaceholder')" style="flex: 1;" />
+              <el-input v-model="label.value" :placeholder="t('cluster.valuePlaceholder')" style="flex: 1;" />
               <el-button type="danger" circle @click="removeLabel(index)">-</el-button>
             </div>
-            <el-button @click="addLabel" type="primary" plain>添加标签</el-button>
+            <el-button @click="addLabel" type="primary" plain>{{ t('cluster.addLabel') }}</el-button>
           </div>
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleSubmit">创建集群</el-button>
-          <el-button @click="router.push('/clusters')">取消</el-button>
+          <el-button type="primary" :loading="loading" @click="handleSubmit">{{ t('cluster.createCluster') }}</el-button>
+          <el-button @click="router.push('/clusters')">{{ t('common.cancel') }}</el-button>
         </el-form-item>
       </el-form>
     </el-card>

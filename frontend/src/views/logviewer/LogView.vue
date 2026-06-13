@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getToken } from '@/utils/auth'
+
+const { t } = useI18n()
 
 interface ClusterOption {
   name: string
@@ -25,11 +28,11 @@ const logContainerRef = ref<HTMLDivElement>()
 
 let abortController: AbortController | null = null
 
-const statusText: Record<ConnectionStatus, string> = {
-  disconnected: '未连接',
-  connecting: '连接中...',
-  connected: '已连接',
-  error: '连接失败',
+const statusTextMap: Record<ConnectionStatus, () => string> = {
+  disconnected: () => t('log.disconnected'),
+  connecting: () => t('log.connecting'),
+  connected: () => t('log.connected'),
+  error: () => t('log.connectionFailed'),
 }
 
 const statusType: Record<ConnectionStatus, string> = {
@@ -145,7 +148,7 @@ async function startLogStream() {
     }
 
     status.value = 'connected'
-    logContent.value += `[Connected to log stream]\n`
+    logContent.value += t('log.connectedToStream') + '\n'
 
     const reader = response.body?.getReader()
     if (!reader) {
@@ -223,9 +226,9 @@ watch(selectedNamespace, () => {
     <el-card shadow="hover">
       <template #header>
         <div class="card-header">
-          <span>日志查看</span>
+          <span>{{ t('log.title') }}</span>
           <el-tag :type="statusType[status] as any" size="small">
-            {{ statusText[status] }}
+            {{ statusTextMap[status]() }}
           </el-tag>
         </div>
       </template>
@@ -233,7 +236,7 @@ watch(selectedNamespace, () => {
       <div class="selector-bar">
         <el-select
           v-model="selectedCluster"
-          placeholder="选择集群"
+          :placeholder="t('log.selectCluster')"
           style="width: 200px"
           filterable
         >
@@ -247,7 +250,7 @@ watch(selectedNamespace, () => {
 
         <el-select
           v-model="selectedNamespace"
-          placeholder="选择命名空间"
+          :placeholder="t('log.selectNamespace')"
           style="width: 200px"
           filterable
           :disabled="!selectedCluster"
@@ -262,7 +265,7 @@ watch(selectedNamespace, () => {
 
         <el-select
           v-model="selectedPod"
-          placeholder="选择 Pod"
+          :placeholder="t('log.selectPod')"
           style="width: 240px"
           filterable
           :disabled="!selectedNamespace"
@@ -277,7 +280,7 @@ watch(selectedNamespace, () => {
 
         <el-input
           v-model="selectedContainer"
-          placeholder="容器名称"
+          :placeholder="t('log.containerName')"
           style="width: 180px"
           :disabled="!selectedPod"
         />
@@ -287,22 +290,22 @@ watch(selectedNamespace, () => {
           :disabled="!selectedCluster || !selectedNamespace || !selectedPod || !selectedContainer || status === 'connecting'"
           @click="startLogStream"
         >
-          开始监听
+          {{ t('log.startListening') }}
         </el-button>
 
         <el-button
           :disabled="status !== 'connected'"
           @click="stopLogStream"
         >
-          停止
+          {{ t('log.stop') }}
         </el-button>
 
         <el-button @click="clearLogs">
-          清空
+          {{ t('log.clear') }}
         </el-button>
 
         <el-checkbox v-model="autoScroll">
-          自动滚动
+          {{ t('log.autoScroll') }}
         </el-checkbox>
       </div>
 
@@ -310,7 +313,7 @@ watch(selectedNamespace, () => {
         ref="logContainerRef"
         class="log-container"
       >
-        <pre class="log-content">{{ logContent || '等待日志输出...' }}</pre>
+        <pre class="log-content">{{ logContent || t('log.waitingForLogs') }}</pre>
       </div>
     </el-card>
   </div>

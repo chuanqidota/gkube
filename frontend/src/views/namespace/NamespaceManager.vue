@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Setting, FolderOpened } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
+const { t } = useI18n()
 const loading = ref(false)
 const namespaces = ref<any[]>([])
 const selectedNs = ref<any>(null)
@@ -158,39 +160,39 @@ onMounted(fetchNamespaces)
   <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <h3 style="margin: 0;"><el-icon><FolderOpened /></el-icon> 命名空间管理</h3>
+        <h3 style="margin: 0;"><el-icon><FolderOpened /></el-icon> {{ t('namespace.title') }}</h3>
         <div class="filter-right">
-          <el-button type="primary" @click="showCreateDialog = true"><el-icon><Plus /></el-icon> 创建命名空间</el-button>
-          <el-button @click="fetchNamespaces"><el-icon><Refresh /></el-icon> 刷新</el-button>
+          <el-button type="primary" @click="showCreateDialog = true"><el-icon><Plus /></el-icon> {{ t('namespace.createNamespace') }}</el-button>
+          <el-button @click="fetchNamespaces"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
         </div>
       </div>
     </el-card>
 
     <el-card shadow="never">
       <el-table :data="namespaces" v-loading="loading" stripe>
-        <el-table-column prop="name" label="名称" min-width="150">
+        <el-table-column prop="name" :label="t('common.name')" min-width="150">
           <template #default="{ row }">
             <el-link type="primary" @click="viewNamespace(row)">{{ row.name }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column :label="t('common.status')" width="100">
           <template #default="{ row }">
             <el-tag :type="statusColor(row.status)" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="标签" min-width="200">
+        <el-table-column :label="t('workload.labels')" min-width="200">
           <template #default="{ row }">
             <el-tag v-for="(val, key) in row.labels" :key="key" size="small" style="margin: 2px;">
               {{ key }}={{ val }}
             </el-tag>
-            <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: #909399;">无标签</span>
+            <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: #909399;">{{ t('namespace.noLabels') }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="creationTimestamp" label="创建时间" width="180" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column prop="creationTimestamp" :label="t('config.creationTime')" width="180" />
+        <el-table-column :label="t('common.actions')" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="viewNamespace(row)">详情</el-button>
-            <el-button size="small" type="warning" @click="setQuota(row)">配额</el-button>
+            <el-button size="small" @click="viewNamespace(row)">{{ t('common.detail') }}</el-button>
+            <el-button size="small" type="warning" @click="setQuota(row)">{{ t('namespace.quota') }}</el-button>
             <el-button size="small" type="danger" @click="deleteNamespace(row)"><el-icon><Delete /></el-icon></el-button>
           </template>
         </el-table-column>
@@ -200,73 +202,73 @@ onMounted(fetchNamespaces)
     <!-- Namespace Detail Dialog -->
     <el-dialog v-model="showDetailDialog" :title="selectedNs?.name" width="700px">
       <el-descriptions :column="2" border v-if="selectedNs">
-        <el-descriptions-item label="名称">{{ selectedNs.name }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
+        <el-descriptions-item :label="t('common.name')">{{ selectedNs.name }}</el-descriptions-item>
+        <el-descriptions-item :label="t('common.status')">
           <el-tag :type="statusColor(selectedNs.status)">{{ selectedNs.status }}</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ selectedNs.creationTimestamp }}</el-descriptions-item>
-        <el-descriptions-item label="UID">{{ selectedNs.uid }}</el-descriptions-item>
-        <el-descriptions-item label="标签" :span="2">
+        <el-descriptions-item :label="t('config.creationTime')">{{ selectedNs.creationTimestamp }}</el-descriptions-item>
+        <el-descriptions-item :label="t('namespace.uid')">{{ selectedNs.uid }}</el-descriptions-item>
+        <el-descriptions-item :label="t('workload.labels')" :span="2">
           <el-tag v-for="(val, key) in selectedNs.labels" :key="key" size="small" style="margin: 2px;">
             {{ key }}={{ val }}
           </el-tag>
-          <span v-if="!selectedNs.labels || Object.keys(selectedNs.labels).length === 0">无</span>
+          <span v-if="!selectedNs.labels || Object.keys(selectedNs.labels).length === 0">{{ t('common.no') }}</span>
         </el-descriptions-item>
-        <el-descriptions-item label="注解" :span="2">
+        <el-descriptions-item :label="t('namespace.annotations')" :span="2">
           <div v-for="(val, key) in selectedNs.annotations" :key="key" style="font-size: 12px;">
             {{ key }}: {{ val }}
           </div>
-          <span v-if="!selectedNs.annotations || Object.keys(selectedNs.annotations).length === 0">无</span>
+          <span v-if="!selectedNs.annotations || Object.keys(selectedNs.annotations).length === 0">{{ t('common.no') }}</span>
         </el-descriptions-item>
       </el-descriptions>
       <template #footer>
-        <el-button @click="showDetailDialog = false">关闭</el-button>
-        <el-button type="warning" @click="showDetailDialog = false; setQuota(selectedNs)">设置配额</el-button>
+        <el-button @click="showDetailDialog = false">{{ t('common.close') }}</el-button>
+        <el-button type="warning" @click="showDetailDialog = false; setQuota(selectedNs)">{{ t('namespace.setQuota') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- Create Namespace Dialog -->
-    <el-dialog v-model="showCreateDialog" title="创建命名空间" width="500px">
+    <el-dialog v-model="showCreateDialog" :title="t('namespace.createNamespace')" width="500px">
       <el-form :model="createForm" label-width="100px">
-        <el-form-item label="名称" required>
+        <el-form-item :label="t('common.name')" required>
           <el-input v-model="createForm.name" placeholder="my-namespace" />
         </el-form-item>
-        <el-form-item label="标签">
+        <el-form-item :label="t('workload.labels')">
           <div style="width: 100%;">
             <div v-for="(label, index) in createForm.labels" :key="index" style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <el-input v-model="label.key" placeholder="键" style="flex: 1;" />
-              <el-input v-model="label.value" placeholder="值" style="flex: 1;" />
+              <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 1;" />
+              <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 1;" />
               <el-button type="danger" circle @click="removeLabel(index)">-</el-button>
             </div>
-            <el-button @click="addLabel" type="primary" plain>添加标签</el-button>
+            <el-button @click="addLabel" type="primary" plain>{{ t('namespace.addLabel') }}</el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showCreateDialog = false">取消</el-button>
-        <el-button type="primary" @click="createNamespace">创建</el-button>
+        <el-button @click="showCreateDialog = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="createNamespace">{{ t('common.create') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- Quota Dialog -->
-    <el-dialog v-model="showQuotaDialog" :title="'资源配额: ' + selectedNs?.name" width="500px">
+    <el-dialog v-model="showQuotaDialog" :title="t('namespace.resourceQuota') + ': ' + selectedNs?.name" width="500px">
       <el-form :model="quotaForm" label-width="100px">
         <el-form-item label="CPU">
           <el-input v-model="quotaForm.cpu" placeholder="4 cores" />
         </el-form-item>
-        <el-form-item label="内存">
+        <el-form-item :label="t('namespace.memory')">
           <el-input v-model="quotaForm.memory" placeholder="8Gi" />
         </el-form-item>
-        <el-form-item label="存储">
+        <el-form-item :label="t('namespace.storage')">
           <el-input v-model="quotaForm.storage" placeholder="100Gi" />
         </el-form-item>
-        <el-form-item label="Pod 数量">
+        <el-form-item :label="t('namespace.podCount')">
           <el-input-number v-model="quotaForm.pods" :min="0" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showQuotaDialog = false">取消</el-button>
-        <el-button type="primary" @click="saveQuota">保存</el-button>
+        <el-button @click="showQuotaDialog = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="saveQuota">{{ t('common.save') }}</el-button>
       </template>
     </el-dialog>
   </div>

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 import { ElMessage } from 'element-plus'
 import { createStorageClass } from '@/api/resource'
 import type { FormInstance, FormRules } from 'element-plus'

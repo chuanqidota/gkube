@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Refresh, VideoPlay, VideoPause, Bell } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
+const { t } = useI18n()
 const loading = ref(false)
 const watching = ref(false)
 const selectedResource = ref('pods')

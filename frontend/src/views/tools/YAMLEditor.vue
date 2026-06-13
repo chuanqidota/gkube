@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Refresh, Download, Upload, Check, Close } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import * as monaco from 'monaco-editor'
 
+const { t } = useI18n()
 const loading = ref(false)
 const selectedResource = ref('deployment')
 const selectedNamespace = ref('default')

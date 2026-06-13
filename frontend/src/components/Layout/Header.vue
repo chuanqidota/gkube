@@ -6,7 +6,13 @@
       </el-icon>
       <el-breadcrumb separator="/">
         <el-breadcrumb-item :to="{ path: '/dashboard' }">{{ t('common.home') }}</el-breadcrumb-item>
-        <el-breadcrumb-item v-if="route.meta.title">{{ route.meta.title }}</el-breadcrumb-item>
+        <el-breadcrumb-item
+          v-for="item in breadcrumbs"
+          :key="item.path || item.title"
+          :to="item.to"
+        >
+          {{ item.title }}
+        </el-breadcrumb-item>
       </el-breadcrumb>
     </div>
     <div class="header-right">
@@ -73,9 +79,32 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const clusterStore = useClusterStore()
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 
 const currentLang = computed(() => locale.value === 'zh-CN' ? '中文' : 'English')
+
+const breadcrumbs = computed(() => {
+  const items: Array<{ title: string; path?: string; to?: { path: string } }> = []
+
+  // If route has meta.parent, find the parent route and insert it first
+  if (route.meta?.parent) {
+    const parentRoute = router.getRoutes().find(r => r.name === route.meta.parent)
+    if (parentRoute?.meta?.title) {
+      items.push({
+        title: parentRoute.meta.title as string,
+        path: parentRoute.path,
+        to: { path: parentRoute.path },
+      })
+    }
+  }
+
+  // Current page title
+  if (route.meta?.title) {
+    items.push({ title: route.meta.title as string })
+  }
+
+  return items
+})
 
 onMounted(() => {
   clusterStore.fetchClusters()

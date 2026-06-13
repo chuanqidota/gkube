@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Bell, Refresh, Delete, Setting, Check, Close } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
+const { t } = useI18n()
 const loading = ref(false)
 const notifications = ref<any[]>([])
 const selectedType = ref('')
@@ -63,10 +65,10 @@ function formatTime(time: string) {
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
 
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes} 分钟前`
-  if (hours < 24) return `${hours} 小时前`
-  return `${days} 天前`
+  if (minutes < 1) return t('notification.justNow')
+  if (minutes < 60) return t('notification.minutesAgo', { n: minutes })
+  if (hours < 24) return t('notification.hoursAgo', { n: hours })
+  return t('notification.daysAgo', { n: days })
 }
 
 async function fetchNotifications() {
@@ -102,7 +104,7 @@ function markAsRead(id: number) {
 
 function markAllAsRead() {
   notifications.value.forEach(n => n.read = true)
-  ElMessage.success('已全部标记为已读')
+  ElMessage.success(t('notification.markedAllRead'))
 }
 
 function deleteNotification(id: number) {
@@ -111,7 +113,7 @@ function deleteNotification(id: number) {
 
 function clearAll() {
   notifications.value = []
-  ElMessage.success('已清空所有通知')
+  ElMessage.success(t('notification.clearedAll'))
 }
 
 onMounted(fetchNotifications)
@@ -122,23 +124,23 @@ onMounted(fetchNotifications)
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
         <div class="filter-left">
-          <h3 style="margin: 0;"><el-icon><Bell /></el-icon> 通知中心</h3>
+          <h3 style="margin: 0;"><el-icon><Bell /></el-icon> {{ t('notification.title') }}</h3>
           <el-badge :value="unreadCount" :max="99" v-if="unreadCount > 0">
-            <el-tag type="danger" size="small">{{ unreadCount }} 未读</el-tag>
+            <el-tag type="danger" size="small">{{ unreadCount }} {{ t('notification.unread') }}</el-tag>
           </el-badge>
         </div>
         <div class="filter-right">
-          <el-select v-model="selectedType" placeholder="所有类型" clearable style="width: 120px;">
-            <el-option label="信息" value="info" />
-            <el-option label="警告" value="warning" />
-            <el-option label="错误" value="error" />
-            <el-option label="成功" value="success" />
+          <el-select v-model="selectedType" :placeholder="t('notification.allTypes')" clearable style="width: 120px;">
+            <el-option :label="t('notification.info')" value="info" />
+            <el-option :label="t('notification.warning')" value="warning" />
+            <el-option :label="t('notification.error')" value="error" />
+            <el-option :label="t('notification.success')" value="success" />
           </el-select>
-          <el-checkbox v-model="showUnreadOnly">仅未读</el-checkbox>
-          <el-button @click="markAllAsRead"><el-icon><Check /></el-icon> 全部已读</el-button>
-          <el-button type="danger" @click="clearAll"><el-icon><Delete /></el-icon> 清空</el-button>
+          <el-checkbox v-model="showUnreadOnly">{{ t('notification.unreadOnly') }}</el-checkbox>
+          <el-button @click="markAllAsRead"><el-icon><Check /></el-icon> {{ t('notification.markAllRead') }}</el-button>
+          <el-button type="danger" @click="clearAll"><el-icon><Delete /></el-icon> {{ t('notification.clearAll') }}</el-button>
           <el-button @click="showSettings = true"><el-icon><Setting /></el-icon></el-button>
-          <el-button type="primary" @click="fetchNotifications"><el-icon><Refresh /></el-icon> 刷新</el-button>
+          <el-button type="primary" @click="fetchNotifications"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
         </div>
       </div>
     </el-card>
@@ -173,31 +175,31 @@ onMounted(fetchNotifications)
         </div>
       </div>
 
-      <el-empty v-if="!loading && filteredNotifications.length === 0" description="暂无通知" />
+      <el-empty v-if="!loading && filteredNotifications.length === 0" :description="t('notification.noNotifications')" />
     </el-card>
 
     <!-- Settings Dialog -->
-    <el-dialog v-model="showSettings" title="通知设置" width="400px">
+    <el-dialog v-model="showSettings" :title="t('notification.settings')" width="400px">
       <el-form :model="settings" label-width="100px">
-        <el-form-item label="邮件通知">
+        <el-form-item :label="t('notification.emailNotification')">
           <el-switch v-model="settings.email" />
         </el-form-item>
-        <el-form-item label="Slack 通知">
+        <el-form-item :label="t('notification.slackNotification')">
           <el-switch v-model="settings.slack" />
         </el-form-item>
-        <el-form-item label="Webhook">
+        <el-form-item :label="t('notification.webhook')">
           <el-switch v-model="settings.webhook" />
         </el-form-item>
-        <el-form-item label="声音提醒">
+        <el-form-item :label="t('notification.soundAlert')">
           <el-switch v-model="settings.sound" />
         </el-form-item>
-        <el-form-item label="桌面通知">
+        <el-form-item :label="t('notification.desktopNotification')">
           <el-switch v-model="settings.desktop" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showSettings = false">取消</el-button>
-        <el-button type="primary" @click="showSettings = false; ElMessage.success('设置已保存')">保存</el-button>
+        <el-button @click="showSettings = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="showSettings = false; ElMessage.success(t('notification.settingsSaved'))">{{ t('common.save') }}</el-button>
       </template>
     </el-dialog>
   </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Search, Delete } from '@element-plus/icons-vue'
 import {
@@ -12,6 +13,7 @@ import {
 } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
+const { t } = useI18n()
 const activeTab = ref('serviceaccounts')
 const loading = ref(false)
 const searchName = ref('')

@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/request'
 import type { FormInstance, FormRules } from 'element-plus'
 
+const { t } = useI18n()
 const loading = ref(false)
 const userList = ref<any[]>([])
 const total = ref(0)
