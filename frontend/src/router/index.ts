@@ -521,6 +521,13 @@ const router = createRouter({
       name: 'SystemOverview',
       component: () => import('@/views/dashboard/SystemOverview.vue'),
     },
+
+    // Audit Log route
+    {
+      path: '/audit',
+      name: 'AuditLog',
+      component: () => import('@/views/audit/AuditLog.vue'),
+    },
   ],
 })
 

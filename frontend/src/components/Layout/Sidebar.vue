@@ -241,6 +241,10 @@
           <el-icon><Setting /></el-icon>
           <template #title>认证设置</template>
         </el-menu-item>
+        <el-menu-item index="/audit">
+          <el-icon><Document /></el-icon>
+          <template #title>审计日志</template>
+        </el-menu-item>
       </el-sub-menu>
     </el-menu>
   </div>

@@ -358,6 +358,13 @@ func Engine() *gin.Engine {
 			k8s.POST("approval/reject", k8sApi.Approval.RejectRequest)
 			k8s.DELETE("approval/delete", k8sApi.Approval.DeleteApproval)
 			k8s.GET("approval/stats", k8sApi.Approval.GetApprovalStats)
+
+			// Audit Logs
+			k8s.GET("audit/list", k8sApi.Audit.ListAuditLogs)
+			k8s.GET("audit/detail", k8sApi.Audit.GetAuditLog)
+			k8s.POST("audit/create", k8sApi.Audit.CreateAuditLog)
+			k8s.GET("audit/stats", k8sApi.Audit.GetAuditStats)
+			k8s.DELETE("audit/clear", k8sApi.Audit.ClearAuditLogs)
 		}
 	}
 
