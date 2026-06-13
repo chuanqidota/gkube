@@ -180,7 +180,7 @@ onMounted(fetchQuota)
           <div v-if="quota?.spec?.hard">
             <div v-for="(val, key) in quota.spec.hard" :key="key" class="quota-item">
               <div class="quota-header">
-                <span class="quota-name">{{ formatCategory(key) }}</span>
+                <span class="quota-name">{{ formatCategory(String(key)) }}</span>
                 <span class="quota-value">{{ quota.status?.used?.[key] || '0' }} / {{ val }}</span>
               </div>
               <el-progress

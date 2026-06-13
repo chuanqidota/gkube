@@ -32,6 +32,7 @@ import { useAuthStore } from '@/stores/auth'
 import { Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { handleOidcCallback } from '@/api/auth'
+import { setToken, setRefreshToken } from '@/utils/auth'
 
 const router = useRouter()
 const route = useRoute()
@@ -54,9 +55,10 @@ onMounted(async () => {
     const res = await handleOidcCallback(code, state)
     const data = res.data
 
-    authStore.setToken(data.accessToken)
-    authStore.setRefreshToken(data.refreshToken)
-    authStore.setUserInfo(data.user)
+    setToken(data.accessToken)
+    setRefreshToken(data.refreshToken)
+    authStore.token = data.accessToken
+    authStore.user = data.user
     ElMessage.success('OIDC 登录成功')
     router.push('/')
   } catch (err: any) {

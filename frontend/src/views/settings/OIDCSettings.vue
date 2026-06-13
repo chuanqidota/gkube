@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Save, Refresh } from '@element-plus/icons-vue'
+import { Check, Refresh } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
 const { t } = useI18n()
@@ -77,7 +77,7 @@ onMounted(fetchConfig)
       <div class="filter-bar">
         <h3 style="margin: 0;">{{ t('settings.title') }}</h3>
         <div style="display: flex; gap: 8px;">
-          <el-button type="primary" :loading="saving" @click="handleSave"><el-icon><Save /></el-icon> {{ t('common.save') }}</el-button>
+          <el-button type="primary" :loading="saving" @click="handleSave"><el-icon><Check /></el-icon> {{ t('common.save') }}</el-button>
           <el-button @click="fetchConfig"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
         </div>
       </div>

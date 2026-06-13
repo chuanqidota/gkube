@@ -43,7 +43,7 @@ export interface Ingress {
   age: string
 }
 
-export function getPodList(params?: { namespace?: string; cluster_id?: number }) {
+export function getPodList(params?: { namespace?: string; cluster_id?: number; labelSelector?: string }) {
   return request.get<Pod[]>('/k8s/pod/list', { params })
 }
 

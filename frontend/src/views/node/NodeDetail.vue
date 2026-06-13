@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getNodeDetail, getNodeYaml, getNodePods, getNodeEvents, cordonNode, taintNode } from '@/api/resource'
+import { getNodeDetail, getNodeYaml, getNodePods, getNodeEvents, cordonNode, taintNode, updateNodeYaml } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const route = useRoute()

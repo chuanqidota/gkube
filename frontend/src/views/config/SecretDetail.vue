@@ -16,7 +16,7 @@ const showDecoded = ref(true)
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
-const clusterName = (route.query.cluster as string) || ''
+
 
 const dataEntries = ref<{ key: string; rawValue: string; decodedValue: string }[]>([])
 
@@ -31,7 +31,7 @@ function base64Decode(str: string): string {
 async function fetchDetail() {
   loading.value = true
   try {
-    const res: any = await getSecretDetail({ clusterName, namespace, name })
+    const res: any = await getSecretDetail({ namespace, name })
     secret.value = res.data
     const data = res.data?.data || {}
     dataEntries.value = Object.entries(data).map(([key, value]) => {
@@ -52,7 +52,7 @@ async function fetchDetail() {
 async function fetchYaml() {
   yamlLoading.value = true
   try {
-    const res: any = await getSecretYaml({ clusterName, namespace, name })
+    const res: any = await getSecretYaml({ namespace, name })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to load YAML')

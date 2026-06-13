@@ -140,7 +140,6 @@ async function handleSubmit() {
   try {
     const yamlContent = generatedYaml.value
     await createConfigMap({
-      clusterName: '',
       namespace: form.namespace,
       yamlContent,
     })

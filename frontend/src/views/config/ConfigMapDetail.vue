@@ -15,14 +15,14 @@ const activeTab = ref('info')
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
-const clusterName = (route.query.cluster as string) || ''
+
 
 const dataEntries = ref<{ key: string; value: string }[]>([])
 
 async function fetchDetail() {
   loading.value = true
   try {
-    const res: any = await getConfigMapDetail({ clusterName, namespace, name })
+    const res: any = await getConfigMapDetail({ namespace, name })
     configMap.value = res.data
     const data = res.data?.data || {}
     dataEntries.value = Object.entries(data).map(([key, value]) => ({
@@ -39,7 +39,7 @@ async function fetchDetail() {
 async function fetchYaml() {
   yamlLoading.value = true
   try {
-    const res: any = await getConfigMapYaml({ clusterName, namespace, name })
+    const res: any = await getConfigMapYaml({ namespace, name })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to load YAML')

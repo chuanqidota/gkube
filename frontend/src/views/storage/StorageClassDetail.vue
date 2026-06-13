@@ -14,12 +14,12 @@ const yamlLoading = ref(false)
 const activeTab = ref('info')
 
 const name = route.params.name as string
-const clusterName = (route.query.cluster as string) || ''
+
 
 async function fetchDetail() {
   loading.value = true
   try {
-    const res: any = await getStorageClassDetail({ clusterName, name })
+    const res: any = await getStorageClassDetail({ name })
     storageClass.value = res.data
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to load StorageClass detail')
@@ -31,7 +31,7 @@ async function fetchDetail() {
 async function fetchYaml() {
   yamlLoading.value = true
   try {
-    const res: any = await getStorageClassYaml({ clusterName, name })
+    const res: any = await getStorageClassYaml({ name })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to load YAML')

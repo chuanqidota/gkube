@@ -222,7 +222,6 @@ async function handleSubmit() {
   try {
     const yamlContent = generatedYaml.value
     await createService({
-      clusterName: '',
       namespace: form.namespace,
       yamlContent,
     })

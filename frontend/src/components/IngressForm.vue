@@ -250,7 +250,6 @@ async function handleSubmit() {
   try {
     const yamlContent = generatedYaml.value
     await createIngress({
-      clusterName: '',
       namespace: form.namespace,
       yamlContent,
     })

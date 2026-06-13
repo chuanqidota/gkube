@@ -141,7 +141,7 @@ function renderGraph() {
       },
     },
     edges: {
-      smooth: { type: 'cubicBezier' },
+      smooth: { enabled: true, type: 'cubicBezier', roundness: 0.5 },
       width: 2,
     },
     physics: { enabled: false },

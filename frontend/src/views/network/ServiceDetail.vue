@@ -15,12 +15,12 @@ const activeTab = ref('info')
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
-const clusterName = (route.query.cluster as string) || ''
+
 
 async function fetchDetail() {
   loading.value = true
   try {
-    const res: any = await getServiceDetail({ clusterName, namespace, name })
+    const res: any = await getServiceDetail({ namespace, name })
     service.value = res.data
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to load service detail')
@@ -32,7 +32,7 @@ async function fetchDetail() {
 async function fetchYaml() {
   yamlLoading.value = true
   try {
-    const res: any = await getServiceYaml({ clusterName, namespace, name })
+    const res: any = await getServiceYaml({ namespace, name })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to load YAML')

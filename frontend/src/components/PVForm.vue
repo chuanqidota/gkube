@@ -6,10 +6,8 @@ import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { createPv } from '@/api/resource'
-import { useClusterStore } from '@/stores/cluster'
 
 const router = useRouter()
-const clusterStore = useClusterStore()
 const currentStep = ref(0)
 const submitting = ref(false)
 
@@ -200,8 +198,7 @@ async function handleSubmit() {
   submitting.value = true
   try {
     const yamlContent = generatedYaml.value
-    const clusterName = clusterStore.currentCluster?.clusterName || ''
-    await createPv({ clusterName, yamlContent })
+    await createPv({ yamlContent })
     ElMessage.success('PersistentVolume created successfully')
     router.push('/storage/pvs')
   } catch (e: any) {

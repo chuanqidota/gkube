@@ -6,10 +6,8 @@ import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { createPvc, getNamespaceList } from '@/api/resource'
-import { useClusterStore } from '@/stores/cluster'
 
 const router = useRouter()
-const clusterStore = useClusterStore()
 const currentStep = ref(0)
 const submitting = ref(false)
 const namespaceLoading = ref(false)
@@ -181,8 +179,7 @@ async function handleSubmit() {
   submitting.value = true
   try {
     const yamlContent = generatedYaml.value
-    const clusterName = clusterStore.currentCluster?.clusterName || ''
-    await createPvc({ clusterName, namespace: form.namespace, yamlContent })
+    await createPvc({ namespace: form.namespace, yamlContent })
     ElMessage.success('PersistentVolumeClaim created successfully')
     router.push('/storage/pvcs')
   } catch (e: any) {

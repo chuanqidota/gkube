@@ -170,7 +170,7 @@ onMounted(() => {
           <el-icon><Delete /></el-icon> 批量删除 ({{ selectedResources.length }})
         </el-button>
         <el-button type="warning" :disabled="selectedResources.length === 0 || selectedResource !== 'deployments'" @click="showScaleDialog = true">
-          <el-icon><VideoPlay }}</el-icon> 批量伸缩 ({{ selectedResources.length }})
+          <el-icon><VideoPlay /></el-icon> 批量伸缩 ({{ selectedResources.length }})
         </el-button>
       </div>
 

@@ -163,7 +163,6 @@ async function handleSubmit() {
   try {
     const yamlContent = generatedYaml.value
     await createSecret({
-      clusterName: '',
       namespace: form.namespace,
       yamlContent,
     })
