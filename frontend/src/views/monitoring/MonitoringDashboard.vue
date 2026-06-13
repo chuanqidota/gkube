@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh, Setting, Download } from '@element-plus/icons-vue'
+import { Refresh, Setting, Download, Monitor, Cpu, Coin } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import * as echarts from 'echarts'
 
 const loading = ref(false)
-const prometheusUrl = ref('')
 const prometheusConnected = ref(false)
 const activeTab = ref('overview')
 const refreshInterval = ref(30)
@@ -16,9 +15,6 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null
 // Node metrics
 const nodeMetrics = ref<any[]>([])
 const selectedNode = ref('')
-const nodeCpuChart = ref<echarts.ECharts | null>(null)
-const nodeMemoryChart = ref<echarts.ECharts | null>(null)
-const nodeNetworkChart = ref<echarts.ECharts | null>(null)
 
 // Pod metrics
 const podMetrics = ref<any[]>([])
@@ -32,6 +28,7 @@ const alerts = ref<any[]>([])
 // Chart refs
 const overviewCpuChartRef = ref<HTMLElement | null>(null)
 const overviewMemoryChartRef = ref<HTMLElement | null>(null)
+const overviewNetworkChartRef = ref<HTMLElement | null>(null)
 const nodeCpuChartRef = ref<HTMLElement | null>(null)
 const nodeMemoryChartRef = ref<HTMLElement | null>(null)
 const nodeNetworkChartRef = ref<HTMLElement | null>(null)
@@ -100,9 +97,6 @@ async function checkPrometheus() {
   try {
     const res: any = await request.get('/k8s/prometheus/targets')
     prometheusConnected.value = res.data?.status === 'success'
-    if (prometheusConnected.value) {
-      prometheusUrl.value = res.data?.url || ''
-    }
   } catch {
     prometheusConnected.value = false
   }
@@ -197,13 +191,15 @@ function updateCharts() {
 }
 
 function updateOverviewCharts() {
-  if (!overviewCpuChartRef.value || !overviewMemoryChartRef.value) return
+  if (!overviewCpuChartRef.value || !overviewMemoryChartRef.value || !overviewNetworkChartRef.value) return
 
   const cpuChart = echarts.init(overviewCpuChartRef.value)
   const memChart = echarts.init(overviewMemoryChartRef.value)
+  const netChart = echarts.init(overviewNetworkChartRef.value)
 
   const cpuData = prometheusData.value[0]?.data || []
   const memData = prometheusData.value[1]?.data || []
+  const netData = prometheusData.value[2]?.data || []
 
   const timeFormatter = (params: any) => {
     const date = new Date(params[0].value[0] * 1000)
@@ -211,7 +207,7 @@ function updateOverviewCharts() {
   }
 
   cpuChart.setOption({
-    title: { text: 'CPU Usage (%)', left: 'center' },
+    title: { text: 'CPU 使用率 (%)', left: 'center', textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'axis', formatter: timeFormatter },
     xAxis: { type: 'time' },
     yAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
@@ -225,7 +221,7 @@ function updateOverviewCharts() {
   })
 
   memChart.setOption({
-    title: { text: 'Memory Usage (%)', left: 'center' },
+    title: { text: '内存使用率 (%)', left: 'center', textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'axis', formatter: timeFormatter },
     xAxis: { type: 'time' },
     yAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
@@ -238,9 +234,24 @@ function updateOverviewCharts() {
     }]
   })
 
+  netChart.setOption({
+    title: { text: '网络 I/O (bytes/s)', left: 'center', textStyle: { fontSize: 14 } },
+    tooltip: { trigger: 'axis', formatter: timeFormatter },
+    xAxis: { type: 'time' },
+    yAxis: { type: 'value', axisLabel: { formatter: (v: number) => (v / 1024 / 1024).toFixed(1) + ' MB' } },
+    series: [{
+      type: 'line',
+      data: netData.map((d: any) => [d[0] * 1000, parseFloat(d[1])]),
+      smooth: true,
+      areaStyle: { opacity: 0.3 },
+      itemStyle: { color: '#E6A23C' }
+    }]
+  })
+
   window.addEventListener('resize', () => {
     cpuChart.resize()
     memChart.resize()
+    netChart.resize()
   })
 }
 
@@ -291,7 +302,7 @@ function updateNodeCharts() {
   netChart.setOption({
     title: { text: 'Network I/O', left: 'center' },
     tooltip: { trigger: 'axis' },
-    legend: { data: ['Receive', ' Transmit'], bottom: 0 },
+    legend: { data: ['Receive', 'Transmit'], bottom: 0 },
     xAxis: { type: 'category', data: ['Current'] },
     yAxis: { type: 'value', axisLabel: { formatter: (v: number) => (v / 1024 / 1024).toFixed(1) + ' MB/s' } },
     series: [
@@ -359,35 +370,72 @@ onUnmounted(() => {
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
         <div class="filter-left">
-          <h3 style="margin: 0;">Monitoring Dashboard</h3>
-          <el-tag v-if="prometheusConnected" type="success" size="small">Prometheus Connected</el-tag>
-          <el-tag v-else type="warning" size="small">Prometheus Not Connected</el-tag>
+          <h3 style="margin: 0;"><el-icon><Monitor /></el-icon> 监控面板</h3>
+          <el-tag v-if="prometheusConnected" type="success" size="small">Prometheus 已连接</el-tag>
+          <el-tag v-else type="warning" size="small">Prometheus 未连接</el-tag>
         </div>
         <div class="filter-right">
           <el-select v-model="timeRange" size="small" style="width: 100px;" @change="fetchPrometheusData">
             <el-option v-for="r in timeRanges" :key="r.value" :label="r.label" :value="r.value" />
           </el-select>
           <el-button size="small" :type="autoRefresh ? 'success' : 'info'" @click="toggleAutoRefresh">
-            {{ autoRefresh ? 'Auto' : 'Manual' }}
+            {{ autoRefresh ? '自动刷新' : '手动刷新' }}
           </el-button>
-          <el-button type="primary" size="small" @click="fetchAll"><el-icon><Refresh /></el-icon> Refresh</el-button>
+          <el-button type="primary" size="small" @click="fetchAll"><el-icon><Refresh /></el-icon> 刷新</el-button>
         </div>
       </div>
     </el-card>
 
     <el-card shadow="never">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="Overview" name="overview">
-          <div class="chart-grid">
-            <div ref="overviewCpuChartRef" class="chart-container"></div>
-            <div ref="overviewMemoryChartRef" class="chart-container"></div>
-          </div>
+        <el-tab-pane label="概览" name="overview">
+          <el-row :gutter="16" style="margin-bottom: 16px;">
+            <el-col :span="8">
+              <el-card shadow="never" class="stat-card">
+                <div class="stat-icon" style="background: #409EFF;"><el-icon><Cpu /></el-icon></div>
+                <div class="stat-info">
+                  <div class="stat-value">{{ nodeMetrics.length }}</div>
+                  <div class="stat-label">节点数量</div>
+                </div>
+              </el-card>
+            </el-col>
+            <el-col :span="8">
+              <el-card shadow="never" class="stat-card">
+                <div class="stat-icon" style="background: #67C23A;"><el-icon><Coin /></el-icon></div>
+                <div class="stat-info">
+                  <div class="stat-value">{{ podMetrics.length }}</div>
+                  <div class="stat-label">Pod 数量</div>
+                </div>
+              </el-card>
+            </el-col>
+            <el-col :span="8">
+              <el-card shadow="never" class="stat-card">
+                <div class="stat-icon" style="background: #E6A23C;"><el-icon><Monitor /></el-icon></div>
+                <div class="stat-info">
+                  <div class="stat-value">{{ alerts.length }}</div>
+                  <div class="stat-label">告警数量</div>
+                </div>
+              </el-card>
+            </el-col>
+          </el-row>
+
+          <el-row :gutter="16" style="margin-bottom: 16px;">
+            <el-col :span="8">
+              <div ref="overviewCpuChartRef" class="chart-container"></div>
+            </el-col>
+            <el-col :span="8">
+              <div ref="overviewMemoryChartRef" class="chart-container"></div>
+            </el-col>
+            <el-col :span="8">
+              <div ref="overviewNetworkChartRef" class="chart-container"></div>
+            </el-col>
+          </el-row>
 
           <el-divider />
 
-          <h4>Node Metrics</h4>
+          <h4>节点指标</h4>
           <el-table :data="nodeMetrics" v-loading="loading" stripe size="small">
-            <el-table-column prop="name" label="Node" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="name" label="节点" min-width="180" show-overflow-tooltip />
             <el-table-column label="CPU" min-width="200">
               <template #default="{ row }">
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -396,7 +444,7 @@ onUnmounted(() => {
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="Memory" min-width="200">
+            <el-table-column label="内存" min-width="200">
               <template #default="{ row }">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <el-progress :percentage="memoryPercent(row)" :color="progressColor(memoryPercent(row))" :stroke-width="12" style="flex: 1;" />
@@ -408,18 +456,18 @@ onUnmounted(() => {
 
           <el-divider />
 
-          <h4>Active Alerts</h4>
-          <el-table :data="alerts" v-loading="loading" stripe size="small" empty-text="No active alerts">
-            <el-table-column prop="labels.alertname" label="Alert" min-width="150" />
-            <el-table-column prop="labels.severity" label="Severity" width="100">
+          <h4>活跃告警</h4>
+          <el-table :data="alerts" v-loading="loading" stripe size="small" empty-text="暂无告警">
+            <el-table-column prop="labels.alertname" label="告警名称" min-width="150" />
+            <el-table-column prop="labels.severity" label="严重程度" width="100">
               <template #default="{ row }">
                 <el-tag :type="row.labels?.severity === 'critical' ? 'danger' : row.labels?.severity === 'warning' ? 'warning' : 'info'" size="small">
                   {{ row.labels?.severity || 'unknown' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="annotations.description" label="Description" min-width="300" show-overflow-tooltip />
-            <el-table-column prop="state" label="State" width="100">
+            <el-table-column prop="annotations.description" label="描述" min-width="300" show-overflow-tooltip />
+            <el-table-column prop="state" label="状态" width="100">
               <template #default="{ row }">
                 <el-tag :type="row.state === 'firing' ? 'danger' : 'success'" size="small">{{ row.state }}</el-tag>
               </template>
@@ -427,8 +475,8 @@ onUnmounted(() => {
           </el-table>
         </el-tab-pane>
 
-        <el-tab-pane label="Nodes" name="nodes">
-          <el-select v-model="selectedNode" placeholder="Select Node" style="width: 300px; margin-bottom: 16px;" @change="updateNodeCharts">
+        <el-tab-pane label="节点详情" name="nodes">
+          <el-select v-model="selectedNode" placeholder="选择节点" style="width: 300px; margin-bottom: 16px;" @change="updateNodeCharts">
             <el-option v-for="node in nodeMetrics" :key="node.name" :label="node.name" :value="node.name" />
           </el-select>
 
@@ -438,21 +486,21 @@ onUnmounted(() => {
             <div ref="nodeNetworkChartRef" class="chart-container"></div>
           </div>
 
-          <el-empty v-else description="Select a node to view detailed metrics" />
+          <el-empty v-else description="请选择节点查看详细指标" />
         </el-tab-pane>
 
-        <el-tab-pane label="Pods" name="pods">
-          <el-select v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 200px; margin-bottom: 16px;">
+        <el-tab-pane label="Pod 指标" name="pods">
+          <el-select v-model="selectedNamespace" placeholder="所有命名空间" clearable style="width: 200px; margin-bottom: 16px;">
             <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
           </el-select>
 
           <el-table :data="podMetrics.filter(p => !selectedNamespace || p.namespace === selectedNamespace)" v-loading="loading" stripe size="small">
             <el-table-column prop="name" label="Pod" min-width="250" show-overflow-tooltip />
-            <el-table-column prop="namespace" label="Namespace" width="140" />
+            <el-table-column prop="namespace" label="命名空间" width="140" />
             <el-table-column label="CPU" width="150">
               <template #default="{ row }">{{ formatCpu(parseCpu(row.cpuUsage)) }}</template>
             </el-table-column>
-            <el-table-column label="Memory" width="150">
+            <el-table-column label="内存" width="150">
               <template #default="{ row }">{{ formatMemory(parseMemory(row.memoryUsage)) }}</template>
             </el-table-column>
           </el-table>
@@ -468,6 +516,11 @@ onUnmounted(() => {
 .filter-bar { display: flex; justify-content: space-between; align-items: center; }
 .filter-left { display: flex; align-items: center; gap: 12px; }
 .filter-right { display: flex; align-items: center; gap: 8px; }
-.chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.stat-card { display: flex; align-items: center; padding: 16px; }
+.stat-icon { width: 48px; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; margin-right: 16px; }
+.stat-info { flex: 1; }
+.stat-value { font-size: 24px; font-weight: bold; color: #303133; }
+.stat-label { font-size: 14px; color: #909399; }
 .chart-container { height: 300px; border: 1px solid #ebeef5; border-radius: 4px; padding: 12px; }
+.chart-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 </style>
