@@ -5,7 +5,7 @@
         <Fold />
       </el-icon>
       <el-breadcrumb separator="/">
-        <el-breadcrumb-item :to="{ path: '/dashboard' }">首页</el-breadcrumb-item>
+        <el-breadcrumb-item :to="{ path: '/dashboard' }">{{ t('common.home') }}</el-breadcrumb-item>
         <el-breadcrumb-item v-if="route.meta.title">{{ route.meta.title }}</el-breadcrumb-item>
       </el-breadcrumb>
     </div>
@@ -23,7 +23,7 @@
       </el-dropdown>
       <el-select
         v-model="clusterStore.currentCluster"
-        placeholder="选择集群"
+        :placeholder="t('common.selectCluster')"
         size="small"
         style="width: 200px"
         clearable
@@ -52,7 +52,7 @@
             </el-dropdown-item>
             <el-dropdown-item divided command="logout">
               <el-icon><SwitchButton /></el-icon>
-              退出登录
+              {{ t('common.logout') }}
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>

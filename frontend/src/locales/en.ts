@@ -1,5 +1,6 @@
 export default {
   common: {
+    home: 'Home',
     dashboard: 'Dashboard',
     cluster: 'Clusters',
     workload: 'Workloads',
@@ -37,6 +38,8 @@ export default {
     deleteConfirm: 'Are you sure to delete {name}?',
     batchDelete: 'Batch Delete',
     selected: '{count} selected',
+    selectCluster: 'Select Cluster',
+    logout: 'Logout',
   },
   dashboard: {
     title: 'Dashboard',

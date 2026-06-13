@@ -1,5 +1,6 @@
 export default {
   common: {
+    home: '首页',
     dashboard: '仪表盘',
     cluster: '集群管理',
     workload: '工作负载',
@@ -37,6 +38,8 @@ export default {
     deleteConfirm: '确定删除 {name} 吗？',
     batchDelete: '批量删除',
     selected: '已选择 {count} 项',
+    selectCluster: '选择集群',
+    logout: '退出登录',
   },
   dashboard: {
     title: '仪表盘',
