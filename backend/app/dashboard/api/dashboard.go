@@ -14,6 +14,7 @@ import (
 	"gkube/pkg/response"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -33,22 +34,12 @@ func (d *dashboard) Overview(c *gin.Context) {
 		return
 	}
 
-	var totalClusters, onlineClusters, offlineClusters int
-	var totalNodes int
+	clusterCount := len(clusters)
+	var nodeCount, podCount, namespaceCount int
 
 	for _, cluster := range clusters {
-		totalClusters++
-		totalNodes += cluster.NodeCount
-		if cluster.Status == "online" {
-			onlineClusters++
-		} else {
-			offlineClusters++
-		}
-	}
+		nodeCount += cluster.NodeCount
 
-	// 从在线集群获取pod总数
-	var totalPods int
-	for _, cluster := range clusters {
 		if cluster.Status != "online" {
 			continue
 		}
@@ -60,26 +51,35 @@ func (d *dashboard) Overview(c *gin.Context) {
 		if err != nil {
 			continue
 		}
+
+		// Count pods
 		podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			continue
+		if err == nil {
+			podCount += len(podList.Items)
 		}
-		totalPods += len(podList.Items)
+
+		// Count namespaces
+		nsList, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+		if err == nil {
+			nsCount := len(nsList.Items)
+			if nsCount > namespaceCount {
+				namespaceCount = nsCount
+			}
+		}
 	}
 
 	data := map[string]any{
-		"totalClusters":   totalClusters,
-		"onlineClusters":  onlineClusters,
-		"offlineClusters": offlineClusters,
-		"totalNodes":      totalNodes,
-		"totalPods":       totalPods,
+		"cluster_count":   clusterCount,
+		"node_count":      nodeCount,
+		"pod_count":       podCount,
+		"namespace_count": namespaceCount,
 	}
 	response.Success(c, "获取概览数据成功", data)
 }
 
 // Resources
 //
-//	@Description: 获取各集群资源使用情况
+//	@Description: 获取集群资源使用情况（CPU/内存/存储）
 //	@receiver d
 //	@param c
 func (d *dashboard) Resources(c *gin.Context) {
@@ -89,7 +89,10 @@ func (d *dashboard) Resources(c *gin.Context) {
 		return
 	}
 
-	var resources []map[string]any
+	var totalCPUUsed, totalCPUTotal resource.Quantity
+	var totalMemUsed, totalMemTotal resource.Quantity
+	var totalStorageUsed, totalStorageTotal resource.Quantity
+
 	for _, cluster := range clusters {
 		kubeConfig, err := auth.DecryptAES(cluster.KubeConfig)
 		if err != nil {
@@ -100,43 +103,73 @@ func (d *dashboard) Resources(c *gin.Context) {
 			continue
 		}
 
-		// 获取节点数量
+		// Sum node capacity and allocatable
 		nodeList, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			continue
 		}
-		nodeCount := len(nodeList.Items)
+		for _, node := range nodeList.Items {
+			totalCPUTotal.Add(*node.Status.Capacity.Cpu())
+			totalMemTotal.Add(*node.Status.Capacity.Memory())
+			totalStorageTotal.Add(*node.Status.Capacity.StorageEphemeral())
 
-		// 获取pod数量
+			totalCPUUsed.Add(*node.Status.Allocatable.Cpu())
+			totalMemUsed.Add(*node.Status.Allocatable.Memory())
+		}
+
+		// Sum pod resource requests as "used"
 		podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			continue
 		}
-		podCount := len(podList.Items)
-
-		// 统计运行中的pod数量
-		runningPodCount := 0
 		for _, pod := range podList.Items {
-			if pod.Status.Phase == corev1.PodRunning {
-				runningPodCount++
+			if pod.Status.Phase != corev1.PodRunning && pod.Status.Phase != corev1.PodPending {
+				continue
+			}
+			for _, container := range pod.Spec.Containers {
+				if req, ok := container.Resources.Requests[corev1.ResourceCPU]; ok {
+					totalCPUUsed.Add(req)
+				}
+				if req, ok := container.Resources.Requests[corev1.ResourceMemory]; ok {
+					totalMemUsed.Add(req)
+				}
 			}
 		}
-
-		resources = append(resources, map[string]any{
-			"clusterId":     cluster.ID,
-			"clusterName":   cluster.ClusterName,
-			"displayName":   cluster.DisplayName,
-			"nodeCount":     nodeCount,
-			"podCount":      podCount,
-			"runningPods":   runningPodCount,
-		})
 	}
-	response.Success(c, "获取资源信息成功", resources)
+
+	// Convert to human-readable units
+	// CPU in cores (float64)
+	cpuUsed := float64(totalCPUUsed.MilliValue()) / 1000.0
+	cpuTotal := float64(totalCPUTotal.MilliValue()) / 1000.0
+
+	// Memory in GiB (float64)
+	memUsed := float64(totalMemUsed.Value()) / (1024 * 1024 * 1024)
+	memTotal := float64(totalMemTotal.Value()) / (1024 * 1024 * 1024)
+
+	// Storage in GiB (float64)
+	storageUsed := float64(totalStorageUsed.Value()) / (1024 * 1024 * 1024)
+	storageTotal := float64(totalStorageTotal.Value()) / (1024 * 1024 * 1024)
+
+	data := map[string]any{
+		"cpu": map[string]any{
+			"used":  cpuUsed,
+			"total": cpuTotal,
+		},
+		"memory": map[string]any{
+			"used":  memUsed,
+			"total": memTotal,
+		},
+		"storage": map[string]any{
+			"used":  storageUsed,
+			"total": storageTotal,
+		},
+	}
+	response.Success(c, "获取资源信息成功", data)
 }
 
 // Workloads
 //
-//	@Description: 获取各集群工作负载统计
+//	@Description: 获取所有集群工作负载统计
 //	@receiver d
 //	@param c
 func (d *dashboard) Workloads(c *gin.Context) {
@@ -146,7 +179,8 @@ func (d *dashboard) Workloads(c *gin.Context) {
 		return
 	}
 
-	var workloads []map[string]any
+	var totalDeployments, totalStatefulSets, totalDaemonSets, totalJobs, totalCronJobs int
+
 	for _, cluster := range clusters {
 		kubeConfig, err := auth.DecryptAES(cluster.KubeConfig)
 		if err != nil {
@@ -157,37 +191,40 @@ func (d *dashboard) Workloads(c *gin.Context) {
 			continue
 		}
 
-		// 统计Deployment数量
-		deploymentList, err := client.AppsV1().Deployments(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			continue
+		deployments, err := client.AppsV1().Deployments(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		if err == nil {
+			totalDeployments += len(deployments.Items)
 		}
-		deploymentCount := len(deploymentList.Items)
 
-		// 统计StatefulSet数量
-		statefulSetList, err := client.AppsV1().StatefulSets(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			continue
+		statefulSets, err := client.AppsV1().StatefulSets(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		if err == nil {
+			totalStatefulSets += len(statefulSets.Items)
 		}
-		statefulSetCount := len(statefulSetList.Items)
 
-		// 统计DaemonSet数量
-		daemonSetList, err := client.AppsV1().DaemonSets(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			continue
+		daemonSets, err := client.AppsV1().DaemonSets(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		if err == nil {
+			totalDaemonSets += len(daemonSets.Items)
 		}
-		daemonSetCount := len(daemonSetList.Items)
 
-		workloads = append(workloads, map[string]any{
-			"clusterId":      cluster.ID,
-			"clusterName":    cluster.ClusterName,
-			"displayName":    cluster.DisplayName,
-			"deployments":    deploymentCount,
-			"statefulSets":   statefulSetCount,
-			"daemonSets":     daemonSetCount,
-		})
+		jobs, err := client.BatchV1().Jobs(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		if err == nil {
+			totalJobs += len(jobs.Items)
+		}
+
+		cronJobs, err := client.BatchV1().CronJobs(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		if err == nil {
+			totalCronJobs += len(cronJobs.Items)
+		}
 	}
-	response.Success(c, "获取工作负载信息成功", workloads)
+
+	data := map[string]any{
+		"deployments":  totalDeployments,
+		"statefulsets": totalStatefulSets,
+		"daemonsets":   totalDaemonSets,
+		"jobs":         totalJobs,
+		"cronjobs":     totalCronJobs,
+	}
+	response.Success(c, "获取工作负载信息成功", data)
 }
 
 // Events
@@ -245,24 +282,28 @@ func (d *dashboard) Events(c *gin.Context) {
 			if query.Type != "" && event.Type != query.Type {
 				continue
 			}
+
+			lastSeen := ""
+			if !event.LastTimestamp.IsZero() {
+				lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
+			} else if !event.EventTime.IsZero() {
+				lastSeen = event.EventTime.Time.Format("2006-01-02 15:04:05")
+			}
+
 			allEvents = append(allEvents, map[string]any{
-				"clusterId":   cluster.ID,
-				"clusterName": cluster.ClusterName,
-				"namespace":   event.Namespace,
-				"type":        event.Type,
-				"reason":      event.Reason,
-				"message":     event.Message,
-				"object":      fmt.Sprintf("%s/%s", event.InvolvedObject.Kind, event.InvolvedObject.Name),
-				"count":       event.Count,
-				"firstTime":   event.FirstTimestamp.Time,
-				"lastTime":    event.LastTimestamp.Time,
+				"type":            event.Type,
+				"reason":          event.Reason,
+				"message":         event.Message,
+				"namespace":       event.Namespace,
+				"involved_object": fmt.Sprintf("%s/%s", event.InvolvedObject.Kind, event.InvolvedObject.Name),
+				"last_seen":       lastSeen,
 			})
 		}
 	}
 
 	// 按最后时间倒序排序
 	sort.Slice(allEvents, func(i, j int) bool {
-		return allEvents[i]["lastTime"].(string) > allEvents[j]["lastTime"].(string)
+		return allEvents[i]["last_seen"].(string) > allEvents[j]["last_seen"].(string)
 	})
 
 	// 限制返回数量

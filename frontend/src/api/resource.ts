@@ -60,15 +60,15 @@ export function getNamespaceList(params?: { cluster_id?: number }) {
 }
 
 // Service
-export function getServiceDetail(params: { clusterName: string; namespace: string; name: string }) {
+export function getServiceDetail(params: { namespace: string; name: string }) {
   return request.get('/k8s/service/detail', { params })
 }
 
-export function getServiceYaml(params: { clusterName: string; namespace: string; name: string }) {
+export function getServiceYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/service/get-yaml', { params })
 }
 
-export function deleteService(data: { clusterName: string; namespace: string; name: string }) {
+export function deleteService(data: { namespace: string; name: string }) {
   return request.delete('/k8s/service/delete', { data })
 }
 
@@ -77,20 +77,32 @@ export function getNodeList(params?: { cluster_id?: number }) {
   return request.get('/k8s/cluster/nodes', { params })
 }
 
-export function getNodeYaml(params: { name: string; cluster_id?: number }) {
+export function getNodeDetail(params: { name: string }) {
+  return request.get('/k8s/node/detail', { params })
+}
+
+export function getNodeYaml(params: { name: string }) {
   return request.get('/k8s/node/get-yaml', { params })
 }
 
-export function cordonNode(data: { name: string; cordon: boolean; cluster_id?: number }) {
+export function updateNodeYaml(data: { name: string; yaml: string }) {
+  return request.put('/k8s/node/update-yaml', data)
+}
+
+export function cordonNode(data: { name: string; cordon: boolean }) {
   return request.put('/k8s/node/cordon', data)
 }
 
-export function taintNode(data: { name: string; taints: any[]; cluster_id?: number }) {
+export function taintNode(data: { name: string; taints: any[] }) {
   return request.put('/k8s/node/taint', data)
 }
 
-export function getNodePods(params: { name: string; cluster_id?: number }) {
+export function getNodePods(params: { name: string }) {
   return request.get('/k8s/node/pods', { params })
+}
+
+export function getNodeEvents(params: { name: string }) {
+  return request.get('/k8s/node/events', { params })
 }
 
 // Namespace
@@ -103,82 +115,94 @@ export function getIngressList(params?: { namespace?: string; cluster_id?: numbe
   return request.get('/k8s/ingress/list', { params })
 }
 
-export function getIngressDetail(params: { clusterName: string; namespace: string; name: string }) {
+export function getIngressDetail(params: { namespace: string; name: string }) {
   return request.get('/k8s/ingress/detail', { params })
 }
 
-export function getIngressYaml(params: { clusterName: string; namespace: string; name: string }) {
+export function getIngressYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/ingress/get-yaml', { params })
 }
 
-export function deleteIngress(data: { clusterName: string; namespace: string; name: string }) {
+export function deleteIngress(data: { namespace: string; name: string }) {
   return request.delete('/k8s/ingress/delete', { data })
 }
 
 // Service create
-export function createService(data: { clusterName: string; namespace: string; yamlContent: string }) {
+export function createService(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/service/create', data)
 }
 
 // Ingress create
-export function createIngress(data: { clusterName: string; namespace: string; yamlContent: string }) {
+export function createIngress(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/ingress/create', data)
 }
 
 // ConfigMap create
-export function createConfigMap(data: { clusterName: string; namespace: string; yamlContent: string }) {
+export function createConfigMap(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/configmap/create', data)
 }
 
 // Secret create
-export function createSecret(data: { clusterName: string; namespace: string; yamlContent: string }) {
+export function createSecret(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/secret/create', data)
 }
 
 // Pod detail / actions
-export function getPodDetail(params: { clusterName: string; namespace: string; name: string }) {
+export function getPodDetail(params: { namespace: string; name: string }) {
   return request.get('/k8s/pod/detail', { params })
 }
 
-export function getPodYaml(params: { clusterName: string; namespace: string; name: string }) {
+export function getPodYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/pod/get-yaml', { params })
 }
 
-export function deletePod(data: { clusterName: string; namespace: string; name: string }) {
+export function updatePodYaml(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/pod/update-yaml', data)
+}
+
+export function deletePod(data: { namespace: string; name: string }) {
   return request.delete('/k8s/pod/delete', { data })
 }
 
-export function getPodEvents(params: { clusterName: string; namespace: string; name: string }) {
+export function getPodEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/pod/events', { params })
 }
 
 // Deployment create
-export function createDeployment(data: { clusterName: string; namespace: string; yamlContent: string }) {
+export function createDeployment(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/deployment/create', data)
 }
 
 // Deployment detail / actions
-export function getDeploymentDetail(params: { clusterName: string; namespace: string; name: string }) {
+export function getDeploymentDetail(params: { namespace: string; name: string }) {
   return request.get('/k8s/deployment/detail', { params })
 }
 
-export function getDeploymentYaml(params: { clusterName: string; namespace: string; name: string }) {
+export function getDeploymentYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/deployment/get-yaml', { params })
 }
 
-export function scaleDeployment(data: { clusterName: string; namespace: string; name: string; replicas: number }) {
+export function updateDeploymentYaml(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/deployment/update-yaml', data)
+}
+
+export function getDeploymentEvents(params: { namespace: string; name: string }) {
+  return request.get('/k8s/deployment/events', { params })
+}
+
+export function scaleDeployment(data: { namespace: string; name: string; replicas: number }) {
   return request.put('/k8s/deployment/scale', data)
 }
 
-export function restartDeployment(data: { clusterName: string; namespace: string; name: string }) {
+export function restartDeployment(data: { namespace: string; name: string }) {
   return request.post('/k8s/deployment/restart', data)
 }
 
-export function rollbackDeployment(data: { clusterName: string; namespace: string; name: string; revision: number }) {
+export function rollbackDeployment(data: { namespace: string; name: string; revision: number }) {
   return request.post('/k8s/deployment/rollback', data)
 }
 
-export function deleteDeployment(data: { clusterName: string; namespace: string; name: string }) {
+export function deleteDeployment(data: { namespace: string; name: string }) {
   return request.delete('/k8s/deployment/delete', { data })
 }
 
@@ -192,15 +216,15 @@ export function getConfigMapList(params?: { namespace?: string; cluster_id?: num
   return request.get('/k8s/configmap/list', { params })
 }
 
-export function getConfigMapDetail(params: { clusterName: string; namespace: string; name: string }) {
+export function getConfigMapDetail(params: { namespace: string; name: string }) {
   return request.get('/k8s/configmap/detail', { params })
 }
 
-export function getConfigMapYaml(params: { clusterName: string; namespace: string; name: string }) {
+export function getConfigMapYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/configmap/get-yaml', { params })
 }
 
-export function deleteConfigMap(data: { clusterName: string; namespace: string; name: string }) {
+export function deleteConfigMap(data: { namespace: string; name: string }) {
   return request.delete('/k8s/configmap/delete', { data })
 }
 
@@ -209,20 +233,20 @@ export function getSecretList(params?: { namespace?: string; cluster_id?: number
   return request.get('/k8s/secret/list', { params })
 }
 
-export function getSecretDetail(params: { clusterName: string; namespace: string; name: string }) {
+export function getSecretDetail(params: { namespace: string; name: string }) {
   return request.get('/k8s/secret/detail', { params })
 }
 
-export function getSecretYaml(params: { clusterName: string; namespace: string; name: string }) {
+export function getSecretYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/secret/get-yaml', { params })
 }
 
-export function deleteSecret(data: { clusterName: string; namespace: string; name: string }) {
+export function deleteSecret(data: { namespace: string; name: string }) {
   return request.delete('/k8s/secret/delete', { data })
 }
 
 // PV
-export function getPvDetail(params: { clusterName: string; name: string }) {
+export function getPvDetail(params: { name: string }) {
   return request.get('/k8s/pv/detail', { params })
 }
 
@@ -230,20 +254,20 @@ export function getPvList(params?: { cluster_id?: number }) {
   return request.get('/k8s/pv/list', { params })
 }
 
-export function getPvYaml(params: { clusterName: string; name: string }) {
+export function getPvYaml(params: { name: string }) {
   return request.get('/k8s/pv/get-yaml', { params })
 }
 
-export function deletePv(data: { clusterName: string; name: string }) {
+export function deletePv(data: { name: string }) {
   return request.delete('/k8s/pv/delete', { data })
 }
 
-export function createPv(data: { clusterName: string; yamlContent: string }) {
+export function createPv(data: { yamlContent: string }) {
   return request.post('/k8s/pv/create', data)
 }
 
 // PVC
-export function getPvcDetail(params: { clusterName: string; namespace: string; name: string }) {
+export function getPvcDetail(params: { namespace: string; name: string }) {
   return request.get('/k8s/pvc/detail', { params })
 }
 
@@ -251,20 +275,20 @@ export function getPvcList(params?: { namespace?: string; cluster_id?: number })
   return request.get('/k8s/pvc/list', { params })
 }
 
-export function getPvcYaml(params: { clusterName: string; namespace: string; name: string }) {
+export function getPvcYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/pvc/get-yaml', { params })
 }
 
-export function deletePvc(data: { clusterName: string; namespace: string; name: string }) {
+export function deletePvc(data: { namespace: string; name: string }) {
   return request.delete('/k8s/pvc/delete', { data })
 }
 
-export function createPvc(data: { clusterName: string; namespace: string; yamlContent: string }) {
+export function createPvc(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/pvc/create', data)
 }
 
 // StorageClass
-export function getStorageClassDetail(params: { clusterName: string; name: string }) {
+export function getStorageClassDetail(params: { name: string }) {
   return request.get('/k8s/storageclass/detail', { params })
 }
 
@@ -272,12 +296,12 @@ export function getStorageClassList(params?: { cluster_id?: number }) {
   return request.get('/k8s/storageclass/list', { params })
 }
 
-export function getStorageClassYaml(params: { clusterName: string; name: string }) {
+export function getStorageClassYaml(params: { name: string }) {
   return request.get('/k8s/storageclass/get-yaml', { params })
 }
 
 // StatefulSet
-export function createStatefulSet(data: { clusterName: string; namespace: string; yamlContent: string }) {
+export function createStatefulSet(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/statefulset/create', data)
 }
 
@@ -295,7 +319,7 @@ export function deleteStatefulSet(data: any) {
 }
 
 // DaemonSet
-export function createDaemonSet(data: { clusterName: string; namespace: string; yamlContent: string }) {
+export function createDaemonSet(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/daemonset/create', data)
 }
 
@@ -313,7 +337,7 @@ export function deleteDaemonSet(data: any) {
 }
 
 // Job
-export function createJob(data: { clusterName: string; namespace: string; yamlContent: string }) {
+export function createJob(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/job/create', data)
 }
 
@@ -331,7 +355,7 @@ export function deleteJob(data: any) {
 }
 
 // CronJob
-export function createCronJob(data: { clusterName: string; namespace: string; yamlContent: string }) {
+export function createCronJob(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/cronjob/create', data)
 }
 

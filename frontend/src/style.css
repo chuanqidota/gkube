@@ -45,7 +45,26 @@ html, body, #app {
 
 /* Page container */
 .page-container {
-  padding: 20px;
+  padding: 0;
+}
+
+/* Filter card */
+.filter-card {
+  margin-bottom: 16px;
+}
+
+.filter-card .el-card__body {
+  padding: 16px 20px;
+}
+
+/* Table card */
+.table-card {
+  margin-bottom: 16px;
+}
+
+.table-card .el-card__header {
+  padding: 12px 20px;
+  border-bottom: 1px solid #ebeef5;
 }
 
 /* Filter bar */
@@ -53,7 +72,6 @@ html, body, #app {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 
@@ -62,6 +80,52 @@ html, body, #app {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* Detail header */
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Workload grid for dashboard */
+.workload-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.workload-item {
+  text-align: center;
+  padding: 16px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.workload-count {
+  font-size: 28px;
+  font-weight: 700;
+  color: #409eff;
+}
+
+.workload-label {
+  font-size: 13px;
+  color: #909399;
+  margin-top: 4px;
 }
 
 /* Status tags */

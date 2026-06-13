@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
 import {
   getDeploymentList,
   getDeploymentYaml,
@@ -17,7 +18,8 @@ const loading = ref(false)
 const deploymentList = ref<any[]>([])
 const namespaceList = ref<string[]>([])
 const selectedNamespace = ref('')
-const clusterName = ref('')
+const searchName = ref('')
+const selectedRows = ref<any[]>([])
 
 // YAML dialog
 const yamlDialogVisible = ref(false)
@@ -29,6 +31,12 @@ const scaleDialogVisible = ref(false)
 const scaleTarget = ref<any>(null)
 const scaleReplicas = ref(1)
 const scaleLoading = ref(false)
+
+const filteredList = computed(() => {
+  if (!searchName.value) return deploymentList.value
+  const keyword = searchName.value.toLowerCase()
+  return deploymentList.value.filter((d) => d.name?.toLowerCase().includes(keyword))
+})
 
 async function fetchNamespaces() {
   try {
@@ -44,7 +52,6 @@ async function fetchDeployments() {
   try {
     const params: any = {}
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
-    if (clusterName.value) params.clusterName = clusterName.value
     const res: any = await getDeploymentList(params)
     deploymentList.value = res.data || []
   } catch (e: any) {
@@ -58,13 +65,16 @@ function handleNamespaceChange() {
   fetchDeployments()
 }
 
+function handleSelectionChange(rows: any[]) {
+  selectedRows.value = rows
+}
+
 async function handleViewYaml(row: any) {
   yamlDialogVisible.value = true
   yamlLoading.value = true
   yamlContent.value = ''
   try {
     const res: any = await getDeploymentYaml({
-      clusterName: clusterName.value,
       namespace: row.namespace,
       name: row.name,
     })
@@ -79,7 +89,6 @@ async function handleViewYaml(row: any) {
 
 function handleScale(row: any) {
   scaleTarget.value = row
-  // Parse ready replicas (e.g., "2/3" -> 3)
   const readyStr = row.ready || '0'
   const parts = readyStr.split('/')
   scaleReplicas.value = parseInt(parts[1] || parts[0]) || 1
@@ -91,7 +100,6 @@ async function handleScaleConfirm() {
   scaleLoading.value = true
   try {
     await scaleDeployment({
-      clusterName: clusterName.value,
       namespace: scaleTarget.value.namespace,
       name: scaleTarget.value.name,
       replicas: scaleReplicas.value,
@@ -108,16 +116,8 @@ async function handleScaleConfirm() {
 
 async function handleRestart(row: any) {
   try {
-    await ElMessageBox.confirm(
-      `Restart deployment "${row.name}"?`,
-      'Confirm',
-      { type: 'warning' }
-    )
-    await restartDeployment({
-      clusterName: clusterName.value,
-      namespace: row.namespace,
-      name: row.name,
-    })
+    await ElMessageBox.confirm(`Restart deployment "${row.name}"?`, 'Confirm', { type: 'warning' })
+    await restartDeployment({ namespace: row.namespace, name: row.name })
     ElMessage.success('Deployment restarted')
     fetchDeployments()
   } catch {
@@ -136,12 +136,32 @@ async function handleDelete(row: any) {
       'Confirm',
       { type: 'warning' }
     )
-    await deleteDeployment({
-      clusterName: clusterName.value,
-      namespace: row.namespace,
-      name: row.name,
-    })
+    await deleteDeployment({ namespace: row.namespace, name: row.name })
     ElMessage.success('Deployment deleted')
+    fetchDeployments()
+  } catch {
+    // cancelled
+  }
+}
+
+async function handleBatchDelete() {
+  if (!selectedRows.value.length) return
+  try {
+    await ElMessageBox.confirm(
+      `Delete ${selectedRows.value.length} selected deployment(s)?`,
+      'Confirm',
+      { type: 'warning' }
+    )
+    let successCount = 0
+    for (const row of selectedRows.value) {
+      try {
+        await deleteDeployment({ namespace: row.namespace, name: row.name })
+        successCount++
+      } catch {
+        // continue with others
+      }
+    }
+    ElMessage.success(`Deleted ${successCount} deployment(s)`)
     fetchDeployments()
   } catch {
     // cancelled
@@ -155,18 +175,17 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h2 style="margin: 0;">Deployments</h2>
-      <div style="display: flex; gap: 12px; align-items: center;">
+  <div class="page-container">
+    <el-card shadow="never" class="filter-card">
+      <div class="filter-bar">
         <el-input
-          v-model="clusterName"
-          placeholder="Cluster Name"
-          style="width: 180px;"
+          v-model="searchName"
+          placeholder="Search by name"
+          style="width: 220px;"
           clearable
-          @clear="fetchDeployments"
-          @keyup.enter="fetchDeployments"
-        />
+        >
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
         <el-select
           v-model="selectedNamespace"
           placeholder="All Namespaces"
@@ -174,38 +193,48 @@ onMounted(() => {
           style="width: 180px;"
           @change="handleNamespaceChange"
         >
-          <el-option
-            v-for="ns in namespaceList"
-            :key="ns"
-            :label="ns"
-            :value="ns"
-          />
+          <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="fetchDeployments">Refresh</el-button>
-        <el-button type="success" @click="router.push('/workloads/deployments/create')">Create</el-button>
+        <el-button type="primary" @click="fetchDeployments">
+          <el-icon><Refresh /></el-icon> Refresh
+        </el-button>
+        <el-button type="success" @click="router.push('/workloads/deployments/create')">
+          <el-icon><Plus /></el-icon> Create
+        </el-button>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})
+        </el-button>
       </div>
-    </div>
+    </el-card>
 
-    <el-table :data="deploymentList" v-loading="loading" stripe style="width: 100%">
-      <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
-        <template #default="{ row }">
-          <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
-        </template>
-      </el-table-column>
-      <el-table-column prop="namespace" label="Namespace" width="140" />
-      <el-table-column prop="ready" label="Ready" width="100" />
-      <el-table-column prop="up_to_date" label="Up-to-date" width="110" />
-      <el-table-column prop="available" label="Available" width="110" />
-      <el-table-column prop="age" label="Age" width="120" />
-      <el-table-column label="Actions" width="320" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-          <el-button size="small" type="warning" @click="handleScale(row)">Scale</el-button>
-          <el-button size="small" type="success" @click="handleRestart(row)">Restart</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <el-card shadow="never" class="table-card">
+      <el-table
+        :data="filteredList"
+        v-loading="loading"
+        stripe
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="45" />
+        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
+          </template>
+        </el-table-column>
+        <el-table-column prop="namespace" label="Namespace" width="140" />
+        <el-table-column prop="ready" label="Ready" width="100" />
+        <el-table-column prop="up_to_date" label="Up-to-date" width="110" />
+        <el-table-column prop="available" label="Available" width="110" />
+        <el-table-column prop="age" label="Age" width="120" />
+        <el-table-column label="Actions" width="320" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+            <el-button size="small" type="warning" @click="handleScale(row)">Scale</el-button>
+            <el-button size="small" type="success" @click="handleRestart(row)">Restart</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
 
     <!-- YAML Dialog -->
     <el-dialog v-model="yamlDialogVisible" title="Deployment YAML" width="70%" top="5vh" destroy-on-close>
@@ -217,9 +246,7 @@ onMounted(() => {
     <!-- Scale Dialog -->
     <el-dialog v-model="scaleDialogVisible" title="Scale Deployment" width="400px" destroy-on-close>
       <div v-if="scaleTarget">
-        <p style="margin-bottom: 12px;">
-          Deployment: <strong>{{ scaleTarget.name }}</strong>
-        </p>
+        <p style="margin-bottom: 12px;">Deployment: <strong>{{ scaleTarget.name }}</strong></p>
         <el-form-item label="Replicas">
           <el-input-number v-model="scaleReplicas" :min="0" :max="100" />
         </el-form-item>
@@ -231,3 +258,21 @@ onMounted(() => {
     </el-dialog>
   </div>
 </template>
+
+<style scoped>
+.page-container {
+  padding: 20px;
+}
+.filter-card {
+  margin-bottom: 16px;
+}
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.table-card {
+  border-radius: 8px;
+}
+</style>

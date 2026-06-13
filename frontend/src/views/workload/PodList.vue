@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Refresh, Delete, Search, Monitor } from '@element-plus/icons-vue'
 import { getPodList, getPodYaml, deletePod, getNamespaceList } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
@@ -10,12 +11,19 @@ const loading = ref(false)
 const podList = ref<any[]>([])
 const namespaceList = ref<string[]>([])
 const selectedNamespace = ref('')
-const clusterName = ref('')
+const searchName = ref('')
+const selectedRows = ref<any[]>([])
 
 // YAML dialog
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
+
+const filteredList = computed(() => {
+  if (!searchName.value) return podList.value
+  const keyword = searchName.value.toLowerCase()
+  return podList.value.filter((p) => p.name?.toLowerCase().includes(keyword))
+})
 
 async function fetchNamespaces() {
   try {
@@ -31,7 +39,6 @@ async function fetchPods() {
   try {
     const params: any = {}
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
-    if (clusterName.value) params.clusterName = clusterName.value
     const res: any = await getPodList(params)
     podList.value = res.data || []
   } catch (e: any) {
@@ -45,13 +52,16 @@ function handleNamespaceChange() {
   fetchPods()
 }
 
+function handleSelectionChange(rows: any[]) {
+  selectedRows.value = rows
+}
+
 async function handleViewYaml(row: any) {
   yamlDialogVisible.value = true
   yamlLoading.value = true
   yamlContent.value = ''
   try {
     const res: any = await getPodYaml({
-      clusterName: clusterName.value,
       namespace: row.namespace,
       name: row.name,
     })
@@ -67,7 +77,14 @@ async function handleViewYaml(row: any) {
 function handleViewLogs(row: any) {
   router.push({
     path: '/logs',
-    query: { namespace: row.namespace, pod: row.name, cluster: clusterName.value },
+    query: { namespace: row.namespace, pod: row.name },
+  })
+}
+
+function handleExec(row: any) {
+  router.push({
+    path: '/terminal',
+    query: { namespace: row.namespace, pod: row.name },
   })
 }
 
@@ -82,8 +99,32 @@ async function handleDelete(row: any) {
       'Confirm',
       { type: 'warning' }
     )
-    await deletePod({ clusterName: clusterName.value, namespace: row.namespace, name: row.name })
+    await deletePod({ namespace: row.namespace, name: row.name })
     ElMessage.success('Pod deleted')
+    fetchPods()
+  } catch {
+    // cancelled
+  }
+}
+
+async function handleBatchDelete() {
+  if (!selectedRows.value.length) return
+  try {
+    await ElMessageBox.confirm(
+      `Delete ${selectedRows.value.length} selected pod(s)?`,
+      'Confirm',
+      { type: 'warning' }
+    )
+    let successCount = 0
+    for (const row of selectedRows.value) {
+      try {
+        await deletePod({ namespace: row.namespace, name: row.name })
+        successCount++
+      } catch {
+        // continue
+      }
+    }
+    ElMessage.success(`Deleted ${successCount} pod(s)`)
     fetchPods()
   } catch {
     // cancelled
@@ -106,18 +147,17 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h2 style="margin: 0;">Pods</h2>
-      <div style="display: flex; gap: 12px; align-items: center;">
+  <div class="page-container">
+    <el-card shadow="never" class="filter-card">
+      <div class="filter-bar">
         <el-input
-          v-model="clusterName"
-          placeholder="Cluster Name"
-          style="width: 180px;"
+          v-model="searchName"
+          placeholder="Search by name"
+          style="width: 220px;"
           clearable
-          @clear="fetchPods"
-          @keyup.enter="fetchPods"
-        />
+        >
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
         <el-select
           v-model="selectedNamespace"
           placeholder="All Namespaces"
@@ -125,40 +165,53 @@ onMounted(() => {
           style="width: 180px;"
           @change="handleNamespaceChange"
         >
-          <el-option
-            v-for="ns in namespaceList"
-            :key="ns"
-            :label="ns"
-            :value="ns"
-          />
+          <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="fetchPods">Refresh</el-button>
+        <el-button type="primary" @click="fetchPods">
+          <el-icon><Refresh /></el-icon> Refresh
+        </el-button>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})
+        </el-button>
       </div>
-    </div>
+    </el-card>
 
-    <el-table :data="podList" v-loading="loading" stripe style="width: 100%">
-      <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
-        <template #default="{ row }">
-          <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
-        </template>
-      </el-table-column>
-      <el-table-column prop="namespace" label="Namespace" width="140" />
-      <el-table-column prop="status" label="Status" width="120">
-        <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="restarts" label="Restarts" width="100" />
-      <el-table-column prop="age" label="Age" width="120" />
-      <el-table-column prop="node" label="Node" width="160" show-overflow-tooltip />
-      <el-table-column label="Actions" width="260" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-          <el-button size="small" type="primary" @click="handleViewLogs(row)">Logs</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <el-card shadow="never" class="table-card">
+      <el-table
+        :data="filteredList"
+        v-loading="loading"
+        stripe
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="45" />
+        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
+          </template>
+        </el-table-column>
+        <el-table-column prop="namespace" label="Namespace" width="140" />
+        <el-table-column prop="status" label="Status" width="120">
+          <template #default="{ row }">
+            <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="restarts" label="Restarts" width="100" />
+        <el-table-column prop="age" label="Age" width="120" />
+        <el-table-column prop="node" label="Node" width="160" show-overflow-tooltip />
+        <el-table-column label="Actions" width="280" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+            <el-button size="small" type="primary" @click="handleViewLogs(row)">
+              <el-icon><Monitor /></el-icon> Logs
+            </el-button>
+            <el-button size="small" type="success" @click="handleExec(row)">Exec</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">
+              <el-icon><Delete /></el-icon>
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
 
     <!-- YAML Dialog -->
     <el-dialog v-model="yamlDialogVisible" title="Pod YAML" width="70%" top="5vh" destroy-on-close>
@@ -168,3 +221,21 @@ onMounted(() => {
     </el-dialog>
   </div>
 </template>
+
+<style scoped>
+.page-container {
+  padding: 20px;
+}
+.filter-card {
+  margin-bottom: 16px;
+}
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.table-card {
+  border-radius: 8px;
+}
+</style>
