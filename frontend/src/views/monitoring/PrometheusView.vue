@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh, Setting } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import request from '@/api/request'
 
-const { t } = useI18n()
 const loading = ref(false)
 const prometheusUrl = ref(localStorage.getItem('gkube_prometheus_url') || 'http://prometheus:9090')
 const showSettings = ref(false)

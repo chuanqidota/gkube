@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh, Connection, Delete, View, CircleCheck } from '@element-plus/icons-vue'
+import { Plus, Refresh, Delete, View, CircleCheck } from '@element-plus/icons-vue'
 import { getClusterList, deleteCluster, checkCluster } from '@/api/cluster'
 
 const { t } = useI18n()

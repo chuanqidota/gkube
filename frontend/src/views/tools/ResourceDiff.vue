@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Refresh, CopyDocument, Download } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import * as monaco from 'monaco-editor'
 
-const { t } = useI18n()
 const loading = ref(false)
 const namespaces = ref<string[]>([])
 const resources = ref([
@@ -26,7 +24,6 @@ const resourceList = ref<any[]>([])
 
 const yaml1 = ref('')
 const yaml2 = ref('')
-const diffResult = ref('')
 
 const editorRef1 = ref<HTMLElement | null>(null)
 const editorRef2 = ref<HTMLElement | null>(null)

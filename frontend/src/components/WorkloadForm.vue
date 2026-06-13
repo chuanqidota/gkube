@@ -511,7 +511,7 @@ function handleCancel() { router.push(getListRoute()) }
           </el-form-item>
           <el-form-item label="Image Pull Secrets">
             <div style="width: 100%;">
-              <div v-for="(s, i) in form.imagePullSecrets" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <div v-for="(_s, i) in form.imagePullSecrets" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
                 <el-input v-model="form.imagePullSecrets[i]" placeholder="Secret name" style="flex: 1;" />
                 <el-button type="danger" circle size="small" @click="removeImagePullSecret(i)">X</el-button>
               </div>

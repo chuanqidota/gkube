@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Bell, Refresh, Delete, Setting, Check, Close } from '@element-plus/icons-vue'
+import { Bell, Refresh, Delete, Setting, Check } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
 const { t } = useI18n()

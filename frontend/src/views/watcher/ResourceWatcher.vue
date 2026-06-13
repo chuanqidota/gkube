@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Refresh, VideoPlay, VideoPause, Bell } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
-const { t } = useI18n()
 const loading = ref(false)
 const watching = ref(false)
 const selectedResource = ref('pods')
@@ -138,7 +136,7 @@ onUnmounted(() => {
             <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
           </el-select>
           <el-button :type="watching ? 'danger' : 'success'" @click="toggleWatching">
-            <el-icon><component :is="watching ? VideoPause : VideoPlay }}" /></el-icon>
+            <el-icon><component :is="watching ? VideoPause : VideoPlay" /></el-icon>
             {{ watching ? '停止监视' : '开始监视' }}
           </el-button>
           <el-button type="primary" @click="fetchResources"><el-icon><Refresh /></el-icon> 刷新</el-button>

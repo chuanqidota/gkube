@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Refresh, Bell, Warning, CircleCheck, InfoFilled } from '@element-plus/icons-vue'
+import { Refresh, Bell, Warning, InfoFilled } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
 const { t } = useI18n()
@@ -39,9 +39,6 @@ const filteredEvents = computed(() => {
   return result
 })
 
-function eventType(type: string) {
-  return type === 'Warning' ? 'warning' : 'info'
-}
 
 function eventIcon(type: string) {
   return type === 'Warning' ? Warning : InfoFilled

@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
 
-const { t } = useI18n()
 const loading = ref(false)
 const roleList = ref<any[]>([])
 const total = ref(0)

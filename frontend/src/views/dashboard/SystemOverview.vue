@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import { Refresh, Monitor, Cpu, Coin, FolderOpened, Bell, Connection } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import * as echarts from 'echarts'

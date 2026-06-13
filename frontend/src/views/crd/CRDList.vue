@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 
-const { t } = useI18n()
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Search, Plus, Delete } from '@element-plus/icons-vue'
+import { Refresh, Search, Plus } from '@element-plus/icons-vue'
 import { getCrdList, getCrdYaml, deleteCrd } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 

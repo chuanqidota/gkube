@@ -1,16 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
 import { getServiceList, getServiceYaml, deleteService, getNamespaceList } from '@/api/resource'
-import { useClusterStore } from '@/stores/cluster'
 import YamlEditor from '@/components/YamlEditor.vue'
 
-const { t } = useI18n()
 const router = useRouter()
-const clusterStore = useClusterStore()
 const loading = ref(false)
 const serviceList = ref<any[]>([])
 const namespaceList = ref<string[]>([])

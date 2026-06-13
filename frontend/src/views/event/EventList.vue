@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { getDashboardEvents, getNamespaceList } from '@/api/resource'
 
-const { t } = useI18n()
 const router = useRouter()
 const loading = ref(false)
 const eventList = ref<any[]>([])

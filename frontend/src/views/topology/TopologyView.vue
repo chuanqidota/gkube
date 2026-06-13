@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Refresh, Search } from '@element-plus/icons-vue'
+import { Refresh } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import { getDeploymentList, getStatefulSetList, getDaemonSetList, getNamespaceList } from '@/api/resource'
 
-const { t } = useI18n()
 const loading = ref(false)
 const selectedNamespace = ref('')
 const namespaceList = ref<string[]>([])
