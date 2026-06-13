@@ -45,6 +45,12 @@ const router = createRouter({
       name: 'RoleList',
       component: () => import('@/views/RoleList.vue'),
     },
+    // Settings routes
+    {
+      path: '/settings/auth',
+      name: 'OIDCSettings',
+      component: () => import('@/views/settings/OIDCSettings.vue'),
+    },
     {
       path: '/terminal',
       name: 'Terminal',

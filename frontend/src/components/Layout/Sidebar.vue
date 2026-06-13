@@ -181,6 +181,10 @@
           <el-icon><UserFilled /></el-icon>
           <template #title>角色管理</template>
         </el-menu-item>
+        <el-menu-item index="/settings/auth">
+          <el-icon><Setting /></el-icon>
+          <template #title>认证设置</template>
+        </el-menu-item>
       </el-sub-menu>
     </el-menu>
   </div>

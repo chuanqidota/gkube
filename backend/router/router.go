@@ -7,6 +7,7 @@ import (
 	clusterApi "gkube/app/cluster/api"
 	dashboardApi "gkube/app/dashboard/api"
 	k8sApi "gkube/app/k8s/api"
+	settingsApi "gkube/app/settings/api"
 	"gkube/pkg/middleware"
 )
 
@@ -64,6 +65,13 @@ func Engine() *gin.Engine {
 			dashboard.GET("resources", dashboardApi.Dashboard.Resources)
 			dashboard.GET("workloads", dashboardApi.Dashboard.Workloads)
 			dashboard.GET("events", dashboardApi.Dashboard.Events)
+		}
+
+		// Settings
+		settings := authorized.Group("settings")
+		{
+			settings.GET("auth", settingsApi.Settings.GetAuthSettings)
+			settings.PUT("auth", settingsApi.Settings.UpdateAuthSettings)
 		}
 
 		// K8s resources - standardized URL patterns matching frontend
