@@ -499,6 +499,14 @@ const router = createRouter({
       name: 'BatchOperations',
       component: () => import('@/views/tools/BatchOperations.vue'),
     },
+
+    // Resource Quota Detail route
+    {
+      path: '/config/resourcequotas/:namespace/:name',
+      name: 'ResourceQuotaDetail',
+      component: () => import('@/views/config/ResourceQuotaDetail.vue'),
+      props: true,
+    },
   ],
 })
 
