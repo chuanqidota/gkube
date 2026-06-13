@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Refresh, Search } from '@element-plus/icons-vue'
-import { getCrdList, getCrdYaml } from '@/api/resource'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Refresh, Search, Plus, Delete } from '@element-plus/icons-vue'
+import { getCrdList, getCrdYaml, deleteCrd } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const router = useRouter()
@@ -46,6 +46,15 @@ function handleBrowse(row: any) {
   router.push(`/crd/resources?group=${group}&version=${version}&resource=${resource}&scope=${row.scope}`)
 }
 
+async function handleDelete(row: any) {
+  try {
+    await ElMessageBox.confirm(`Delete CRD "${row.name}"? This will delete ALL custom resources of this type!`, 'Confirm', { type: 'error' })
+    await deleteCrd({ name: row.name })
+    ElMessage.success('CRD deleted')
+    fetchCrds()
+  } catch { /* cancelled */ }
+}
+
 onMounted(fetchCrds)
 </script>
 
@@ -57,6 +66,7 @@ onMounted(fetchCrds)
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
         <el-button type="primary" @click="fetchCrds"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <el-button type="success" @click="router.push('/crd/create')"><el-icon><Plus /></el-icon> Create CRD</el-button>
       </div>
     </el-card>
     <el-card shadow="never" class="table-card">
@@ -73,9 +83,10 @@ onMounted(fetchCrds)
           <template #default="{ row }"><el-tag :type="row.scope === 'Namespaced' ? 'info' : 'warning'" size="small">{{ row.scope }}</el-tag></template>
         </el-table-column>
         <el-table-column prop="age" label="Age" width="180" />
-        <el-table-column label="Actions" width="120" fixed="right">
+        <el-table-column label="Actions" width="180" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
           </template>
         </el-table-column>
       </el-table>

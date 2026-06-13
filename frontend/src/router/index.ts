@@ -190,6 +190,11 @@ const router = createRouter({
       component: () => import('@/views/crd/CRDList.vue'),
     },
     {
+      path: '/crd/create',
+      name: 'CRDCreate',
+      component: () => import('@/views/crd/CRDCreate.vue'),
+    },
+    {
       path: '/crd/resources',
       name: 'CustomResourceList',
       component: () => import('@/views/crd/CustomResourceList.vue'),

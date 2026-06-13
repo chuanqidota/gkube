@@ -87,3 +87,43 @@ func DeleteCustomResource(config *rest.Config, gvr schema.GroupVersionResource, 
 	}
 	return dynamicClient.Resource(gvr).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
+
+func CreateCRD(client *apiextensionsclientset.Clientset, yamlContent string) error {
+	var crd apiextensionsv1.CustomResourceDefinition
+	if err := yaml.Unmarshal([]byte(yamlContent), &crd); err != nil {
+		return fmt.Errorf("failed to unmarshal CRD YAML: %w", err)
+	}
+	_, err := client.ApiextensionsV1().CustomResourceDefinitions().Create(context.TODO(), &crd, metav1.CreateOptions{})
+	return err
+}
+
+func UpdateCRD(client *apiextensionsclientset.Clientset, yamlContent string) error {
+	var crd apiextensionsv1.CustomResourceDefinition
+	if err := yaml.Unmarshal([]byte(yamlContent), &crd); err != nil {
+		return fmt.Errorf("failed to unmarshal CRD YAML: %w", err)
+	}
+	_, err := client.ApiextensionsV1().CustomResourceDefinitions().Update(context.TODO(), &crd, metav1.UpdateOptions{})
+	return err
+}
+
+func DeleteCRD(client *apiextensionsclientset.Clientset, name string) error {
+	return client.ApiextensionsV1().CustomResourceDefinitions().Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+func CreateCustomResource(config *rest.Config, gvr schema.GroupVersionResource, namespace, yamlContent string) error {
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+	obj := make(map[string]any)
+	if err := yaml.Unmarshal([]byte(yamlContent), &obj); err != nil {
+		return fmt.Errorf("failed to unmarshal custom resource YAML: %w", err)
+	}
+	unstructuredObj := &unstructured.Unstructured{Object: obj}
+	if namespace != "" {
+		_, err = dynamicClient.Resource(gvr).Namespace(namespace).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
+	} else {
+		_, err = dynamicClient.Resource(gvr).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
+	}
+	return err
+}

@@ -177,3 +177,94 @@ func (c *crd) DeleteCustomResource(ginCtx *gin.Context) {
 	}
 	response.Success(ginCtx, "删除自定义资源成功", nil)
 }
+
+func (c *crd) CreateCRD(ginCtx *gin.Context) {
+	var req struct {
+		ClusterName string `json:"clusterName"`
+		YamlContent string `json:"yamlContent"`
+	}
+	if err := ginCtx.ShouldBindJSON(&req); err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("参数错误:%s", err.Error()))
+		return
+	}
+	client, err := k8s.GetApiExtensionsClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	if err := k8sCrd.CreateCRD(client, req.YamlContent); err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("创建CRD失败:%s", err.Error()))
+		return
+	}
+	response.Success(ginCtx, "创建CRD成功", nil)
+}
+
+func (c *crd) UpdateCRD(ginCtx *gin.Context) {
+	var req struct {
+		ClusterName string `json:"clusterName"`
+		YamlContent string `json:"yamlContent"`
+	}
+	if err := ginCtx.ShouldBindJSON(&req); err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("参数错误:%s", err.Error()))
+		return
+	}
+	client, err := k8s.GetApiExtensionsClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	if err := k8sCrd.UpdateCRD(client, req.YamlContent); err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("更新CRD失败:%s", err.Error()))
+		return
+	}
+	response.Success(ginCtx, "更新CRD成功", nil)
+}
+
+func (c *crd) DeleteCRD(ginCtx *gin.Context) {
+	name := ginCtx.Query("name")
+	clusterName := ginCtx.Query("clusterName")
+	if name == "" {
+		response.Fail(ginCtx, "name参数不能为空")
+		return
+	}
+	client, err := k8s.GetApiExtensionsClientByName(clusterName)
+	if err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	if err := k8sCrd.DeleteCRD(client, name); err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("删除CRD失败:%s", err.Error()))
+		return
+	}
+	response.Success(ginCtx, "删除CRD成功", nil)
+}
+
+func (c *crd) CreateCustomResource(ginCtx *gin.Context) {
+	var req struct {
+		ClusterName string `json:"clusterName"`
+		Group       string `json:"group"`
+		Version     string `json:"version"`
+		Resource    string `json:"resource"`
+		Namespace   string `json:"namespace"`
+		YamlContent string `json:"yamlContent"`
+	}
+	if err := ginCtx.ShouldBindJSON(&req); err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("参数错误:%s", err.Error()))
+		return
+	}
+	if req.Group == "" || req.Version == "" || req.Resource == "" {
+		response.Fail(ginCtx, "group, version, resource参数不能为空")
+		return
+	}
+	config, err := k8s.GetRestConfigByName(req.ClusterName)
+	if err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("获取k8s配置失败:%s", err.Error()))
+		return
+	}
+	gvr := schema.GroupVersionResource{Group: req.Group, Version: req.Version, Resource: req.Resource}
+	if err := k8sCrd.CreateCustomResource(config, gvr, req.Namespace, req.YamlContent); err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("创建自定义资源失败:%s", err.Error()))
+		return
+	}
+	response.Success(ginCtx, "创建自定义资源成功", nil)
+}

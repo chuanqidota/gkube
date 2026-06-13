@@ -292,8 +292,12 @@ func Engine() *gin.Engine {
 			k8s.GET("crd/detail", k8sApi.Crd.GetCRDDetail)
 			k8s.GET("crd/yaml", k8sApi.Crd.GetCRDYaml)
 			k8s.GET("crd/get-yaml", k8sApi.Crd.GetCRDYaml) // alias
+			k8s.POST("crd/create", k8sApi.Crd.CreateCRD)
+			k8s.PUT("crd/update", k8sApi.Crd.UpdateCRD)
+			k8s.DELETE("crd/delete", k8sApi.Crd.DeleteCRD)
 			k8s.GET("crd/resources", k8sApi.Crd.GetCustomResourceList)
 			k8s.GET("crd/resource/yaml", k8sApi.Crd.GetCustomResourceYaml)
+			k8s.POST("crd/resource/create", k8sApi.Crd.CreateCustomResource)
 			k8s.DELETE("crd/resource", k8sApi.Crd.DeleteCustomResource)
 
 			// Metrics

@@ -516,7 +516,19 @@ export function getCrdDetail(params: { name: string }) {
 }
 
 export function getCrdYaml(params: { name: string }) {
-  return request.get('/k8s/crd/yaml', { params })
+  return request.get('/k8s/crd/get-yaml', { params })
+}
+
+export function createCrd(data: { yamlContent: string }) {
+  return request.post('/k8s/crd/create', data)
+}
+
+export function updateCrd(data: { yamlContent: string }) {
+  return request.put('/k8s/crd/update', data)
+}
+
+export function deleteCrd(params: { name: string }) {
+  return request.delete('/k8s/crd/delete', { params })
 }
 
 export function getCustomResourceList(params: { group: string; version: string; resource: string; namespace?: string }) {
@@ -525,6 +537,10 @@ export function getCustomResourceList(params: { group: string; version: string; 
 
 export function getCustomResourceYaml(params: { group: string; version: string; resource: string; namespace?: string; name: string }) {
   return request.get('/k8s/crd/resource/yaml', { params })
+}
+
+export function createCustomResource(data: { group: string; version: string; resource: string; namespace?: string; yamlContent: string }) {
+  return request.post('/k8s/crd/resource/create', data)
 }
 
 export function deleteCustomResource(params: { group: string; version: string; resource: string; namespace?: string; name: string }) {
