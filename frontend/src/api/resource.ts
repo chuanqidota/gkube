@@ -325,6 +325,31 @@ export function deleteHpa(params: { namespace: string; name: string }) {
   return request.delete('/k8s/hpa/delete', { params })
 }
 
+// NetworkPolicy
+export function getNetworkPolicyList(params?: { namespace?: string }) {
+  return request.get('/k8s/networkpolicy/list', { params })
+}
+
+export function getNetworkPolicyDetail(params: { namespace: string; name: string }) {
+  return request.get('/k8s/networkpolicy/detail', { params })
+}
+
+export function getNetworkPolicyYaml(params: { namespace: string; name: string }) {
+  return request.get('/k8s/networkpolicy/yaml', { params })
+}
+
+export function createNetworkPolicy(data: { namespace: string; yamlContent: string }) {
+  return request.post('/k8s/networkpolicy/create', data)
+}
+
+export function updateNetworkPolicy(data: { namespace: string; yamlContent: string }) {
+  return request.put('/k8s/networkpolicy/update', data)
+}
+
+export function deleteNetworkPolicy(params: { namespace: string; name: string }) {
+  return request.delete('/k8s/networkpolicy/delete', { params })
+}
+
 // StatefulSet
 export function createStatefulSet(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/statefulset/create', data)

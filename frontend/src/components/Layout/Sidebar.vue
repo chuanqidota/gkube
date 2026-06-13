@@ -101,6 +101,10 @@
           <el-icon><Link /></el-icon>
           <template #title>路由</template>
         </el-menu-item>
+        <el-menu-item index="/network/networkpolicies">
+          <el-icon><Lock /></el-icon>
+          <template #title>网络策略</template>
+        </el-menu-item>
       </el-sub-menu>
       <el-menu-item index="/nodes">
         <el-icon><Cpu /></el-icon>
@@ -169,6 +173,7 @@ import {
   Key,
   Bell,
   DataLine,
+  Lock,
 } from '@element-plus/icons-vue'
 
 defineProps<{

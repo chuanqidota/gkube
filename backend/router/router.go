@@ -235,6 +235,14 @@ func Engine() *gin.Engine {
 			k8s.POST("hpa/create", k8sApi.Hpa.CreateHPA)     // 创建HPA
 			k8s.PUT("hpa/update", k8sApi.Hpa.UpdateHPA)      // 更新HPA
 			k8s.DELETE("hpa/delete", k8sApi.Hpa.DeleteHPA)   // 删除HPA
+
+			// NetworkPolicy资源
+			k8s.GET("networkpolicy/list", k8sApi.NetworkPolicy.GetNetworkPolicyList)       // 获取NetworkPolicy列表
+			k8s.GET("networkpolicy/detail", k8sApi.NetworkPolicy.GetNetworkPolicyDetail)   // 获取NetworkPolicy详情
+			k8s.GET("networkpolicy/yaml", k8sApi.NetworkPolicy.GetNetworkPolicyYaml)       // 获取NetworkPolicy YAML
+			k8s.POST("networkpolicy/create", k8sApi.NetworkPolicy.CreateNetworkPolicy)     // 创建NetworkPolicy
+			k8s.PUT("networkpolicy/update", k8sApi.NetworkPolicy.UpdateNetworkPolicy)      // 更新NetworkPolicy
+			k8s.DELETE("networkpolicy/delete", k8sApi.NetworkPolicy.DeleteNetworkPolicy)   // 删除NetworkPolicy
 		}
 	}
 

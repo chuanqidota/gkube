@@ -199,6 +199,23 @@ const router = createRouter({
       component: () => import('@/views/network/IngressDetail.vue'),
       props: true,
     },
+    // NetworkPolicy routes
+    {
+      path: '/network/networkpolicies',
+      name: 'NetworkPolicyList',
+      component: () => import('@/views/network/networkpolicy/NetworkPolicyList.vue'),
+    },
+    {
+      path: '/network/networkpolicies/create',
+      name: 'NetworkPolicyCreate',
+      component: () => import('@/views/network/networkpolicy/NetworkPolicyCreate.vue'),
+    },
+    {
+      path: '/network/networkpolicies/:namespace/:name',
+      name: 'NetworkPolicyDetail',
+      component: () => import('@/views/network/networkpolicy/NetworkPolicyDetail.vue'),
+      props: true,
+    },
     // Node routes
     {
       path: '/nodes',
