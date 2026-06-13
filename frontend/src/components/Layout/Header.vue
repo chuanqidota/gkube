@@ -10,6 +10,17 @@
       </el-breadcrumb>
     </div>
     <div class="header-right">
+      <el-dropdown @command="handleLangChange">
+        <el-button size="small" text>
+          <el-icon><Switch /></el-icon> {{ currentLang }}
+        </el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="zh-CN">中文</el-dropdown-item>
+            <el-dropdown-item command="en">English</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
       <el-select
         v-model="clusterStore.currentCluster"
         placeholder="选择集群"
@@ -51,8 +62,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 
@@ -61,10 +73,18 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const clusterStore = useClusterStore()
+const { locale } = useI18n()
+
+const currentLang = computed(() => locale.value === 'zh-CN' ? '中文' : 'English')
 
 onMounted(() => {
   clusterStore.fetchClusters()
 })
+
+function handleLangChange(lang: string) {
+  locale.value = lang
+  localStorage.setItem('gkube_locale', lang)
+}
 
 function handleClusterChange(val: string) {
   clusterStore.setCurrentCluster(val || null)
