@@ -138,6 +138,10 @@
         <el-icon><Bell /></el-icon>
         <template #title>事件</template>
       </el-menu-item>
+      <el-menu-item index="/notifications">
+        <el-icon><Bell /></el-icon>
+        <template #title>通知中心</template>
+      </el-menu-item>
       <el-menu-item index="/events/viewer">
         <el-icon><Bell /></el-icon>
         <template #title>事件查看器</template>

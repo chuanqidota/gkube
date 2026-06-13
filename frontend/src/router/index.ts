@@ -528,6 +528,13 @@ const router = createRouter({
       name: 'AuditLog',
       component: () => import('@/views/audit/AuditLog.vue'),
     },
+
+    // Notification Center route
+    {
+      path: '/notifications',
+      name: 'NotificationCenter',
+      component: () => import('@/views/notification/NotificationCenter.vue'),
+    },
   ],
 })
 
