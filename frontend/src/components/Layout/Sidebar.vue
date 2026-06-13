@@ -130,6 +130,14 @@
         <el-icon><Bell /></el-icon>
         <template #title>事件</template>
       </el-menu-item>
+      <el-menu-item index="/events/viewer">
+        <el-icon><Bell /></el-icon>
+        <template #title>事件查看器</template>
+      </el-menu-item>
+      <el-menu-item index="/watcher">
+        <el-icon><VideoPlay /></el-icon>
+        <template #title>资源监视器</template>
+      </el-menu-item>
       <el-menu-item index="/rbac">
         <el-icon><UserFilled /></el-icon>
         <template #title>RBAC</template>

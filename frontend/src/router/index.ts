@@ -451,6 +451,13 @@ const router = createRouter({
       component: () => import('@/views/tenancy/TenantList.vue'),
     },
 
+    // Event routes
+    {
+      path: '/events',
+      name: 'EventViewer',
+      component: () => import('@/views/event/EventViewer.vue'),
+    },
+
     // Approval routes
     {
       path: '/approvals',
@@ -463,6 +470,20 @@ const router = createRouter({
       path: '/rbac/matrix',
       name: 'RBACMatrix',
       component: () => import('@/views/rbac/RBACMatrix.vue'),
+    },
+
+    // Event routes
+    {
+      path: '/events/viewer',
+      name: 'EventViewer',
+      component: () => import('@/views/event/EventViewer.vue'),
+    },
+
+    // Watcher routes
+    {
+      path: '/watcher',
+      name: 'ResourceWatcher',
+      component: () => import('@/views/watcher/ResourceWatcher.vue'),
     },
   ],
 })
