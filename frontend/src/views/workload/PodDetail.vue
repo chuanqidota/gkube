@@ -2,7 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getPodDetail, getPodYaml, updatePodYaml, deletePod, getPodEvents } from '@/api/resource'
+import { Refresh } from '@element-plus/icons-vue'
+import { getPodDetail, getPodYaml, updatePodYaml, deletePod, getPodEvents, getPodLogs } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const route = useRoute()
@@ -15,6 +16,12 @@ const yamlLoading = ref(false)
 const yamlEditing = ref(false)
 const yamlSaving = ref(false)
 const activeTab = ref('info')
+
+// Logs
+const logs = ref('')
+const logsLoading = ref(false)
+const selectedContainer = ref('')
+const tailLines = ref(100)
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
@@ -38,6 +45,20 @@ async function fetchEvents() {
   } catch { /* ignore */ }
 }
 
+async function fetchLogs() {
+  logsLoading.value = true
+  try {
+    const params: any = { namespace, name, tailLines: tailLines.value }
+    if (selectedContainer.value) params.container = selectedContainer.value
+    const res: any = await getPodLogs(params)
+    logs.value = res.data?.logs || res.data || ''
+  } catch (e: any) {
+    ElMessage.error(e?.message || 'Failed to load logs')
+  } finally {
+    logsLoading.value = false
+  }
+}
+
 async function fetchYaml() {
   yamlLoading.value = true
   try {
@@ -53,6 +74,7 @@ async function fetchYaml() {
 function handleTabChange(tab: string) {
   if (tab === 'yaml' && !yamlContent.value) fetchYaml()
   if (tab === 'events' && events.value.length === 0) fetchEvents()
+  if (tab === 'logs' && !logs.value) fetchLogs()
 }
 
 async function handleSaveYaml() {
@@ -256,6 +278,32 @@ onMounted(fetchDetail)
           </el-card>
         </el-tab-pane>
 
+        <!-- Logs Tab -->
+        <el-tab-pane label="Logs" name="logs">
+          <el-card shadow="never">
+            <div style="margin-bottom: 12px; display: flex; gap: 12px; align-items: center;">
+              <el-select v-if="pod.containers && pod.containers.length > 1" v-model="selectedContainer" placeholder="All Containers" clearable style="width: 200px;" @change="fetchLogs">
+                <el-option v-for="c in pod.containers" :key="c.name" :label="c.name" :value="c.name" />
+              </el-select>
+              <el-select v-model="tailLines" style="width: 140px;" @change="fetchLogs">
+                <el-option :value="50" label="Last 50 lines" />
+                <el-option :value="100" label="Last 100 lines" />
+                <el-option :value="200" label="Last 200 lines" />
+                <el-option :value="500" label="Last 500 lines" />
+                <el-option :value="1000" label="Last 1000 lines" />
+              </el-select>
+              <el-button type="primary" @click="fetchLogs" :loading="logsLoading">
+                <el-icon><Refresh /></el-icon> Refresh
+              </el-button>
+              <el-button @click="router.push({ path: '/logs', query: { namespace, pod: name } })">Full Log Viewer</el-button>
+            </div>
+            <div v-loading="logsLoading" class="log-container">
+              <pre v-if="logs" class="log-content">{{ logs }}</pre>
+              <el-empty v-else description="No logs available" />
+            </div>
+          </el-card>
+        </el-tab-pane>
+
         <!-- YAML Tab -->
         <el-tab-pane label="YAML" name="yaml">
           <el-card shadow="never">
@@ -279,4 +327,20 @@ onMounted(fetchDetail)
 <style scoped>
 .page-container { padding: 20px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.log-container {
+  background: #1e1e1e;
+  border-radius: 4px;
+  padding: 16px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+.log-content {
+  color: #d4d4d4;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
 </style>

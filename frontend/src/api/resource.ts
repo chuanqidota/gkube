@@ -184,6 +184,10 @@ export function getPodEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/pod/events', { params })
 }
 
+export function getPodLogs(params: { namespace: string; name: string; container?: string; tailLines?: number }) {
+  return request.get('/k8s/log', { params })
+}
+
 // Deployment create
 export function createDeployment(data: { namespace: string; yamlContent: string }) {
   return request.post('/k8s/deployment/create', data)
