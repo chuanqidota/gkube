@@ -134,6 +134,10 @@
         <el-icon><UserFilled /></el-icon>
         <template #title>RBAC</template>
       </el-menu-item>
+      <el-menu-item index="/rbac/matrix">
+        <el-icon><Grid /></el-icon>
+        <template #title>权限矩阵</template>
+      </el-menu-item>
       <el-menu-item index="/crd">
         <el-icon><Grid /></el-icon>
         <template #title>CRD</template>
@@ -149,6 +153,10 @@
       <el-menu-item index="/tenancy">
         <el-icon><UserFilled /></el-icon>
         <template #title>多租户</template>
+      </el-menu-item>
+      <el-menu-item index="/approvals">
+        <el-icon><CircleCheck /></el-icon>
+        <template #title>审批流程</template>
       </el-menu-item>
       <el-sub-menu index="tools">
         <template #title>
@@ -238,6 +246,7 @@ import {
   Grid,
   TrendCharts,
   ScaleToOriginal,
+  CircleCheck,
 } from '@element-plus/icons-vue'
 
 defineProps<{

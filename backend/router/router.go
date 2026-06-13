@@ -342,6 +342,15 @@ func Engine() *gin.Engine {
 			k8s.DELETE("tenancy/delete", k8sApi.Tenancy.DeleteTenant)
 			k8s.POST("tenancy/namespace/add", k8sApi.Tenancy.AddNamespaceToTenant)
 			k8s.POST("tenancy/namespace/remove", k8sApi.Tenancy.RemoveNamespaceFromTenant)
+
+			// Approval Workflows
+			k8s.GET("approval/list", k8sApi.Approval.ListApprovals)
+			k8s.GET("approval/detail", k8sApi.Approval.GetApproval)
+			k8s.POST("approval/create", k8sApi.Approval.CreateApproval)
+			k8s.POST("approval/approve", k8sApi.Approval.ApproveRequest)
+			k8s.POST("approval/reject", k8sApi.Approval.RejectRequest)
+			k8s.DELETE("approval/delete", k8sApi.Approval.DeleteApproval)
+			k8s.GET("approval/stats", k8sApi.Approval.GetApprovalStats)
 		}
 	}
 

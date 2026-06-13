@@ -445,6 +445,20 @@ const router = createRouter({
       name: 'TenantList',
       component: () => import('@/views/tenancy/TenantList.vue'),
     },
+
+    // Approval routes
+    {
+      path: '/approvals',
+      name: 'ApprovalList',
+      component: () => import('@/views/approval/ApprovalList.vue'),
+    },
+
+    // RBAC Matrix route
+    {
+      path: '/rbac/matrix',
+      name: 'RBACMatrix',
+      component: () => import('@/views/rbac/RBACMatrix.vue'),
+    },
   ],
 })
 
