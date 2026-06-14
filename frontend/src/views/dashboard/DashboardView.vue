@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { getOverview, getWorkloads, getEvents, getResources } from '@/api/dashboard'
 import type { Overview, WorkloadSummary, K8sEvent, ResourceMetrics } from '@/api/dashboard'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { ElMessage } from 'element-plus'
 import {
   Monitor,
   CircleCheck,
@@ -80,8 +81,8 @@ async function fetchOverview() {
   try {
     const res = await getOverview()
     overview.value = res.data
-  } catch {
-    // silently fail
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('dashboard.loadFailed'))
   } finally {
     overviewLoading.value = false
   }
@@ -92,8 +93,8 @@ async function fetchResources() {
   try {
     const res = await getResources()
     resources.value = res.data
-  } catch {
-    // silently fail
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('dashboard.loadFailed'))
   } finally {
     resourcesLoading.value = false
   }
@@ -104,8 +105,8 @@ async function fetchWorkloads() {
   try {
     const res = await getWorkloads()
     workloads.value = res.data
-  } catch {
-    // silently fail
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('dashboard.loadFailed'))
   } finally {
     workloadsLoading.value = false
   }
@@ -116,8 +117,8 @@ async function fetchEvents() {
   try {
     const res = await getEvents()
     events.value = res.data
-  } catch {
-    // silently fail
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('dashboard.loadFailed'))
   } finally {
     eventsLoading.value = false
   }
@@ -147,8 +148,8 @@ onMounted(() => {
     </div>
     <!-- Stat Cards -->
     <el-row :gutter="16" class="stat-row">
-      <el-col :span="6">
-        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card stat-card-blue">
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card stat-card-blue" @click="router.push('/clusters')">
           <div class="stat-content">
             <div class="stat-icon">
               <el-icon :size="40"><Monitor /></el-icon>
@@ -160,8 +161,8 @@ onMounted(() => {
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
-        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card stat-card-green">
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card stat-card-green" @click="router.push('/nodes')">
           <div class="stat-content">
             <div class="stat-icon">
               <el-icon :size="40"><CircleCheck /></el-icon>
@@ -173,8 +174,8 @@ onMounted(() => {
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
-        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card stat-card-orange">
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card stat-card-orange" @click="router.push('/workloads/pods')">
           <div class="stat-content">
             <div class="stat-icon">
               <el-icon :size="40"><Cpu /></el-icon>
@@ -186,8 +187,8 @@ onMounted(() => {
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
-        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card stat-card-purple">
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card v-loading="overviewLoading" shadow="hover" class="stat-card stat-card-purple" @click="router.push('/namespaces')">
           <div class="stat-content">
             <div class="stat-icon">
               <el-icon :size="40"><Box /></el-icon>
@@ -209,7 +210,7 @@ onMounted(() => {
         </div>
       </template>
       <el-row :gutter="24">
-        <el-col :span="8">
+        <el-col :xs="24" :sm="24" :md="8">
           <div class="resource-item">
             <div class="resource-header">
               <span class="resource-title">{{ t('dashboard.cpu') }}</span>
@@ -223,7 +224,7 @@ onMounted(() => {
             />
           </div>
         </el-col>
-        <el-col :span="8">
+        <el-col :xs="24" :sm="24" :md="8">
           <div class="resource-item">
             <div class="resource-header">
               <span class="resource-title">{{ t('dashboard.memory') }}</span>
@@ -237,7 +238,7 @@ onMounted(() => {
             />
           </div>
         </el-col>
-        <el-col :span="8">
+        <el-col :xs="24" :sm="24" :md="8">
           <div class="resource-item">
             <div class="resource-header">
               <span class="resource-title">{{ t('dashboard.storage') }}</span>
@@ -256,7 +257,7 @@ onMounted(() => {
 
     <!-- Workloads and Events -->
     <el-row :gutter="16">
-      <el-col :span="12">
+      <el-col :xs="24" :sm="24" :md="12">
         <el-card v-loading="workloadsLoading" shadow="hover" class="section-card">
           <template #header>
             <div class="card-header">
@@ -271,7 +272,7 @@ onMounted(() => {
           </div>
         </el-card>
       </el-col>
-      <el-col :span="12">
+      <el-col :xs="24" :sm="24" :md="12">
         <el-card v-loading="eventsLoading" shadow="hover" class="section-card">
           <template #header>
             <div class="card-header">
@@ -294,6 +295,9 @@ onMounted(() => {
             <el-table-column prop="reason" :label="t('event.reason')" width="120" />
             <el-table-column prop="involved_object" :label="t('event.involvedObject')" show-overflow-tooltip />
             <el-table-column prop="last_seen" :label="t('event.lastSeen')" width="160" />
+            <template #empty>
+              <el-empty :description="t('common.noData')" :image-size="60" />
+            </template>
           </el-table>
         </el-card>
       </el-col>
@@ -323,6 +327,12 @@ onMounted(() => {
   border-radius: 8px;
   overflow: hidden;
   border: none;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
 }
 
 .stat-card :deep(.el-card__body) {
@@ -420,6 +430,18 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .workload-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .workload-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .workload-item {

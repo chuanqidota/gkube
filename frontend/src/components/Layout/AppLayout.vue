@@ -40,7 +40,17 @@ const isCollapse = ref(false)
 
 .app-main {
   background: #f0f2f5;
-  padding: 20px;
+  padding: 0;
   overflow-y: auto;
+  min-height: 0;
+}
+
+/* Responsive: auto-collapse sidebar on small screens */
+@media (max-width: 768px) {
+  .app-aside {
+    position: fixed;
+    z-index: 1000;
+    height: 100vh;
+  }
 }
 </style>

@@ -1,7 +1,14 @@
 <template>
   <div class="header">
     <div class="header-left">
-      <el-icon class="collapse-btn" @click="$emit('toggleCollapse')">
+      <el-icon
+        class="collapse-btn"
+        role="button"
+        tabindex="0"
+        :aria-label="t('common.toggleSidebar')"
+        @click="$emit('toggleCollapse')"
+        @keyup.enter="$emit('toggleCollapse')"
+      >
         <Fold />
       </el-icon>
       <el-breadcrumb separator="/">
@@ -31,6 +38,7 @@
         v-model="clusterStore.currentCluster"
         value-key="id"
         :placeholder="t('common.selectCluster')"
+        :loading="clusterLoading"
         size="small"
         style="width: 200px"
         clearable
@@ -46,9 +54,9 @@
       <el-dropdown @command="handleCommand">
         <div class="user-info">
           <el-avatar :size="32" style="background: #409eff">
-            {{ (authStore.user?.username || 'U')[0].toUpperCase() }}
+            {{ (authStore.user?.username || '?')[0].toUpperCase() }}
           </el-avatar>
-          <span class="username">{{ authStore.user?.displayName || authStore.user?.username || '用户' }}</span>
+          <span class="username">{{ authStore.user?.displayName || authStore.user?.username || '-' }}</span>
           <el-icon><ArrowDown /></el-icon>
         </div>
         <template #dropdown>
@@ -69,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -81,6 +89,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const clusterStore = useClusterStore()
 const { locale, t } = useI18n()
+const clusterLoading = ref(false)
 
 const currentLang = computed(() => locale.value === 'zh-CN' ? '中文' : 'English')
 
@@ -107,8 +116,13 @@ const breadcrumbs = computed(() => {
   return items
 })
 
-onMounted(() => {
-  clusterStore.fetchClusters()
+onMounted(async () => {
+  clusterLoading.value = true
+  try {
+    await clusterStore.fetchClusters()
+  } finally {
+    clusterLoading.value = false
+  }
 })
 
 function handleLangChange(lang: string) {
@@ -116,7 +130,7 @@ function handleLangChange(lang: string) {
   localStorage.setItem('gkube_locale', lang)
 }
 
-function handleClusterChange(val: string) {
+function handleClusterChange(val: any) {
   clusterStore.setCurrentCluster(val || null)
 }
 
@@ -153,8 +167,12 @@ function handleCommand(command: string) {
   transition: color 0.3s;
 }
 
-.collapse-btn:hover {
+.collapse-btn:hover,
+.collapse-btn:focus-visible {
   color: #409eff;
+  outline: 2px solid #409eff;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .header-right {

@@ -15,7 +15,6 @@ const formRef = ref<FormInstance>()
 const loading = ref(false)
 const oidcLoading = ref(false)
 const oidcEnabled = ref(false)
-const rememberMe = ref(false)
 
 const form = reactive({
   username: '',
@@ -92,6 +91,8 @@ async function handleOIDCLogin() {
             :placeholder="t('login.usernamePlaceholder')"
             size="large"
             :prefix-icon="User"
+            autocomplete="username"
+            @keyup.enter="handleLogin"
           />
         </el-form-item>
         <el-form-item prop="password">
@@ -102,21 +103,18 @@ async function handleOIDCLogin() {
             size="large"
             show-password
             :prefix-icon="Lock"
+            autocomplete="current-password"
             @keyup.enter="handleLogin"
           />
         </el-form-item>
 
-        <div class="login-options">
-          <el-checkbox v-model="rememberMe">{{ t('login.rememberMe') }}</el-checkbox>
-        </div>
-
         <el-form-item>
           <el-button
             type="primary"
+            native-type="submit"
             :loading="loading"
             size="large"
             class="login-btn"
-            @click="handleLogin"
           >
             {{ t('login.loginButton') }}
           </el-button>
@@ -177,6 +175,7 @@ async function handleOIDCLogin() {
 
 .login-card {
   width: 420px;
+  max-width: calc(100vw - 32px);
   padding: 48px 40px 36px;
   background: rgba(255, 255, 255, 0.95);
   border-radius: 16px;
@@ -275,5 +274,15 @@ async function handleOIDCLogin() {
   margin-top: 24px;
   font-size: 12px;
   color: #c0c4cc;
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 32px 20px 24px;
+  }
+
+  .login-title {
+    font-size: 24px;
+  }
 }
 </style>

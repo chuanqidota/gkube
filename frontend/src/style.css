@@ -27,6 +27,30 @@ html, body, #app {
   background: transparent;
 }
 
+/* Focus visible styles for keyboard navigation */
+:focus-visible {
+  outline: 2px solid #409eff;
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+.el-button:focus-visible {
+  outline: 2px solid #409eff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Card hover effect */
 .el-card:hover {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
@@ -41,11 +65,6 @@ html, body, #app {
   background-color: #fafafa !important;
   color: #606266;
   font-weight: 600;
-}
-
-/* Page container */
-.page-container {
-  padding: 0;
 }
 
 /* Filter card */
