@@ -30,7 +30,7 @@ npm run preview             # Preview production build
 ### Infrastructure (run from `backend/`)
 
 ```bash
-docker-compose up -d        # Start MySQL, Redis, Elasticsearch
+docker-compose up -d        # Start MySQL, Elasticsearch
 docker-compose up           # Start all services including the app
 ```
 
@@ -38,7 +38,7 @@ docker-compose up           # Start all services including the app
 
 ### Backend (`backend/`)
 
-**Startup chain** (`cmd/root.go`): config.Init() → logger.Init() → database.Init() (MySQL/GORM) → redis.Init() → es.Init() → HTTP server on :8080 → cluster health checker goroutine.
+**Startup chain** (`cmd/root.go`): config.Init() → logger.Init() → database.Init() (MySQL/GORM) → es.Init() → HTTP server on :8080 → cluster health checker goroutine.
 
 **Module pattern** — each domain under `app/<module>/`:
 - `api/` — Gin HTTP handlers (receives request, calls service, returns response)
@@ -87,7 +87,6 @@ The platform supports multiple K8s clusters stored in MySQL. Each API request in
 | Config | Viper (YAML) |
 | CLI | Cobra |
 | Logging | Logrus + Lumberjack |
-| Cache | go-redis |
 | Audit storage | Elasticsearch 7.x |
 | WebSocket | gorilla/websocket |
 | Object storage | MinIO (S3-compatible) |
