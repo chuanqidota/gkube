@@ -12,7 +12,7 @@ import (
 // aesKey is the 32-byte key used for AES-256-GCM encryption.
 // In production, this should be loaded from a secure configuration source
 // (e.g. environment variable, secret manager) — never hardcoded.
-var aesKey = []byte("gkube-aes-256-gcm-secret-32b!") // exactly 32 bytes
+var aesKey = []byte("gkube-aes-256-gcm-secret-key-32b") // exactly 32 bytes
 
 // EncryptAES encrypts plaintext using AES-256-GCM and returns a base64-encoded
 // string containing the nonce prepended to the ciphertext.

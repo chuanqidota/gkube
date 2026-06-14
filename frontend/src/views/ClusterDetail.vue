@@ -33,8 +33,8 @@ async function handleCheck() {
   try {
     const res: any = await checkCluster(cluster.value.id)
     const info = res.data
-    if (info.connected) {
-      ElMessage.success(t('cluster.connectedSuccess', { version: info.version, nodeCount: info.nodeCount, responseTimeMs: info.responseTimeMs }))
+    if (info.status === 'online') {
+      ElMessage.success(t('cluster.connectedSuccess', { version: info.clusterVersion, nodeCount: info.nodeCount, responseTimeMs: info.responseTimeMs }))
       fetchDetail()
     } else {
       ElMessage.warning(info.message || t('cluster.connectionFailed'))

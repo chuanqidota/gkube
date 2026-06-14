@@ -42,6 +42,16 @@ let pendingRequests: Array<(token: string) => void> = []
 
 request.interceptors.response.use(
   (response: AxiosResponse) => {
+    // 后端返回 code=0 表示业务失败，需要 reject
+    const data = response.data
+    if (data && data.code === 0) {
+      return Promise.reject(new Error(data.msg || '请求失败'))
+    }
+    // 解包后端响应：将 { code, msg, data } 中的 data 提升到 response.data
+    // 使得调用方可以直接通过 res.data 访问业务数据
+    if (data && data.data !== undefined) {
+      response.data = data.data
+    }
     return response
   },
   async (error) => {
@@ -68,12 +78,14 @@ request.interceptors.response.use(
           throw new Error('No refresh token')
         }
 
-        const { data } = await axios.post('/api/v1/auth/refresh', {
-          refresh_token: refreshToken,
+        // 使用独立的 axios 实例发送刷新请求，避免携带过期的 Authorization header
+        const refreshClient = axios.create({ baseURL: '/api/v1', timeout: 15000 })
+        const { data } = await refreshClient.post('/auth/refresh', {
+          refreshToken: refreshToken,
         })
 
-        const newToken = data.data?.access_token
-        const newRefreshToken = data.data?.refresh_token
+        const newToken = data.data?.accessToken
+        const newRefreshToken = data.data?.refreshToken
 
         if (newToken) {
           setToken(newToken)
@@ -89,16 +101,25 @@ request.interceptors.response.use(
           pendingRequests = []
 
           return request(originalRequest)
+        } else {
+          throw new Error('刷新Token响应格式异常')
         }
       } catch {
         // Refresh failed: clear tokens and redirect to login
         removeToken()
+        pendingRequests = []
         window.location.href = '/login'
+        // 返回一个永不 resolve 的 Promise，阻止原始请求继续抛出错误
+        return new Promise(() => {})
       } finally {
         isRefreshing = false
       }
     }
 
+    // 对于非 401 的 HTTP 错误，提取后端返回的错误信息
+    if (error.response?.data?.msg) {
+      return Promise.reject(new Error(error.response.data.msg))
+    }
     return Promise.reject(error)
   }
 )

@@ -35,9 +35,9 @@ async function handleCheck(row: any) {
   try {
     const res: any = await checkCluster(row.id)
     const info = res.data
-    if (info.connected) {
+    if (info.status === 'online') {
       ElMessage.success(
-        `Connected (v${info.version}, ${info.nodeCount} nodes, ${info.responseTimeMs}ms)`
+        `Connected (v${info.clusterVersion}, ${info.nodeCount} nodes, ${info.responseTimeMs}ms)`
       )
     } else {
       ElMessage.warning(info.message || 'Connection failed')

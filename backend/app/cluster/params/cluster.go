@@ -1,18 +1,18 @@
 package params
 
 type CreateClusterParams struct {
-	ClusterName string `json:"clusterName" binding:"required" label:"集群名称"`
-	DisplayName string `json:"displayName" label:"显示名称"`
-	Description string `json:"description" label:"描述"`
-	KubeConfig  string `json:"kubeConfig" binding:"required" label:"KubeConfig"`
-	Labels      string `json:"labels" label:"标签JSON"`
+	ClusterName string            `json:"clusterName" binding:"required" label:"集群名称"`
+	DisplayName string            `json:"displayName" label:"显示名称"`
+	Description string            `json:"description" label:"描述"`
+	KubeConfig  string            `json:"kubeConfig" binding:"required" label:"KubeConfig"`
+	Labels      map[string]string `json:"labels" label:"标签"`
 }
 
 type UpdateClusterParams struct {
-	ID          uint   `json:"id" binding:"required" label:"集群ID"`
-	DisplayName string `json:"displayName" label:"显示名称"`
-	Description string `json:"description" label:"描述"`
-	Labels      string `json:"labels" label:"标签JSON"`
+	ID          uint              `json:"id" binding:"required" label:"集群ID"`
+	DisplayName string            `json:"displayName" label:"显示名称"`
+	Description string            `json:"description" label:"描述"`
+	Labels      map[string]string `json:"labels" label:"标签"`
 }
 
 type ClusterQueryParams struct {

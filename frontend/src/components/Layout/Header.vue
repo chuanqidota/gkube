@@ -29,6 +29,7 @@
       </el-dropdown>
       <el-select
         v-model="clusterStore.currentCluster"
+        value-key="id"
         :placeholder="t('common.selectCluster')"
         size="small"
         style="width: 200px"
@@ -39,7 +40,7 @@
           v-for="c in clusterStore.clusterList"
           :key="c.id"
           :label="c.clusterName"
-          :value="c.clusterName"
+          :value="c"
         />
       </el-select>
       <el-dropdown @command="handleCommand">

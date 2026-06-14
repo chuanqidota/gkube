@@ -1,10 +1,11 @@
 package middleware
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"gkube/app/auth/model"
 	"gkube/pkg/database"
-	"gkube/pkg/response"
 )
 
 func RBAC(resource, action string) gin.HandlerFunc {
@@ -16,13 +17,13 @@ func RBAC(resource, action string) gin.HandlerFunc {
 		}
 		userID, exists := c.Get("userID")
 		if !exists {
-			response.Fail(c, "未获取到用户信息")
+			c.JSON(http.StatusForbidden, gin.H{"code": 0, "msg": "未获取到用户信息"})
 			c.Abort()
 			return
 		}
 		var user model.User
 		if err := database.DB.Preload("Roles.Permissions").First(&user, userID).Error; err != nil {
-			response.Fail(c, "用户不存在")
+			c.JSON(http.StatusForbidden, gin.H{"code": 0, "msg": "用户不存在"})
 			c.Abort()
 			return
 		}
@@ -43,7 +44,7 @@ func RBAC(resource, action string) gin.HandlerFunc {
 			}
 		}
 		if !authorized {
-			response.Fail(c, "权限不足")
+			c.JSON(http.StatusForbidden, gin.H{"code": 0, "msg": "权限不足"})
 			c.Abort()
 			return
 		}

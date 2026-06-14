@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"gkube/app/k8s/model"
+	"gkube/pkg/auth"
 	"gkube/pkg/database"
 
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -21,9 +22,12 @@ import (
 //	@return error
 func GetK8sClient(k8sConf string) (*kubernetes.Clientset, error) {
 	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(k8sConf))
-	config.TLSClientConfig.Insecure = true
 	if err != nil {
 		return nil, fmt.Errorf("初始化客户端配置错误:%s", err.Error())
+	}
+	// 仅在 kubeconfig 未配置 CA 证书时启用 Insecure 跳过 TLS 验证
+	if config.TLSClientConfig.CAFile == "" && len(config.TLSClientConfig.CAData) == 0 {
+		config.TLSClientConfig.Insecure = true
 	}
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
@@ -45,7 +49,11 @@ func GetK8sClientClusterID(id uint) (*kubernetes.Clientset, error) {
 		Scan(&k8sCluster).Error; err != nil {
 		return nil, err
 	}
-	clientSet, err := GetK8sClient(k8sCluster.KubeConfig)
+	kubeConfig, err := auth.DecryptAES(k8sCluster.KubeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("解密集群凭证失败:%s", err.Error())
+	}
+	clientSet, err := GetK8sClient(kubeConfig)
 	return clientSet, err
 }
 
@@ -62,7 +70,11 @@ func GetK8sClientByName(name string) (*kubernetes.Clientset, error) {
 		Scan(&k8sCluster).Error; err != nil {
 		return nil, err
 	}
-	clientSet, err := GetK8sClient(k8sCluster.KubeConfig)
+	kubeConfig, err := auth.DecryptAES(k8sCluster.KubeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("解密集群凭证失败:%s", err.Error())
+	}
+	clientSet, err := GetK8sClient(kubeConfig)
 	return clientSet, err
 }
 
@@ -79,7 +91,11 @@ func GetK8sConf(name string) (string, error) {
 		Scan(&k8sCluster).Error; err != nil {
 		return "", err
 	}
-	return k8sCluster.KubeConfig, nil
+	kubeConfig, err := auth.DecryptAES(k8sCluster.KubeConfig)
+	if err != nil {
+		return "", fmt.Errorf("解密集群凭证失败:%s", err.Error())
+	}
+	return kubeConfig, nil
 }
 
 // CreateDynamicClient
@@ -129,11 +145,17 @@ func GetApiExtensionsClientByName(name string) (*apiextensionsclientset.Clientse
 		Scan(&k8sCluster).Error; err != nil {
 		return nil, err
 	}
-	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(k8sCluster.KubeConfig))
+	kubeConfig, err := auth.DecryptAES(k8sCluster.KubeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("解密集群凭证失败:%s", err.Error())
+	}
+	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeConfig))
 	if err != nil {
 		return nil, fmt.Errorf("初始化客户端配置错误:%s", err.Error())
 	}
-	config.TLSClientConfig.Insecure = true
+	if config.TLSClientConfig.CAFile == "" && len(config.TLSClientConfig.CAData) == 0 {
+		config.TLSClientConfig.Insecure = true
+	}
 	clientSet, err := apiextensionsclientset.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("初始化apiextensions客户端错误:%s", err.Error())
@@ -154,10 +176,16 @@ func GetRestConfigByName(name string) (*rest.Config, error) {
 		Scan(&k8sCluster).Error; err != nil {
 		return nil, err
 	}
-	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(k8sCluster.KubeConfig))
+	kubeConfig, err := auth.DecryptAES(k8sCluster.KubeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("解密集群凭证失败:%s", err.Error())
+	}
+	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeConfig))
 	if err != nil {
 		return nil, fmt.Errorf("初始化客户端配置错误:%s", err.Error())
 	}
-	config.TLSClientConfig.Insecure = true
+	if config.TLSClientConfig.CAFile == "" && len(config.TLSClientConfig.CAData) == 0 {
+		config.TLSClientConfig.Insecure = true
+	}
 	return config, nil
 }

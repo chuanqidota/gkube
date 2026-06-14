@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -119,6 +120,14 @@ func (cl *clusterHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// 序列化标签为JSON字符串
+	labelsJSON := ""
+	if len(p.Labels) > 0 {
+		if b, err := json.Marshal(p.Labels); err == nil {
+			labelsJSON = string(b)
+		}
+	}
+
 	cluster := model.K8SCluster{
 		ClusterName:     p.ClusterName,
 		DisplayName:     p.DisplayName,
@@ -127,7 +136,7 @@ func (cl *clusterHandler) Create(c *gin.Context) {
 		Status:          "online",
 		ClusterVersion:  version,
 		NodeCount:       nodeCount,
-		Labels:          p.Labels,
+		Labels:          labelsJSON,
 		LastHealthCheck: time.Now(),
 	}
 
@@ -185,8 +194,10 @@ func (cl *clusterHandler) Update(c *gin.Context) {
 	if p.Description != "" {
 		updates["description"] = p.Description
 	}
-	if p.Labels != "" {
-		updates["labels"] = p.Labels
+	if len(p.Labels) > 0 {
+		if b, err := json.Marshal(p.Labels); err == nil {
+			updates["labels"] = string(b)
+		}
 	}
 
 	if len(updates) > 0 {

@@ -86,7 +86,7 @@ func Run() {
 			fmt.Println(err.Error())
 		}
 	}()
-	quit := make(chan os.Signal)
+	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
 	fmt.Println("Shutdown Server ...")
