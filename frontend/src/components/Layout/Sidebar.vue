@@ -40,23 +40,23 @@
           <template #title>{{ t('sidebar.pods') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/deployments">
-          <el-icon><Files /></el-icon>
+          <el-icon><DocumentCopy /></el-icon>
           <template #title>{{ t('sidebar.deployments') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/statefulsets">
-          <el-icon><Files /></el-icon>
+          <el-icon><List /></el-icon>
           <template #title>{{ t('sidebar.statefulsets') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/daemonsets">
-          <el-icon><Files /></el-icon>
+          <el-icon><SetUp /></el-icon>
           <template #title>{{ t('sidebar.daemonsets') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/jobs">
-          <el-icon><Files /></el-icon>
+          <el-icon><Finished /></el-icon>
           <template #title>{{ t('sidebar.jobs') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/cronjobs">
-          <el-icon><Files /></el-icon>
+          <el-icon><Timer /></el-icon>
           <template #title>{{ t('sidebar.cronjobs') }}</template>
         </el-menu-item>
         <el-menu-item index="/workloads/hpa">
@@ -138,29 +138,9 @@
         <el-icon><Bell /></el-icon>
         <template #title>{{ t('sidebar.events') }}</template>
       </el-menu-item>
-      <el-menu-item index="/rbac">
-        <el-icon><UserFilled /></el-icon>
-        <template #title>{{ t('sidebar.rbac') }}</template>
-      </el-menu-item>
       <el-menu-item index="/crd">
         <el-icon><Grid /></el-icon>
         <template #title>{{ t('sidebar.crd') }}</template>
-      </el-menu-item>
-      <el-menu-item index="/catalog">
-        <el-icon><Grid /></el-icon>
-        <template #title>{{ t('sidebar.catalog') }}</template>
-      </el-menu-item>
-      <el-menu-item index="/gitops">
-        <el-icon><Connection /></el-icon>
-        <template #title>{{ t('sidebar.gitops') }}</template>
-      </el-menu-item>
-      <el-menu-item index="/tenancy">
-        <el-icon><UserFilled /></el-icon>
-        <template #title>{{ t('sidebar.tenancy') }}</template>
-      </el-menu-item>
-      <el-menu-item index="/approvals">
-        <el-icon><CircleCheck /></el-icon>
-        <template #title>{{ t('sidebar.approvals') }}</template>
       </el-menu-item>
       <el-sub-menu index="tools">
         <template #title>
@@ -174,22 +154,6 @@
         <el-menu-item index="/logs">
           <el-icon><Document /></el-icon>
           <template #title>{{ t('sidebar.logs') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/monitoring">
-          <el-icon><TrendCharts /></el-icon>
-          <template #title>{{ t('sidebar.monitoring') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/topology">
-          <el-icon><Share /></el-icon>
-          <template #title>{{ t('sidebar.topology') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/tools/diff">
-          <el-icon><Document /></el-icon>
-          <template #title>{{ t('sidebar.diff') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/tools/yaml-editor">
-          <el-icon><Document /></el-icon>
-          <template #title>{{ t('sidebar.yamlEditor') }}</template>
         </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="system">
@@ -245,9 +209,12 @@ import {
   Lock,
   Warning,
   Grid,
-  TrendCharts,
   ScaleToOriginal,
-  CircleCheck,
+  DocumentCopy,
+  List,
+  SetUp,
+  Finished,
+  Timer,
 } from '@element-plus/icons-vue'
 
 defineProps<{
