@@ -460,19 +460,6 @@ const router = createRouter({
           component: () => import('@/views/event/EventViewer.vue'),
           meta: { title: '事件查看器', parent: 'EventList' },
         },
-        // RBAC
-        {
-          path: 'rbac',
-          name: 'RBACView',
-          component: () => import('@/views/rbac/RBACView.vue'),
-          meta: { title: 'RBAC', icon: 'UserFilled' },
-        },
-        {
-          path: 'rbac/matrix',
-          name: 'RBACMatrix',
-          component: () => import('@/views/rbac/RBACMatrix.vue'),
-          meta: { title: '权限矩阵', parent: 'RBACView' },
-        },
         // CRD
         {
           path: 'crd',
@@ -492,34 +479,6 @@ const router = createRouter({
           component: () => import('@/views/crd/CustomResourceList.vue'),
           meta: { title: '自定义资源', parent: 'CRDList' },
         },
-        // Catalog
-        {
-          path: 'catalog',
-          name: 'AppCatalog',
-          component: () => import('@/views/catalog/AppCatalog.vue'),
-          meta: { title: '应用商店', icon: 'Grid' },
-        },
-        // GitOps
-        {
-          path: 'gitops',
-          name: 'GitOpsView',
-          component: () => import('@/views/gitops/GitOpsView.vue'),
-          meta: { title: 'GitOps', icon: 'Connection' },
-        },
-        // Tenancy
-        {
-          path: 'tenancy',
-          name: 'TenantList',
-          component: () => import('@/views/tenancy/TenantList.vue'),
-          meta: { title: '多租户', icon: 'UserFilled' },
-        },
-        // Approvals
-        {
-          path: 'approvals',
-          name: 'ApprovalList',
-          component: () => import('@/views/approval/ApprovalList.vue'),
-          meta: { title: '审批', icon: 'CircleCheck' },
-        },
         // Tools - Terminal
         {
           path: 'terminal',
@@ -533,65 +492,6 @@ const router = createRouter({
           name: 'Logs',
           component: () => import('@/views/logviewer/LogView.vue'),
           meta: { title: '日志查看', icon: 'Document' },
-        },
-        // Tools - Monitoring
-        {
-          path: 'monitoring',
-          name: 'MonitoringView',
-          component: () => import('@/views/monitoring/MonitoringView.vue'),
-          meta: { title: '监控', icon: 'TrendCharts' },
-        },
-        {
-          path: 'monitoring/dashboard',
-          name: 'MonitoringDashboard',
-          component: () => import('@/views/monitoring/MonitoringDashboard.vue'),
-          meta: { title: '监控面板', parent: 'MonitoringView' },
-        },
-        {
-          path: 'monitoring/resources',
-          name: 'ResourceDashboard',
-          component: () => import('@/views/monitoring/ResourceDashboard.vue'),
-          meta: { title: '资源面板', parent: 'MonitoringView' },
-        },
-        {
-          path: 'monitoring/prometheus',
-          name: 'PrometheusView',
-          component: () => import('@/views/monitoring/PrometheusView.vue'),
-          meta: { title: 'Prometheus', parent: 'MonitoringView' },
-        },
-        // Tools - Topology
-        {
-          path: 'topology',
-          name: 'TopologyView',
-          component: () => import('@/views/topology/TopologyView.vue'),
-          meta: { title: '拓扑', icon: 'Share' },
-        },
-        {
-          path: 'topology/graph',
-          name: 'TopologyGraph',
-          component: () => import('@/views/topology/TopologyGraph.vue'),
-          meta: { title: '拓扑图', parent: 'TopologyView' },
-        },
-        // Tools - Diff
-        {
-          path: 'tools/diff',
-          name: 'ResourceDiff',
-          component: () => import('@/views/tools/ResourceDiff.vue'),
-          meta: { title: '资源Diff', icon: 'Document' },
-        },
-        // Tools - YAML Editor
-        {
-          path: 'tools/yaml-editor',
-          name: 'YAMLEditor',
-          component: () => import('@/views/tools/YAMLEditor.vue'),
-          meta: { title: 'YAML编辑器', icon: 'Document' },
-        },
-        // Tools - Batch
-        {
-          path: 'tools/batch',
-          name: 'BatchOperations',
-          component: () => import('@/views/tools/BatchOperations.vue'),
-          meta: { title: '批量操作', icon: 'Document' },
         },
         // System - Users
         {
@@ -620,20 +520,6 @@ const router = createRouter({
           name: 'AuditLog',
           component: () => import('@/views/audit/AuditLog.vue'),
           meta: { title: '审计日志', icon: 'Document' },
-        },
-        // System - Notifications
-        {
-          path: 'notifications',
-          name: 'NotificationCenter',
-          component: () => import('@/views/notification/NotificationCenter.vue'),
-          meta: { title: '通知中心', icon: 'Bell' },
-        },
-        // System - Watcher
-        {
-          path: 'watcher',
-          name: 'ResourceWatcher',
-          component: () => import('@/views/watcher/ResourceWatcher.vue'),
-          meta: { title: '资源监控', icon: 'Monitor' },
         },
       ],
     },
