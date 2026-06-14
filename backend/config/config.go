@@ -21,11 +21,6 @@ type Config struct {
 		Port     int    `json:"port"`
 		Name     string `json:"name"`
 	} `json:"database"`
-	Redis struct {
-		Addr     string `json:"addr"`
-		Password string `json:"password"`
-		DB       int    `json:"db"`
-	} `json:"redis"`
 	ElasticSearch struct {
 		Url      string `json:"url" comment:"es地址"`
 		Username string `json:"username" comment:"es用户名"`

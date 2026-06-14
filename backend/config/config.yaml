@@ -7,10 +7,6 @@ database:
   host: 127.0.0.1
   port: 3306
   name: gkube
-redis:
-  addr: 127.0.0.1:6379
-  password: ""
-  db: 0
 elasticSearch:
   url: http://localhost:9200
   username: ""
