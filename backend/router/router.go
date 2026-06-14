@@ -243,32 +243,6 @@ func Engine() *gin.Engine {
 			k8s.PUT("networkpolicy/update", k8sApi.NetworkPolicy.UpdateNetworkPolicy)
 			k8s.DELETE("networkpolicy/delete", k8sApi.NetworkPolicy.DeleteNetworkPolicy)
 
-			// RBAC
-			k8s.GET("serviceaccount/list", k8sApi.Rbac.GetServiceAccountList)
-			k8s.GET("serviceaccount/yaml", k8sApi.Rbac.GetServiceAccountYaml)
-			k8s.GET("serviceaccount/get-yaml", k8sApi.Rbac.GetServiceAccountYaml) // alias
-			k8s.DELETE("serviceaccount/delete", k8sApi.Rbac.DeleteServiceAccount)
-
-			k8s.GET("clusterrole/list", k8sApi.Rbac.GetClusterRoleList)
-			k8s.GET("clusterrole/yaml", k8sApi.Rbac.GetClusterRoleYaml)
-			k8s.GET("clusterrole/get-yaml", k8sApi.Rbac.GetClusterRoleYaml) // alias
-			k8s.DELETE("clusterrole/delete", k8sApi.Rbac.DeleteClusterRole)
-
-			k8s.GET("role/list", k8sApi.Rbac.GetRoleList)
-			k8s.GET("role/yaml", k8sApi.Rbac.GetRoleYaml)
-			k8s.GET("role/get-yaml", k8sApi.Rbac.GetRoleYaml) // alias
-			k8s.DELETE("role/delete", k8sApi.Rbac.DeleteRole)
-
-			k8s.GET("clusterrolebinding/list", k8sApi.Rbac.GetClusterRoleBindingList)
-			k8s.GET("clusterrolebinding/yaml", k8sApi.Rbac.GetClusterRoleBindingYaml)
-			k8s.GET("clusterrolebinding/get-yaml", k8sApi.Rbac.GetClusterRoleBindingYaml) // alias
-			k8s.DELETE("clusterrolebinding/delete", k8sApi.Rbac.DeleteClusterRoleBinding)
-
-			k8s.GET("rolebinding/list", k8sApi.Rbac.GetRoleBindingList)
-			k8s.GET("rolebinding/yaml", k8sApi.Rbac.GetRoleBindingYaml)
-			k8s.GET("rolebinding/get-yaml", k8sApi.Rbac.GetRoleBindingYaml) // alias
-			k8s.DELETE("rolebinding/delete", k8sApi.Rbac.DeleteRoleBinding)
-
 			// PDB
 			k8s.GET("pdb/list", k8sApi.Pdb.GetPDBList)
 			k8s.GET("pdb/detail", k8sApi.Pdb.GetPDBDetail)
@@ -308,56 +282,6 @@ func Engine() *gin.Engine {
 			k8s.GET("crd/resource/yaml", k8sApi.Crd.GetCustomResourceYaml)
 			k8s.POST("crd/resource/create", k8sApi.Crd.CreateCustomResource)
 			k8s.DELETE("crd/resource", k8sApi.Crd.DeleteCustomResource)
-
-			// Metrics
-			k8s.GET("metrics/nodes", k8sApi.Metrics.GetNodeMetrics)
-			k8s.GET("metrics/pods", k8sApi.Metrics.GetPodMetrics)
-
-			// Prometheus代理
-			k8s.GET("prometheus/query", k8sApi.Prometheus.QueryPrometheus)
-			k8s.GET("prometheus/query_range", k8sApi.Prometheus.QueryPrometheusRange)
-			k8s.GET("prometheus/targets", k8sApi.Prometheus.GetPrometheusTargets)
-			k8s.GET("prometheus/alerts", k8sApi.Prometheus.GetPrometheusAlerts)
-			k8s.GET("prometheus/config", k8sApi.Prometheus.GetPrometheusConfig)
-			k8s.PUT("prometheus/config", k8sApi.Prometheus.UpdatePrometheusConfig)
-
-			// Topology
-			k8s.GET("topology/deployment", k8sApi.Topology.GetDeploymentTopology)
-			k8s.GET("topology/statefulset", k8sApi.Topology.GetStatefulSetTopology)
-			k8s.GET("topology/daemonset", k8sApi.Topology.GetDaemonSetTopology)
-
-			// Catalog
-			k8s.GET("catalog/charts", k8sApi.Catalog.ListCharts)
-			k8s.GET("catalog/chart", k8sApi.Catalog.GetChartDetails)
-			k8s.POST("catalog/install", k8sApi.Catalog.InstallChart)
-			k8s.GET("catalog/releases", k8sApi.Catalog.ListReleases)
-			k8s.DELETE("catalog/release", k8sApi.Catalog.UninstallRelease)
-
-			// GitOps
-			k8s.GET("gitops/applications", k8sApi.GitOps.ListApplications)
-			k8s.GET("gitops/application", k8sApi.GitOps.GetApplication)
-			k8s.POST("gitops/sync", k8sApi.GitOps.SyncApplication)
-			k8s.GET("gitops/history", k8sApi.GitOps.GetApplicationHistory)
-			k8s.POST("gitops/rollback", k8sApi.GitOps.RollbackApplication)
-			k8s.POST("gitops/create", k8sApi.GitOps.CreateApplication)
-			k8s.DELETE("gitops/delete", k8sApi.GitOps.DeleteApplication)
-
-			// Tenancy
-			k8s.GET("tenancy/tenants", k8sApi.Tenancy.ListTenants)
-			k8s.GET("tenancy/tenant", k8sApi.Tenancy.GetTenant)
-			k8s.POST("tenancy/create", k8sApi.Tenancy.CreateTenant)
-			k8s.DELETE("tenancy/delete", k8sApi.Tenancy.DeleteTenant)
-			k8s.POST("tenancy/namespace/add", k8sApi.Tenancy.AddNamespaceToTenant)
-			k8s.POST("tenancy/namespace/remove", k8sApi.Tenancy.RemoveNamespaceFromTenant)
-
-			// Approval Workflows
-			k8s.GET("approval/list", k8sApi.Approval.ListApprovals)
-			k8s.GET("approval/detail", k8sApi.Approval.GetApproval)
-			k8s.POST("approval/create", k8sApi.Approval.CreateApproval)
-			k8s.POST("approval/approve", k8sApi.Approval.ApproveRequest)
-			k8s.POST("approval/reject", k8sApi.Approval.RejectRequest)
-			k8s.DELETE("approval/delete", k8sApi.Approval.DeleteApproval)
-			k8s.GET("approval/stats", k8sApi.Approval.GetApprovalStats)
 
 			// Audit Logs
 			k8s.GET("audit/list", k8sApi.Audit.ListAuditLogs)
