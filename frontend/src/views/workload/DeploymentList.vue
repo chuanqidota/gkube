@@ -29,8 +29,6 @@ const selectedRows = ref<any[]>([])
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
-const yamlEditing = ref(false)
-const yamlSaving = ref(false)
 const yamlTarget = ref<any>(null)
 
 const filteredList = computed(() => {
@@ -73,7 +71,6 @@ function handleSelectionChange(rows: any[]) {
 
 async function handleViewYaml(row: any) {
   yamlTarget.value = row
-  yamlEditing.value = true
   yamlDialogVisible.value = true
   yamlLoading.value = true
   yamlContent.value = ''
@@ -91,23 +88,19 @@ async function handleViewYaml(row: any) {
   }
 }
 
-async function handleSaveYaml() {
+async function handleSaveYaml(content: string) {
   if (!yamlTarget.value) return
-  yamlSaving.value = true
   try {
     await updateDeploymentYaml({
       namespace: yamlTarget.value.namespace,
       name: yamlTarget.value.name,
-      yaml: yamlContent.value,
+      yaml: content,
     })
     ElMessage.success('YAML saved successfully')
-    yamlEditing.value = false
     yamlDialogVisible.value = false
     fetchDeployments()
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to save YAML')
-  } finally {
-    yamlSaving.value = false
   }
 }
 
@@ -222,12 +215,15 @@ onMounted(() => {
 
     <!-- YAML Dialog -->
     <el-dialog v-model="yamlDialogVisible" title="Deployment YAML" width="70%" top="5vh" destroy-on-close>
-      <div style="margin-bottom: 12px; display: flex; gap: 8px;">
-        <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">Save</el-button>
-        <el-button @click="handleViewYaml(yamlTarget)">Cancel</el-button>
-      </div>
       <div v-loading="yamlLoading">
-        <YamlEditor v-model="yamlContent" height="500px" editable :read-only="!yamlEditing" auto-format />
+        <YamlEditor
+          v-model="yamlContent"
+          height="600px"
+          :read-only="false"
+          :saveable="true"
+          auto-format
+          @save="handleSaveYaml"
+        />
       </div>
     </el-dialog>
 
