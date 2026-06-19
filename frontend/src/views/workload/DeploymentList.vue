@@ -73,7 +73,7 @@ function handleSelectionChange(rows: any[]) {
 
 async function handleViewYaml(row: any) {
   yamlTarget.value = row
-  yamlEditing.value = false
+  yamlEditing.value = true
   yamlDialogVisible.value = true
   yamlLoading.value = true
   yamlContent.value = ''
@@ -228,11 +228,8 @@ onMounted(() => {
     <!-- YAML Dialog -->
     <el-dialog v-model="yamlDialogVisible" title="Deployment YAML" width="70%" top="5vh" destroy-on-close>
       <div style="margin-bottom: 12px; display: flex; gap: 8px;">
-        <el-button v-if="!yamlEditing" type="primary" @click="yamlEditing = true">Edit</el-button>
-        <template v-if="yamlEditing">
-          <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">Save</el-button>
-          <el-button @click="yamlEditing = false; handleViewYaml(yamlTarget)">Cancel</el-button>
-        </template>
+        <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">Save</el-button>
+        <el-button @click="handleViewYaml(yamlTarget)">Cancel</el-button>
       </div>
       <div v-loading="yamlLoading">
         <YamlEditor v-model="yamlContent" height="500px" :read-only="!yamlEditing" auto-format />
