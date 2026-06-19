@@ -8,6 +8,7 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import {
   getDeploymentList,
   getDeploymentYaml,
+  updateDeploymentYaml,
   deleteDeployment,
   getNamespaceList,
   extractNamespaceNames,
@@ -28,6 +29,9 @@ const selectedRows = ref<any[]>([])
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
+const yamlEditing = ref(false)
+const yamlSaving = ref(false)
+const yamlTarget = ref<any>(null)
 
 const filteredList = computed(() => {
   if (!searchName.value) return deploymentList.value
@@ -68,6 +72,8 @@ function handleSelectionChange(rows: any[]) {
 }
 
 async function handleViewYaml(row: any) {
+  yamlTarget.value = row
+  yamlEditing.value = false
   yamlDialogVisible.value = true
   yamlLoading.value = true
   yamlContent.value = ''
@@ -82,6 +88,26 @@ async function handleViewYaml(row: any) {
     yamlDialogVisible.value = false
   } finally {
     yamlLoading.value = false
+  }
+}
+
+async function handleSaveYaml() {
+  if (!yamlTarget.value) return
+  yamlSaving.value = true
+  try {
+    await updateDeploymentYaml({
+      namespace: yamlTarget.value.namespace,
+      name: yamlTarget.value.name,
+      yaml: yamlContent.value,
+    })
+    ElMessage.success('YAML saved successfully')
+    yamlEditing.value = false
+    yamlDialogVisible.value = false
+    fetchDeployments()
+  } catch (e: any) {
+    ElMessage.error(e?.message || 'Failed to save YAML')
+  } finally {
+    yamlSaving.value = false
   }
 }
 
@@ -201,8 +227,15 @@ onMounted(() => {
 
     <!-- YAML Dialog -->
     <el-dialog v-model="yamlDialogVisible" title="Deployment YAML" width="70%" top="5vh" destroy-on-close>
+      <div style="margin-bottom: 12px; display: flex; gap: 8px;">
+        <el-button v-if="!yamlEditing" type="primary" @click="yamlEditing = true">Edit</el-button>
+        <template v-if="yamlEditing">
+          <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">Save</el-button>
+          <el-button @click="yamlEditing = false; handleViewYaml(yamlTarget)">Cancel</el-button>
+        </template>
+      </div>
       <div v-loading="yamlLoading">
-        <YamlEditor v-model="yamlContent" height="500px" read-only auto-format />
+        <YamlEditor v-model="yamlContent" height="500px" :read-only="!yamlEditing" auto-format />
       </div>
     </el-dialog>
 
