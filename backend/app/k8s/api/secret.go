@@ -80,6 +80,7 @@ func (s *secret) GetSecretYaml(c *gin.Context) {
 	client, err := k8s.GetK8sClientByName(query.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
 	}
 	secretYaml, err := k8sSecret.GetSecretYaml(client, query.Namespace, query.Name)
 	if err != nil {

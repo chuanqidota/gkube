@@ -54,7 +54,11 @@ func GetCronJobYaml(client *kubernetes.Clientset, namespace, name string) (strin
 	if err != nil {
 		return "", err
 	}
-	return cronJob.String(), nil
+	yamlBytes, err := yaml.Marshal(cronJob)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
 }
 
 // GetCronJobByLabel

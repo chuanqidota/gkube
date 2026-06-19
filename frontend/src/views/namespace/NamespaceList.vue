@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh, Plus, Search } from '@element-plus/icons-vue'
-import { getNamespaceList, createNamespace } from '@/api/resource'
+import { getNamespaceList, createNamespace, extractNamespaceNames } from '@/api/resource'
 
 const loading = ref(false)
 const namespaceList = ref<any[]>([])
@@ -24,7 +24,7 @@ async function fetchNamespaces() {
   loading.value = true
   try {
     const res: any = await getNamespaceList()
-    namespaceList.value = res.data || []
+    namespaceList.value = extractNamespaceNames(res.data)
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to load namespaces')
   } finally { loading.value = false }

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"gkube/app/k8s/params"
@@ -106,6 +105,7 @@ func (p *pod) GetPodByField(c *gin.Context) {
 	client, err := k8s.GetK8sClientByName(query.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
 	}
 
 	pods, err := k8sPod.GetPodByField(client, query.Namespace, query.FieldMap)
@@ -263,7 +263,7 @@ func (p *pod) DeletePodByField(c *gin.Context) {
 //	@param c
 func (p *pod) WatchPodEvent(c *gin.Context) {
 	var query params.PodEventQueryParams
-	if err := c.ShouldBindJSON(&query); err != nil {
+	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
 		return
 	}
@@ -274,9 +274,13 @@ func (p *pod) WatchPodEvent(c *gin.Context) {
 		return
 	}
 	// 2. 创建Watcher
-	watcher, _ := client.CoreV1().Pods(query.Namespace).Watch(context.Background(), metav1.ListOptions{
+	watcher, err := client.CoreV1().Pods(query.Namespace).Watch(c.Request.Context(), metav1.ListOptions{
 		FieldSelector: "metadata.name=" + query.PodName,
 	})
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("创建watcher失败:%s", err.Error()))
+		return
+	}
 	defer watcher.Stop()
 	// 3. 设置SSE响应头
 	c.Header("Content-Type", "text/event-stream")
@@ -294,7 +298,11 @@ func (p *pod) WatchPodEvent(c *gin.Context) {
 				c.SSEvent("error", gin.H{"message": "发生错误"})
 				return
 			} else {
-				pod := event.Object.(*corev1.Pod)
+				pod, ok := event.Object.(*corev1.Pod)
+				if !ok {
+					c.SSEvent("error", gin.H{"message": "unexpected event object type"})
+					continue
+				}
 				c.SSEvent("message", gin.H{
 					"type":      event.Type,
 					"name":      pod.Name,

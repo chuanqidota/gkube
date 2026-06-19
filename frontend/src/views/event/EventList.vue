@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getDashboardEvents, getNamespaceList } from '@/api/resource'
+import { getDashboardEvents, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 
 const router = useRouter()
 const loading = ref(false)
@@ -22,7 +22,7 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null
 async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
-    namespaceList.value = (res.data || []).map((ns: any) => ns.name || ns)
+    namespaceList.value = extractNamespaceNames(res.data)
   } catch {
     // ignore
   }

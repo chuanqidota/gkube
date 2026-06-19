@@ -54,8 +54,11 @@ func GetDaemonSetYaml(client *kubernetes.Clientset, namespace, name string) (str
 	if err != nil {
 		return "", err
 	}
-
-	return daemonSet.String(), nil
+	yamlBytes, err := yaml.Marshal(daemonSet)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
 }
 
 // GetDaemonSetByField

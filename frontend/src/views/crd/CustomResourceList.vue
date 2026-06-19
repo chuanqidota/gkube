@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Search } from '@element-plus/icons-vue'
-import { getCustomResourceList, getCustomResourceYaml, deleteCustomResource, getNamespaceList } from '@/api/resource'
+import { getCustomResourceList, getCustomResourceYaml, deleteCustomResource, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const route = useRoute()
@@ -32,7 +32,7 @@ const filteredList = computed(() => {
 async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
-    namespaceList.value = (res.data || []).map((ns: any) => ns.name || ns)
+    namespaceList.value = extractNamespaceNames(res.data)
   } catch { /* ignore */ }
 }
 
@@ -105,7 +105,7 @@ onMounted(() => { fetchNamespaces(); fetchResources() })
       </el-table>
     </el-card>
     <el-dialog v-model="yamlDialogVisible" title="Custom Resource YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only /></div>
+      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
     </el-dialog>
   </div>
 </template>

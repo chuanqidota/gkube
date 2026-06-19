@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Delete, Search, Monitor } from '@element-plus/icons-vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
-import { getPodList, getPodYaml, deletePod, getNamespaceList } from '@/api/resource'
+import { getPodList, getPodYaml, deletePod, getNamespaceList, extractNamespaceNames, transformPods } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const { t } = useI18n()
@@ -31,7 +31,7 @@ const filteredList = computed(() => {
 async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
-    namespaceList.value = (res.data || []).map((ns: any) => ns.name || ns)
+    namespaceList.value = extractNamespaceNames(res.data)
   } catch {
     // ignore
   }
@@ -43,7 +43,9 @@ async function fetchPods() {
     const params: any = {}
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
     const res: any = await getPodList(params)
-    podList.value = res.data || []
+    // API returns raw K8s Pod objects; transform to simplified display format
+    const items = res.data?.items || res.data || []
+    podList.value = transformPods(items)
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to load pods')
   } finally {
@@ -224,7 +226,7 @@ onMounted(() => {
     <!-- YAML Dialog -->
     <el-dialog v-model="yamlDialogVisible" title="Pod YAML" width="70%" top="5vh" destroy-on-close>
       <div v-loading="yamlLoading">
-        <YamlEditor v-model="yamlContent" height="500px" read-only />
+        <YamlEditor v-model="yamlContent" height="500px" read-only auto-format />
       </div>
     </el-dialog>
   </div>

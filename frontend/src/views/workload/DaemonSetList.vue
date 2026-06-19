@@ -3,7 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getDaemonSetList, getDaemonSetYaml, deleteDaemonSet, getNamespaceList } from '@/api/resource'
+import { getDaemonSetList, getDaemonSetYaml, deleteDaemonSet, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const router = useRouter()
@@ -26,7 +27,7 @@ const filteredList = computed(() => {
 async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
-    namespaceList.value = (res.data || []).map((ns: any) => ns.name || ns)
+    namespaceList.value = extractNamespaceNames(res.data)
   } catch { /* ignore */ }
 }
 
@@ -78,6 +79,8 @@ async function handleBatchDelete() {
   } catch { /* cancelled */ }
 }
 
+const { isRunning, countdown, toggle, refresh } = useAutoRefresh(fetchDaemonSets)
+
 onMounted(() => { fetchNamespaces(); fetchDaemonSets() })
 </script>
 
@@ -91,7 +94,10 @@ onMounted(() => { fetchNamespaces(); fetchDaemonSets() })
         <el-select v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 180px;" @change="handleNamespaceChange">
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="fetchDaemonSets"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <el-button type="primary" @click="refresh"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <el-button :type="isRunning ? 'success' : 'info'" @click="toggle">
+          {{ isRunning ? `Auto (${countdown}s)` : 'Manual' }}
+        </el-button>
         <el-button type="success" @click="router.push('/workloads/daemonsets/create')"><el-icon><Plus /></el-icon> Create</el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})</el-button>
       </div>
@@ -113,10 +119,15 @@ onMounted(() => { fetchNamespaces(); fetchDaemonSets() })
             <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty description="No DaemonSets found">
+            <el-button type="primary" @click="router.push('/workloads/daemonsets/create')">Create DaemonSet</el-button>
+          </el-empty>
+        </template>
       </el-table>
     </el-card>
     <el-dialog v-model="yamlDialogVisible" title="DaemonSet YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only /></div>
+      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
     </el-dialog>
   </div>
 </template>

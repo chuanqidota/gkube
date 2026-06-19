@@ -88,6 +88,13 @@ func (h *authHandler) Refresh(c *gin.Context) {
 		return
 	}
 
+	// 验证用户是否仍然存在且处于活跃状态
+	var user model.User
+	if err := database.DB.Where("id = ? AND status = 1", claims.UserID).First(&user).Error; err != nil {
+		response.Fail(c, "用户不存在或已被禁用")
+		return
+	}
+
 	// 生成新的 Token 对
 	tokenPair, err := auth.GenerateToken(claims.UserID, claims.Username, claims.IsSuperAdmin)
 	if err != nil {

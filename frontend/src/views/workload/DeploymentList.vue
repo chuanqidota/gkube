@@ -12,6 +12,8 @@ import {
   restartDeployment,
   deleteDeployment,
   getNamespaceList,
+  extractNamespaceNames,
+  transformDeployments,
 } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
@@ -44,7 +46,7 @@ const filteredList = computed(() => {
 async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
-    namespaceList.value = (res.data || []).map((ns: any) => ns.name || ns)
+    namespaceList.value = extractNamespaceNames(res.data)
   } catch {
     // ignore
   }
@@ -56,7 +58,8 @@ async function fetchDeployments() {
     const params: any = {}
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
     const res: any = await getDeploymentList(params)
-    deploymentList.value = res.data || []
+    const items = res.data?.items || res.data || []
+    deploymentList.value = transformDeployments(items)
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to load deployments')
   } finally {
@@ -247,7 +250,7 @@ onMounted(() => {
     <!-- YAML Dialog -->
     <el-dialog v-model="yamlDialogVisible" title="Deployment YAML" width="70%" top="5vh" destroy-on-close>
       <div v-loading="yamlLoading">
-        <YamlEditor v-model="yamlContent" height="500px" read-only />
+        <YamlEditor v-model="yamlContent" height="500px" read-only auto-format />
       </div>
     </el-dialog>
 

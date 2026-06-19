@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -23,7 +24,10 @@ type oidcHandler struct{}
 var OIDC = new(oidcHandler)
 
 // OIDCState stores the state parameter for CSRF protection
-var oidcStates = make(map[string]time.Time)
+var (
+	oidcStates   = make(map[string]time.Time)
+	oidcStatesMu sync.RWMutex
+)
 
 // GenerateOIDCLoginURL generates the OIDC authorization URL
 func (h *oidcHandler) GetLoginURL(c *gin.Context) {
@@ -35,7 +39,9 @@ func (h *oidcHandler) GetLoginURL(c *gin.Context) {
 
 	// Generate random state for CSRF protection
 	state := generateRandomState()
+	oidcStatesMu.Lock()
 	oidcStates[state] = time.Now().Add(10 * time.Minute)
+	oidcStatesMu.Unlock()
 
 	// Build authorization URL
 	authURL := fmt.Sprintf("%s?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s",
@@ -63,11 +69,21 @@ func (h *oidcHandler) HandleCallback(c *gin.Context) {
 	}
 
 	// Verify state
-	if _, exists := oidcStates[state]; !exists {
+	oidcStatesMu.Lock()
+	expiry, exists := oidcStates[state]
+	if !exists {
+		oidcStatesMu.Unlock()
 		response.Fail(c, "无效的状态参数")
 		return
 	}
+	if time.Now().After(expiry) {
+		delete(oidcStates, state)
+		oidcStatesMu.Unlock()
+		response.Fail(c, "状态参数已过期")
+		return
+	}
 	delete(oidcStates, state)
+	oidcStatesMu.Unlock()
 
 	settings := loadOIDCSettings()
 	if settings == nil || !settings.Enabled {

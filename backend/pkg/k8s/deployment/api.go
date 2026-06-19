@@ -79,7 +79,11 @@ func GetDeploymentYaml(client *kubernetes.Clientset, namespace, name string) (st
 	if err != nil {
 		return "", err
 	}
-	return deployment.String(), nil
+	yamlBytes, err := yaml.Marshal(deployment)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
 }
 
 // CreateDeployment

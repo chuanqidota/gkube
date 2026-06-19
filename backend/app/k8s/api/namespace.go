@@ -36,10 +36,12 @@ func (n *namespace) GetNamespaceList(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取集群命名空间列表失败:%s", err.Error()))
 		return
 	}
-	result := map[string]any{
-		"namespaces": namespaces,
+	// 提取命名空间名称列表，简化前端处理
+	var nsNames []string
+	for _, ns := range namespaces.Items {
+		nsNames = append(nsNames, ns.Name)
 	}
-	response.Success(c, "执行成功", result)
+	response.Success(c, "执行成功", nsNames)
 }
 
 // CreateNamespace

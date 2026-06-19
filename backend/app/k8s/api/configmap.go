@@ -127,6 +127,7 @@ func (cm *configmap) UpdateConfigMap(c *gin.Context) {
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
 	}
 
 	if err := k8sConfigMap.UpdateConfigMap(client, body.Namespace, body.Name, body.Data); err != nil {

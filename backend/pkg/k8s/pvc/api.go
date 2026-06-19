@@ -92,7 +92,11 @@ func GetPVCYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 	if err != nil {
 		return "", err
 	}
-	return pvc.String(), nil
+	yamlBytes, err := yaml.Marshal(pvc)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
 }
 
 // CreatePVC

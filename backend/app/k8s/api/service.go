@@ -172,6 +172,7 @@ func (s *service) UpdateService(c *gin.Context) {
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
 	}
 
 	if err := k8sService.UpdateService(client, body.ServiceYaml); err != nil {
@@ -195,6 +196,7 @@ func (s *service) DeleteService(c *gin.Context) {
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
 	}
 	if err := k8sService.DeleteService(client, body.Namespace, body.Name); err != nil {
 		response.Fail(c, fmt.Sprintf("删除Service失败:%v", err.Error()))

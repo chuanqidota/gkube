@@ -106,8 +106,8 @@ func RecordList(c *gin.Context) {
 	db.Count(&count)
 
 	result := make([]model.TerminalRecord, 0)
-	if err := db.Limit(limitInt).Offset(offsetInt).Find(&result); err != nil {
-		response.Fail(c, "获取失败")
+	if err := db.Limit(limitInt).Offset(offsetInt).Find(&result).Error; err != nil {
+		response.Fail(c, fmt.Sprintf("获取失败:%s", err.Error()))
 		return
 	}
 	response.Success(c, "获取成功", map[string]any{"count": count, "result": result})
@@ -142,18 +142,18 @@ func RecordUrl(c *gin.Context) {
 func PodContainerLog(c *gin.Context) {
 	var query params.ContainerLogQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数错误")
+		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
 		return
 	}
 
 	client, err := k8s.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, "获取k8s客户端失败")
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
 	log, err := container.GetPodContainerLog(client, query.Namespace, query.PodName, query.Container, query.TailLines)
 	if err != nil {
-		response.Fail(c, "获取日志失败")
+		response.Fail(c, fmt.Sprintf("获取日志失败:%s", err.Error()))
 		return
 	}
 	response.Success(c, "获取成功", log)
@@ -164,12 +164,12 @@ func PodContainerLog(c *gin.Context) {
 func StreamPodContainerLogs(c *gin.Context) {
 	var query params.ContainerLogQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数错误")
+		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
 		return
 	}
 	client, err := k8s.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, "获取k8s客户端失败")
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
 	stream, err := container.GetPodContainerLogStream(client, query.Namespace, query.PodName, query.Container, query.TailLines)

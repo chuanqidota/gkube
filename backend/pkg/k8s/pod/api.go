@@ -59,7 +59,11 @@ func GetPodYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 	if err != nil {
 		return "", err
 	}
-	return pod.String(), nil
+	yamlBytes, err := yaml.Marshal(pod)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
 }
 
 // GetPodByField

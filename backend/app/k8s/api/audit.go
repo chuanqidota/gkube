@@ -263,7 +263,7 @@ func (h *auditHandler) GetAuditLog(c *gin.Context) {
 func (h *auditHandler) CreateAuditLog(c *gin.Context) {
 	var log AuditLog
 	if err := c.ShouldBindJSON(&log); err != nil {
-		response.Fail(c, "参数错误: "+err.Error())
+		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
 		return
 	}
 
@@ -285,7 +285,7 @@ func (h *auditHandler) CreateAuditLog(c *gin.Context) {
 	store.Logs = append(store.Logs, log)
 
 	if err := saveAuditLogs(store); err != nil {
-		response.Fail(c, "保存审计日志失败: "+err.Error())
+		response.Fail(c, fmt.Sprintf("保存审计日志失败:%s", err.Error()))
 		return
 	}
 
@@ -343,7 +343,7 @@ func (h *auditHandler) ClearAuditLogs(c *gin.Context) {
 	store := &AuditStore{Logs: []AuditLog{}}
 
 	if err := saveAuditLogs(store); err != nil {
-		response.Fail(c, "清除审计日志失败: "+err.Error())
+		response.Fail(c, fmt.Sprintf("清除审计日志失败:%s", err.Error()))
 		return
 	}
 

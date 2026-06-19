@@ -59,6 +59,149 @@ export function getNamespaceList(params?: { cluster_id?: number }) {
   return request.get<Namespace[]>('/k8s/namespace/list', { params })
 }
 
+/**
+ * Extract namespace names from API response.
+ * Handles both formats:
+ * 1. Simple string array: ["default", "kube-system", ...]
+ * 2. Full K8s object: { namespaces: { items: [{metadata: {name: "default"}}, ...] } }
+ */
+export function extractNamespaceNames(data: any): string[] {
+  if (Array.isArray(data)) {
+    return data
+  }
+  if (data?.namespaces?.items) {
+    return data.namespaces.items
+      .map((ns: any) => ns.metadata?.name)
+      .filter(Boolean)
+  }
+  return []
+}
+
+/**
+ * Calculate age string from a creation timestamp.
+ */
+function calcAge(creationTimestamp: string): string {
+  if (!creationTimestamp) return ''
+  const created = new Date(creationTimestamp).getTime()
+  const now = Date.now()
+  const diff = Math.floor((now - created) / 1000)
+  if (diff < 60) return `${diff}s`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
+  const days = Math.floor(diff / 86400)
+  if (days < 365) return `${days}d`
+  return `${Math.floor(days / 365)}y`
+}
+
+/**
+ * Transform raw K8s Pod objects into simplified display format.
+ */
+export function transformPods(items: any[]): Pod[] {
+  if (!Array.isArray(items)) return []
+  return items.map((pod: any) => {
+    const restarts = (pod.status?.containerStatuses || []).reduce(
+      (sum: number, cs: any) => sum + (cs.restartCount || 0), 0
+    )
+    return {
+      name: pod.metadata?.name || '',
+      namespace: pod.metadata?.namespace || '',
+      status: pod.status?.phase || 'Unknown',
+      node: pod.spec?.nodeName || '',
+      ip: pod.status?.podIP || '',
+      restarts,
+      age: calcAge(pod.metadata?.creationTimestamp),
+    }
+  })
+}
+
+/**
+ * Transform raw K8s Deployment objects into simplified display format.
+ */
+export function transformDeployments(items: any[]): Deployment[] {
+  if (!Array.isArray(items)) return []
+  return items.map((d: any) => ({
+    name: d.metadata?.name || '',
+    namespace: d.metadata?.namespace || '',
+    ready: `${d.status?.readyReplicas || 0}/${d.spec?.replicas || 0}`,
+    up_to_date: d.status?.updatedReplicas || 0,
+    available: d.status?.availableReplicas || 0,
+    age: calcAge(d.metadata?.creationTimestamp),
+  }))
+}
+
+/**
+ * Transform raw K8s Service objects into simplified display format.
+ */
+export function transformServices(items: any[]): Service[] {
+  if (!Array.isArray(items)) return []
+  return items.map((svc: any) => {
+    const ports = (svc.spec?.ports || [])
+      .map((p: any) => {
+        let s = `${p.port}`
+        if (p.targetPort && p.targetPort !== p.port) s += `:${p.targetPort}`
+        if (p.nodePort) s += `/${p.nodePort}`
+        if (p.protocol && p.protocol !== 'TCP') s += `/${p.protocol}`
+        return s
+      })
+      .join(', ')
+    const externalIps = svc.spec?.externalIPs?.join(', ') || svc.status?.loadBalancer?.ingress?.map((i: any) => i.ip || i.hostname).join(', ') || ''
+    return {
+      name: svc.metadata?.name || '',
+      namespace: svc.metadata?.namespace || '',
+      type: svc.spec?.type || 'ClusterIP',
+      cluster_ip: svc.spec?.clusterIP || '',
+      external_ip: externalIps,
+      ports,
+      age: calcAge(svc.metadata?.creationTimestamp),
+    }
+  })
+}
+
+/**
+ * Transform raw K8s Ingress objects into simplified display format.
+ */
+export function transformIngresses(items: any[]): Ingress[] {
+  if (!Array.isArray(items)) return []
+  return items.map((ing: any) => {
+    const hosts = (ing.spec?.rules || []).map((r: any) => r.host || '*').join(', ')
+    const address = ing.status?.loadBalancer?.ingress?.map((i: any) => i.ip || i.hostname).join(', ') || ''
+    return {
+      name: ing.metadata?.name || '',
+      namespace: ing.metadata?.namespace || '',
+      hosts,
+      address,
+      age: calcAge(ing.metadata?.creationTimestamp),
+    }
+  })
+}
+
+/**
+ * Transform raw K8s ConfigMap objects into simplified display format.
+ */
+export function transformConfigMaps(items: any[]) {
+  if (!Array.isArray(items)) return []
+  return items.map((cm: any) => ({
+    name: cm.metadata?.name || '',
+    namespace: cm.metadata?.namespace || '',
+    data: cm.data ? Object.keys(cm.data).length : 0,
+    age: calcAge(cm.metadata?.creationTimestamp),
+  }))
+}
+
+/**
+ * Transform raw K8s Secret objects into simplified display format.
+ */
+export function transformSecrets(items: any[]) {
+  if (!Array.isArray(items)) return []
+  return items.map((s: any) => ({
+    name: s.metadata?.name || '',
+    namespace: s.metadata?.namespace || '',
+    type: s.type || 'Opaque',
+    data: s.data ? Object.keys(s.data).length : 0,
+    age: calcAge(s.metadata?.creationTimestamp),
+  }))
+}
+
 export function getNamespaceDetail(params: { name: string }) {
   return request.get('/k8s/namespace/detail', { params })
 }

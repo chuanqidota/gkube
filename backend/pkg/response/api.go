@@ -23,6 +23,16 @@ func Fail(c *gin.Context, msg string) {
 	})
 }
 
+// FailWithStatus returns an error response with a specific HTTP status code
+func FailWithStatus(c *gin.Context, statusCode int, msg string) {
+	c.JSON(statusCode, gin.H{
+		"msg":  msg,
+		"code": 0,
+		"data": nil,
+	})
+	c.Abort()
+}
+
 // File 文件响应
 func File(c *gin.Context, filename string, res []byte) {
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))

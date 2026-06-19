@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { ElMessage } from 'element-plus'
-import { createPdb, getNamespaceList } from '@/api/resource'
+import { createPdb, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const router = useRouter()
@@ -24,7 +24,7 @@ const yamlContent = ref('')
 async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
-    namespaceList.value = (res.data || []).map((ns: any) => ns.name || ns)
+    namespaceList.value = extractNamespaceNames(res.data)
   } catch { /* ignore */ }
 }
 

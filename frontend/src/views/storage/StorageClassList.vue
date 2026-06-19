@@ -72,7 +72,7 @@ onMounted(fetchStorageClasses)
       </el-table>
     </el-card>
     <el-dialog v-model="yamlDialogVisible" title="StorageClass YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only /></div>
+      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
     </el-dialog>
   </div>
 </template>

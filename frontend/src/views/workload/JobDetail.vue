@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { getJobDetail, getJobYaml } from '@/api/resource'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getJobDetail, getJobYaml, deleteJob } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const route = useRoute()
@@ -47,6 +47,23 @@ function handleTabChange(tab: string) {
   }
 }
 
+async function handleDelete() {
+  try {
+    await ElMessageBox.confirm(
+      `Are you sure to delete Job "${name}" in namespace "${namespace}"?`,
+      'Confirm Delete',
+      { type: 'warning' }
+    )
+    await deleteJob({ clusterName, namespace, name })
+    ElMessage.success('Job deleted')
+    router.push('/workloads/jobs')
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e?.message || 'Delete failed')
+    }
+  }
+}
+
 onMounted(fetchDetail)
 </script>
 
@@ -54,7 +71,10 @@ onMounted(fetchDetail)
   <div v-loading="loading">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <h2 style="margin: 0;">Job: {{ name }}</h2>
-      <el-button @click="router.push('/workloads/jobs')">Back to List</el-button>
+      <div>
+        <el-button type="danger" @click="handleDelete">Delete</el-button>
+        <el-button @click="router.push('/workloads/jobs')">Back to List</el-button>
+      </div>
     </div>
 
     <template v-if="job">

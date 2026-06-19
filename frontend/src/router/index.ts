@@ -30,12 +30,6 @@ const router = createRouter({
           meta: { title: '仪表盘', icon: 'Odometer' },
         },
         {
-          path: 'search',
-          name: 'ResourceSearch',
-          component: () => import('@/views/search/ResourceSearch.vue'),
-          meta: { title: '资源搜索', icon: 'Search' },
-        },
-        {
           path: 'system/overview',
           name: 'SystemOverview',
           component: () => import('@/views/dashboard/SystemOverview.vue'),

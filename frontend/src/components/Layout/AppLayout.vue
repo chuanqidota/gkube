@@ -30,7 +30,8 @@ const isCollapse = ref(false)
 .app-aside {
   background: #001529;
   transition: width 0.3s;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .app-header {

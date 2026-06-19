@@ -88,7 +88,11 @@ func GetPVYaml(client *kubernetes.Clientset, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return pv.String(), nil
+	yamlBytes, err := yaml.Marshal(pv)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
 }
 
 // CreatePV

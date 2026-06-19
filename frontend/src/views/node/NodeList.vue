@@ -114,7 +114,7 @@ onMounted(fetchNodes)
       </el-table>
     </el-card>
     <el-dialog v-model="yamlDialogVisible" title="Node YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only /></div>
+      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
     </el-dialog>
     <el-dialog v-model="taintDialogVisible" title="Manage Taints" width="600px">
       <div v-for="(taint, index) in taints" :key="index" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">

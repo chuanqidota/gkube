@@ -50,7 +50,11 @@ func GetStorageClassYaml(client *kubernetes.Clientset, name string) (string, err
 	if err != nil {
 		return "", err
 	}
-	return sc.String(), nil
+	yamlBytes, err := yaml.Marshal(sc)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
 }
 
 // GetStorageClassByField

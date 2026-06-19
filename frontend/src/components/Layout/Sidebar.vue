@@ -18,10 +18,6 @@
         <el-icon><Odometer /></el-icon>
         <template #title>{{ t('sidebar.dashboard') }}</template>
       </el-menu-item>
-      <el-menu-item index="/search">
-        <el-icon><Search /></el-icon>
-        <template #title>{{ t('sidebar.search') }}</template>
-      </el-menu-item>
       <el-menu-item index="/system/overview">
         <el-icon><Monitor /></el-icon>
         <template #title>{{ t('sidebar.systemOverview') }}</template>

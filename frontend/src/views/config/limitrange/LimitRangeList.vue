@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getLimitRangeList, getLimitRangeYaml, deleteLimitRange, getNamespaceList } from '@/api/resource'
+import { getLimitRangeList, getLimitRangeYaml, deleteLimitRange, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const router = useRouter()
@@ -26,7 +26,7 @@ const filteredList = computed(() => {
 async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
-    namespaceList.value = (res.data || []).map((ns: any) => ns.name || ns)
+    namespaceList.value = extractNamespaceNames(res.data)
   } catch { /* ignore */ }
 }
 
@@ -119,7 +119,7 @@ onMounted(() => { fetchNamespaces(); fetchLimitRanges() })
       </el-table>
     </el-card>
     <el-dialog v-model="yamlDialogVisible" title="LimitRange YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only /></div>
+      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
     </el-dialog>
   </div>
 </template>

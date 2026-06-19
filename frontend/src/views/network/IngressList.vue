@@ -3,7 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getIngressList, getIngressYaml, deleteIngress, getNamespaceList } from '@/api/resource'
+import { getIngressList, getIngressYaml, deleteIngress, getNamespaceList, extractNamespaceNames, transformIngresses } from '@/api/resource'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const router = useRouter()
@@ -26,7 +27,7 @@ const filteredList = computed(() => {
 async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
-    namespaceList.value = (res.data || []).map((ns: any) => ns.name || ns)
+    namespaceList.value = extractNamespaceNames(res.data)
   } catch { /* ignore */ }
 }
 
@@ -36,7 +37,8 @@ async function fetchIngresses() {
     const params: any = {}
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
     const res: any = await getIngressList(params)
-    ingressList.value = res.data || []
+    const items = res.data?.items || res.data || []
+    ingressList.value = transformIngresses(items)
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to load Ingresses')
   } finally { loading.value = false }
@@ -76,6 +78,8 @@ async function handleBatchDelete() {
   } catch { /* cancelled */ }
 }
 
+const { isRunning, countdown, toggle, refresh } = useAutoRefresh(fetchIngresses)
+
 onMounted(() => { fetchNamespaces(); fetchIngresses() })
 </script>
 
@@ -89,7 +93,10 @@ onMounted(() => { fetchNamespaces(); fetchIngresses() })
         <el-select v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 180px;" @change="handleNamespaceChange">
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="fetchIngresses"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <el-button type="primary" @click="refresh"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <el-button :type="isRunning ? 'success' : 'info'" @click="toggle">
+          {{ isRunning ? `Auto (${countdown}s)` : 'Manual' }}
+        </el-button>
         <el-button type="success" @click="router.push('/ingresses/create')"><el-icon><Plus /></el-icon> Create</el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})</el-button>
       </div>
@@ -113,7 +120,7 @@ onMounted(() => { fetchNamespaces(); fetchIngresses() })
       </el-table>
     </el-card>
     <el-dialog v-model="yamlDialogVisible" title="Ingress YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only /></div>
+      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
     </el-dialog>
   </div>
 </template>

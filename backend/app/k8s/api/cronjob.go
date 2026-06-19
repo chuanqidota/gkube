@@ -248,6 +248,7 @@ func (cj *cronjob) DeleteCronJobByField(c *gin.Context) {
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
 	}
 
 	err = k8sCronjob.DeleteCronJobByField(client, body.Namespace, body.FieldMap)

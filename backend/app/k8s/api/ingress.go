@@ -242,6 +242,7 @@ func (i *ingress) DeleteIngressByField(c *gin.Context) {
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
 	}
 	if err := k8sIngress.DeleteIngressByField(client, body.Namespace, body.FieldMap); err != nil {
 		response.Fail(c, fmt.Sprintf("删除ingress失败:%v", err.Error()))

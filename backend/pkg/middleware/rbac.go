@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gkube/app/auth/model"
 	"gkube/pkg/database"
+	"gkube/pkg/response"
 )
 
 func RBAC(resource, action string) gin.HandlerFunc {
@@ -17,14 +18,12 @@ func RBAC(resource, action string) gin.HandlerFunc {
 		}
 		userID, exists := c.Get("userID")
 		if !exists {
-			c.JSON(http.StatusForbidden, gin.H{"code": 0, "msg": "未获取到用户信息"})
-			c.Abort()
+			response.FailWithStatus(c, http.StatusForbidden, "未获取到用户信息")
 			return
 		}
 		var user model.User
 		if err := database.DB.Preload("Roles.Permissions").First(&user, userID).Error; err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"code": 0, "msg": "用户不存在"})
-			c.Abort()
+			response.FailWithStatus(c, http.StatusForbidden, "用户不存在")
 			return
 		}
 		authorized := false
@@ -44,8 +43,7 @@ func RBAC(resource, action string) gin.HandlerFunc {
 			}
 		}
 		if !authorized {
-			c.JSON(http.StatusForbidden, gin.H{"code": 0, "msg": "权限不足"})
-			c.Abort()
+			response.FailWithStatus(c, http.StatusForbidden, "权限不足")
 			return
 		}
 		c.Next()

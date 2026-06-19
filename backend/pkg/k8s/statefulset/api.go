@@ -54,7 +54,11 @@ func GetStatefulSetYaml(client *kubernetes.Clientset, namespace, name string) (s
 	if err != nil {
 		return "", err
 	}
-	return statefulSet.String(), nil
+	yamlBytes, err := yaml.Marshal(statefulSet)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
 }
 
 // GetStatefulSetByField

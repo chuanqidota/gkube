@@ -3,7 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getServiceList, getServiceYaml, deleteService, getNamespaceList } from '@/api/resource'
+import { getServiceList, getServiceYaml, deleteService, getNamespaceList, extractNamespaceNames, transformServices } from '@/api/resource'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const router = useRouter()
@@ -26,7 +27,7 @@ const filteredList = computed(() => {
 async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
-    namespaceList.value = (res.data || []).map((ns: any) => ns.name || ns)
+    namespaceList.value = extractNamespaceNames(res.data)
   } catch {
     // ignore
   }
@@ -38,7 +39,8 @@ async function fetchServices() {
     const params: any = {}
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
     const res: any = await getServiceList(params)
-    serviceList.value = res.data || []
+    const items = res.data?.items || res.data || []
+    serviceList.value = transformServices(items)
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to load services')
   } finally {
@@ -114,6 +116,8 @@ async function handleBatchDelete() {
   }
 }
 
+const { isRunning, countdown, toggle, refresh } = useAutoRefresh(fetchServices)
+
 onMounted(() => {
   fetchNamespaces()
   fetchServices()
@@ -141,8 +145,11 @@ onMounted(() => {
         >
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="fetchServices">
+        <el-button type="primary" @click="refresh">
           <el-icon><Refresh /></el-icon> Refresh
+        </el-button>
+        <el-button :type="isRunning ? 'success' : 'info'" @click="toggle">
+          {{ isRunning ? `Auto (${countdown}s)` : 'Manual' }}
         </el-button>
         <el-button type="success" @click="router.push('/services/create')">
           <el-icon><Plus /></el-icon> Create
@@ -182,7 +189,7 @@ onMounted(() => {
 
     <el-dialog v-model="yamlDialogVisible" title="Service YAML" width="70%" top="5vh" destroy-on-close>
       <div v-loading="yamlLoading">
-        <YamlEditor v-model="yamlContent" height="500px" read-only />
+        <YamlEditor v-model="yamlContent" height="500px" read-only auto-format />
       </div>
     </el-dialog>
   </div>

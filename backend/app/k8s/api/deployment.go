@@ -153,6 +153,7 @@ func (dp *deployment) GetDeploymentByLabel(c *gin.Context) {
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
 	}
 
 	deployments, err := k8sDeployment.GetDeploymentByLabel(client, body.Namespace, body.LabelMap)
@@ -206,6 +207,7 @@ func (dp *deployment) UpdateDeployment(c *gin.Context) {
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
 	}
 	ok, err := k8sDeployment.UpdateDeployment(client, body.Namespace, body.Yaml)
 	if err != nil {
@@ -233,6 +235,7 @@ func (dp *deployment) DeleteDeployment(c *gin.Context) {
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
 	}
 	ok, err := k8sDeployment.DeleteDeployment(client, body.Namespace, body.Name)
 	if err != nil {
@@ -288,6 +291,7 @@ func (dp *deployment) DeleteDeploymentByLabel(c *gin.Context) {
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
 	}
 	ok, err := k8sDeployment.DeleteDeploymentByLabel(client, body.Namespace, body.LabelMap)
 	if err != nil {
@@ -315,6 +319,7 @@ func (dp *deployment) ScaleDeployment(c *gin.Context) {
 	client, err := k8s.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
 	}
 	ok, err := k8sDeployment.ScaleDeployment(client, body.Namespace, body.Name, body.Replicas)
 	if err != nil {

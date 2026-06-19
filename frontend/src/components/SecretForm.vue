@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
 import YamlEditor from '@/components/YamlEditor.vue'
-import { getNamespaceList, createSecret } from '@/api/resource'
+import { getNamespaceList, createSecret, extractNamespaceNames } from '@/api/resource'
 
 const router = useRouter()
 const currentStep = ref(0)
@@ -70,7 +70,7 @@ async function fetchNamespaces() {
   namespaceLoading.value = true
   try {
     const res: any = await getNamespaceList()
-    namespaces.value = (res.data || []).map((ns: any) => ns.name || ns)
+    namespaces.value = extractNamespaceNames(res.data)
   } catch {
     namespaces.value = ['default']
   } finally {

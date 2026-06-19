@@ -93,7 +93,11 @@ func GetJobYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 	if err != nil {
 		return "", err
 	}
-	return job.String(), nil
+	yamlBytes, err := yaml.Marshal(job)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
 }
 
 // CreateJob
