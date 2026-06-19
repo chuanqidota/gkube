@@ -70,7 +70,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits(['update:modelValue', 'save'])
 
 // Internal editing state
-const isEditing = ref(false)
+const isEditing = ref(!props.readOnly && props.saveable)
 const originalContent = ref('')
 const saving = ref(false)
 const displayValue = ref('')
@@ -102,6 +102,7 @@ watch(() => props.modelValue, (val) => {
 watch(() => props.readOnly, (val) => {
   if (val) {
     isEditing.value = false
+    saving.value = false
   }
 })
 
@@ -122,11 +123,13 @@ function enterEdit() {
 }
 
 function handleSave() {
+  saving.value = true
   emit('save', props.modelValue)
 }
 
 function handleCancel() {
   isEditing.value = false
+  saving.value = false
   if (originalContent.value !== props.modelValue) {
     emit('update:modelValue', originalContent.value)
   }
