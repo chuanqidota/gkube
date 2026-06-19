@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
+
 import {
   getDeploymentList,
   getDeploymentYaml,
@@ -154,8 +154,6 @@ async function handleBatchDelete() {
   }
 }
 
-const { isRunning, countdown, toggle, refresh: autoRefresh } = useAutoRefresh(fetchDeployments, 15000)
-
 onMounted(() => {
   fetchNamespaces()
   fetchDeployments()
@@ -183,11 +181,8 @@ onMounted(() => {
         >
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="autoRefresh()">
-          <el-icon><Refresh /></el-icon> {{ t('common.refresh') }} ({{ countdown }}s)
-        </el-button>
-        <el-button @click="toggle()" :type="isRunning ? 'warning' : 'success'" size="default">
-          {{ isRunning ? t('common.paused') : t('common.resume') }}
+        <el-button @click="fetchDeployments()" :loading="loading">
+          <el-icon><Refresh /></el-icon> {{ t('common.refresh') }}
         </el-button>
         <el-button type="success" @click="router.push('/workloads/deployments/create')">
           <el-icon><Plus /></el-icon> Create
