@@ -232,7 +232,7 @@ onMounted(() => {
         <el-button @click="handleViewYaml(yamlTarget)">Cancel</el-button>
       </div>
       <div v-loading="yamlLoading">
-        <YamlEditor v-model="yamlContent" height="500px" :read-only="!yamlEditing" auto-format />
+        <YamlEditor v-model="yamlContent" height="500px" editable :read-only="!yamlEditing" auto-format />
       </div>
     </el-dialog>
 
