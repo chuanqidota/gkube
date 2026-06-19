@@ -1,6 +1,6 @@
 <template>
   <div class="yaml-editor">
-    <div class="yaml-editor-toolbar">
+    <div class="yaml-editor-toolbar" v-if="saveable || title || editable">
       <!-- Left: Edit/Save/Cancel -->
       <div class="toolbar-left">
         <template v-if="saveable">
@@ -18,7 +18,7 @@
       </div>
 
       <!-- Center: Format/Copy (edit mode only) -->
-      <div class="toolbar-center" v-if="isEditing">
+      <div class="toolbar-center" v-if="isEditing || (editable && !saveable)">
         <el-button-group>
           <el-button size="small" @click="handleFormat">Format</el-button>
           <el-button size="small" @click="handleCopy">Copy</el-button>
