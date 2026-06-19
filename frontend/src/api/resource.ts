@@ -369,6 +369,11 @@ export function deleteDeployment(data: { namespace: string; name: string }) {
   return request.delete('/k8s/deployment/delete', { data })
 }
 
+// 获取 Deployment 关联的 ReplicaSet 列表
+export const getDeploymentReplicaSets = (params: { namespace: string; name: string }) => {
+  return request.get('/k8s/deployment/replicasets', { params })
+}
+
 // Dashboard events
 export function getDashboardEvents(params?: { clusterId?: number; type?: string; limit?: number }) {
   return request.get('/dashboard/events', { params })
