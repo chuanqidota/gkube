@@ -25,6 +25,7 @@ const deployment = ref<any>(null)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
 const yamlDialogVisible = ref(false)
+const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
 
@@ -194,6 +195,7 @@ async function handleSaveYaml(content: string) {
     fetchReplicaSets()
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to save YAML')
+    yamlEditorRef.value?.resetSaving()
   }
 }
 
@@ -355,6 +357,7 @@ onMounted(() => {
     <el-dialog v-model="yamlDialogVisible" title="YAML Editor" width="70%" top="5vh" destroy-on-close>
       <div v-loading="yamlLoading">
         <YamlEditor
+          ref="yamlEditorRef"
           v-model="yamlContent"
           height="600px"
           :read-only="true"

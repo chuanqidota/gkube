@@ -190,8 +190,12 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
 })
 
+function resetSaving() {
+  saving.value = false
+}
+
 // Expose saving state for parent to control
-defineExpose({ saving })
+defineExpose({ saving, resetSaving })
 </script>
 
 <style scoped>
