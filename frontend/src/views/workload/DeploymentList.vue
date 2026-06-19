@@ -8,8 +8,6 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import {
   getDeploymentList,
   getDeploymentYaml,
-  scaleDeployment,
-  restartDeployment,
   deleteDeployment,
   getNamespaceList,
   extractNamespaceNames,
@@ -30,12 +28,6 @@ const selectedRows = ref<any[]>([])
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
-
-// Scale dialog
-const scaleDialogVisible = ref(false)
-const scaleTarget = ref<any>(null)
-const scaleReplicas = ref(1)
-const scaleLoading = ref(false)
 
 const filteredList = computed(() => {
   if (!searchName.value) return deploymentList.value
@@ -90,44 +82,6 @@ async function handleViewYaml(row: any) {
     yamlDialogVisible.value = false
   } finally {
     yamlLoading.value = false
-  }
-}
-
-function handleScale(row: any) {
-  scaleTarget.value = row
-  const readyStr = row.ready || '0'
-  const parts = readyStr.split('/')
-  scaleReplicas.value = parseInt(parts[1] || parts[0]) || 1
-  scaleDialogVisible.value = true
-}
-
-async function handleScaleConfirm() {
-  if (!scaleTarget.value) return
-  scaleLoading.value = true
-  try {
-    await scaleDeployment({
-      namespace: scaleTarget.value.namespace,
-      name: scaleTarget.value.name,
-      replicas: scaleReplicas.value,
-    })
-    ElMessage.success(`Scaled to ${scaleReplicas.value} replicas`)
-    scaleDialogVisible.value = false
-    fetchDeployments()
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to scale')
-  } finally {
-    scaleLoading.value = false
-  }
-}
-
-async function handleRestart(row: any) {
-  try {
-    await ElMessageBox.confirm(`Restart deployment "${row.name}"?`, 'Confirm', { type: 'warning' })
-    await restartDeployment({ namespace: row.namespace, name: row.name })
-    ElMessage.success('Deployment restarted')
-    fetchDeployments()
-  } catch {
-    // cancelled
   }
 }
 
@@ -236,11 +190,9 @@ onMounted(() => {
         <el-table-column prop="up_to_date" label="Up-to-date" width="110" />
         <el-table-column prop="available" label="Available" width="110" />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="Actions" width="320" fixed="right">
+        <el-table-column label="Actions" width="200" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="warning" @click="handleScale(row)">Scale</el-button>
-            <el-button size="small" type="success" @click="handleRestart(row)">Restart</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
           </template>
         </el-table-column>
@@ -254,19 +206,6 @@ onMounted(() => {
       </div>
     </el-dialog>
 
-    <!-- Scale Dialog -->
-    <el-dialog v-model="scaleDialogVisible" title="Scale Deployment" width="400px" destroy-on-close>
-      <div v-if="scaleTarget">
-        <p style="margin-bottom: 12px;">Deployment: <strong>{{ scaleTarget.name }}</strong></p>
-        <el-form-item label="Replicas">
-          <el-input-number v-model="scaleReplicas" :min="0" :max="100" />
-        </el-form-item>
-      </div>
-      <template #footer>
-        <el-button @click="scaleDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" :loading="scaleLoading" @click="handleScaleConfirm">Scale</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
