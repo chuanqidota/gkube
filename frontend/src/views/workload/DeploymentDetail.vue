@@ -11,8 +11,12 @@ import {
   scaleDeployment,
   getPodList,
   getDeploymentEvents,
+  deletePod,
+  getDeploymentReplicaSets,
 } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import ReplicaSetPanel from '@/components/ReplicaSetPanel.vue'
+import PodListPanel from '@/components/PodListPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,10 +27,15 @@ const yamlLoading = ref(false)
 const yamlEditing = ref(false)
 const yamlSaving = ref(false)
 const activeTab = ref('info')
-const pods = ref<any[]>([])
-const podsLoading = ref(false)
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
+
+// ReplicaSet & Pod panel state
+const replicasets = ref<any[]>([])
+const replicasetsLoading = ref(false)
+const selectedReplicaset = ref<any>(null)
+const rsPods = ref<any[]>([])
+const rsPodsLoading = ref(false)
 
 // Rollback dialog
 const rollbackDialogVisible = ref(false)
@@ -65,20 +74,6 @@ async function fetchYaml() {
   }
 }
 
-async function fetchPods() {
-  podsLoading.value = true
-  try {
-    const selector = deployment.value?.selector
-    const selectorStr = selector ? Object.entries(selector).map(([k, v]) => `${k}=${v}`).join(',') : ''
-    const res: any = await getPodList({ namespace, labelSelector: selectorStr })
-    pods.value = res.data || []
-  } catch {
-    // ignore
-  } finally {
-    podsLoading.value = false
-  }
-}
-
 async function fetchEvents() {
   eventsLoading.value = true
   try {
@@ -91,9 +86,102 @@ async function fetchEvents() {
   }
 }
 
+async function fetchReplicaSets() {
+  replicasetsLoading.value = true
+  try {
+    const res: any = await getDeploymentReplicaSets({ namespace, name })
+    replicasets.value = res.data?.items || res.data || []
+    // Auto-select the current revision's ReplicaSet
+    if (replicasets.value.length > 0) {
+      const currentRevision = deployment.value?.metadata?.annotations?.['deployment.kubernetes.io/revision']
+        || deployment.value?.annotations?.['deployment.kubernetes.io/revision']
+      const currentRS = replicasets.value.find(
+        (rs: any) => rs.metadata.annotations?.['deployment.kubernetes.io/revision'] === currentRevision
+      )
+      if (currentRS) {
+        handleReplicasetSelect(currentRS)
+      }
+    }
+  } catch {
+    // ignore
+  } finally {
+    replicasetsLoading.value = false
+  }
+}
+
+async function fetchReplicasetPods(rsName: string) {
+  rsPodsLoading.value = true
+  try {
+    // The pod-template-hash is the last segment of the ReplicaSet name
+    const hash = rsName.split('-').pop()
+    const selector = deployment.value?.selector || {}
+    const selectorEntries = Object.entries(selector).map(([k, v]) => `${k}=${v}`).join(',')
+    const labelSelector = selectorEntries ? `${selectorEntries},pod-template-hash=${hash}` : `pod-template-hash=${hash}`
+    const res: any = await getPodList({ namespace, labelSelector })
+    rsPods.value = res.data?.items || res.data || []
+  } catch {
+    // ignore
+  } finally {
+    rsPodsLoading.value = false
+  }
+}
+
+function handleReplicasetSelect(rs: any) {
+  selectedReplicaset.value = rs
+  fetchReplicasetPods(rs.metadata.name)
+}
+
+async function handleReplicasetRollback(rs: any) {
+  const revision = rs.metadata.annotations?.['deployment.kubernetes.io/revision']
+  if (!revision) return
+
+  try {
+    await ElMessageBox.confirm(
+      `Are you sure you want to rollback to revision ${revision}?`,
+      'Confirm Rollback',
+      { type: 'warning' }
+    )
+    await rollbackDeployment({ namespace, name, revision: parseInt(revision, 10) })
+    ElMessage.success('Rollback successful')
+    fetchDetail()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('Rollback failed')
+    }
+  }
+}
+
+function handlePodLogs(pod: any) {
+  router.push({ path: '/logs', query: { namespace: pod.metadata.namespace || namespace, pod: pod.metadata.name } })
+}
+
+function handlePodExec(pod: any) {
+  router.push({ path: '/terminal', query: { namespace: pod.metadata.namespace || namespace, pod: pod.metadata.name } })
+}
+
+async function handlePodDelete(pod: any) {
+  try {
+    await ElMessageBox.confirm(
+      `Are you sure you want to delete pod ${pod.metadata.name}?`,
+      'Confirm Delete',
+      { type: 'warning' }
+    )
+    await deletePod({ namespace, name: pod.metadata.name })
+    ElMessage.success('Pod deleted')
+    // Refresh the pod list for the selected ReplicaSet
+    if (selectedReplicaset.value?.metadata?.name) {
+      fetchReplicasetPods(selectedReplicaset.value.metadata.name)
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('Delete failed')
+    }
+  }
+}
+
 function handleTabChange(tab: string) {
   if (tab === 'yaml' && !yamlContent.value) fetchYaml()
-  if (tab === 'pods' && pods.value.length === 0) fetchPods()
+  if (tab === 'replicasets' && replicasets.value.length === 0) fetchReplicaSets()
   if (tab === 'events' && events.value.length === 0) fetchEvents()
 }
 
@@ -164,27 +252,6 @@ async function handleRollbackConfirm() {
   }
 }
 
-function handlePodDetail(row: any) {
-  router.push(`/workloads/pods/${row.namespace || namespace}/${row.name}`)
-}
-
-function handlePodLogs(row: any) {
-  router.push({ path: '/logs', query: { namespace: row.namespace || namespace, pod: row.name } })
-}
-
-function handlePodExec(row: any) {
-  router.push({ path: '/terminal', query: { namespace: row.namespace || namespace, pod: row.name } })
-}
-
-function podStatusType(status: string) {
-  const s = (status || '').toLowerCase()
-  if (s === 'running') return 'success'
-  if (s === 'succeeded') return 'info'
-  if (s === 'pending') return 'warning'
-  if (s === 'failed') return 'danger'
-  return 'info'
-}
-
 onMounted(fetchDetail)
 </script>
 
@@ -241,28 +308,30 @@ onMounted(fetchDetail)
           </el-card>
         </el-tab-pane>
 
-        <!-- Pods Tab -->
-        <el-tab-pane label="Pods" name="pods">
-          <el-card shadow="never">
-            <el-table :data="pods" v-loading="podsLoading" stripe>
-              <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
-                <template #default="{ row }"><el-button link type="primary" @click="handlePodDetail(row)">{{ row.name }}</el-button></template>
-              </el-table-column>
-              <el-table-column prop="namespace" label="Namespace" width="140" />
-              <el-table-column prop="status" label="Status" width="120">
-                <template #default="{ row }"><el-tag :type="podStatusType(row.status)" size="small">{{ row.status }}</el-tag></template>
-              </el-table-column>
-              <el-table-column prop="restarts" label="Restarts" width="100" />
-              <el-table-column prop="age" label="Age" width="120" />
-              <el-table-column label="Actions" width="200" fixed="right">
-                <template #default="{ row }">
-                  <el-button size="small" type="primary" @click="handlePodLogs(row)">Logs</el-button>
-                  <el-button size="small" type="success" @click="handlePodExec(row)">Exec</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-            <el-empty v-if="!podsLoading && pods.length === 0" description="No pods found" />
-          </el-card>
+        <!-- ReplicaSets & Pods Tab -->
+        <el-tab-pane label="Replicasets & Pods" name="replicasets">
+          <div class="rs-pods-container">
+            <div class="rs-panel">
+              <ReplicaSetPanel
+                :replicasets="replicasets"
+                :current-revision="parseInt(deployment?.metadata?.annotations?.['deployment.kubernetes.io/revision'] || deployment?.annotations?.['deployment.kubernetes.io/revision'] || '0')"
+                :loading="replicasetsLoading"
+                :selected-name="selectedReplicaset?.metadata?.name"
+                @select="handleReplicasetSelect"
+                @rollback="handleReplicasetRollback"
+              />
+            </div>
+            <div class="pods-panel">
+              <PodListPanel
+                :pods="rsPods"
+                :loading="rsPodsLoading"
+                :replicaset-name="selectedReplicaset?.metadata?.name || ''"
+                @logs="handlePodLogs"
+                @exec="handlePodExec"
+                @delete="handlePodDelete"
+              />
+            </div>
+          </div>
         </el-tab-pane>
 
         <!-- Events Tab -->
@@ -338,4 +407,37 @@ onMounted(fetchDetail)
 <style scoped>
 .page-container { padding: 20px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+
+.rs-pods-container {
+  display: flex;
+  height: 600px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 4px;
+}
+
+.rs-panel {
+  width: 320px;
+  min-width: 320px;
+  border-right: 1px solid var(--el-border-color-lighter);
+}
+
+.pods-panel {
+  flex: 1;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .rs-pods-container {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .rs-panel {
+    width: 100%;
+    min-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    max-height: 300px;
+  }
+}
 </style>
