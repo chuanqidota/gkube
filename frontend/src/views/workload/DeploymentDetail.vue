@@ -102,8 +102,9 @@ async function fetchReplicaSets() {
         handleReplicasetSelect(currentRS)
       }
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    console.error('Failed to fetch replicasets:', e)
+    ElMessage.error('Failed to load ReplicaSets')
   } finally {
     replicasetsLoading.value = false
   }
@@ -119,8 +120,9 @@ async function fetchReplicasetPods(rsName: string) {
     const labelSelector = selectorEntries ? `${selectorEntries},pod-template-hash=${hash}` : `pod-template-hash=${hash}`
     const res: any = await getPodList({ namespace, labelSelector })
     rsPods.value = res.data?.items || res.data || []
-  } catch {
-    // ignore
+  } catch (e) {
+    console.error('Failed to fetch pods:', e)
+    ElMessage.error('Failed to load pods')
   } finally {
     rsPodsLoading.value = false
   }
@@ -144,6 +146,7 @@ async function handleReplicasetRollback(rs: any) {
     await rollbackDeployment({ namespace, name, revision: parseInt(revision, 10) })
     ElMessage.success('Rollback successful')
     fetchDetail()
+    fetchReplicaSets()
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('Rollback failed')
