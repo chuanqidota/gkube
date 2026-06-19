@@ -10,6 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
+	"sort"
+	"strconv"
 	"time"
 )
 
@@ -309,4 +311,44 @@ func DpPodList(client *kubernetes.Clientset, namespace, name string) (*corev1.Po
 		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
 	}
 	return podList, nil
+}
+
+// GetDeploymentReplicaSets returns all ReplicaSets owned by a Deployment
+func GetDeploymentReplicaSets(client *kubernetes.Clientset, namespace, name string) ([]appsv1.ReplicaSet, error) {
+	// Get the deployment to find its label selector
+	deploy, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deployment %s/%s: %v", namespace, name, err)
+	}
+
+	// Build label selector from deployment's spec.selector
+	selector := labels.SelectorFromSet(deploy.Spec.Selector.MatchLabels)
+	listOpts := metav1.ListOptions{
+		LabelSelector: selector.String(),
+	}
+
+	// List ReplicaSets
+	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), listOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list replicasets for deployment %s/%s: %v", namespace, name, err)
+	}
+
+	// Sort by revision annotation (descending)
+	sort.Slice(rsList.Items, func(i, j int) bool {
+		revI := getRevision(&rsList.Items[i])
+		revJ := getRevision(&rsList.Items[j])
+		return revI > revJ
+	})
+
+	return rsList.Items, nil
+}
+
+// getRevision extracts the revision number from ReplicaSet annotations
+func getRevision(rs *appsv1.ReplicaSet) int64 {
+	if rs.Annotations == nil {
+		return 0
+	}
+	revStr := rs.Annotations["deployment.kubernetes.io/revision"]
+	rev, _ := strconv.ParseInt(revStr, 10, 64)
+	return rev
 }
