@@ -385,6 +385,30 @@ func (dp *deployment) DeploymentPodList(c *gin.Context) {
 	response.Success(c, "执行成功", podList)
 }
 
+// GetDeploymentReplicaSets
+//
+//	@Description: 获取Deployment关联的ReplicaSet列表
+//	@receiver dp
+//	@param c
+func (dp *deployment) GetDeploymentReplicaSets(c *gin.Context) {
+	var query params.DeploymentReplicaSetParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	rsList, err := k8sDeployment.GetDeploymentReplicaSets(client, query.Namespace, query.Name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取ReplicaSet列表失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", rsList)
+}
+
 // GetDeploymentEvents
 //
 //	@Description: 获取deployment事件

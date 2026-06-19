@@ -120,6 +120,7 @@ func Engine() *gin.Engine {
 			k8s.POST("deployment/restart", k8sApi.Deployment.RestartDeployment)
 			k8s.POST("deployment/rollback", k8sApi.Deployment.RollbackDeployment)
 			k8s.GET("deployment/pods", k8sApi.Deployment.DeploymentPodList)
+			k8s.GET("deployment/replicasets", k8sApi.Deployment.GetDeploymentReplicaSets)
 
 			// StatefulSet (lowercase: statefulset)
 			k8s.GET("statefulset/list", k8sApi.StatefulSet.GetStatefulSetList)
