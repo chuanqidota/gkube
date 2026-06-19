@@ -24,8 +24,6 @@ const loading = ref(false)
 const deployment = ref<any>(null)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
-const yamlEditing = ref(false)
-const yamlSaving = ref(false)
 const yamlDialogVisible = ref(false)
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
@@ -183,24 +181,19 @@ async function handlePodDelete(pod: any) {
 }
 
 function handleOpenYaml() {
-  yamlEditing.value = false
   fetchYaml()
   yamlDialogVisible.value = true
 }
 
-async function handleSaveYaml() {
-  yamlSaving.value = true
+async function handleSaveYaml(content: string) {
   try {
-    await updateDeploymentYaml({ namespace, name, yaml: yamlContent.value })
+    await updateDeploymentYaml({ namespace, name, yaml: content })
     ElMessage.success('YAML saved successfully')
-    yamlEditing.value = false
     yamlDialogVisible.value = false
     fetchDetail()
     fetchReplicaSets()
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to save YAML')
-  } finally {
-    yamlSaving.value = false
   }
 }
 
@@ -360,15 +353,14 @@ onMounted(() => {
 
     <!-- YAML Dialog -->
     <el-dialog v-model="yamlDialogVisible" title="YAML Editor" width="70%" top="5vh" destroy-on-close>
-      <div style="margin-bottom: 12px; display: flex; gap: 8px;">
-        <el-button v-if="!yamlEditing" type="primary" @click="yamlEditing = true">Edit</el-button>
-        <template v-if="yamlEditing">
-          <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">Save</el-button>
-          <el-button @click="yamlEditing = false; fetchYaml()">Cancel</el-button>
-        </template>
-      </div>
       <div v-loading="yamlLoading">
-        <YamlEditor v-model="yamlContent" height="600px" :read-only="!yamlEditing" />
+        <YamlEditor
+          v-model="yamlContent"
+          height="600px"
+          :read-only="true"
+          :saveable="true"
+          @save="handleSaveYaml"
+        />
       </div>
     </el-dialog>
 
