@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ElTag } from 'element-plus'
+import { formatAge } from '@/utils/time'
 
 interface ReplicaSet {
   metadata: {
@@ -63,19 +64,6 @@ const getStatus = (rs: ReplicaSet): { text: string; type: 'success' | 'primary' 
   return { text: 'Inactive', type: 'info' }
 }
 
-const formatAge = (timestamp: string): string => {
-  const now = new Date()
-  const created = new Date(timestamp)
-  const diffMs = now.getTime() - created.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
-
-  if (diffDays > 0) return `${diffDays}d ago`
-  if (diffHours > 0) return `${diffHours}h ago`
-  return `${diffMins}m ago`
-}
-
 const handleSelect = (rs: ReplicaSet) => {
   emit('select', rs)
 }
@@ -128,7 +116,6 @@ const handleRollback = (rs: ReplicaSet) => {
 .replicaset-panel {
   height: 100%;
   overflow-y: auto;
-  border-right: 1px solid var(--el-border-color-lighter);
 }
 
 .empty-state {

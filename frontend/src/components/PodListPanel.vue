@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ElTag, ElButton } from 'element-plus'
+import { formatAge } from '@/utils/time'
 
 interface Pod {
   metadata: {
@@ -49,19 +50,6 @@ const getRestarts = (pod: Pod): number => {
   return pod.status.containerStatuses?.reduce((sum, cs) => sum + cs.restartCount, 0) || 0
 }
 
-const formatAge = (timestamp: string): string => {
-  const now = new Date()
-  const created = new Date(timestamp)
-  const diffMs = now.getTime() - created.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
-
-  if (diffDays > 0) return `${diffDays}d`
-  if (diffHours > 0) return `${diffHours}h`
-  return `${diffMins}m`
-}
-
 const handleLogs = (pod: Pod) => {
   emit('logs', pod)
 }
@@ -78,7 +66,7 @@ const handleDelete = (pod: Pod) => {
 <template>
   <div class="pod-list-panel" v-loading="loading">
     <div class="panel-header">
-      <span class="title">Pods ({{ pods.length }})</span>
+      <span class="title">{{ replicasetName ? `Pods for ${replicasetName}` : 'Pods' }} ({{ pods.length }})</span>
     </div>
     <div v-if="pods.length === 0" class="empty-state">
       No pods found
@@ -110,7 +98,7 @@ const handleDelete = (pod: Pod) => {
       </el-table-column>
       <el-table-column label="Age" width="80">
         <template #default="{ row }">
-          {{ formatAge(row.metadata.creationTimestamp) }}
+          {{ formatAge(row.metadata.creationTimestamp, false) }}
         </template>
       </el-table-column>
       <el-table-column label="Node" width="120">
