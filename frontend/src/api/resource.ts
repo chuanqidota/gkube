@@ -374,6 +374,11 @@ export const getDeploymentReplicaSets = (params: { namespace: string; name: stri
   return request.get('/k8s/deployment/replicasets', { params })
 }
 
+// 获取 Deployment 关联的 Pod 列表
+export const getDeploymentPodList = (params: { namespace: string; name: string }) => {
+  return request.get('/k8s/deployment/pods', { params })
+}
+
 // Dashboard events
 export function getDashboardEvents(params?: { clusterId?: number; type?: string; limit?: number }) {
   return request.get('/dashboard/events', { params })

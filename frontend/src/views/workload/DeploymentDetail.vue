@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -9,14 +9,15 @@ import {
   restartDeployment,
   rollbackDeployment,
   scaleDeployment,
-  getPodList,
+  getDeploymentPodList,
   getDeploymentEvents,
   deletePod,
   getDeploymentReplicaSets,
+  getPodList,
 } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
-import ReplicaSetPanel from '@/components/ReplicaSetPanel.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
+import { formatAge } from '@/utils/time'
 
 const route = useRoute()
 const router = useRouter()
@@ -48,6 +49,24 @@ const scaleLoading = ref(false)
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
+
+const statusTagType = computed(() => {
+  const conditions = deployment.value?.status?.conditions || []
+  const available = conditions.find((c: any) => c.type === 'Available')
+  if (available?.status === 'True') return 'success'
+  const progressing = conditions.find((c: any) => c.type === 'Progressing')
+  if (progressing?.status === 'True') return 'warning'
+  return 'danger'
+})
+
+const statusText = computed(() => {
+  const conditions = deployment.value?.status?.conditions || []
+  const available = conditions.find((c: any) => c.type === 'Available')
+  if (available?.status === 'True') return 'Available'
+  const progressing = conditions.find((c: any) => c.type === 'Progressing')
+  if (progressing?.status === 'True') return 'Progressing'
+  return 'Unavailable'
+})
 
 async function fetchDetail() {
   loading.value = true
@@ -91,7 +110,6 @@ async function fetchReplicaSets() {
   try {
     const res: any = await getDeploymentReplicaSets({ namespace, name })
     replicasets.value = res.data?.items || res.data || []
-    // Auto-select the current revision's ReplicaSet
     if (replicasets.value.length > 0) {
       const currentRevision = deployment.value?.metadata?.annotations?.['deployment.kubernetes.io/revision']
       const currentRS = replicasets.value.find(
@@ -109,19 +127,14 @@ async function fetchReplicaSets() {
   }
 }
 
-async function fetchReplicasetPods(rsName: string) {
+async function fetchAllPods() {
   rsPodsLoading.value = true
   try {
-    // The pod-template-hash is the last segment of the ReplicaSet name
-    const hash = rsName.split('-').pop()
-    const selector = deployment.value?.spec?.selector?.matchLabels || {}
-    const selectorEntries = Object.entries(selector).map(([k, v]) => `${k}=${v}`).join(',')
-    const labelSelector = selectorEntries ? `${selectorEntries},pod-template-hash=${hash}` : `pod-template-hash=${hash}`
-    const res: any = await getPodList({ namespace, labelSelector })
+    const res: any = await getDeploymentPodList({ namespace, name })
     rsPods.value = res.data?.items || res.data || []
   } catch (e) {
-    console.error('Failed to fetch pods:', e)
-    ElMessage.error('Failed to load pods')
+    console.error("Failed to fetch pods:", e)
+    ElMessage.error("Failed to load pods")
   } finally {
     rsPodsLoading.value = false
   }
@@ -129,13 +142,30 @@ async function fetchReplicasetPods(rsName: string) {
 
 function handleReplicasetSelect(rs: any) {
   selectedReplicaset.value = rs
-  fetchReplicasetPods(rs.metadata.name)
+  // Filter pods belonging to this RS by pod-template-hash
+  const hash = rs.metadata.name.split('-').pop()
+  const selector = deployment.value?.spec?.selector?.matchLabels || {}
+  const selectorEntries = Object.entries(selector).map(([k, v]) => `${k}=${v}`).join(',')
+  const labelSelector = selectorEntries
+    ? `${selectorEntries},pod-template-hash=${hash}`
+    : `pod-template-hash=${hash}`
+  rsPodsLoading.value = true
+  getPodList({ namespace, labelSelector })
+    .then((res: any) => {
+      rsPods.value = res.data?.items || res.data || []
+    })
+    .catch((e: any) => {
+      console.error('Failed to fetch pods:', e)
+      ElMessage.error('Failed to load pods')
+    })
+    .finally(() => {
+      rsPodsLoading.value = false
+    })
 }
 
 async function handleReplicasetRollback(rs: any) {
   const revision = rs.metadata.annotations?.['deployment.kubernetes.io/revision']
   if (!revision) return
-
   try {
     await ElMessageBox.confirm(
       `Are you sure you want to rollback to revision ${revision}?`,
@@ -170,9 +200,8 @@ async function handlePodDelete(pod: any) {
     )
     await deletePod({ namespace, name: pod.metadata.name })
     ElMessage.success('Pod deleted')
-    // Refresh the pod list for the selected ReplicaSet
-    if (selectedReplicaset.value?.metadata?.name) {
-      fetchReplicasetPods(selectedReplicaset.value.metadata.name)
+    if (selectedReplicaset.value) {
+      handleReplicasetSelect(selectedReplicaset.value)
     }
   } catch (error) {
     if (error !== 'cancel') {
@@ -201,12 +230,18 @@ async function handleSaveYaml(content: string) {
 
 async function handleRestart() {
   try {
-    await ElMessageBox.confirm(`Restart deployment "${name}"? This will trigger a rolling update.`, 'Confirm Restart', { type: 'warning' })
+    await ElMessageBox.confirm(
+      `Restart deployment "${name}"? This will trigger a rolling update.`,
+      'Confirm Restart',
+      { type: 'warning' }
+    )
     await restartDeployment({ namespace, name })
     ElMessage.success('Deployment restarted')
     fetchDetail()
     fetchReplicaSets()
-  } catch { /* cancelled */ }
+  } catch {
+    // cancelled
+  }
 }
 
 function handleRollback() {
@@ -255,91 +290,81 @@ async function handleRollbackConfirm() {
 }
 
 onMounted(() => {
-  fetchDetail()
-  fetchReplicaSets()
+  fetchDetail().then(() => {
+    fetchReplicaSets()
+  })
   fetchEvents()
 })
 </script>
 
 <template>
-  <div class="page-container" v-loading="loading">
-    <div class="page-header">
-      <h2 style="margin: 0;">Deployment: {{ name }}</h2>
-      <div style="display: flex; gap: 8px;">
-        <el-button type="primary" @click="handleScale">Scale</el-button>
-        <el-button type="warning" @click="handleRestart">Restart</el-button>
-        <el-button type="danger" @click="handleRollback">Rollback</el-button>
-        <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button @click="router.push('/workloads/deployments')">Back to List</el-button>
-      </div>
-    </div>
+  <div class="detail-page" v-loading="loading">
 
-    <!-- Overview Section -->
-    <div class="overview-section" v-if="deployment">
-      <el-descriptions :column="{ xs: 1, sm: 2, md: 3, lg: 4 }" border size="small">
-        <el-descriptions-item label="Replicas">
-          {{ deployment.status?.readyReplicas ?? 0 }}/{{ deployment.spec?.replicas ?? 0 }}
-        </el-descriptions-item>
-        <el-descriptions-item label="Available">
-          {{ deployment.status?.availableReplicas ?? '-' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="Updated">
-          {{ deployment.status?.updatedReplicas ?? '-' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="Strategy">
-          {{ deployment.spec?.strategy?.type || '-' }}
-        </el-descriptions-item>
-      </el-descriptions>
-      <div class="overview-tags" v-if="deployment.metadata?.labels && Object.keys(deployment.metadata.labels).length > 0">
-        <span class="tag-label">Labels:</span>
-        <el-tag v-for="(val, key) in deployment.metadata.labels" :key="key" size="small">
-          {{ key }}={{ val }}
-        </el-tag>
+    <!-- ===== 顶部标题栏 ===== -->
+    <div class="page-header">
+      <div class="header-left">
+        <el-button link type="primary" @click="router.push('/workloads/deployments')" class="back-btn">← 返回列表</el-button>
+        <div class="title-line">
+          <h2 class="res-name">{{ name }}</h2>
+          <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
+          <span class="ns-tag">ns/{{ namespace }}</span>
+          <span class="replicas-info" v-if="deployment">
+            {{ deployment.status?.readyReplicas ?? 0 }}/{{ deployment.spec?.replicas ?? 0 }} ready
+          </span>
+        </div>
       </div>
-      <div class="overview-tags" v-if="deployment.spec?.selector?.matchLabels && Object.keys(deployment.spec.selector.matchLabels).length > 0">
-        <span class="tag-label">Selector:</span>
-        <el-tag v-for="(val, key) in deployment.spec.selector.matchLabels" :key="key" size="small" type="info">
-          {{ key }}={{ val }}
-        </el-tag>
+      <div class="header-actions">
+        <el-button type="primary" size="small" @click="handleScale">扩缩容</el-button>
+        <el-button type="warning" size="small" @click="handleRestart">重启</el-button>
+        <el-button type="danger" size="small" @click="handleRollback">回滚</el-button>
+        <el-button size="small" @click="handleOpenYaml">YAML</el-button>
       </div>
     </div>
 
     <template v-if="deployment">
-      <div class="main-content">
-        <!-- Left Panel: ReplicaSet List -->
-        <div class="left-panel">
-          <ReplicaSetPanel
-            :replicasets="replicasets"
-            :current-revision="parseInt(deployment?.metadata?.annotations?.['deployment.kubernetes.io/revision'] || '0')"
-            :loading="replicasetsLoading"
-            :selected-name="selectedReplicaset?.metadata?.name"
-            @select="handleReplicasetSelect"
-            @rollback="handleReplicasetRollback"
-          />
-        </div>
+      <!-- ===== 主体：左侧 RS + 右侧 Pods / Events ===== -->
+      <div class="main-layout">
 
-        <!-- Right Panel: Events + Pods -->
-        <div class="right-panel">
-          <!-- Events Section -->
-          <div class="events-section">
-            <div class="section-header">
-              <span class="section-title">Events</span>
-            </div>
-            <div v-loading="eventsLoading" class="events-content">
-              <el-table :data="events" stripe size="small" max-height="200">
-                <el-table-column prop="type" label="Type" width="80">
-                  <template #default="{ row }"><el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag></template>
-                </el-table-column>
-                <el-table-column prop="reason" label="Reason" width="120" />
-                <el-table-column prop="message" label="Message" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="last_seen" label="Last Seen" width="150" />
-              </el-table>
-              <el-empty v-if="!eventsLoading && events.length === 0" description="No events" :image-size="60" />
+        <!-- 左侧：ReplicaSet 列表 -->
+        <div class="left-panel">
+          <div class="panel-title">ReplicaSet ({{ replicasets.length }})</div>
+          <div class="rs-list" v-loading="replicasetsLoading">
+            <div v-if="replicasets.length === 0" class="empty-hint">暂无 ReplicaSet</div>
+            <div
+              v-for="rs in replicasets"
+              :key="rs.metadata.name"
+              class="rs-item"
+              :class="{ active: selectedReplicaset?.metadata?.name === rs.metadata.name }"
+              @click="handleReplicasetSelect(rs)"
+            >
+              <div class="rs-name">{{ rs.metadata.name }}</div>
+              <div class="rs-meta">
+                <span class="rs-rev">v{{ rs.metadata.annotations?.['deployment.kubernetes.io/revision'] || '?' }}</span>
+                <span class="rs-replicas">{{ rs.status?.readyReplicas ?? 0 }}/{{ rs.spec?.replicas ?? 0 }}</span>
+                <el-tag
+                  v-if="rs.metadata.annotations?.['deployment.kubernetes.io/revision'] === deployment?.metadata?.annotations?.['deployment.kubernetes.io/revision']"
+                  type="success" size="small">当前</el-tag>
+                <el-tag v-else-if="(rs.status?.readyReplicas || 0) > 0" type="primary" size="small">活跃</el-tag>
+              </div>
+              <div class="rs-image">{{ rs.spec?.template?.spec?.containers?.[0]?.image || '-' }}</div>
+              <div class="rs-age">{{ formatAge(rs.metadata.creationTimestamp) }}</div>
+              <div class="rs-rollback" v-if="rs.metadata.annotations?.['deployment.kubernetes.io/revision'] !== deployment?.metadata?.annotations?.['deployment.kubernetes.io/revision']">
+                <el-button size="small" type="warning" @click.stop="handleReplicasetRollback(rs)">回滚</el-button>
+              </div>
             </div>
           </div>
+        </div>
 
-          <!-- Pods Section -->
-          <div class="pods-section">
+        <!-- 右侧：Pods + Events -->
+        <div class="right-panel">
+
+          <!-- Pod 列表 -->
+          <div class="right-section">
+            <div class="panel-title">
+              Pod 列表
+              <span class="count-badge">{{ rsPods.length }} 个</span>
+              <span class="rs-label" v-if="selectedReplicaset">{{ selectedReplicaset.metadata.name }}</span>
+            </div>
             <PodListPanel
               :pods="rsPods"
               :loading="rsPodsLoading"
@@ -349,155 +374,308 @@ onMounted(() => {
               @delete="handlePodDelete"
             />
           </div>
+
+          <!-- Events -->
+          <div class="right-section">
+            <div class="panel-title">
+              事件
+              <span class="count-badge">{{ events.length }} 条</span>
+            </div>
+            <div v-loading="eventsLoading" class="events-body">
+              <el-table v-if="events.length > 0" :data="events" size="small" stripe max-height="260">
+                <el-table-column prop="type" label="类型" width="80">
+                  <template #default="{ row }">
+                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="reason" label="原因" width="130" />
+                <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="last_seen" label="最后发生" width="150" />
+              </el-table>
+              <div v-else class="empty-hint">暂无事件</div>
+            </div>
+          </div>
+
         </div>
       </div>
     </template>
 
-    <!-- YAML Dialog -->
-    <el-dialog v-model="yamlDialogVisible" title="YAML Editor" width="70%" top="5vh" destroy-on-close>
+    <!-- ===== Dialogs ===== -->
+    <el-dialog v-model="yamlDialogVisible" title="YAML" width="70%" top="5vh" destroy-on-close>
       <div v-loading="yamlLoading">
-        <YamlEditor
-          ref="yamlEditorRef"
-          v-model="yamlContent"
-          height="600px"
-          :read-only="true"
-          :saveable="true"
-          @save="handleSaveYaml"
-        />
+        <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="600px" :read-only="true" :saveable="true" @save="handleSaveYaml" />
       </div>
     </el-dialog>
 
-    <!-- Rollback Dialog -->
-    <el-dialog v-model="rollbackDialogVisible" title="Rollback Deployment" width="480px" destroy-on-close>
+    <el-dialog v-model="rollbackDialogVisible" title="回滚" width="480px" destroy-on-close>
       <div>
-        <p style="margin-bottom: 16px;">Rollback deployment <strong>{{ name }}</strong> in namespace <strong>{{ namespace }}</strong>.</p>
-        <el-alert v-if="deployment?.metadata?.annotations?.['deployment.kubernetes.io/revision']" :title="`Current revision: ${deployment.metadata.annotations['deployment.kubernetes.io/revision']}`" type="info" :closable="false" style="margin-bottom: 16px;" />
-        <el-form-item label="Target Revision">
+        <p style="margin-bottom: 16px;">回滚 <strong>{{ name }}</strong>（{{ namespace }}）</p>
+        <el-alert v-if="deployment?.metadata?.annotations?.['deployment.kubernetes.io/revision']" :title="`当前版本: ${deployment.metadata.annotations['deployment.kubernetes.io/revision']}`" type="info" :closable="false" style="margin-bottom: 16px;" />
+        <el-form-item label="目标版本">
           <el-input-number v-model="rollbackRevision" :min="1" style="width: 200px;" />
         </el-form-item>
-        <el-alert title="This will roll back the deployment to the specified revision by restoring the Pod template from that revision's ReplicaSet." type="warning" :closable="false" show-icon />
+        <el-alert title="回滚将用指定版本的 Pod 模板替换当前模板。" type="warning" :closable="false" show-icon />
       </div>
       <template #footer>
-        <el-button @click="rollbackDialogVisible = false">Cancel</el-button>
-        <el-button type="danger" :loading="rollbackLoading" @click="handleRollbackConfirm">Rollback</el-button>
+        <el-button @click="rollbackDialogVisible = false">取消</el-button>
+        <el-button type="danger" :loading="rollbackLoading" @click="handleRollbackConfirm">确认回滚</el-button>
       </template>
     </el-dialog>
 
-    <!-- Scale Dialog -->
-    <el-dialog v-model="scaleDialogVisible" title="Scale Deployment" width="480px" destroy-on-close>
+    <el-dialog v-model="scaleDialogVisible" title="扩缩容" width="480px" destroy-on-close>
       <div>
-        <p style="margin-bottom: 16px;">Scale deployment <strong>{{ name }}</strong> in namespace <strong>{{ namespace }}</strong>.</p>
-        <el-descriptions :column="1" border style="margin-bottom: 16px;">
-          <el-descriptions-item label="Current Replicas">{{ deployment?.spec?.replicas ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="Ready Replicas">{{ deployment?.status?.readyReplicas ?? '-' }}</el-descriptions-item>
+        <p style="margin-bottom: 16px;">调整 <strong>{{ name }}</strong> 副本数</p>
+        <el-descriptions :column="1" border size="small" style="margin-bottom: 16px;">
+          <el-descriptions-item label="当前">{{ deployment?.spec?.replicas ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="就绪">{{ deployment?.status?.readyReplicas ?? '-' }}</el-descriptions-item>
         </el-descriptions>
-        <el-form-item label="Target Replicas">
+        <el-form-item label="目标">
           <el-input-number v-model="scaleReplicas" :min="0" :max="100" style="width: 200px;" />
         </el-form-item>
-        <el-alert v-if="scaleReplicas === 0" title="Setting replicas to 0 will stop all pods." type="warning" :closable="false" show-icon style="margin-top: 8px;" />
+        <el-alert v-if="scaleReplicas === 0" title="设为 0 将停止所有 Pod。" type="warning" :closable="false" show-icon style="margin-top: 8px;" />
       </div>
       <template #footer>
-        <el-button @click="scaleDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" :loading="scaleLoading" @click="handleScaleConfirm">Scale</el-button>
+        <el-button @click="scaleDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="scaleLoading" @click="handleScaleConfirm">确认</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-
-.main-content {
+.detail-page {
+  padding: 16px 20px;
+  height: 100vh;
   display: flex;
-  height: calc(100vh - 120px);
-  border: 1px solid var(--el-border-color-lighter);
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.back-btn {
+  align-self: flex-start;
+  margin-bottom: 2px;
+}
+
+.title-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.res-name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.ns-tag {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-lighter);
+  padding: 2px 8px;
   border-radius: 4px;
+}
+
+.replicas-info {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+}
+
+.header-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Main Layout: left RS + right Pods/Events */
+.main-layout {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
+/* Left Panel - RS List */
 .left-panel {
   width: 320px;
   min-width: 320px;
-  border-right: 1px solid var(--el-border-color-lighter);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--el-bg-color);
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 14px;
+  background: var(--el-fill-color-lighter);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.count-badge {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.rs-label {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--el-text-color-placeholder);
+  font-family: monospace;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rs-list {
+  flex: 1;
   overflow-y: auto;
 }
 
+.rs-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.rs-item:hover {
+  background: var(--el-fill-color-light);
+}
+
+.rs-item.active {
+  background: var(--el-color-primary-light-9);
+  border-left: 3px solid var(--el-color-primary);
+}
+
+.rs-name {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: monospace;
+  word-break: break-all;
+  margin-bottom: 4px;
+}
+
+.rs-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.rs-rev {
+  font-size: 12px;
+  color: var(--el-color-primary);
+  font-weight: 500;
+}
+
+.rs-replicas {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.rs-image {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  word-break: break-all;
+  margin-bottom: 2px;
+}
+
+.rs-age {
+  font-size: 11px;
+  color: var(--el-text-color-placeholder);
+}
+
+.rs-rollback {
+  margin-top: 6px;
+}
+
+/* Right Panel */
 .right-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  min-width: 0;
   overflow: hidden;
 }
 
-.events-section {
-  border-bottom: 1px solid var(--el-border-color-lighter);
+.right-section {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  background: var(--el-bg-color);
 }
 
-.section-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  background-color: var(--el-fill-color-lighter);
+.right-section:first-child {
+  flex: 1;
+  min-height: 0;
 }
 
-.section-title {
-  font-weight: 500;
-  font-size: 14px;
+.right-section:last-child {
+  max-height: 300px;
+  flex-shrink: 0;
 }
 
-.events-content {
-  padding: 12px;
-  overflow-y: auto;
-}
-
-.pods-section {
+.events-body {
   flex: 1;
   overflow-y: auto;
+  padding: 0;
 }
 
-.overview-section {
-  padding: 12px 16px;
-  background-color: var(--el-fill-color-lighter);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 4px;
-  margin-bottom: 16px;
-}
-
-.overview-tags {
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.tag-label {
-  font-size: 13px;
+/* Empty hints */
+.empty-hint {
+  padding: 24px;
+  text-align: center;
   color: var(--el-text-color-secondary);
-  margin-right: 8px;
+  font-size: 13px;
 }
 
+/* Responsive */
 @media (max-width: 1199px) {
   .left-panel {
-    width: 280px;
-    min-width: 280px;
+    width: 260px;
+    min-width: 260px;
   }
 }
 
 @media (max-width: 768px) {
-  .main-content {
+  .main-layout {
     flex-direction: column;
-    height: auto;
+    overflow: auto;
   }
-
   .left-panel {
     width: 100%;
     min-width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--el-border-color-lighter);
-    max-height: 300px;
+    max-height: 260px;
   }
 }
 </style>
