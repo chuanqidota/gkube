@@ -17,6 +17,25 @@ const router = createRouter({
       component: () => import('@/views/login/OIDCCallback.vue'),
       meta: { public: true },
     },
+    // Fullscreen layout for terminal and logs (no sidebar/header, opens in new tab)
+    {
+      path: '/',
+      component: () => import('@/components/Layout/FullscreenLayout.vue'),
+      children: [
+        {
+          path: 'terminal',
+          name: 'Terminal',
+          component: () => import('@/views/terminal/TerminalView.vue'),
+          meta: { title: 'Web终端', icon: 'Promotion' },
+        },
+        {
+          path: 'logs',
+          name: 'Logs',
+          component: () => import('@/views/logviewer/LogView.vue'),
+          meta: { title: '日志查看', icon: 'Document' },
+        },
+      ],
+    },
     // AppLayout wrapper for all authenticated pages
     {
       path: '/',
@@ -472,20 +491,6 @@ const router = createRouter({
           name: 'CustomResourceList',
           component: () => import('@/views/crd/CustomResourceList.vue'),
           meta: { title: '自定义资源', parent: 'CRDList' },
-        },
-        // Tools - Terminal
-        {
-          path: 'terminal',
-          name: 'Terminal',
-          component: () => import('@/views/terminal/TerminalView.vue'),
-          meta: { title: 'Web终端', icon: 'Promotion' },
-        },
-        // Tools - Logs
-        {
-          path: 'logs',
-          name: 'Logs',
-          component: () => import('@/views/logviewer/LogView.vue'),
-          meta: { title: '日志查看', icon: 'Document' },
         },
         // System - Users
         {

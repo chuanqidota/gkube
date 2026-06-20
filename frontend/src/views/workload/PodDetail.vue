@@ -91,12 +91,30 @@ async function handleSaveYaml() {
   }
 }
 
+function getClusterName(): string {
+  try {
+    const saved = localStorage.getItem('gkube_cluster')
+    if (saved) {
+      const c = JSON.parse(saved)
+      return c?.clusterName || c?.cluster_name || c?.name || ''
+    }
+  } catch { /* ignore */ }
+  return ''
+}
+
 function handleLogs() {
-  router.push({ path: '/logs', query: { namespace, pod: name } })
+  const cluster = getClusterName()
+  window.open(`/logs?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function handleExec() {
-  router.push({ path: '/terminal', query: { namespace, pod: name } })
+  const cluster = getClusterName()
+  window.open(`/terminal?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+}
+
+function handleFullLogViewer() {
+  const cluster = getClusterName()
+  window.open(`/logs?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 async function handleDelete() {
@@ -295,7 +313,7 @@ onMounted(fetchDetail)
               <el-button type="primary" @click="fetchLogs" :loading="logsLoading">
                 <el-icon><Refresh /></el-icon> Refresh
               </el-button>
-              <el-button @click="router.push({ path: '/logs', query: { namespace, pod: name } })">Full Log Viewer</el-button>
+              <el-button @click="handleFullLogViewer">Full Log Viewer</el-button>
             </div>
             <div v-loading="logsLoading" class="log-container">
               <pre v-if="logs" class="log-content">{{ logs }}</pre>

@@ -13,7 +13,6 @@ import {
   getDeploymentEvents,
   deletePod,
   getDeploymentReplicaSets,
-  getPodList,
 } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
@@ -35,6 +34,7 @@ const replicasets = ref<any[]>([])
 const replicasetsLoading = ref(false)
 const selectedReplicaset = ref<any>(null)
 const rsPods = ref<any[]>([])
+const allPods = ref<any[]>([])
 const rsPodsLoading = ref(false)
 
 // Rollback dialog
@@ -115,8 +115,11 @@ async function fetchReplicaSets() {
       const currentRS = replicasets.value.find(
         (rs: any) => rs.metadata.annotations?.['deployment.kubernetes.io/revision'] === currentRevision
       )
+      await fetchAllPods()
       if (currentRS) {
         handleReplicasetSelect(currentRS)
+      } else {
+        rsPods.value = allPods.value
       }
     }
   } catch (e) {
@@ -131,7 +134,8 @@ async function fetchAllPods() {
   rsPodsLoading.value = true
   try {
     const res: any = await getDeploymentPodList({ namespace, name })
-    rsPods.value = res.data?.items || res.data || []
+    allPods.value = res.data?.items || res.data || []
+    rsPods.value = allPods.value
   } catch (e) {
     console.error("Failed to fetch pods:", e)
     ElMessage.error("Failed to load pods")
@@ -142,25 +146,11 @@ async function fetchAllPods() {
 
 function handleReplicasetSelect(rs: any) {
   selectedReplicaset.value = rs
-  // Filter pods belonging to this RS by pod-template-hash
   const hash = rs.metadata.name.split('-').pop()
-  const selector = deployment.value?.spec?.selector?.matchLabels || {}
-  const selectorEntries = Object.entries(selector).map(([k, v]) => `${k}=${v}`).join(',')
-  const labelSelector = selectorEntries
-    ? `${selectorEntries},pod-template-hash=${hash}`
-    : `pod-template-hash=${hash}`
-  rsPodsLoading.value = true
-  getPodList({ namespace, labelSelector })
-    .then((res: any) => {
-      rsPods.value = res.data?.items || res.data || []
-    })
-    .catch((e: any) => {
-      console.error('Failed to fetch pods:', e)
-      ElMessage.error('Failed to load pods')
-    })
-    .finally(() => {
-      rsPodsLoading.value = false
-    })
+  rsPods.value = allPods.value.filter((pod: any) => {
+    const labels = pod.metadata?.labels || {}
+    return labels['pod-template-hash'] === hash
+  })
 }
 
 async function handleReplicasetRollback(rs: any) {
@@ -183,12 +173,25 @@ async function handleReplicasetRollback(rs: any) {
   }
 }
 
+function getClusterName(): string {
+  try {
+    const saved = localStorage.getItem('gkube_cluster')
+    if (saved) {
+      const c = JSON.parse(saved)
+      return c?.clusterName || c?.cluster_name || c?.name || ''
+    }
+  } catch { /* ignore */ }
+  return ''
+}
+
 function handlePodLogs(pod: any) {
-  window.open(`/logs?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}`, '_blank')
+  const cluster = getClusterName()
+  window.open(`/logs?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function handlePodExec(pod: any) {
-  window.open(`/terminal?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}`, '_blank')
+  const cluster = getClusterName()
+  window.open(`/terminal?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 async function handlePodDelete(pod: any) {

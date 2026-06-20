@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
+import { useClusterStore } from '@/stores/cluster'
+import { getPodDetail } from '@/api/resource'
+import { ElMessage } from 'element-plus'
 import { getToken } from '@/utils/auth'
 
 const { t } = useI18n()
+const route = useRoute()
 
 interface ClusterOption {
   name: string
@@ -21,10 +26,14 @@ const selectedNamespace = ref('')
 const selectedPod = ref('')
 const selectedContainer = ref('')
 
+const skipWatchers = ref(false)
 const logContent = ref('')
 const autoScroll = ref(true)
 const status = ref<ConnectionStatus>('disconnected')
 const logContainerRef = ref<HTMLDivElement>()
+
+// Whether opened from pod context (with query params) — hide selectors
+const isEmbedded = ref(false)
 
 let abortController: AbortController | null = null
 
@@ -96,7 +105,7 @@ async function fetchPods() {
     })
     const json = await res.json()
     const podData = json?.data || json || []
-    pods.value = (Array.isArray(podData) ? podData : []).map((p: any) => typeof p === 'string' ? p : p.name)
+    pods.value = (Array.isArray(podData) ? podData : []).map((p: any) => typeof p === 'string' ? p : (p.metadata?.name || p.name))
   } catch {
     // silently fail
   }
@@ -204,8 +213,65 @@ function clearLogs() {
   logContent.value = ''
 }
 
+async function initWithQueryParams() {
+  const { namespace, pod, container, cluster } = route.query
+  if (!namespace || !pod) return
+  isEmbedded.value = true
+  skipWatchers.value = true
+
+  // Set cluster from query param or localStorage
+  const clusterStore = useClusterStore()
+  if (cluster) {
+    selectedCluster.value = cluster as string
+    // Ensure localStorage has the cluster set so the API interceptor works
+    // The interceptor reads clusterName (camelCase), so we must set that key
+    let clusterObj: any = null
+    try {
+      const saved = localStorage.getItem('gkube_cluster')
+      if (saved) clusterObj = JSON.parse(saved)
+    } catch { /* ignore */ }
+    if (!clusterObj) clusterObj = {}
+    clusterObj.clusterName = cluster as string
+    clusterObj.cluster_name = cluster as string
+    clusterObj.name = cluster as string
+    localStorage.setItem('gkube_cluster', JSON.stringify(clusterObj))
+    // Also update Pinia store so it stays in sync
+    clusterStore.setCurrentCluster(clusterObj)
+  } else if (clusterStore.currentCluster) {
+    selectedCluster.value = clusterStore.currentCluster.cluster_name || clusterStore.currentCluster.name
+  }
+
+  selectedNamespace.value = namespace as string
+  selectedPod.value = pod as string
+
+  // Fetch pod detail to get container list
+  if (!container) {
+    try {
+      const res: any = await getPodDetail({ namespace: namespace as string, name: pod as string })
+      const containers = res.data?.containers || []
+      if (containers.length > 0) {
+        selectedContainer.value = containers[0].name
+      } else {
+        ElMessage.warning('Pod has no containers')
+      }
+    } catch (e: any) {
+      ElMessage.error('Failed to get pod detail: ' + (e?.message || 'unknown error'))
+    }
+  } else {
+    selectedContainer.value = container as string
+  }
+
+  skipWatchers.value = false
+
+  // Auto-start log stream
+  await nextTick()
+  if (selectedContainer.value) {
+    startLogStream()
+  }
+}
+
 onMounted(() => {
-  fetchClusters()
+  fetchClusters().then(() => initWithQueryParams())
 })
 
 onBeforeUnmount(() => {
@@ -213,17 +279,18 @@ onBeforeUnmount(() => {
 })
 
 watch(selectedCluster, () => {
-  fetchNamespaces()
+  if (!skipWatchers.value) fetchNamespaces()
 })
 
 watch(selectedNamespace, () => {
-  fetchPods()
+  if (!skipWatchers.value) fetchPods()
 })
 </script>
 
 <template>
   <div class="log-view">
-    <el-card shadow="hover">
+    <!-- Standalone mode: show full selector card -->
+    <el-card v-if="!isEmbedded" shadow="hover">
       <template #header>
         <div class="card-header">
           <span>{{ t('log.title') }}</span>
@@ -316,12 +383,38 @@ watch(selectedNamespace, () => {
         <pre class="log-content">{{ logContent || t('log.waitingForLogs') }}</pre>
       </div>
     </el-card>
+
+    <!-- Embedded mode: fullscreen log with minimal info bar -->
+    <div v-else class="log-fullscreen">
+      <div class="info-bar">
+        <span class="info-text">{{ selectedNamespace }} / {{ selectedPod }} / {{ selectedContainer }}</span>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <el-tag :type="statusType[status] as any" size="small">
+            {{ statusTextMap[status]() }}
+          </el-tag>
+          <el-button size="small" type="danger" :disabled="status !== 'connected'" @click="stopLogStream">
+            {{ t('log.stop') }}
+          </el-button>
+          <el-button size="small" @click="clearLogs">
+            {{ t('log.clear') }}
+          </el-button>
+          <el-checkbox v-model="autoScroll" size="small">
+            {{ t('log.autoScroll') }}
+          </el-checkbox>
+        </div>
+      </div>
+      <div
+        ref="logContainerRef"
+        class="log-fullscreen-body"
+      >
+        <pre class="log-content">{{ logContent || t('log.waitingForLogs') }}</pre>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .log-view {
-  padding: 24px;
   height: 100%;
 }
 
@@ -356,5 +449,35 @@ watch(selectedNamespace, () => {
   white-space: pre-wrap;
   word-break: break-all;
   margin: 0;
+}
+
+/* Fullscreen embedded mode */
+.log-fullscreen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #1e1e1e;
+}
+
+.info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: #252526;
+  color: #cccccc;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.info-text {
+  font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+.log-fullscreen-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  min-height: 0;
 }
 </style>

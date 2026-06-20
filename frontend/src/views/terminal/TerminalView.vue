@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
+import { useClusterStore } from '@/stores/cluster'
+import { getPodDetail } from '@/api/resource'
+import { ElMessage } from 'element-plus'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
@@ -8,6 +12,7 @@ import '@xterm/xterm/css/xterm.css'
 import { getToken } from '@/utils/auth'
 
 const { t } = useI18n()
+const route = useRoute()
 
 interface ClusterOption {
   name: string
@@ -22,9 +27,70 @@ const selectedCluster = ref('')
 const selectedNamespace = ref('')
 const selectedPod = ref('')
 const selectedContainer = ref('')
+const skipWatchers = ref(false)
 
 const terminalRef = ref<HTMLDivElement>()
 const isConnected = ref(false)
+
+// Whether opened from pod context (with query params) — hide selectors
+const isEmbedded = ref(false)
+
+async function initWithQueryParams() {
+  const { namespace, pod, container, cluster } = route.query
+  if (!namespace || !pod) return
+  isEmbedded.value = true
+  skipWatchers.value = true
+
+  // Set cluster from query param or localStorage
+  const clusterStore = useClusterStore()
+  if (cluster) {
+    selectedCluster.value = cluster as string
+    // Ensure localStorage has the cluster set so the API interceptor works
+    // The interceptor reads clusterName (camelCase), so we must set that key
+    let clusterObj: any = null
+    try {
+      const saved = localStorage.getItem('gkube_cluster')
+      if (saved) clusterObj = JSON.parse(saved)
+    } catch { /* ignore */ }
+    if (!clusterObj) clusterObj = {}
+    clusterObj.clusterName = cluster as string
+    clusterObj.cluster_name = cluster as string
+    clusterObj.name = cluster as string
+    localStorage.setItem('gkube_cluster', JSON.stringify(clusterObj))
+    // Also update Pinia store so it stays in sync
+    clusterStore.setCurrentCluster(clusterObj)
+  } else if (clusterStore.currentCluster) {
+    selectedCluster.value = clusterStore.currentCluster.cluster_name || clusterStore.currentCluster.name
+  }
+
+  selectedNamespace.value = namespace as string
+  selectedPod.value = pod as string
+
+  // Fetch pod detail to get container list
+  if (!container) {
+    try {
+      const res: any = await getPodDetail({ namespace: namespace as string, name: pod as string })
+      const containers = res.data?.containers || []
+      if (containers.length > 0) {
+        selectedContainer.value = containers[0].name
+      } else {
+        ElMessage.warning('Pod has no containers')
+      }
+    } catch (e: any) {
+      ElMessage.error('Failed to get pod detail: ' + (e?.message || 'unknown error'))
+    }
+  } else {
+    selectedContainer.value = container as string
+  }
+
+  skipWatchers.value = false
+
+  // Auto-connect
+  await nextTick()
+  if (selectedContainer.value) {
+    connectTerminal()
+  }
+}
 
 let terminal: Terminal | null = null
 let fitAddon: FitAddon | null = null
@@ -81,8 +147,8 @@ async function fetchPods() {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
     const json = await res.json()
-    const podData = json?.data || json || []
-    pods.value = (Array.isArray(podData) ? podData : []).map((p: any) => typeof p === 'string' ? p : p.name)
+    const podData = json?.data?.items || json?.data || []
+    pods.value = (Array.isArray(podData) ? podData : []).map((p: any) => typeof p === 'string' ? p : (p.metadata?.name || p.name))
   } catch {
     // silently fail
   }
@@ -164,10 +230,8 @@ function handleResize() {
 }
 
 onMounted(async () => {
-  await fetchClusters()
-
+  // Always create the terminal first so it's ready for connectTerminal()
   await nextTick()
-
   if (terminalRef.value) {
     terminal = new Terminal({
       cursorBlink: true,
@@ -186,10 +250,17 @@ onMounted(async () => {
     terminal.open(terminalRef.value)
     fitAddon.fit()
 
+    window.addEventListener('resize', handleResize)
+  }
+
+  // Then fetch clusters and init from query params
+  await fetchClusters()
+  await initWithQueryParams()
+
+  // For standalone mode, show welcome message
+  if (!isEmbedded.value && terminal) {
     terminal.writeln('\x1b[36m' + t('terminal.welcome') + '\x1b[0m')
     terminal.writeln(t('terminal.selectInstructions') + '\r\n')
-
-    window.addEventListener('resize', handleResize)
   }
 })
 
@@ -201,17 +272,18 @@ onBeforeUnmount(() => {
 })
 
 watch(selectedCluster, () => {
-  fetchNamespaces()
+  if (!skipWatchers.value) fetchNamespaces()
 })
 
 watch(selectedNamespace, () => {
-  fetchPods()
+  if (!skipWatchers.value) fetchPods()
 })
 </script>
 
 <template>
   <div class="terminal-view">
-    <el-card shadow="hover">
+    <!-- Standalone mode: show full selector card -->
+    <el-card v-if="!isEmbedded" shadow="hover">
       <template #header>
         <div class="card-header">
           <span>{{ t('terminal.title') }}</span>
@@ -291,11 +363,31 @@ watch(selectedNamespace, () => {
 
       <div ref="terminalRef" class="terminal-container" />
     </el-card>
+
+    <!-- Embedded mode: fullscreen terminal with minimal info bar -->
+    <div v-else class="terminal-fullscreen">
+      <div class="info-bar">
+        <span class="info-text">{{ selectedNamespace }} / {{ selectedPod }} / {{ selectedContainer }}</span>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <el-tag :type="isConnected ? 'success' : 'danger'" size="small">
+            {{ isConnected ? t('terminal.connected') : t('terminal.notConnected') }}
+          </el-tag>
+          <el-button size="small" type="danger" :disabled="!isConnected" @click="disconnectTerminal">
+            {{ t('terminal.disconnect') }}
+          </el-button>
+        </div>
+      </div>
+      <div ref="terminalRef" class="terminal-fullscreen-body" />
+    </div>
   </div>
 </template>
 
 <style scoped>
 .terminal-view {
+  height: 100%;
+}
+
+.terminal-view > .el-card {
   padding: 24px;
   height: 100%;
 }
@@ -320,5 +412,34 @@ watch(selectedNamespace, () => {
   background: #1e1e1e;
   border-radius: 4px;
   padding: 4px;
+}
+
+/* Fullscreen embedded mode */
+.terminal-fullscreen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #1e1e1e;
+}
+
+.info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: #252526;
+  color: #cccccc;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.info-text {
+  font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+.terminal-fullscreen-body {
+  flex: 1;
+  padding: 4px;
+  min-height: 0;
 }
 </style>

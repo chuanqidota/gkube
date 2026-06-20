@@ -79,18 +79,25 @@ async function handleViewYaml(row: any) {
   }
 }
 
+function getClusterName(): string {
+  try {
+    const saved = localStorage.getItem('gkube_cluster')
+    if (saved) {
+      const c = JSON.parse(saved)
+      return c?.clusterName || c?.cluster_name || c?.name || ''
+    }
+  } catch { /* ignore */ }
+  return ''
+}
+
 function handleViewLogs(row: any) {
-  router.push({
-    path: '/logs',
-    query: { namespace: row.namespace, pod: row.name },
-  })
+  const cluster = getClusterName()
+  window.open(`/logs?namespace=${row.namespace}&pod=${row.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function handleExec(row: any) {
-  router.push({
-    path: '/terminal',
-    query: { namespace: row.namespace, pod: row.name },
-  })
+  const cluster = getClusterName()
+  window.open(`/terminal?namespace=${row.namespace}&pod=${row.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function handleDetail(row: any) {

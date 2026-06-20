@@ -138,20 +138,6 @@
         <el-icon><Grid /></el-icon>
         <template #title>{{ t('sidebar.crd') }}</template>
       </el-menu-item>
-      <el-sub-menu index="tools">
-        <template #title>
-          <el-icon><Monitor /></el-icon>
-          <span>{{ t('sidebar.tools') }}</span>
-        </template>
-        <el-menu-item index="/terminal">
-          <el-icon><Promotion /></el-icon>
-          <template #title>{{ t('sidebar.terminal') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/logs">
-          <el-icon><Document /></el-icon>
-          <template #title>{{ t('sidebar.logs') }}</template>
-        </el-menu-item>
-      </el-sub-menu>
       <el-sub-menu index="system">
         <template #title>
           <el-icon><Setting /></el-icon>
@@ -189,7 +175,6 @@ import {
   User,
   UserFilled,
   Monitor,
-  Promotion,
   Document,
   Box,
   Coin,
