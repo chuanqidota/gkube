@@ -150,7 +150,7 @@ func (i *ingress) CreateIngress(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	if err := k8sIngress.CreateIngress(client, body.Namespace, body.IngressYaml); err != nil {
+	if err := k8sIngress.CreateIngress(client, body.Namespace, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("创建ingress失败:%v", err.Error()))
 		return
 	}
@@ -173,7 +173,7 @@ func (i *ingress) UpdateIngress(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	if err := k8sIngress.UpdateIngress(client, body.IngressYaml); err != nil {
+	if err := k8sIngress.UpdateIngress(client, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新ingress失败:%v", err.Error()))
 		return
 	}

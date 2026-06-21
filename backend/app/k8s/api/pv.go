@@ -150,7 +150,7 @@ func (p *pv) CreatePV(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	err = k8sPv.CreatePV(client, body.PvYaml)
+	err = k8sPv.CreatePV(client, body.Yaml)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("创建pv失败:%v", err.Error()))
 		return
@@ -174,7 +174,7 @@ func (p *pv) UpdatePV(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	err = k8sPv.UpdatePV(client, body.PvYaml)
+	err = k8sPv.UpdatePV(client, body.Yaml)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("更新pv失败:%v", err.Error()))
 		return

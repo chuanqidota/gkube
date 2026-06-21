@@ -26,13 +26,13 @@ type ServiceQueryByFieldParams struct {
 type ServiceCreateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	ServiceYaml string `form:"serviceYaml" json:"serviceYaml" label:"Service Yaml"`
+	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
 }
 
 type ServiceUpdateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	ServiceYaml string `form:"serviceYaml" json:"serviceYaml" label:"Service Yaml"`
+	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
 }
 
 type ServiceDeleteParams struct {

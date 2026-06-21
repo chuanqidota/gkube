@@ -24,15 +24,15 @@ type DaemonSetQueryByFieldParams struct {
 }
 
 type DaemonSetCreateParams struct {
-	ClusterName   string `form:"clusterName" json:"clusterName" label:"集群名称"`
-	Namespace     string `form:"namespace" json:"namespace" label:"命名空间"`
-	DaemonSetYaml string `form:"daemonSetYaml" json:"daemonSet" label:"DaemonSet"`
+	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
 }
 
 type DaemonSetUpdateParams struct {
-	ClusterName   string `form:"clusterName" json:"clusterName" label:"集群名称"`
-	Namespace     string `form:"namespace" json:"namespace" label:"命名空间"`
-	DaemonSetYaml string `form:"daemonSetYaml" json:"daemonSet" label:"DaemonSet"`
+	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
 }
 
 type DaemonSetDeleteByNameParams struct {

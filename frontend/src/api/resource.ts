@@ -210,7 +210,7 @@ export function getNamespaceYaml(params: { name: string }) {
   return request.get('/k8s/namespace/get-yaml', { params })
 }
 
-export function updateNamespace(data: { yamlContent: string }) {
+export function updateNamespace(data: { yaml: string }) {
   return request.put('/k8s/namespace/update', data)
 }
 
@@ -287,22 +287,22 @@ export function deleteIngress(data: { namespace: string; name: string }) {
 }
 
 // Service create
-export function createService(data: { namespace: string; yamlContent: string }) {
+export function createService(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/service/create', data)
 }
 
 // Ingress create
-export function createIngress(data: { namespace: string; yamlContent: string }) {
+export function createIngress(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/ingress/create', data)
 }
 
 // ConfigMap create
-export function createConfigMap(data: { namespace: string; yamlContent: string }) {
+export function createConfigMap(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/configmap/create', data)
 }
 
 // Secret create
-export function createSecret(data: { namespace: string; yamlContent: string }) {
+export function createSecret(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/secret/create', data)
 }
 
@@ -332,7 +332,7 @@ export function getPodLogs(params: { namespace: string; name: string; container?
 }
 
 // Deployment create
-export function createDeployment(data: { namespace: string; yamlContent: string }) {
+export function createDeployment(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/deployment/create', data)
 }
 
@@ -435,7 +435,7 @@ export function deletePv(data: { name: string }) {
   return request.delete('/k8s/pv/delete', { data })
 }
 
-export function createPv(data: { yamlContent: string }) {
+export function createPv(data: { yaml: string }) {
   return request.post('/k8s/pv/create', data)
 }
 
@@ -456,7 +456,7 @@ export function deletePvc(data: { namespace: string; name: string }) {
   return request.delete('/k8s/pvc/delete', { data })
 }
 
-export function createPvc(data: { namespace: string; yamlContent: string }) {
+export function createPvc(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/pvc/create', data)
 }
 
@@ -494,11 +494,11 @@ export function getHpaYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/hpa/yaml', { params })
 }
 
-export function createHpa(data: { namespace: string; yamlContent: string }) {
+export function createHpa(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/hpa/create', data)
 }
 
-export function updateHpa(data: { namespace: string; yamlContent: string }) {
+export function updateHpa(data: { namespace: string; yaml: string }) {
   return request.put('/k8s/hpa/update', data)
 }
 
@@ -519,11 +519,11 @@ export function getNetworkPolicyYaml(params: { namespace: string; name: string }
   return request.get('/k8s/networkpolicy/yaml', { params })
 }
 
-export function createNetworkPolicy(data: { namespace: string; yamlContent: string }) {
+export function createNetworkPolicy(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/networkpolicy/create', data)
 }
 
-export function updateNetworkPolicy(data: { namespace: string; yamlContent: string }) {
+export function updateNetworkPolicy(data: { namespace: string; yaml: string }) {
   return request.put('/k8s/networkpolicy/update', data)
 }
 
@@ -609,11 +609,11 @@ export function getPdbYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/pdb/yaml', { params })
 }
 
-export function createPdb(data: { namespace: string; yamlContent: string }) {
+export function createPdb(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/pdb/create', data)
 }
 
-export function updatePdb(data: { namespace: string; yamlContent: string }) {
+export function updatePdb(data: { namespace: string; yaml: string }) {
   return request.put('/k8s/pdb/update', data)
 }
 
@@ -634,11 +634,11 @@ export function getResourceQuotaYaml(params: { namespace: string; name: string }
   return request.get('/k8s/resourcequota/get-yaml', { params })
 }
 
-export function createResourceQuota(data: { namespace: string; yamlContent: string }) {
+export function createResourceQuota(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/resourcequota/create', data)
 }
 
-export function updateResourceQuota(data: { namespace: string; yamlContent: string }) {
+export function updateResourceQuota(data: { namespace: string; yaml: string }) {
   return request.put('/k8s/resourcequota/update', data)
 }
 
@@ -659,11 +659,11 @@ export function getLimitRangeYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/limitrange/get-yaml', { params })
 }
 
-export function createLimitRange(data: { namespace: string; yamlContent: string }) {
+export function createLimitRange(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/limitrange/create', data)
 }
 
-export function updateLimitRange(data: { namespace: string; yamlContent: string }) {
+export function updateLimitRange(data: { namespace: string; yaml: string }) {
   return request.put('/k8s/limitrange/update', data)
 }
 
@@ -684,11 +684,11 @@ export function getCrdYaml(params: { name: string }) {
   return request.get('/k8s/crd/get-yaml', { params })
 }
 
-export function createCrd(data: { yamlContent: string }) {
+export function createCrd(data: { yaml: string }) {
   return request.post('/k8s/crd/create', data)
 }
 
-export function updateCrd(data: { yamlContent: string }) {
+export function updateCrd(data: { yaml: string }) {
   return request.put('/k8s/crd/update', data)
 }
 
@@ -704,7 +704,7 @@ export function getCustomResourceYaml(params: { group: string; version: string; 
   return request.get('/k8s/crd/resource/yaml', { params })
 }
 
-export function createCustomResource(data: { group: string; version: string; resource: string; namespace?: string; yamlContent: string }) {
+export function createCustomResource(data: { group: string; version: string; resource: string; namespace?: string; yaml: string }) {
   return request.post('/k8s/crd/resource/create', data)
 }
 
@@ -713,7 +713,7 @@ export function deleteCustomResource(params: { group: string; version: string; r
 }
 
 // StatefulSet
-export function createStatefulSet(data: { namespace: string; yamlContent: string }) {
+export function createStatefulSet(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/statefulset/create', data)
 }
 
@@ -731,7 +731,7 @@ export function deleteStatefulSet(data: any) {
 }
 
 // DaemonSet
-export function createDaemonSet(data: { namespace: string; yamlContent: string }) {
+export function createDaemonSet(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/daemonset/create', data)
 }
 
@@ -749,7 +749,7 @@ export function deleteDaemonSet(data: any) {
 }
 
 // Job
-export function createJob(data: { namespace: string; yamlContent: string }) {
+export function createJob(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/job/create', data)
 }
 
@@ -767,7 +767,7 @@ export function deleteJob(data: any) {
 }
 
 // CronJob
-export function createCronJob(data: { namespace: string; yamlContent: string }) {
+export function createCronJob(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/cronjob/create', data)
 }
 

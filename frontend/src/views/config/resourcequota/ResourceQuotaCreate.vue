@@ -53,7 +53,7 @@ async function handleCreate() {
   loading.value = true
   try {
     buildYaml()
-    await createResourceQuota({ namespace: form.value.namespace, yamlContent: yamlContent.value })
+    await createResourceQuota({ namespace: form.value.namespace, yaml: yamlContent.value })
     ElMessage.success('ResourceQuota created successfully')
     router.push('/config/resourcequotas')
   } catch (e: any) {

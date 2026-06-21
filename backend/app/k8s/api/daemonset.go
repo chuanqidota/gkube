@@ -130,7 +130,7 @@ func (d *daemonSet) CreateDaemonSet(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	if err := k8sDaemonSet.CreateDaemonSet(client, body.Namespace, body.DaemonSetYaml); err != nil {
+	if err := k8sDaemonSet.CreateDaemonSet(client, body.Namespace, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("创建DaemonSet失败:%v", err.Error()))
 		return
 	}
@@ -149,7 +149,7 @@ func (d *daemonSet) UpdateDaemonSet(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	if err := k8sDaemonSet.UpdateDaemonSet(client, body.Namespace, body.DaemonSetYaml); err != nil {
+	if err := k8sDaemonSet.UpdateDaemonSet(client, body.Namespace, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新DaemonSet失败:%v", err.Error()))
 		return
 	}

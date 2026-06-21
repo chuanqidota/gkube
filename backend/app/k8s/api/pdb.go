@@ -115,7 +115,7 @@ func (p *pdb) CreatePDB(c *gin.Context) {
 	var req struct {
 		ClusterName string `json:"clusterName"`
 		Namespace   string `json:"namespace"`
-		YamlContent string `json:"yamlContent"`
+		Yaml string `json:"yaml"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -126,7 +126,7 @@ func (p *pdb) CreatePDB(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sPdb.CreatePDB(client, req.Namespace, req.YamlContent); err != nil {
+	if err := k8sPdb.CreatePDB(client, req.Namespace, req.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("创建PDB失败:%s", err.Error()))
 		return
 	}
@@ -137,7 +137,7 @@ func (p *pdb) UpdatePDB(c *gin.Context) {
 	var req struct {
 		ClusterName string `json:"clusterName"`
 		Namespace   string `json:"namespace"`
-		YamlContent string `json:"yamlContent"`
+		Yaml string `json:"yaml"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -148,7 +148,7 @@ func (p *pdb) UpdatePDB(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sPdb.UpdatePDB(client, req.Namespace, req.YamlContent); err != nil {
+	if err := k8sPdb.UpdatePDB(client, req.Namespace, req.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新PDB失败:%s", err.Error()))
 		return
 	}

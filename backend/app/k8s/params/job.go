@@ -26,12 +26,14 @@ type JobQueryByLabelParams struct {
 
 type JobCreateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
-	JobYaml     string `form:"jobYaml" json:"jobYaml" label:"Job Yaml"`
+	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
 }
 
 type JobUpdateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
-	JobYaml     string `form:"jobYaml" json:"jobYaml" label:"Job Yaml"`
+	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
 }
 
 type JobDeleteByNameParams struct {

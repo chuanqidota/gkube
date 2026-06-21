@@ -151,7 +151,7 @@ func (s *service) CreateService(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	if err := k8sService.CreateService(client, body.Namespace, body.ServiceYaml); err != nil {
+	if err := k8sService.CreateService(client, body.Namespace, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("创建Service失败:%v", err.Error()))
 		return
 	}
@@ -175,7 +175,7 @@ func (s *service) UpdateService(c *gin.Context) {
 		return
 	}
 
-	if err := k8sService.UpdateService(client, body.ServiceYaml); err != nil {
+	if err := k8sService.UpdateService(client, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新Service失败:%v", err.Error()))
 		return
 	}

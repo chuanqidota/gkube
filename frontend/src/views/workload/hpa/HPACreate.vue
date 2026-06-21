@@ -91,7 +91,7 @@ async function handleCreate() {
   loading.value = true
   try {
     buildYaml()
-    await createHpa({ namespace: form.value.namespace, yamlContent: yamlContent.value })
+    await createHpa({ namespace: form.value.namespace, yaml: yamlContent.value })
     ElMessage.success('HPA created successfully')
     router.push('/workloads/hpa')
   } catch (e: any) {

@@ -110,7 +110,7 @@ func (np *networkPolicy) CreateNetworkPolicy(c *gin.Context) {
 	var req struct {
 		ClusterName string `json:"clusterName"`
 		Namespace   string `json:"namespace"`
-		YamlContent string `json:"yamlContent"`
+		Yaml string `json:"yaml"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -121,7 +121,7 @@ func (np *networkPolicy) CreateNetworkPolicy(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sNp.CreateNetworkPolicy(client, req.Namespace, req.YamlContent); err != nil {
+	if err := k8sNp.CreateNetworkPolicy(client, req.Namespace, req.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("创建NetworkPolicy失败:%s", err.Error()))
 		return
 	}
@@ -132,7 +132,7 @@ func (np *networkPolicy) UpdateNetworkPolicy(c *gin.Context) {
 	var req struct {
 		ClusterName string `json:"clusterName"`
 		Namespace   string `json:"namespace"`
-		YamlContent string `json:"yamlContent"`
+		Yaml string `json:"yaml"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -143,7 +143,7 @@ func (np *networkPolicy) UpdateNetworkPolicy(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sNp.UpdateNetworkPolicy(client, req.Namespace, req.YamlContent); err != nil {
+	if err := k8sNp.UpdateNetworkPolicy(client, req.Namespace, req.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新NetworkPolicy失败:%s", err.Error()))
 		return
 	}

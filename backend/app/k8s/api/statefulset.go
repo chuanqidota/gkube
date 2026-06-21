@@ -151,7 +151,7 @@ func (s *statefulSet) CreateStatefulSet(c *gin.Context) {
 		return
 	}
 
-	err = k8sStatefulSet.CreateStatefulSet(client, body.Namespace, body.StatefulSetYaml)
+	err = k8sStatefulSet.CreateStatefulSet(client, body.Namespace, body.Yaml)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("创建statefulset失败:%v", err.Error()))
 		return
@@ -175,7 +175,7 @@ func (s *statefulSet) UpdateStatefulSet(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	err = k8sStatefulSet.UpdateStatefulSet(client, body.Namespace, body.StatefulSetYaml)
+	err = k8sStatefulSet.UpdateStatefulSet(client, body.Namespace, body.Yaml)
 
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("更新statefulset失败:%v", err.Error()))

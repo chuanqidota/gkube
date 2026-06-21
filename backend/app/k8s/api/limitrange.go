@@ -102,7 +102,7 @@ func (lr *limitRange) CreateLimitRange(c *gin.Context) {
 	var req struct {
 		ClusterName string `json:"clusterName"`
 		Namespace   string `json:"namespace"`
-		YamlContent string `json:"yamlContent"`
+		Yaml string `json:"yaml"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -113,7 +113,7 @@ func (lr *limitRange) CreateLimitRange(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sLr.CreateLimitRange(client, req.Namespace, req.YamlContent); err != nil {
+	if err := k8sLr.CreateLimitRange(client, req.Namespace, req.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("创建LimitRange失败:%s", err.Error()))
 		return
 	}
@@ -124,7 +124,7 @@ func (lr *limitRange) UpdateLimitRange(c *gin.Context) {
 	var req struct {
 		ClusterName string `json:"clusterName"`
 		Namespace   string `json:"namespace"`
-		YamlContent string `json:"yamlContent"`
+		Yaml string `json:"yaml"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -135,7 +135,7 @@ func (lr *limitRange) UpdateLimitRange(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sLr.UpdateLimitRange(client, req.Namespace, req.YamlContent); err != nil {
+	if err := k8sLr.UpdateLimitRange(client, req.Namespace, req.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新LimitRange失败:%s", err.Error()))
 		return
 	}

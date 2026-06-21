@@ -181,7 +181,7 @@ func (c *crd) DeleteCustomResource(ginCtx *gin.Context) {
 func (c *crd) CreateCRD(ginCtx *gin.Context) {
 	var req struct {
 		ClusterName string `json:"clusterName"`
-		YamlContent string `json:"yamlContent"`
+		Yaml string `json:"yaml"`
 	}
 	if err := ginCtx.ShouldBindJSON(&req); err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -192,7 +192,7 @@ func (c *crd) CreateCRD(ginCtx *gin.Context) {
 		response.Fail(ginCtx, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sCrd.CreateCRD(client, req.YamlContent); err != nil {
+	if err := k8sCrd.CreateCRD(client, req.Yaml); err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("创建CRD失败:%s", err.Error()))
 		return
 	}
@@ -202,7 +202,7 @@ func (c *crd) CreateCRD(ginCtx *gin.Context) {
 func (c *crd) UpdateCRD(ginCtx *gin.Context) {
 	var req struct {
 		ClusterName string `json:"clusterName"`
-		YamlContent string `json:"yamlContent"`
+		Yaml string `json:"yaml"`
 	}
 	if err := ginCtx.ShouldBindJSON(&req); err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -213,7 +213,7 @@ func (c *crd) UpdateCRD(ginCtx *gin.Context) {
 		response.Fail(ginCtx, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sCrd.UpdateCRD(client, req.YamlContent); err != nil {
+	if err := k8sCrd.UpdateCRD(client, req.Yaml); err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("更新CRD失败:%s", err.Error()))
 		return
 	}
@@ -246,7 +246,7 @@ func (c *crd) CreateCustomResource(ginCtx *gin.Context) {
 		Version     string `json:"version"`
 		Resource    string `json:"resource"`
 		Namespace   string `json:"namespace"`
-		YamlContent string `json:"yamlContent"`
+		Yaml string `json:"yaml"`
 	}
 	if err := ginCtx.ShouldBindJSON(&req); err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -262,7 +262,7 @@ func (c *crd) CreateCustomResource(ginCtx *gin.Context) {
 		return
 	}
 	gvr := schema.GroupVersionResource{Group: req.Group, Version: req.Version, Resource: req.Resource}
-	if err := k8sCrd.CreateCustomResource(config, gvr, req.Namespace, req.YamlContent); err != nil {
+	if err := k8sCrd.CreateCustomResource(config, gvr, req.Namespace, req.Yaml); err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("创建自定义资源失败:%s", err.Error()))
 		return
 	}

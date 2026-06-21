@@ -55,7 +55,7 @@ async function handleCreate() {
   loading.value = true
   try {
     buildYaml()
-    await createPdb({ namespace: form.value.namespace, yamlContent: yamlContent.value })
+    await createPdb({ namespace: form.value.namespace, yaml: yamlContent.value })
     ElMessage.success('PDB created successfully')
     router.push('/workloads/pdb')
   } catch (e: any) {

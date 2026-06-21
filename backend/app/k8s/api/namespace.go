@@ -147,7 +147,7 @@ func (n *namespace) GetNamespaceYaml(c *gin.Context) {
 func (n *namespace) UpdateNamespace(c *gin.Context) {
 	var req struct {
 		ClusterName string `json:"clusterName"`
-		YamlContent string `json:"yamlContent"`
+		Yaml string `json:"yaml"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -158,7 +158,7 @@ func (n *namespace) UpdateNamespace(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sNamespace.UpdateNamespace(client, req.YamlContent); err != nil {
+	if err := k8sNamespace.UpdateNamespace(client, req.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新命名空间失败:%s", err.Error()))
 		return
 	}

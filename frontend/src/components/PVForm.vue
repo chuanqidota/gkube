@@ -198,7 +198,7 @@ async function handleSubmit() {
   submitting.value = true
   try {
     const yamlContent = generatedYaml.value
-    await createPv({ yamlContent })
+    await createPv({ yaml: yamlContent })
     ElMessage.success('PersistentVolume created successfully')
     router.push('/storage/pvs')
   } catch (e: any) {

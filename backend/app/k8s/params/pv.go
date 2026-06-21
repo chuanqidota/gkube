@@ -21,12 +21,12 @@ type PvQueryByField struct {
 
 type PvCreateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
-	PvYaml      string `form:"pvYaml" json:"pvYaml" label:"Yaml"`
+	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
 }
 
 type PvUpdateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
-	PvYaml      string `form:"pvYaml" json:"pvYaml" label:"Yaml"`
+	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
 }
 
 type PvDeleteParams struct {

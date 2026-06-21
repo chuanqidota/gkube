@@ -152,7 +152,7 @@ func (cj *cronjob) CreateCronJob(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	err = k8sCronjob.CreateCronJob(client, body.Namespace, body.CronJobYaml)
+	err = k8sCronjob.CreateCronJob(client, body.Namespace, body.Yaml)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("创建cronjob失败:%v", err.Error()))
 		return
@@ -176,7 +176,7 @@ func (cj *cronjob) UpdateCronJob(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	err = k8sCronjob.UpdateCronJob(client, body.Namespace, body.CronJobYaml)
+	err = k8sCronjob.UpdateCronJob(client, body.Namespace, body.Yaml)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("更新cronjob失败:%v", err.Error()))
 		return

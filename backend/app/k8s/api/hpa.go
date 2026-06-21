@@ -100,7 +100,7 @@ func (h *hpa) CreateHPA(c *gin.Context) {
 	var req struct {
 		ClusterName string `json:"clusterName"`
 		Namespace   string `json:"namespace"`
-		YamlContent string `json:"yamlContent"`
+		Yaml string `json:"yaml"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -111,7 +111,7 @@ func (h *hpa) CreateHPA(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sHpa.CreateHPA(client, req.Namespace, req.YamlContent); err != nil {
+	if err := k8sHpa.CreateHPA(client, req.Namespace, req.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("创建HPA失败:%s", err.Error()))
 		return
 	}
@@ -122,7 +122,7 @@ func (h *hpa) UpdateHPA(c *gin.Context) {
 	var req struct {
 		ClusterName string `json:"clusterName"`
 		Namespace   string `json:"namespace"`
-		YamlContent string `json:"yamlContent"`
+		Yaml string `json:"yaml"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -133,7 +133,7 @@ func (h *hpa) UpdateHPA(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sHpa.UpdateHPA(client, req.Namespace, req.YamlContent); err != nil {
+	if err := k8sHpa.UpdateHPA(client, req.Namespace, req.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新HPA失败:%s", err.Error()))
 		return
 	}

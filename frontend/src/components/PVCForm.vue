@@ -179,7 +179,7 @@ async function handleSubmit() {
   submitting.value = true
   try {
     const yamlContent = generatedYaml.value
-    await createPvc({ namespace: form.namespace, yamlContent })
+    await createPvc({ namespace: form.namespace, yaml: yamlContent })
     ElMessage.success('PersistentVolumeClaim created successfully')
     router.push('/storage/pvcs')
   } catch (e: any) {

@@ -45,7 +45,7 @@ function handleTabChange(tab: string) {
 async function handleSaveYaml() {
   yamlSaving.value = true
   try {
-    await updateHpa({ namespace, yamlContent: yamlContent.value })
+    await updateHpa({ namespace, yaml: yamlContent.value })
     ElMessage.success('YAML saved successfully')
     yamlEditing.value = false
     fetchDetail()

@@ -24,6 +24,10 @@ request.interceptors.request.use(
           if (!config.params.clusterName && !config.data?.clusterName) {
             config.params.clusterName = clusterName
           }
+          // POST/PUT/PUT requests: also inject into body so ShouldBindJSON can read it
+          if (config.method !== 'get' && config.data && typeof config.data === 'object' && !config.data.clusterName) {
+            config.data.clusterName = clusterName
+          }
         }
       }
     } catch {

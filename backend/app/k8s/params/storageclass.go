@@ -20,13 +20,13 @@ type StorageClassQueryByLabelParams struct {
 }
 
 type StorageClassCreateParams struct {
-	ClusterName      string `form:"clusterName" json:"clusterName" label:"集群名称"`
-	StorageClassYaml string `form:"storageClassYaml" json:"storageClassYaml" label:"StorageClass Yaml"`
+	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
 }
 
 type StorageClassUpdateParams struct {
-	ClusterName      string `form:"clusterName" json:"clusterName" label:"集群名称"`
-	StorageClassYaml string `form:"storageClassYaml" json:"storageClassYaml" label:"StorageClass Yaml"`
+	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
 }
 
 type StorageClassDeleteByNameParams struct {

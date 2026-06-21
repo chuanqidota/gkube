@@ -66,7 +66,7 @@ async function handleCreate() {
   loading.value = true
   try {
     buildYaml()
-    await createLimitRange({ namespace: form.value.namespace, yamlContent: yamlContent.value })
+    await createLimitRange({ namespace: form.value.namespace, yaml: yamlContent.value })
     ElMessage.success('LimitRange created successfully')
     router.push('/config/limitranges')
   } catch (e: any) {

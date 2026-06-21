@@ -152,7 +152,7 @@ func (j *job) CreateJob(c *gin.Context) {
 		return
 	}
 
-	if err := k8sJob.CreateJob(client, body.JobYaml); err != nil {
+	if err := k8sJob.CreateJob(client, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("创建job失败:%v", err.Error()))
 		return
 	}
@@ -175,7 +175,7 @@ func (j *job) UpdateJob(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	if err := k8sJob.UpdateJob(client, body.JobYaml); err != nil {
+	if err := k8sJob.UpdateJob(client, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新job失败:%v", err.Error()))
 		return
 	}

@@ -257,7 +257,7 @@ function buildK8sResource(): Record<string, any> {
 async function handleSubmit() {
   submitting.value = true
   try {
-    await (props.kind === 'Deployment' ? createDeployment : props.kind === 'StatefulSet' ? createStatefulSet : createDaemonSet)({ namespace: form.namespace, yamlContent: generatedYaml.value })
+    await (props.kind === 'Deployment' ? createDeployment : props.kind === 'StatefulSet' ? createStatefulSet : createDaemonSet)({ namespace: form.namespace, yaml: generatedYaml.value })
     ElMessage.success(`${props.kind} created successfully`)
     router.push(getListRoute())
   } catch (e: any) { ElMessage.error(e?.message || 'Create failed') }

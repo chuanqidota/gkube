@@ -161,7 +161,7 @@ func (s *storageClass) CreateStorageClass(c *gin.Context) {
 		return
 	}
 
-	if err := k8sStorageClass.CreateStorageClass(client, body.StorageClassYaml); err != nil {
+	if err := k8sStorageClass.CreateStorageClass(client, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("创建StorageClass失败:%v", err.Error()))
 		return
 	}
@@ -186,7 +186,7 @@ func (s *storageClass) UpdateStorageClass(c *gin.Context) {
 		return
 	}
 
-	if err := k8sStorageClass.UpdateStorageClass(client, body.StorageClassYaml); err != nil {
+	if err := k8sStorageClass.UpdateStorageClass(client, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新StorageClass失败:%v", err.Error()))
 		return
 	}

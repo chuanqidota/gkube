@@ -80,7 +80,7 @@ async function handleCreate() {
   loading.value = true
   try {
     buildYaml()
-    await createNetworkPolicy({ namespace: form.value.namespace, yamlContent: yamlContent.value })
+    await createNetworkPolicy({ namespace: form.value.namespace, yaml: yamlContent.value })
     ElMessage.success('NetworkPolicy created successfully')
     router.push('/network/networkpolicies')
   } catch (e: any) {

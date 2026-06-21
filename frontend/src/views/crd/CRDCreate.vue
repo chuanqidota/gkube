@@ -43,7 +43,7 @@ async function handleCreate() {
   }
   loading.value = true
   try {
-    await createCrd({ yamlContent: yamlContent.value })
+    await createCrd({ yaml: yamlContent.value })
     ElMessage.success('CRD created successfully')
     router.push('/crd')
   } catch (e: any) {
