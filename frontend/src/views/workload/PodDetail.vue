@@ -48,7 +48,7 @@ async function fetchEvents() {
 async function fetchLogs() {
   logsLoading.value = true
   try {
-    const params: any = { namespace, name, tailLines: tailLines.value }
+    const params: any = { namespace, podName: name, tailLines: tailLines.value }
     if (selectedContainer.value) params.container = selectedContainer.value
     const res: any = await getPodLogs(params)
     logs.value = res.data?.logs || res.data || ''

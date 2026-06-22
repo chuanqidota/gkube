@@ -70,7 +70,7 @@ async function initWithQueryParams() {
   if (!container) {
     try {
       const res: any = await getPodDetail({ namespace: namespace as string, name: pod as string })
-      const containers = res.data?.containers || []
+      const containers = res.data?.spec?.containers || []
       if (containers.length > 0) {
         selectedContainer.value = containers[0].name
       } else {
@@ -168,7 +168,7 @@ function connectTerminal() {
     clusterName: selectedCluster.value,
     namespace: selectedNamespace.value,
     podName: selectedPod.value,
-    containerName: selectedContainer.value,
+    container: selectedContainer.value,
     command: '/bin/sh',
     ...(token ? { token } : {}),
   })
@@ -211,7 +211,7 @@ function connectTerminal() {
 
     terminal.onResize(({ cols, rows }: { cols: number; rows: number }) => {
       if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'resize', cols, rows }))
+        ws.send(JSON.stringify({ resize: [cols, rows] }))
       }
     })
   }

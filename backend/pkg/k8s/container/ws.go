@@ -141,9 +141,8 @@ type TerminalSizeHandler struct {
 
 // 调整终端尺寸
 func (t *TerminalSizeHandler) Next() *remotecommand.TerminalSize {
-	var size remotecommand.TerminalSize
 	var data map[string][]int
-	if err := t.Conn.ReadJSON(&size); err != nil {
+	if err := t.Conn.ReadJSON(&data); err != nil {
 		fmt.Printf("读取终端尺寸失败: %v", err)
 		return nil
 	}
@@ -154,8 +153,8 @@ func (t *TerminalSizeHandler) Next() *remotecommand.TerminalSize {
 		return nil
 	}
 
-	width := uint16(data["resize"][0])
-	height := uint16(data["resize"][1])
+	width := uint16(resizeData[0])
+	height := uint16(resizeData[1])
 
 	// 把数据推送到chan中
 	t.Event <- AsciinemaEvent{
@@ -168,7 +167,7 @@ func (t *TerminalSizeHandler) Next() *remotecommand.TerminalSize {
 
 	return &remotecommand.TerminalSize{
 		Width:  width,
-		Height: width,
+		Height: height,
 	}
 }
 

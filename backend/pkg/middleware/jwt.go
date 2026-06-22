@@ -11,17 +11,28 @@ import (
 
 func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var tokenStr string
+
+		// 优先从 Authorization header 读取
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				tokenStr = parts[1]
+			}
+		}
+
+		// WebSocket 连接无法设置自定义 header，从 query 参数读取 token
+		if tokenStr == "" {
+			tokenStr = c.Query("token")
+		}
+
+		if tokenStr == "" {
 			response.FailWithStatus(c, http.StatusUnauthorized, "未提供认证 Token")
 			return
 		}
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			response.FailWithStatus(c, http.StatusUnauthorized, "Token 格式错误")
-			return
-		}
-		claims, err := auth.ParseToken(parts[1])
+
+		claims, err := auth.ParseToken(tokenStr)
 		if err != nil {
 			response.FailWithStatus(c, http.StatusUnauthorized, "Token 无效或已过期")
 			return
