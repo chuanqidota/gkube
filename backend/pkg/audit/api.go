@@ -20,6 +20,9 @@ func NewEsRecord() *EsRecord {
 
 // WriteData 写入操作记录到es中
 func (e *EsRecord) WriteData(data map[string]any) {
+	if es.ElasticSearch == nil {
+		return
+	}
 	logger.Info(fmt.Sprintf("存es的日志数据-%v", data))
 	index := e.Index
 	if !es.IsExistsIndex(index) {
@@ -54,6 +57,9 @@ func (e *EsRecord) WriteData(data map[string]any) {
 
 // ReadData 从es中读取记录
 func (e *EsRecord) ReadData(key string) []map[string]any {
+	if es.ElasticSearch == nil {
+		return nil
+	}
 	result := make([]map[string]any, 0)
 	index := e.Index
 	pageNum := 1

@@ -68,8 +68,8 @@ func ExecToPod(key, clusterName, namespace, podName, containerName string, conn 
 		return fmt.Errorf("创建SPDY执行器失败: %v", err)
 	}
 
-	// 创建带缓冲的事件通道（缓冲区大小可根据需要调整）
-	eventChan := make(chan AsciinemaEvent, 1024*1024*1024)
+	// 创建带缓冲的事件通道
+	eventChan := make(chan AsciinemaEvent, 4096)
 	defer close(eventChan)
 	// 启动事件处理协程
 	go handleAsciinemaEvents(eventChan)

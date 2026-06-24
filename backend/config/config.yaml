@@ -8,6 +8,7 @@ database:
   port: 3306
   name: gkube
 elasticSearch:
+  enable: false
   url: http://localhost:9200
   username: ""
   password: ""

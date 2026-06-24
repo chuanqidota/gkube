@@ -14,6 +14,10 @@ import (
 var ElasticSearch *elastic.Client
 
 func Init() {
+	if !config.Conf.ElasticSearch.Enable {
+		logger.Info("es未启用，跳过连接")
+		return
+	}
 	client, err := elastic.NewClient(
 		elastic.SetURL(config.Conf.ElasticSearch.Url),
 		elastic.SetBasicAuth(config.Conf.ElasticSearch.Username, config.Conf.ElasticSearch.Password), // 用户名和密码

@@ -22,12 +22,13 @@ type Config struct {
 		Name     string `json:"name"`
 	} `json:"database"`
 	ElasticSearch struct {
-		Url      string `json:"url" comment:"es地址"`
-		Username string `json:"username" comment:"es用户名"`
-		Password string `json:"password" comment:"es密码"`
+		Enable   bool   `json:"enable" mapstructure:"enable" comment:"是否启用es"`
+		Url      string `json:"url" mapstructure:"url" comment:"es地址"`
+		Username string `json:"username" mapstructure:"username" comment:"es用户名"`
+		Password string `json:"password" mapstructure:"password" comment:"es密码"`
 	} `json:"elasticSearch"`
 	Audit struct {
-		RecordAuditIndex string `json:"record_audit" comment:"操作审计-es索引"`
+		RecordAuditIndex string `json:"record_audit" mapstructure:"record_audit" comment:"操作审计-es索引"`
 	} `json:"audit"`
 	S3 struct {
 		EndPoint        string `json:"endpoint" comment:"地址"`

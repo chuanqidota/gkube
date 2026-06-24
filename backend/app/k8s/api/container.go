@@ -44,6 +44,22 @@ func HandleWebSocket(c *gin.Context) {
 	}
 	defer conn.Close()
 
+	// 设置pong handler，保持连接活跃
+	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	})
+	// 启动心跳goroutine
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}()
+
 	// 获取Pod参数
 	var reqQueryParams params.ContainerQueryParams
 	if err = c.ShouldBindQuery(&reqQueryParams); err != nil {
