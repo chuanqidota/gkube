@@ -20,6 +20,10 @@ import (
 // - 日志内容字符串。
 // - 如果发生错误，返回错误信息。
 func GetPodContainerLog(client *kubernetes.Clientset, namespace, podName, containerName string, tailLines int64) (string, error) {
+	// 默认获取最后100行日志
+	if tailLines <= 0 {
+		tailLines = 100
+	}
 	// 创建一个获取 Pod 日志的请求
 	req := client.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Container:  containerName, // 指定容器名称
@@ -57,7 +61,11 @@ func GetPodContainerLog(client *kubernetes.Clientset, namespace, podName, contai
 // 返回值:
 //   - io.ReadCloser: 日志流的读取接口，调用方需负责关闭
 //   - error: 执行过程中遇到的错误信息
-func GetPodContainerLogStream(client *kubernetes.Clientset, namespace, podName, containerName string, tailLines int64) (io.ReadCloser, error) {
+func GetPodContainerLogStream(ctx context.Context, client *kubernetes.Clientset, namespace, podName, containerName string, tailLines int64) (io.ReadCloser, error) {
+	// 默认获取最后100行日志，避免tailLines为0时无任何历史日志输出
+	if tailLines <= 0 {
+		tailLines = 100
+	}
 	stream, err := client.CoreV1().Pods(namespace).
 		GetLogs(podName, &corev1.PodLogOptions{
 			Container:  containerName, // - 指定容器名称
@@ -65,7 +73,7 @@ func GetPodContainerLogStream(client *kubernetes.Clientset, namespace, podName, 
 			Timestamps: true,          // - 包含时间戳信息
 			TailLines:  &tailLines,    // - 限制获取的日志行数
 		}).
-		Stream(context.Background())
+		Stream(ctx)
 
 	if err != nil {
 		return nil, fmt.Errorf("创建日志流失败: %v", err.Error())

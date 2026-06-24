@@ -67,8 +67,11 @@ func HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// 接受第一次消息
-	_, firstMessage, _ := conn.ReadMessage()
+	// 接受第一次消息（窗口大小）
+	_, firstMessage, err := conn.ReadMessage()
+	if err != nil {
+		return
+	}
 	var firstData map[string][]int
 	err = json.Unmarshal(firstMessage, &firstData)
 	if err != nil {
@@ -77,7 +80,7 @@ func HandleWebSocket(c *gin.Context) {
 	}
 	resizeData, ok := firstData["resize"]
 	if !ok || len(resizeData) < 2 {
-		fmt.Println("无效的尺寸数据")
+		_ = conn.WriteMessage(websocket.TextMessage, []byte("无效的尺寸数据"))
 		return
 	}
 	cols := resizeData[0]
@@ -88,8 +91,8 @@ func HandleWebSocket(c *gin.Context) {
 	record := audit.NewEsRecord()
 	asciinema.WriteHeader(key, cols, rows, startTime, record)
 
-	// 执行Exec到Pod
-	if err := container.ExecToPod(key, clusterName, namespace, podName, containerName, conn, record); err != nil {
+	// 执行Exec到Pod，传入初始终端尺寸
+	if err := container.ExecToPod(key, clusterName, namespace, podName, containerName, conn, record, cols, rows); err != nil {
 		_ = conn.WriteMessage(websocket.TextMessage, []byte("Error: "+err.Error()))
 	}
 }
@@ -172,7 +175,10 @@ func StreamPodContainerLogs(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	stream, err := container.GetPodContainerLogStream(client, query.Namespace, query.PodName, query.Container, query.TailLines)
+
+	// 使用请求的context，客户端断开时自动取消K8s流
+	ctx := c.Request.Context()
+	stream, err := container.GetPodContainerLogStream(ctx, client, query.Namespace, query.PodName, query.Container, query.TailLines)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "日志流创建失败"})
 		return
@@ -188,23 +194,43 @@ func StreamPodContainerLogs(c *gin.Context) {
 	// 创建带缓冲的读取器
 	reader := bufio.NewReader(stream)
 
-	// 保持连接并持续发送数据
+	// 用channel传递读取结果，避免阻塞select
+	type readResult struct {
+		line []byte
+		err  error
+	}
+	ch := make(chan readResult, 1)
+
+	// 在goroutine中读取日志流
+	go func() {
+		defer close(ch)
+		for {
+			line, err := reader.ReadBytes('\n')
+			ch <- readResult{line: line, err: err}
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	// 主循环：同时检查客户端断开和日志数据
 	for {
 		select {
-		case <-c.Writer.CloseNotify():
-			// 客户端断开连接时退出
+		case <-ctx.Done():
+			// 客户端断开连接
 			return
-		default:
-			// 读取日志内容
-			line, err := reader.ReadBytes('\n')
-			if err != nil {
-				// 发送错误事件
-				c.SSEvent("error", gin.H{"message": "日志读取错误"})
+		case result, ok := <-ch:
+			if !ok {
+				// channel已关闭
+				return
+			}
+			if result.err != nil {
+				// 流读取结束或出错
 				return
 			}
 
 			// 发送 SSE 格式数据
-			c.SSEvent("message", string(line))
+			c.SSEvent("message", string(result.line))
 
 			// 手动刷新缓冲区
 			c.Writer.Flush()

@@ -33,6 +33,9 @@ func Init() {
 //	@param index
 //	@return error
 func CreateIndex(index string) error {
+	if ElasticSearch == nil {
+		return errors.New("elasticsearch未连接")
+	}
 	createIndex, err := ElasticSearch.CreateIndex(index).Do(context.Background())
 	if err != nil || !createIndex.Acknowledged {
 		return err
@@ -61,6 +64,9 @@ func DeleteIndex(index string) error {
 //	@param index
 //	@return bool
 func IsExistsIndex(index string) bool {
+	if ElasticSearch == nil {
+		return false
+	}
 	exists, err := ElasticSearch.IndexExists(index).Do(context.Background())
 	if err != nil {
 		return false
@@ -89,6 +95,9 @@ mappings := `{
 */
 //		@return error
 func CreateMap(index string, mappings string) error {
+	if ElasticSearch == nil {
+		return errors.New("elasticsearch未连接")
+	}
 	do, err := ElasticSearch.PutMapping().Index(index).BodyString(mappings).Do(context.Background())
 	if err != nil || !do.Acknowledged {
 		return err
@@ -113,6 +122,9 @@ data := map[string]interface{}{
 //  @return error
 //
 func InsertData(index string, data map[string]any) error {
+	if ElasticSearch == nil {
+		return errors.New("elasticsearch未连接")
+	}
 	resp, err := ElasticSearch.Index().
 		Index(index).
 		BodyJson(data).
@@ -151,6 +163,9 @@ query := `{
 // @return []*elastic.SearchHit
 // @return error
 func Search(index string, query string) (result []map[string]any, count int64) {
+	if ElasticSearch == nil {
+		return nil, 0
+	}
 	searchResult, err := ElasticSearch.Search().
 		Index(index).
 		Source(query).

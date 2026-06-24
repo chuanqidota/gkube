@@ -84,12 +84,6 @@ async function initWithQueryParams() {
   }
 
   skipWatchers.value = false
-
-  // Auto-connect
-  await nextTick()
-  if (selectedContainer.value) {
-    connectTerminal()
-  }
 }
 
 let terminal: Terminal | null = null
@@ -178,6 +172,10 @@ function connectTerminal() {
 
   ws.onopen = () => {
     isConnected.value = true
+    // 后端要求第一条消息必须是窗口大小
+    if (terminal) {
+      ws?.send(JSON.stringify({ resize: [terminal.cols, terminal.rows] }))
+    }
     terminal?.writeln('\x1b[32m' + t('terminal.connectedToContainer') + '\x1b[0m')
     terminal?.focus()
   }
@@ -201,20 +199,6 @@ function connectTerminal() {
     isConnected.value = false
     terminal?.writeln('\r\n\x1b[31m' + t('terminal.connectionError') + '\x1b[0m')
   }
-
-  if (terminal) {
-    terminal.onData((data: string) => {
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(data)
-      }
-    })
-
-    terminal.onResize(({ cols, rows }: { cols: number; rows: number }) => {
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ resize: [cols, rows] }))
-      }
-    })
-  }
 }
 
 function disconnectTerminal() {
@@ -229,39 +213,69 @@ function handleResize() {
   fitAddon?.fit()
 }
 
+function initTerminal() {
+  if (!terminalRef.value) return
+
+  // 如果已有terminal实例（模式切换时），先销毁
+  if (terminal) {
+    terminal.dispose()
+    terminal = null
+  }
+
+  terminal = new Terminal({
+    cursorBlink: true,
+    fontSize: 14,
+    fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
+    theme: {
+      background: '#1e1e1e',
+      foreground: '#d4d4d4',
+      cursor: '#d4d4d4',
+    },
+  })
+
+  fitAddon = new FitAddon()
+  terminal.loadAddon(fitAddon)
+  terminal.loadAddon(new WebLinksAddon())
+  terminal.open(terminalRef.value)
+  fitAddon.fit()
+
+  // 注册 onData / onResize 一次，始终引用当前 ws
+  terminal.onData((data: string) => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(data)
+    }
+  })
+
+  terminal.onResize(({ cols, rows }: { cols: number; rows: number }) => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ resize: [cols, rows] }))
+    }
+  })
+}
+
 onMounted(async () => {
-  // Always create the terminal first so it's ready for connectTerminal()
-  await nextTick()
-  if (terminalRef.value) {
-    terminal = new Terminal({
-      cursorBlink: true,
-      fontSize: 14,
-      fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
-      theme: {
-        background: '#1e1e1e',
-        foreground: '#d4d4d4',
-        cursor: '#d4d4d4',
-      },
-    })
-
-    fitAddon = new FitAddon()
-    terminal.loadAddon(fitAddon)
-    terminal.loadAddon(new WebLinksAddon())
-    terminal.open(terminalRef.value)
-    fitAddon.fit()
-
-    window.addEventListener('resize', handleResize)
-  }
-
-  // Then fetch clusters and init from query params
   await fetchClusters()
-  await initWithQueryParams()
 
-  // For standalone mode, show welcome message
-  if (!isEmbedded.value && terminal) {
-    terminal.writeln('\x1b[36m' + t('terminal.welcome') + '\x1b[0m')
-    terminal.writeln(t('terminal.selectInstructions') + '\r\n')
+  const isQueryMode = !!(route.query.namespace && route.query.pod)
+
+  if (isQueryMode) {
+    // embedded 模式：先设置状态，再等Vue渲染正确的DOM，最后初始化terminal并连接
+    await initWithQueryParams()
+    await nextTick()
+    initTerminal()
+    // terminal就绪后自动连接
+    if (selectedContainer.value) {
+      connectTerminal()
+    }
+  } else {
+    // standalone 模式：直接初始化terminal
+    await nextTick()
+    initTerminal()
+    terminal?.writeln('\x1b[36m' + t('terminal.welcome') + '\x1b[0m')
+    terminal?.writeln(t('terminal.selectInstructions') + '\r\n')
   }
+
+  window.addEventListener('resize', handleResize)
 })
 
 onBeforeUnmount(() => {

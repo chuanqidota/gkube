@@ -135,6 +135,7 @@ async function startLogStream() {
     namespace: selectedNamespace.value,
     podName: selectedPod.value,
     container: selectedContainer.value,
+    tailLines: '100',
   })
   const url = `/v1/k8s/log/stream?${params.toString()}`
 

@@ -16,7 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 )
 
@@ -30,7 +30,7 @@ type AsciinemaEvent struct {
 	Height uint16          `json:"height" label:"高"`
 }
 
-func ExecToPod(key, clusterName, namespace, podName, containerName string, conn *websocket.Conn, record *audit.EsRecord) error {
+func ExecToPod(key, clusterName, namespace, podName, containerName string, conn *websocket.Conn, record *audit.EsRecord, initCols, initRows int) error {
 	// 创建Clientset
 	clientset, err := k8s.GetK8sClientByName(clusterName)
 	if err != nil {
@@ -53,22 +53,17 @@ func ExecToPod(key, clusterName, namespace, podName, containerName string, conn 
 		}, scheme.ParameterCodec)
 
 	// 获取配置
-	conf, err := k8s.GetK8sConf(clusterName)
+	kubeConf, err := k8s.GetK8sConf(clusterName)
 	if err != nil {
 		return err
 	}
-	confByte, err := json.Marshal(conf)
+	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeConf))
 	if err != nil {
-		return err
-	}
-	var config rest.Config
-	err = json.Unmarshal(confByte, &config)
-	if err != nil {
-		return err
+		return fmt.Errorf("解析kubeconfig失败: %v", err)
 	}
 
 	// 创建SPDY Executor
-	executor, err := remotecommand.NewSPDYExecutor(&config, "POST", req.URL())
+	executor, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
 		return fmt.Errorf("创建SPDY执行器失败: %v", err)
 	}
@@ -82,26 +77,57 @@ func ExecToPod(key, clusterName, namespace, podName, containerName string, conn 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel() // 确保在操作完成后取消上下文
 
+	// 使用channel分离stdin和resize消息，避免多个goroutine竞争读取同一个WebSocket
+	resizeChan := make(chan *remotecommand.TerminalSize, 16)
+	stdinChan := make(chan []byte, 1024)
+	// 第一个尺寸来自HandleWebSocket已读取的初始消息
+	resizeChan <- &remotecommand.TerminalSize{Width: uint16(initCols), Height: uint16(initRows)}
+
+	// 单个goroutine从WebSocket读取消息，根据格式分发到不同channel
+	go func() {
+		defer close(resizeChan)
+		defer close(stdinChan)
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			// 尝试解析为resize消息
+			var data map[string][]int
+			if json.Unmarshal(msg, &data) == nil {
+				if resizeData, ok := data["resize"]; ok && len(resizeData) >= 2 {
+					resizeChan <- &remotecommand.TerminalSize{
+						Width:  uint16(resizeData[0]),
+						Height: uint16(resizeData[1]),
+					}
+					continue
+				}
+			}
+			// 不是resize消息，当作stdin输入
+			stdinChan <- msg
+		}
+	}()
+
 	err = executor.StreamWithContext(ctx, remotecommand.StreamOptions{
-		Stdin:             &TerminalReader{Conn: conn},
+		Stdin:             &TerminalReader{StdinChan: stdinChan},
 		Stdout:            &TerminalWriter{Conn: conn, Record: record, Key: key, Event: eventChan},
 		Stderr:            &TerminalWriter{Conn: conn, Record: record, Key: key, Event: eventChan},
 		Tty:               true,
-		TerminalSizeQueue: &TerminalSizeHandler{Conn: conn, Record: record, Key: key, Event: eventChan},
+		TerminalSizeQueue: &TerminalSizeHandler{Record: record, Key: key, Event: eventChan, ResizeChan: resizeChan},
 	})
 	return err
 }
 
-// TerminalReader 从WebSocket读取输入
+// TerminalReader 从stdinChan读取输入
 type TerminalReader struct {
-	Conn *websocket.Conn
+	StdinChan <-chan []byte
 }
 
-// 从websocket中读取数据
+// 从stdinChan中读取数据
 func (r *TerminalReader) Read(p []byte) (int, error) {
-	_, msg, err := r.Conn.ReadMessage()
-	if err != nil {
-		return 0, err
+	msg, ok := <-r.StdinChan
+	if !ok {
+		return 0, fmt.Errorf("stdin channel closed")
 	}
 	return copy(p, msg), nil
 }
@@ -133,42 +159,29 @@ func (w *TerminalWriter) Write(p []byte) (int, error) {
 
 // TerminalSizeHandler 处理终端尺寸调整
 type TerminalSizeHandler struct {
-	Conn   *websocket.Conn
-	Record *audit.EsRecord
-	Key    string
-	Event  chan AsciinemaEvent
+	Record     *audit.EsRecord
+	Key        string
+	Event      chan AsciinemaEvent
+	ResizeChan <-chan *remotecommand.TerminalSize
 }
 
 // 调整终端尺寸
 func (t *TerminalSizeHandler) Next() *remotecommand.TerminalSize {
-	var data map[string][]int
-	if err := t.Conn.ReadJSON(&data); err != nil {
-		fmt.Printf("读取终端尺寸失败: %v", err)
+	size, ok := <-t.ResizeChan
+	if !ok {
 		return nil
 	}
-
-	resizeData, ok := data["resize"]
-	if !ok || len(resizeData) < 2 {
-		fmt.Println("无效的尺寸数据")
-		return nil
-	}
-
-	width := uint16(resizeData[0])
-	height := uint16(resizeData[1])
 
 	// 把数据推送到chan中
 	t.Event <- AsciinemaEvent{
 		Type:   "resize",
-		Width:  width,
-		Height: height,
+		Width:  size.Width,
+		Height: size.Height,
 		Record: t.Record,
 		Time:   time.Now(),
 	}
 
-	return &remotecommand.TerminalSize{
-		Width:  width,
-		Height: height,
-	}
+	return size
 }
 
 // 消费数据
