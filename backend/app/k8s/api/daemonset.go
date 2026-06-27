@@ -21,17 +21,33 @@ func (d *daemonSet) GetDaemonSetList(c *gin.Context) {
 		return
 	}
 	client, err := k8s.GetK8sClientByName(query.ClusterName)
-
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	daemonSets, err := k8sDaemonSet.GetDaemonSetList(client, query.Namespace)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取DaemonSet列表失败:%v", err.Error()))
-		return
+
+	limit, continueToken := k8s.GetPaginationParams(c)
+	if limit > 0 {
+		dsList, err := k8sDaemonSet.ListDaemonSets(client, query.Namespace, limit, continueToken)
+		if err != nil {
+			response.Fail(c, fmt.Sprintf("获取DaemonSet列表失败:%v", err.Error()))
+			return
+		}
+		remaining := int64(0)
+		if dsList.RemainingItemCount != nil {
+			remaining = *dsList.RemainingItemCount
+		}
+		data := k8s.BuildPaginatedData(dsList.Items, dsList.Continue, remaining, limit)
+		data.Total = len(dsList.Items)
+		response.Success(c, "执行成功", data)
+	} else {
+		daemonSets, err := k8sDaemonSet.GetDaemonSetList(client, query.Namespace)
+		if err != nil {
+			response.Fail(c, fmt.Sprintf("获取DaemonSet列表失败:%v", err.Error()))
+			return
+		}
+		response.Success(c, "执行成功", daemonSets)
 	}
-	response.Success(c, "执行成功", daemonSets)
 }
 
 func (d *daemonSet) GetDaemonSetByName(c *gin.Context) {

@@ -29,6 +29,18 @@ func GetServicesList(client *kubernetes.Clientset, namespace string) ([]corev1.S
 	return services.Items, nil
 }
 
+// ListServices returns a paginated service list with metadata
+func ListServices(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*corev1.ServiceList, error) {
+	listOpts := metav1.ListOptions{}
+	if limit > 0 {
+		listOpts.Limit = limit
+	}
+	if continueToken != "" {
+		listOpts.Continue = continueToken
+	}
+	return client.CoreV1().Services(namespace).List(context.TODO(), listOpts)
+}
+
 // GetServicesByName
 //
 //	@Description: 获取svc根据名好吃呢个

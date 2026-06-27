@@ -30,6 +30,18 @@ func GetPodList(client *kubernetes.Clientset, namespace string) ([]corev1.Pod, e
 	return podList.Items, nil
 }
 
+// ListPods returns a paginated pod list with metadata
+func ListPods(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*corev1.PodList, error) {
+	listOpts := metav1.ListOptions{}
+	if limit > 0 {
+		listOpts.Limit = limit
+	}
+	if continueToken != "" {
+		listOpts.Continue = continueToken
+	}
+	return client.CoreV1().Pods(namespace).List(context.TODO(), listOpts)
+}
+
 // GetPodByName
 //
 //	@Description: 获取pod

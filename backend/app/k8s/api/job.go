@@ -31,12 +31,29 @@ func (j *job) GetJobList(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	jobs, err := k8sJob.GetJobList(client, query.Namespace)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取job列表失败:%v", err.Error()))
-		return
+
+	limit, continueToken := k8s.GetPaginationParams(c)
+	if limit > 0 {
+		jobList, err := k8sJob.ListJobs(client, query.Namespace, limit, continueToken)
+		if err != nil {
+			response.Fail(c, fmt.Sprintf("获取job列表失败:%v", err.Error()))
+			return
+		}
+		remaining := int64(0)
+		if jobList.RemainingItemCount != nil {
+			remaining = *jobList.RemainingItemCount
+		}
+		data := k8s.BuildPaginatedData(jobList.Items, jobList.Continue, remaining, limit)
+		data.Total = len(jobList.Items)
+		response.Success(c, "执行成功", data)
+	} else {
+		jobs, err := k8sJob.GetJobList(client, query.Namespace)
+		if err != nil {
+			response.Fail(c, fmt.Sprintf("获取job列表失败:%v", err.Error()))
+			return
+		}
+		response.Success(c, "执行成功", jobs)
 	}
-	response.Success(c, "执行成功", jobs)
 }
 
 // GetJobByName

@@ -1,93 +1,51 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Delete, Search, Monitor } from '@element-plus/icons-vue'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
-import { getPodList, getPodYaml, deletePod, getNamespaceList, extractNamespaceNames, transformPods } from '@/api/resource'
+import { Refresh, Delete, Search, Monitor, Timer } from '@element-plus/icons-vue'
+import { getPodList, getPodYaml, deletePod, transformPods } from '@/api/resource'
+import { useResourceList } from '@/composables/useResourceList'
+import { useClusterStore } from '@/stores/cluster'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const { t } = useI18n()
-const router = useRouter()
-const loading = ref(false)
-const podList = ref<any[]>([])
-const namespaceList = ref<string[]>([])
-const selectedNamespace = ref('')
-const searchName = ref('')
-const selectedRows = ref<any[]>([])
+const clusterStore = useClusterStore()
 
-// YAML dialog
-const yamlDialogVisible = ref(false)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
-
-const filteredList = computed(() => {
-  if (!searchName.value) return podList.value
-  const keyword = searchName.value.toLowerCase()
-  return podList.value.filter((p) => p.name?.toLowerCase().includes(keyword))
+const {
+  loading,
+  filteredList,
+  selectedNamespace,
+  searchName,
+  onSearchInput,
+  selectedRows,
+  namespaceList,
+  yamlDialogVisible,
+  yamlContent,
+  yamlLoading,
+  hasMore,
+  totalCount,
+  autoRefreshEnabled,
+  toggleAutoRefresh,
+  fetchResources,
+  fetchNextPage,
+  handleNamespaceChange,
+  handleSelectionChange,
+  handleViewYaml,
+  handleDetail,
+  handleDelete,
+  handleBatchDelete,
+} = useResourceList({
+  resourceName: 'Pod',
+  fetchList: getPodList,
+  transform: transformPods,
+  getYaml: getPodYaml,
+  deleteResource: deletePod,
+  detailRoute: '/workloads/pods',
+  paginated: true,
+  pageSize: 50,
+  autoRefreshInterval: 15000,
 })
 
-async function fetchNamespaces() {
-  try {
-    const res: any = await getNamespaceList()
-    namespaceList.value = extractNamespaceNames(res.data)
-  } catch {
-    // ignore
-  }
-}
-
-async function fetchPods() {
-  loading.value = true
-  try {
-    const params: any = {}
-    if (selectedNamespace.value) params.namespace = selectedNamespace.value
-    const res: any = await getPodList(params)
-    // API returns raw K8s Pod objects; transform to simplified display format
-    const items = res.data?.items || res.data || []
-    podList.value = transformPods(items)
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load pods')
-  } finally {
-    loading.value = false
-  }
-}
-
-function handleNamespaceChange() {
-  fetchPods()
-}
-
-function handleSelectionChange(rows: any[]) {
-  selectedRows.value = rows
-}
-
-async function handleViewYaml(row: any) {
-  yamlDialogVisible.value = true
-  yamlLoading.value = true
-  yamlContent.value = ''
-  try {
-    const res: any = await getPodYaml({
-      namespace: row.namespace,
-      name: row.name,
-    })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load YAML')
-    yamlDialogVisible.value = false
-  } finally {
-    yamlLoading.value = false
-  }
-}
-
 function getClusterName(): string {
-  try {
-    const saved = localStorage.getItem('gkube_cluster')
-    if (saved) {
-      const c = JSON.parse(saved)
-      return c?.clusterName || c?.cluster_name || c?.name || ''
-    }
-  } catch { /* ignore */ }
-  return ''
+  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.name || ''
 }
 
 function handleViewLogs(row: any) {
@@ -100,49 +58,6 @@ function handleExec(row: any) {
   window.open(`/terminal?namespace=${row.namespace}&pod=${row.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
-function handleDetail(row: any) {
-  router.push(`/workloads/pods/${row.namespace}/${row.name}`)
-}
-
-async function handleDelete(row: any) {
-  try {
-    await ElMessageBox.confirm(
-      `Delete pod "${row.name}" in namespace "${row.namespace}"?`,
-      'Confirm',
-      { type: 'warning' }
-    )
-    await deletePod({ namespace: row.namespace, name: row.name })
-    ElMessage.success('Pod deleted')
-    fetchPods()
-  } catch {
-    // cancelled
-  }
-}
-
-async function handleBatchDelete() {
-  if (!selectedRows.value.length) return
-  try {
-    await ElMessageBox.confirm(
-      `Delete ${selectedRows.value.length} selected pod(s)?`,
-      'Confirm',
-      { type: 'warning' }
-    )
-    let successCount = 0
-    for (const row of selectedRows.value) {
-      try {
-        await deletePod({ namespace: row.namespace, name: row.name })
-        successCount++
-      } catch {
-        // continue
-      }
-    }
-    ElMessage.success(`Deleted ${successCount} pod(s)`)
-    fetchPods()
-  } catch {
-    // cancelled
-  }
-}
-
 function statusType(status: string) {
   const s = (status || '').toLowerCase()
   if (s === 'running') return 'success'
@@ -151,13 +66,6 @@ function statusType(status: string) {
   if (s === 'failed' || s === 'error') return 'danger'
   return 'info'
 }
-
-const { isRunning, countdown, toggle, refresh: autoRefresh } = useAutoRefresh(fetchPods, 15000)
-
-onMounted(() => {
-  fetchNamespaces()
-  fetchPods()
-})
 </script>
 
 <template>
@@ -165,7 +73,8 @@ onMounted(() => {
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
         <el-input
-          v-model="searchName"
+          :model-value="searchName"
+          @input="onSearchInput"
           :placeholder="t('common.searchByName')"
           style="width: 220px;"
           clearable
@@ -181,15 +90,19 @@ onMounted(() => {
         >
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="autoRefresh()">
-          <el-icon><Refresh /></el-icon> {{ t('common.refresh') }} ({{ countdown }}s)
+        <el-button @click="fetchResources()" :loading="loading">
+          <el-icon><Refresh /></el-icon> {{ t('common.refresh') }}
         </el-button>
-        <el-button @click="toggle()" :type="isRunning ? 'warning' : 'success'" size="default">
-          {{ isRunning ? t('common.paused') : t('common.resume') }}
+        <el-button
+          :type="autoRefreshEnabled ? 'success' : 'default'"
+          @click="toggleAutoRefresh"
+        >
+          <el-icon><Timer /></el-icon> {{ autoRefreshEnabled ? 'Auto' : 'Manual' }}
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
           <el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})
         </el-button>
+        <span class="total-count" v-if="totalCount">Total: {{ totalCount }}</span>
       </div>
     </el-card>
 
@@ -228,6 +141,13 @@ onMounted(() => {
           </template>
         </el-table-column>
       </el-table>
+
+      <!-- Load More Button -->
+      <div v-if="hasMore" class="load-more">
+        <el-button @click="fetchNextPage" :loading="loading" link type="primary">
+          Load More...
+        </el-button>
+      </div>
     </el-card>
 
     <!-- YAML Dialog -->
@@ -254,5 +174,16 @@ onMounted(() => {
 }
 .table-card {
   border-radius: 8px;
+}
+.total-count {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  margin-left: auto;
+}
+.load-more {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 </style>

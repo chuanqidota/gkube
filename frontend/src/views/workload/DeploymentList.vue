@@ -1,157 +1,57 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
-
+import { Refresh, Plus, Delete, Search, Timer } from '@element-plus/icons-vue'
 import {
   getDeploymentList,
   getDeploymentYaml,
   updateDeploymentYaml,
   deleteDeployment,
-  getNamespaceList,
-  extractNamespaceNames,
   transformDeployments,
 } from '@/api/resource'
+import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const { t } = useI18n()
-const router = useRouter()
-const loading = ref(false)
-const deploymentList = ref<any[]>([])
-const namespaceList = ref<string[]>([])
-const selectedNamespace = ref('')
-const searchName = ref('')
-const selectedRows = ref<any[]>([])
-
-// YAML dialog
-const yamlDialogVisible = ref(false)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
-const yamlTarget = ref<any>(null)
+// @ts-ignore -- used as template ref for YamlEditor component
 const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
 
-const filteredList = computed(() => {
-  if (!searchName.value) return deploymentList.value
-  const keyword = searchName.value.toLowerCase()
-  return deploymentList.value.filter((d) => d.name?.toLowerCase().includes(keyword))
-})
-
-async function fetchNamespaces() {
-  try {
-    const res: any = await getNamespaceList()
-    namespaceList.value = extractNamespaceNames(res.data)
-  } catch {
-    // ignore
-  }
-}
-
-async function fetchDeployments() {
-  loading.value = true
-  try {
-    const params: any = {}
-    if (selectedNamespace.value) params.namespace = selectedNamespace.value
-    const res: any = await getDeploymentList(params)
-    const items = res.data?.items || res.data || []
-    deploymentList.value = transformDeployments(items)
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load deployments')
-  } finally {
-    loading.value = false
-  }
-}
-
-function handleNamespaceChange() {
-  fetchDeployments()
-}
-
-function handleSelectionChange(rows: any[]) {
-  selectedRows.value = rows
-}
-
-async function handleViewYaml(row: any) {
-  yamlTarget.value = row
-  yamlDialogVisible.value = true
-  yamlLoading.value = true
-  yamlContent.value = ''
-  try {
-    const res: any = await getDeploymentYaml({
-      namespace: row.namespace,
-      name: row.name,
-    })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load YAML')
-    yamlDialogVisible.value = false
-  } finally {
-    yamlLoading.value = false
-  }
-}
-
-async function handleSaveYaml(content: string) {
-  if (!yamlTarget.value) return
-  try {
-    await updateDeploymentYaml({
-      namespace: yamlTarget.value.namespace,
-      name: yamlTarget.value.name,
-      yaml: content,
-    })
-    ElMessage.success('YAML saved successfully')
-    yamlDialogVisible.value = false
-    fetchDeployments()
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to save YAML')
-    yamlEditorRef.value?.resetSaving()
-  }
-}
-
-function handleDetail(row: any) {
-  router.push(`/workloads/deployments/${row.namespace}/${row.name}`)
-}
-
-async function handleDelete(row: any) {
-  try {
-    await ElMessageBox.confirm(
-      `Delete deployment "${row.name}" in namespace "${row.namespace}"?`,
-      'Confirm',
-      { type: 'warning' }
-    )
-    await deleteDeployment({ namespace: row.namespace, name: row.name })
-    ElMessage.success('Deployment deleted')
-    fetchDeployments()
-  } catch {
-    // cancelled
-  }
-}
-
-async function handleBatchDelete() {
-  if (!selectedRows.value.length) return
-  try {
-    await ElMessageBox.confirm(
-      `Delete ${selectedRows.value.length} selected deployment(s)?`,
-      'Confirm',
-      { type: 'warning' }
-    )
-    let successCount = 0
-    for (const row of selectedRows.value) {
-      try {
-        await deleteDeployment({ namespace: row.namespace, name: row.name })
-        successCount++
-      } catch {
-        // continue with others
-      }
-    }
-    ElMessage.success(`Deleted ${successCount} deployment(s)`)
-    fetchDeployments()
-  } catch {
-    // cancelled
-  }
-}
-
-onMounted(() => {
-  fetchNamespaces()
-  fetchDeployments()
+const {
+  loading,
+  filteredList,
+  selectedNamespace,
+  searchName,
+  onSearchInput,
+  selectedRows,
+  namespaceList,
+  yamlDialogVisible,
+  yamlContent,
+  yamlLoading,
+  hasMore,
+  totalCount,
+  autoRefreshEnabled,
+  toggleAutoRefresh,
+  fetchResources,
+  fetchNextPage,
+  handleNamespaceChange,
+  handleSelectionChange,
+  handleViewYaml,
+  handleSaveYaml,
+  handleDetail,
+  handleDelete,
+  handleBatchDelete,
+} = useResourceList({
+  resourceName: 'Deployment',
+  fetchList: getDeploymentList,
+  transform: transformDeployments,
+  getYaml: getDeploymentYaml,
+  updateYaml: updateDeploymentYaml,
+  deleteResource: deleteDeployment,
+  detailRoute: '/workloads/deployments',
+  createRoute: '/workloads/deployments/create',
+  paginated: true,
+  pageSize: 50,
+  autoRefreshInterval: 30000,
 })
 </script>
 
@@ -160,7 +60,8 @@ onMounted(() => {
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
         <el-input
-          v-model="searchName"
+          :model-value="searchName"
+          @input="onSearchInput"
           placeholder="Search by name"
           style="width: 220px;"
           clearable
@@ -176,15 +77,22 @@ onMounted(() => {
         >
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button @click="fetchDeployments()" :loading="loading">
+        <el-button @click="fetchResources()" :loading="loading">
           <el-icon><Refresh /></el-icon> {{ t('common.refresh') }}
         </el-button>
-        <el-button type="success" @click="router.push('/workloads/deployments/create')">
+        <el-button
+          :type="autoRefreshEnabled ? 'success' : 'default'"
+          @click="toggleAutoRefresh"
+        >
+          <el-icon><Timer /></el-icon> {{ autoRefreshEnabled ? 'Auto' : 'Manual' }}
+        </el-button>
+        <el-button type="success" @click="$router.push('/workloads/deployments/create')">
           <el-icon><Plus /></el-icon> Create
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
           <el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})
         </el-button>
+        <span class="total-count" v-if="totalCount">Total: {{ totalCount }}</span>
       </div>
     </el-card>
 
@@ -213,6 +121,13 @@ onMounted(() => {
           </template>
         </el-table-column>
       </el-table>
+
+      <!-- Load More Button -->
+      <div v-if="hasMore" class="load-more">
+        <el-button @click="fetchNextPage" :loading="loading" link type="primary">
+          Load More...
+        </el-button>
+      </div>
     </el-card>
 
     <!-- YAML Dialog -->
@@ -229,7 +144,6 @@ onMounted(() => {
         />
       </div>
     </el-dialog>
-
   </div>
 </template>
 
@@ -248,5 +162,16 @@ onMounted(() => {
 }
 .table-card {
   border-radius: 8px;
+}
+.total-count {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  margin-left: auto;
+}
+.load-more {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 </style>

@@ -31,6 +31,18 @@ func GetDeploymentList(client *kubernetes.Clientset, namespace string) ([]appsv1
 	return deploymentList.Items, nil
 }
 
+// ListDeployments returns a paginated deployment list with metadata
+func ListDeployments(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*appsv1.DeploymentList, error) {
+	listOpts := metav1.ListOptions{}
+	if limit > 0 {
+		listOpts.Limit = limit
+	}
+	if continueToken != "" {
+		listOpts.Continue = continueToken
+	}
+	return client.AppsV1().Deployments(namespace).List(context.TODO(), listOpts)
+}
+
 // GetDeploymentByFiled
 //
 //	@Description: 根据字段获取deployment列表

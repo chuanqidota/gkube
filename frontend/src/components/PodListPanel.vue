@@ -71,12 +71,7 @@ const getImage = (pod: Pod): string => {
     <el-table v-else :data="pods" style="width: 100%" row-key="metadata.name" size="small">
       <el-table-column label="名称" min-width="200">
         <template #default="{ row }">
-          <router-link
-            :to="{ name: 'PodDetail', params: { namespace: row.metadata.namespace, name: row.metadata.name } }"
-            class="pod-link"
-          >
-            {{ row.metadata.name }}
-          </router-link>
+          <span class="pod-name">{{ row.metadata.name }}</span>
         </template>
       </el-table-column>
       <el-table-column label="状态" width="90">
@@ -139,14 +134,9 @@ const getImage = (pod: Pod): string => {
   font-size: 13px;
 }
 
-.pod-link {
-  color: var(--el-color-primary);
-  text-decoration: none;
+.pod-name {
   font-size: 13px;
-}
-
-.pod-link:hover {
-  text-decoration: underline;
+  font-family: monospace;
 }
 
 .mono {

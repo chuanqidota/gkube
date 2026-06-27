@@ -25,6 +25,18 @@ func GetCronJobList(client *kubernetes.Clientset, namespace string) ([]batchv1.C
 	return cronJobList.Items, nil
 }
 
+// ListCronJobs returns a paginated cronjob list with metadata
+func ListCronJobs(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*batchv1.CronJobList, error) {
+	listOpts := metav1.ListOptions{}
+	if limit > 0 {
+		listOpts.Limit = limit
+	}
+	if continueToken != "" {
+		listOpts.Continue = continueToken
+	}
+	return client.BatchV1().CronJobs(namespace).List(context.TODO(), listOpts)
+}
+
 // GetCronJobByName
 //
 //	@Description: 获取cronjob

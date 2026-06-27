@@ -30,12 +30,29 @@ func (s *statefulSet) GetStatefulSetList(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	statefulSets, err := k8sStatefulSet.GetStatefulSetList(client, query.Namespace)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取statefulset列表失败:%v", err.Error()))
-		return
+
+	limit, continueToken := k8s.GetPaginationParams(c)
+	if limit > 0 {
+		ssList, err := k8sStatefulSet.ListStatefulSets(client, query.Namespace, limit, continueToken)
+		if err != nil {
+			response.Fail(c, fmt.Sprintf("获取statefulset列表失败:%v", err.Error()))
+			return
+		}
+		remaining := int64(0)
+		if ssList.RemainingItemCount != nil {
+			remaining = *ssList.RemainingItemCount
+		}
+		data := k8s.BuildPaginatedData(ssList.Items, ssList.Continue, remaining, limit)
+		data.Total = len(ssList.Items)
+		response.Success(c, "执行成功", data)
+	} else {
+		statefulSets, err := k8sStatefulSet.GetStatefulSetList(client, query.Namespace)
+		if err != nil {
+			response.Fail(c, fmt.Sprintf("获取statefulset列表失败:%v", err.Error()))
+			return
+		}
+		response.Success(c, "执行成功", statefulSets)
 	}
-	response.Success(c, "执行成功", statefulSets)
 }
 
 // GetStatefulSetByName

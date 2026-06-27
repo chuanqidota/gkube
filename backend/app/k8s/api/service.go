@@ -31,12 +31,28 @@ func (s *service) GetServicesList(c *gin.Context) {
 		return
 	}
 
-	services, err := k8sService.GetServicesList(client, query.Namespace)
-	if err != nil {
-		response.Fail(c, err.Error())
-		return
+	limit, continueToken := k8s.GetPaginationParams(c)
+	if limit > 0 {
+		svcList, err := k8sService.ListServices(client, query.Namespace, limit, continueToken)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+		remaining := int64(0)
+		if svcList.RemainingItemCount != nil {
+			remaining = *svcList.RemainingItemCount
+		}
+		data := k8s.BuildPaginatedData(svcList.Items, svcList.Continue, remaining, limit)
+		data.Total = len(svcList.Items)
+		response.Success(c, "获取成功", data)
+	} else {
+		services, err := k8sService.GetServicesList(client, query.Namespace)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+		response.Success(c, "获取成功", services)
 	}
-	response.Success(c, "获取成功", services)
 }
 
 // GetServicesByName

@@ -68,7 +68,7 @@ function handleCancel() {
 
     <div v-else class="yaml-mode">
       <div class="form-header"><h2>Create Deployment (YAML)</h2></div>
-      <YamlEditor v-model="yamlContent" height="600px" :read-only="false" editable auto-format />
+      <YamlEditor v-model="yamlContent" height="calc(100vh - 230px)" :read-only="false" editable auto-format />
       <div class="form-actions">
         <el-button @click="handleCancel">Cancel</el-button>
         <el-button type="primary" :loading="submitting" @click="handleYamlSubmit">Create Deployment</el-button>

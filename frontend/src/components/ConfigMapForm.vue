@@ -138,10 +138,10 @@ function buildK8sConfigMap(): Record<string, any> {
 async function handleSubmit() {
   submitting.value = true
   try {
-    const yamlContent = generatedYaml.value
+    const yaml = generatedYaml.value
     await createConfigMap({
       namespace: form.namespace,
-      yamlContent,
+      yaml,
     })
     ElMessage.success('ConfigMap created successfully')
     router.push('/config/configmaps')

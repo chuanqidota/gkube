@@ -31,12 +31,28 @@ func (cj *cronjob) GetCronJobList(c *gin.Context) {
 		return
 	}
 
-	jobList, err := k8sCronjob.GetCronJobList(client, query.Namespace)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取cronjob列表失败:%s", err.Error()))
-		return
+	limit, continueToken := k8s.GetPaginationParams(c)
+	if limit > 0 {
+		cjList, err := k8sCronjob.ListCronJobs(client, query.Namespace, limit, continueToken)
+		if err != nil {
+			response.Fail(c, fmt.Sprintf("获取cronjob列表失败:%s", err.Error()))
+			return
+		}
+		remaining := int64(0)
+		if cjList.RemainingItemCount != nil {
+			remaining = *cjList.RemainingItemCount
+		}
+		data := k8s.BuildPaginatedData(cjList.Items, cjList.Continue, remaining, limit)
+		data.Total = len(cjList.Items)
+		response.Success(c, "执行成功", data)
+	} else {
+		jobList, err := k8sCronjob.GetCronJobList(client, query.Namespace)
+		if err != nil {
+			response.Fail(c, fmt.Sprintf("获取cronjob列表失败:%s", err.Error()))
+			return
+		}
+		response.Success(c, "执行成功", jobList)
 	}
-	response.Success(c, "执行成功", jobList)
 }
 
 // GetCronJobByName

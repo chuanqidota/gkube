@@ -301,11 +301,10 @@ function buildK8sResource(): Record<string, any> {
 async function handleSubmit() {
   submitting.value = true
   try {
-    const yamlContent = generatedYaml.value
+    const yaml = generatedYaml.value
     const data = {
-      clusterName: '',
       namespace: form.namespace,
-      yamlContent,
+      yaml,
     }
 
     await createJob(data)

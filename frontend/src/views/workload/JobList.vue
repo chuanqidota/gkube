@@ -1,85 +1,39 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getJobList, getJobYaml, deleteJob, getNamespaceList, extractNamespaceNames } from '@/api/resource'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { getJobList, getJobYaml, deleteJob } from '@/api/resource'
+import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
 
-const router = useRouter()
-const loading = ref(false)
-const jobList = ref<any[]>([])
-const namespaceList = ref<string[]>([])
-const selectedNamespace = ref('')
-const searchName = ref('')
-const selectedRows = ref<any[]>([])
-const yamlDialogVisible = ref(false)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
-
-const filteredList = computed(() => {
-  if (!searchName.value) return jobList.value
-  const keyword = searchName.value.toLowerCase()
-  return jobList.value.filter((d) => d.name?.toLowerCase().includes(keyword))
+const {
+  loading,
+  filteredList,
+  selectedNamespace,
+  searchName,
+  selectedRows,
+  namespaceList,
+  yamlDialogVisible,
+  yamlContent,
+  yamlLoading,
+  hasMore,
+  totalCount,
+  fetchResources,
+  fetchNextPage,
+  handleNamespaceChange,
+  handleSelectionChange,
+  handleViewYaml,
+  handleDetail,
+  handleDelete,
+  handleBatchDelete,
+} = useResourceList({
+  resourceName: 'Job',
+  fetchList: getJobList,
+  getYaml: getJobYaml,
+  deleteResource: deleteJob,
+  detailRoute: '/workloads/jobs',
+  createRoute: '/workloads/jobs/create',
+  paginated: true,
+  pageSize: 50,
 })
-
-async function fetchNamespaces() {
-  try {
-    const res: any = await getNamespaceList()
-    namespaceList.value = extractNamespaceNames(res.data)
-  } catch { /* ignore */ }
-}
-
-async function fetchJobs() {
-  loading.value = true
-  try {
-    const params: any = {}
-    if (selectedNamespace.value) params.namespace = selectedNamespace.value
-    const res: any = await getJobList(params)
-    jobList.value = res.data?.items || res.data || []
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load Jobs')
-  } finally { loading.value = false }
-}
-
-function handleNamespaceChange() { fetchJobs() }
-function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
-
-async function handleViewYaml(row: any) {
-  yamlDialogVisible.value = true; yamlLoading.value = true; yamlContent.value = ''
-  try {
-    const res: any = await getJobYaml({ namespace: row.namespace, name: row.name })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) { ElMessage.error(e?.message || 'Failed to load YAML'); yamlDialogVisible.value = false }
-  finally { yamlLoading.value = false }
-}
-
-function handleDetail(row: any) { router.push(`/workloads/jobs/${row.namespace}/${row.name}`) }
-
-async function handleDelete(row: any) {
-  try {
-    await ElMessageBox.confirm(`Delete Job "${row.name}" in namespace "${row.namespace}"?`, 'Confirm', { type: 'warning' })
-    await deleteJob({ namespace: row.namespace, name: row.name })
-    ElMessage.success('Job deleted'); fetchJobs()
-  } catch { /* cancelled */ }
-}
-
-async function handleBatchDelete() {
-  if (!selectedRows.value.length) return
-  try {
-    await ElMessageBox.confirm(`Delete ${selectedRows.value.length} selected Job(s)?`, 'Confirm', { type: 'warning' })
-    let count = 0
-    for (const row of selectedRows.value) {
-      try { await deleteJob({ namespace: row.namespace, name: row.name }); count++ } catch { /* continue */ }
-    }
-    ElMessage.success(`Deleted ${count} Job(s)`); fetchJobs()
-  } catch { /* cancelled */ }
-}
-
-const { isRunning, countdown, toggle, refresh } = useAutoRefresh(fetchJobs)
-
-onMounted(() => { fetchNamespaces(); fetchJobs() })
 </script>
 
 <template>
@@ -92,12 +46,10 @@ onMounted(() => { fetchNamespaces(); fetchJobs() })
         <el-select v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 180px;" @change="handleNamespaceChange">
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="refresh"><el-icon><Refresh /></el-icon> Refresh</el-button>
-        <el-button :type="isRunning ? 'success' : 'info'" @click="toggle">
-          {{ isRunning ? `Auto (${countdown}s)` : 'Manual' }}
-        </el-button>
-        <el-button type="success" @click="router.push('/workloads/jobs/create')"><el-icon><Plus /></el-icon> Create</el-button>
+        <el-button @click="fetchResources()" :loading="loading"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <el-button type="success" @click="$router.push('/workloads/jobs/create')"><el-icon><Plus /></el-icon> Create</el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})</el-button>
+        <span class="total-count" v-if="totalCount">Total: {{ totalCount }}</span>
       </div>
     </el-card>
     <el-card shadow="never" class="table-card">
@@ -117,6 +69,9 @@ onMounted(() => { fetchNamespaces(); fetchJobs() })
           </template>
         </el-table-column>
       </el-table>
+      <div v-if="hasMore" class="load-more">
+        <el-button @click="fetchNextPage" :loading="loading" link type="primary">Load More...</el-button>
+      </div>
     </el-card>
     <el-dialog v-model="yamlDialogVisible" title="Job YAML" width="70%" top="5vh" destroy-on-close>
       <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
@@ -129,4 +84,6 @@ onMounted(() => { fetchNamespaces(); fetchJobs() })
 .filter-card { margin-bottom: 16px; }
 .filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .table-card { border-radius: 8px; }
+.total-count { color: var(--el-text-color-secondary); font-size: 13px; margin-left: auto; }
+.load-more { display: flex; justify-content: center; padding: 12px 0; border-top: 1px solid var(--el-border-color-lighter); }
 </style>

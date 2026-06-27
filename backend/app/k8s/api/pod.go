@@ -20,7 +20,7 @@ var Pod = new(pod)
 
 // GetPodList
 //
-//	@Description: 获取pod列表
+//	@Description: 获取pod列表（支持分页）
 //	@receiver p
 //	@param c
 func (p *pod) GetPodList(c *gin.Context) {
@@ -34,12 +34,29 @@ func (p *pod) GetPodList(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	pods, err := k8sPod.GetPodList(client, query.Namespace)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取pod列表失败:%s", err.Error()))
-		return
+
+	limit, continueToken := k8s.GetPaginationParams(c)
+	if limit > 0 {
+		podList, err := k8sPod.ListPods(client, query.Namespace, limit, continueToken)
+		if err != nil {
+			response.Fail(c, fmt.Sprintf("获取pod列表失败:%s", err.Error()))
+			return
+		}
+		remaining := int64(0)
+		if podList.RemainingItemCount != nil {
+			remaining = *podList.RemainingItemCount
+		}
+		data := k8s.BuildPaginatedData(podList.Items, podList.Continue, remaining, limit)
+		data.Total = len(podList.Items)
+		response.Success(c, "获取pod列表成功", data)
+	} else {
+		pods, err := k8sPod.GetPodList(client, query.Namespace)
+		if err != nil {
+			response.Fail(c, fmt.Sprintf("获取pod列表失败:%s", err.Error()))
+			return
+		}
+		response.Success(c, "获取pod列表成功", pods)
 	}
-	response.Success(c, "获取pod列表成功", pods)
 }
 
 // GetPodByName

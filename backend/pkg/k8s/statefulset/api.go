@@ -25,6 +25,18 @@ func GetStatefulSetList(client *kubernetes.Clientset, namespace string) ([]appsv
 	return statefulSetList.Items, nil
 }
 
+// ListStatefulSets returns a paginated statefulset list with metadata
+func ListStatefulSets(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*appsv1.StatefulSetList, error) {
+	listOpts := metav1.ListOptions{}
+	if limit > 0 {
+		listOpts.Limit = limit
+	}
+	if continueToken != "" {
+		listOpts.Continue = continueToken
+	}
+	return client.AppsV1().StatefulSets(namespace).List(context.Background(), listOpts)
+}
+
 // GetStatefulSetByName
 //
 //	@Description: 获取statefulSet

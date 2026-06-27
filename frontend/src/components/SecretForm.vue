@@ -161,10 +161,10 @@ function buildK8sSecret(): Record<string, any> {
 async function handleSubmit() {
   submitting.value = true
   try {
-    const yamlContent = generatedYaml.value
+    const yaml = generatedYaml.value
     await createSecret({
       namespace: form.namespace,
-      yamlContent,
+      yaml,
     })
     ElMessage.success('Secret created successfully')
     router.push('/config/secrets')

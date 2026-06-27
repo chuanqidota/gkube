@@ -25,6 +25,18 @@ func GetDaemonSetList(client *kubernetes.Clientset, namespace string) ([]appsv1.
 	return daemonSetList.Items, nil
 }
 
+// ListDaemonSets returns a paginated daemonset list with metadata
+func ListDaemonSets(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*appsv1.DaemonSetList, error) {
+	listOpts := metav1.ListOptions{}
+	if limit > 0 {
+		listOpts.Limit = limit
+	}
+	if continueToken != "" {
+		listOpts.Continue = continueToken
+	}
+	return client.AppsV1().DaemonSets(namespace).List(context.Background(), listOpts)
+}
+
 // GetDaemonSetByName
 //
 //	@Description: 获取daemonSet

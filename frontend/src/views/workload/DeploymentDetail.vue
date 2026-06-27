@@ -36,6 +36,7 @@ const selectedReplicaset = ref<any>(null)
 const rsPods = ref<any[]>([])
 const allPods = ref<any[]>([])
 const rsPodsLoading = ref(false)
+const leftPanelCollapsed = ref(false)
 
 // Rollback dialog
 const rollbackDialogVisible = ref(false)
@@ -329,9 +330,15 @@ onMounted(() => {
       <div class="main-layout">
 
         <!-- 左侧：ReplicaSet 列表 -->
-        <div class="left-panel">
-          <div class="panel-title">ReplicaSet ({{ replicasets.length }})</div>
-          <div class="rs-list" v-loading="replicasetsLoading">
+        <div class="left-panel" :class="{ collapsed: leftPanelCollapsed }">
+          <div class="panel-title" @click="leftPanelCollapsed = !leftPanelCollapsed">
+            <span v-if="!leftPanelCollapsed">ReplicaSet ({{ replicasets.length }})</span>
+            <span v-else class="collapsed-label">RS</span>
+            <el-icon class="collapse-icon" :class="{ rotated: leftPanelCollapsed }">
+              <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="12" height="12"><path fill="currentColor" d="M618.666667 512L388 281.333333l60.373333-60.373333L739.413333 512l-291.04 291.04L388 742.666667z"/></svg>
+            </el-icon>
+          </div>
+          <div v-if="!leftPanelCollapsed" class="rs-list" v-loading="replicasetsLoading">
             <div v-if="replicasets.length === 0" class="empty-hint">暂无 ReplicaSet</div>
             <div
               v-for="rs in replicasets"
@@ -524,6 +531,12 @@ onMounted(() => {
   flex-direction: column;
   overflow: hidden;
   background: var(--el-bg-color);
+  transition: width 0.2s ease, min-width 0.2s ease;
+}
+
+.left-panel.collapsed {
+  width: 48px;
+  min-width: 48px;
 }
 
 .panel-title {
@@ -536,6 +549,27 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.left-panel .panel-title {
+  justify-content: space-between;
+}
+
+.collapsed-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.collapse-icon {
+  transition: transform 0.2s ease;
+  color: var(--el-text-color-secondary);
+  transform: rotate(180deg);
+}
+
+.collapse-icon.rotated {
+  transform: rotate(0deg);
 }
 
 .count-badge {
@@ -664,7 +698,7 @@ onMounted(() => {
 
 /* Responsive */
 @media (max-width: 1199px) {
-  .left-panel {
+  .left-panel:not(.collapsed) {
     width: 260px;
     min-width: 260px;
   }

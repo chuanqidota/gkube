@@ -220,10 +220,10 @@ function buildK8sService(): Record<string, any> {
 async function handleSubmit() {
   submitting.value = true
   try {
-    const yamlContent = generatedYaml.value
+    const yaml = generatedYaml.value
     await createService({
       namespace: form.namespace,
-      yamlContent,
+      yaml,
     })
     ElMessage.success('Service created successfully')
     router.push('/services')

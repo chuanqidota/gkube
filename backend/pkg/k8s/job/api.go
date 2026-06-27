@@ -26,6 +26,18 @@ func GetJobList(client *kubernetes.Clientset, namespace string) ([]batchv1.Job, 
 	return jobList.Items, nil
 }
 
+// ListJobs returns a paginated job list with metadata
+func ListJobs(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*batchv1.JobList, error) {
+	listOpts := metav1.ListOptions{}
+	if limit > 0 {
+		listOpts.Limit = limit
+	}
+	if continueToken != "" {
+		listOpts.Continue = continueToken
+	}
+	return client.BatchV1().Jobs(namespace).List(context.TODO(), listOpts)
+}
+
 // GetJobByName
 //
 //	@Description: 根据名称获取job

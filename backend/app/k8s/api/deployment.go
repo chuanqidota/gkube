@@ -18,7 +18,7 @@ var Deployment = new(deployment)
 
 // GetDeploymentList
 //
-//	@Description: 获取deployment列表
+//	@Description: 获取deployment列表（支持分页）
 //	@param c
 func (dp *deployment) GetDeploymentList(c *gin.Context) {
 	var query params.DeploymentListParams
@@ -31,12 +31,31 @@ func (dp *deployment) GetDeploymentList(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	deployments, err := k8sDeployment.GetDeploymentList(client, query.Namespace)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取deployment列表失败:%s", err.Error()))
-		return
+
+	limit, continueToken := k8s.GetPaginationParams(c)
+	if limit > 0 {
+		// Paginated mode
+		deploymentList, err := k8sDeployment.ListDeployments(client, query.Namespace, limit, continueToken)
+		if err != nil {
+			response.Fail(c, fmt.Sprintf("获取deployment列表失败:%s", err.Error()))
+			return
+		}
+		remaining := int64(0)
+		if deploymentList.RemainingItemCount != nil {
+			remaining = *deploymentList.RemainingItemCount
+		}
+		data := k8s.BuildPaginatedData(deploymentList.Items, deploymentList.Continue, remaining, limit)
+		data.Total = len(deploymentList.Items)
+		response.Success(c, "执行成功", data)
+	} else {
+		// Legacy mode: return all items
+		deployments, err := k8sDeployment.GetDeploymentList(client, query.Namespace)
+		if err != nil {
+			response.Fail(c, fmt.Sprintf("获取deployment列表失败:%s", err.Error()))
+			return
+		}
+		response.Success(c, "执行成功", deployments)
 	}
-	response.Success(c, "执行成功", deployments)
 }
 
 // GetDeploymentDetail

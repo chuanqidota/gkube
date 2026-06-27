@@ -248,10 +248,10 @@ function buildK8sIngress(): Record<string, any> {
 async function handleSubmit() {
   submitting.value = true
   try {
-    const yamlContent = generatedYaml.value
+    const yaml = generatedYaml.value
     await createIngress({
       namespace: form.namespace,
-      yamlContent,
+      yaml,
     })
     ElMessage.success('Ingress created successfully')
     router.push('/ingresses')
