@@ -1,4 +1,9 @@
-/* Global Reset for Element Plus */
+/* ============================================================
+   GKube Global Styles
+   Uses design tokens from styles/tokens.css
+   ============================================================ */
+
+/* === Global Reset === */
 * {
   margin: 0;
   padding: 0;
@@ -7,40 +12,56 @@
 
 html, body, #app {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--gk-font-sans);
+  font-size: var(--gk-font-size-base);
+  color: var(--gk-color-text-primary);
+  background: var(--gk-color-bg-page);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar styling */
+/* === Scrollbar === */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c0c4cc;
-  border-radius: 3px;
+  background: var(--gk-neutral-300);
+  border-radius: var(--gk-radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gk-neutral-400);
 }
 
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 
-/* Focus visible styles for keyboard navigation */
+/* Dark theme scrollbar */
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--gk-neutral-600);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--gk-neutral-500);
+}
+
+/* === Focus Visible === */
 :focus-visible {
-  outline: 2px solid #409eff;
+  outline: 2px solid var(--gk-color-primary);
   outline-offset: 2px;
 }
 
 button:focus-visible,
 .el-button:focus-visible {
-  outline: 2px solid #409eff;
+  outline: 2px solid var(--gk-color-primary);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--gk-radius-sm);
 }
 
-/* Reduced motion support */
+/* === Reduced Motion === */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -51,191 +72,240 @@ button:focus-visible,
   }
 }
 
-/* Card hover effect */
-.el-card:hover {
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+/* === Page Container === */
+.page-container {
+  padding: var(--gk-space-6);
+  max-width: var(--gk-content-max-width);
+  margin: 0 auto;
 }
 
-/* Table styling */
-.el-table {
-  font-size: 13px;
+/* === Card Styles === */
+.gk-card {
+  background: var(--gk-color-bg-card);
+  border-radius: var(--gk-radius-lg);
+  box-shadow: var(--gk-shadow-card);
+  padding: var(--gk-space-6);
+  border: 1px solid var(--gk-color-border);
+  transition: box-shadow var(--gk-transition-base);
 }
 
-.el-table th {
-  background-color: #fafafa !important;
-  color: #606266;
+.gk-card:hover {
+  box-shadow: var(--gk-shadow-md);
+}
+
+.gk-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--gk-space-4);
+  padding-left: var(--gk-space-3);
+  border-left: 3px solid var(--gk-color-primary);
+}
+
+.gk-card__title {
+  font-size: var(--gk-font-size-lg);
   font-weight: 600;
+  color: var(--gk-color-text-primary);
 }
 
-/* Filter card */
+/* === Element Plus Card Overrides === */
+.el-card {
+  border-radius: var(--gk-radius-lg);
+  border-color: var(--gk-color-border);
+  transition: box-shadow var(--gk-transition-base);
+}
+
+.el-card:hover {
+  box-shadow: var(--gk-shadow-md);
+}
+
+/* === Filter Card === */
 .filter-card {
-  margin-bottom: 16px;
+  margin-bottom: var(--gk-space-4);
 }
 
 .filter-card .el-card__body {
-  padding: 16px 20px;
+  padding: var(--gk-space-4) var(--gk-space-5);
 }
 
-/* Table card */
+/* === Table Card === */
 .table-card {
-  margin-bottom: 16px;
+  margin-bottom: var(--gk-space-4);
 }
 
 .table-card .el-card__header {
-  padding: 12px 20px;
-  border-bottom: 1px solid #ebeef5;
+  padding: var(--gk-space-3) var(--gk-space-5);
+  border-bottom: 1px solid var(--gk-color-border);
 }
 
-/* Filter bar */
+/* === Filter Bar === */
 .filter-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--gk-space-3);
   flex-wrap: wrap;
 }
 
-/* Card header with actions */
+/* === Card Header === */
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-/* Detail header */
+/* === Detail Header === */
 .detail-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: var(--gk-space-6);
 }
 
 .detail-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 16px;
+  gap: var(--gk-space-2);
+  font-size: var(--gk-font-size-2xl);
   font-weight: 600;
+  color: var(--gk-color-text-primary);
 }
 
 .detail-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--gk-space-2);
 }
 
-/* Workload grid for dashboard */
+/* === Table Overrides === */
+.el-table {
+  font-size: var(--gk-font-size-sm);
+  border-radius: var(--gk-radius-lg);
+  overflow: hidden;
+}
+
+.el-table th {
+  background-color: var(--gk-neutral-50) !important;
+  color: var(--gk-color-text-primary);
+  font-weight: 600;
+  font-size: var(--gk-font-size-sm);
+}
+
+.el-table td {
+  padding: var(--gk-space-3) var(--gk-space-4);
+}
+
+.el-table--border .el-table__inner-wrapper::after,
+.el-table--border::after,
+.el-table--border::before,
+.el-table__inner-wrapper::before {
+  display: none;
+}
+
+/* === Workload Grid === */
 .workload-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--gk-space-4);
 }
 
 .workload-item {
   text-align: center;
-  padding: 16px;
-  background: #f5f7fa;
-  border-radius: 8px;
+  padding: var(--gk-space-4);
+  background: var(--gk-neutral-50);
+  border-radius: var(--gk-radius-lg);
+  border: 1px solid var(--gk-color-border);
+  transition: all var(--gk-transition-base);
+}
+
+.workload-item:hover {
+  background: var(--gk-color-primary-bg);
+  border-color: var(--gk-color-primary-light);
 }
 
 .workload-count {
-  font-size: 28px;
+  font-size: var(--gk-font-size-3xl);
   font-weight: 700;
-  color: #409eff;
+  color: var(--gk-color-primary);
 }
 
 .workload-label {
-  font-size: 13px;
-  color: #909399;
-  margin-top: 4px;
+  font-size: var(--gk-font-size-sm);
+  color: var(--gk-color-text-secondary);
+  margin-top: var(--gk-space-1);
 }
 
-/* Status tags */
-.status-running {
-  color: #67c23a;
-}
+/* === Status Colors (legacy utility classes - prefer .gk-status) === */
+.status-running { color: var(--gk-color-success); }
+.status-pending { color: var(--gk-color-warning); }
+.status-failed { color: var(--gk-color-danger); }
+.status-succeeded { color: var(--gk-color-primary); }
 
-.status-pending {
-  color: #e6a23c;
-}
-
-.status-failed {
-  color: #f56c6c;
-}
-
-.status-succeeded {
-  color: #409eff;
-}
-
-/* Status indicator dot */
-.status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-}
-
-.status-dot.success {
-  background-color: #67c23a;
-  box-shadow: 0 0 4px rgba(103, 194, 58, 0.4);
-}
-
-.status-dot.warning {
-  background-color: #e6a23c;
-  box-shadow: 0 0 4px rgba(230, 162, 60, 0.4);
-}
-
-.status-dot.danger {
-  background-color: #f56c6c;
-  box-shadow: 0 0 4px rgba(245, 108, 108, 0.4);
-}
-
-.status-dot.info {
-  background-color: #909399;
-}
-
-/* Total count badge */
+/* === Total Count Badge === */
 .total-count {
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
+  color: var(--gk-color-text-secondary);
+  font-size: var(--gk-font-size-sm);
   margin-left: auto;
-  padding: 4px 12px;
-  background: var(--el-fill-color-lighter);
-  border-radius: 12px;
+  padding: var(--gk-space-1) var(--gk-space-3);
+  background: var(--gk-neutral-100);
+  border-radius: var(--gk-radius-full);
+  font-weight: 500;
 }
 
-/* Load more button */
+/* === Load More === */
 .load-more {
   display: flex;
   justify-content: center;
-  padding: 12px 0;
-  border-top: 1px solid var(--el-border-color-lighter);
+  padding: var(--gk-space-3) 0;
+  border-top: 1px solid var(--gk-color-border-light);
 }
 
-/* Action buttons in table */
+/* === Table Actions === */
 .table-actions {
   display: flex;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 
-/* Empty state */
+/* === Empty State === */
 .empty-state {
-  padding: 40px 20px;
+  padding: var(--gk-space-12) var(--gk-space-5);
   text-align: center;
-  color: var(--el-text-color-secondary);
+  color: var(--gk-color-text-secondary);
 }
 
 .empty-state .el-icon {
   font-size: 48px;
-  margin-bottom: 12px;
-  color: var(--el-text-color-placeholder);
+  margin-bottom: var(--gk-space-3);
+  color: var(--gk-color-text-placeholder);
 }
 
-/* Transition effects */
+/* === Transitions === */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity var(--gk-transition-base);
 }
 
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
 }
+
+/* === Status Badge Component === */
+.gk-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gk-space-2);
+  font-size: var(--gk-font-size-sm);
+  font-weight: 500;
+}
+
+.gk-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--gk-radius-full);
+  flex-shrink: 0;
+}
+
+.gk-status--running .gk-status__dot { background: var(--gk-color-success); }
+.gk-status--pending .gk-status__dot { background: var(--gk-color-warning); }
+.gk-status--failed .gk-status__dot { background: var(--gk-color-danger); }
+.gk-status--succeeded .gk-status__dot { background: var(--gk-color-primary); }
+.gk-status--unknown .gk-status__dot { background: var(--gk-neutral-400); }
