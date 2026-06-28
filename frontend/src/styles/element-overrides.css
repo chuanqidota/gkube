@@ -1,0 +1,117 @@
+/* ============================================================
+   Element Plus CSS Variable Overrides
+   Maps Element Plus design tokens to GKube tokens
+   ============================================================ */
+
+:root {
+  /* === Primary Color === */
+  --el-color-primary: var(--gk-color-primary);
+  --el-color-primary-light-3: var(--gk-color-primary-light);
+  --el-color-primary-light-5: var(--gk-color-primary-bg);
+  --el-color-primary-light-7: var(--gk-color-primary-bg);
+  --el-color-primary-light-8: var(--gk-color-primary-bg);
+  --el-color-primary-light-9: var(--gk-color-primary-bg);
+  --el-color-primary-dark-2: var(--gk-color-primary-dark);
+
+  /* === Success Color === */
+  --el-color-success: var(--gk-color-success);
+  --el-color-success-light-3: var(--gk-color-success-light);
+  --el-color-success-light-5: var(--gk-color-success-bg);
+  --el-color-success-light-7: var(--gk-color-success-bg);
+  --el-color-success-light-8: var(--gk-color-success-bg);
+  --el-color-success-light-9: var(--gk-color-success-bg);
+  --el-color-success-dark-2: #16a34a;
+
+  /* === Warning Color === */
+  --el-color-warning: var(--gk-color-warning);
+  --el-color-warning-light-3: var(--gk-color-warning-light);
+  --el-color-warning-light-5: var(--gk-color-warning-bg);
+  --el-color-warning-light-7: var(--gk-color-warning-bg);
+  --el-color-warning-light-8: var(--gk-color-warning-bg);
+  --el-color-warning-light-9: var(--gk-color-warning-bg);
+  --el-color-warning-dark-2: #d97706;
+
+  /* === Danger Color === */
+  --el-color-danger: var(--gk-color-danger);
+  --el-color-danger-light-3: var(--gk-color-danger-light);
+  --el-color-danger-light-5: var(--gk-color-danger-bg);
+  --el-color-danger-light-7: var(--gk-color-danger-bg);
+  --el-color-danger-light-8: var(--gk-color-danger-bg);
+  --el-color-danger-light-9: var(--gk-color-danger-bg);
+  --el-color-danger-dark-2: #dc2626;
+
+  /* === Info Color === */
+  --el-color-info: var(--gk-color-info);
+  --el-color-info-light-3: var(--gk-color-info-light);
+  --el-color-info-light-5: var(--gk-color-info-bg);
+  --el-color-info-light-7: var(--gk-color-info-bg);
+  --el-color-info-light-8: var(--gk-color-info-bg);
+  --el-color-info-light-9: var(--gk-color-info-bg);
+  --el-color-info-dark-2: #4f46e5;
+
+  /* === Background === */
+  --el-bg-color: var(--gk-color-bg-card);
+  --el-bg-color-page: var(--gk-color-bg-page);
+  --el-bg-color-overlay: var(--gk-color-bg-card);
+
+  /* === Fill === */
+  --el-fill-color: var(--gk-neutral-100);
+  --el-fill-color-light: var(--gk-neutral-100);
+  --el-fill-color-lighter: var(--gk-neutral-50);
+  --el-fill-color-extra-light: var(--gk-neutral-50);
+  --el-fill-color-dark: var(--gk-neutral-200);
+  --el-fill-color-blank: var(--gk-color-bg-card);
+
+  /* === Text === */
+  --el-text-color-primary: var(--gk-color-text-primary);
+  --el-text-color-regular: var(--gk-color-text-primary);
+  --el-text-color-secondary: var(--gk-color-text-secondary);
+  --el-text-color-placeholder: var(--gk-color-text-placeholder);
+  --el-text-color-disabled: var(--gk-color-text-disabled);
+
+  /* === Border === */
+  --el-border-color: var(--gk-color-border);
+  --el-border-color-light: var(--gk-color-border);
+  --el-border-color-lighter: var(--gk-color-border-light);
+  --el-border-color-extra-light: var(--gk-color-border-light);
+  --el-border-color-dark: var(--gk-neutral-300);
+
+  /* === Border Radius === */
+  --el-border-radius-base: var(--gk-radius-md);
+  --el-border-radius-small: var(--gk-radius-sm);
+  --el-border-radius-round: var(--gk-radius-full);
+  --el-border-radius-circle: var(--gk-radius-full);
+
+  /* === Box Shadow === */
+  --el-box-shadow: var(--gk-shadow-md);
+  --el-box-shadow-light: var(--gk-shadow-sm);
+  --el-box-shadow-lighter: var(--gk-shadow-sm);
+  --el-box-shadow-dark: var(--gk-shadow-lg);
+
+  /* === Font === */
+  --el-font-family: var(--gk-font-sans);
+  --el-font-size-base: var(--gk-font-size-base);
+  --el-font-size-small: var(--gk-font-size-sm);
+  --el-font-size-extra-small: var(--gk-font-size-xs);
+  --el-font-size-large: var(--gk-font-size-lg);
+
+  /* === Menu (Sidebar) === */
+  --el-menu-bg-color: var(--gk-color-bg-sidebar);
+  --el-menu-text-color: var(--gk-sidebar-text);
+  --el-menu-active-color: var(--gk-sidebar-text-active);
+  --el-menu-hover-bg-color: var(--gk-sidebar-hover-bg);
+
+  /* === Card === */
+  --el-card-border-radius: var(--gk-radius-lg);
+
+  /* === Table === */
+  --el-table-border-color: var(--gk-color-border-light);
+  --el-table-header-bg-color: var(--gk-neutral-50);
+  --el-table-row-hover-bg-color: var(--gk-color-primary-bg);
+
+  /* === Input === */
+  --el-input-border-radius: var(--gk-radius-md);
+
+  /* === Scrollbar === */
+  --el-scrollbar-opacity-hover: 0.6;
+}
