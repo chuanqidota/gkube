@@ -23,9 +23,32 @@
       </el-breadcrumb>
     </div>
     <div class="header-right">
+      <!-- Cluster Selector -->
+      <el-select
+        v-model="clusterStore.currentCluster"
+        value-key="id"
+        :placeholder="t('common.selectCluster')"
+        :loading="clusterLoading"
+        size="small"
+        class="cluster-select"
+        clearable
+        @change="handleClusterChange"
+      >
+        <template #prefix>
+          <el-icon><Connection /></el-icon>
+        </template>
+        <el-option
+          v-for="c in clusterStore.clusterList"
+          :key="c.id"
+          :label="c.clusterName"
+          :value="c"
+        />
+      </el-select>
+
+      <!-- Language Switcher -->
       <el-dropdown @command="handleLangChange">
-        <el-button size="small" text>
-          <el-icon><Switch /></el-icon> {{ currentLang }}
+        <el-button size="small" text class="header-action-btn">
+          <el-icon><Switch /></el-icon>
         </el-button>
         <template #dropdown>
           <el-dropdown-menu>
@@ -34,30 +57,25 @@
           </el-dropdown-menu>
         </template>
       </el-dropdown>
-      <el-select
-        v-model="clusterStore.currentCluster"
-        value-key="id"
-        :placeholder="t('common.selectCluster')"
-        :loading="clusterLoading"
-        size="small"
-        style="width: 200px"
-        clearable
-        @change="handleClusterChange"
-      >
-        <el-option
-          v-for="c in clusterStore.clusterList"
-          :key="c.id"
-          :label="c.clusterName"
-          :value="c"
-        />
-      </el-select>
+
+      <!-- Theme Toggle -->
+      <el-tooltip :content="isDark ? t('common.lightMode') : t('common.darkMode')" placement="bottom">
+        <el-button size="small" text class="header-action-btn" @click="toggle()">
+          <el-icon :size="18">
+            <Sunny v-if="isDark" />
+            <Moon v-else />
+          </el-icon>
+        </el-button>
+      </el-tooltip>
+
+      <!-- User Menu -->
       <el-dropdown @command="handleCommand">
         <div class="user-info">
-          <el-avatar :size="32" style="background: #409eff">
+          <el-avatar :size="32" class="user-avatar">
             {{ (authStore.user?.username || '?')[0].toUpperCase() }}
           </el-avatar>
           <span class="username">{{ authStore.user?.displayName || authStore.user?.username || '-' }}</span>
-          <el-icon><ArrowDown /></el-icon>
+          <el-icon class="user-arrow"><ArrowDown /></el-icon>
         </div>
         <template #dropdown>
           <el-dropdown-menu>
@@ -82,6 +100,17 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
+import { useTheme } from '@/styles/theme-switcher'
+import {
+  Fold,
+  Switch,
+  ArrowDown,
+  User,
+  SwitchButton,
+  Connection,
+  Sunny,
+  Moon,
+} from '@element-plus/icons-vue'
 
 defineEmits(['toggleCollapse'])
 const route = useRoute()
@@ -90,13 +119,11 @@ const authStore = useAuthStore()
 const clusterStore = useClusterStore()
 const { locale, t } = useI18n()
 const clusterLoading = ref(false)
-
-const currentLang = computed(() => locale.value === 'zh-CN' ? '中文' : 'English')
+const { isDark, toggle } = useTheme()
 
 const breadcrumbs = computed(() => {
   const items: Array<{ title: string; path?: string; to?: { path: string } }> = []
 
-  // If route has meta.parent, find the parent route and insert it first
   if (route.meta?.parent) {
     const parentRoute = router.getRoutes().find(r => r.name === route.meta.parent)
     if (parentRoute?.meta?.title) {
@@ -108,7 +135,6 @@ const breadcrumbs = computed(() => {
     }
   }
 
-  // Current page title
   if (route.meta?.title) {
     items.push({ title: route.meta.title as string })
   }
@@ -144,59 +170,96 @@ function handleCommand(command: string) {
 
 <style scoped>
 .header {
-  height: 60px;
+  height: var(--gk-header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
-  background: #fff;
-  border-bottom: 1px solid #e4e7ed;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  padding: 0 var(--gk-space-5);
+  background: var(--gk-color-bg-header);
+  border-bottom: 1px solid var(--gk-color-border);
+  box-shadow: var(--gk-shadow-sm);
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--gk-space-4);
 }
 
 .collapse-btn {
   font-size: 20px;
   cursor: pointer;
-  color: #606266;
-  transition: color 0.3s;
+  color: var(--gk-color-text-secondary);
+  transition: color var(--gk-transition-fast);
+  padding: var(--gk-space-1);
+  border-radius: var(--gk-radius-sm);
 }
 
 .collapse-btn:hover,
 .collapse-btn:focus-visible {
-  color: #409eff;
-  outline: 2px solid #409eff;
-  outline-offset: 2px;
-  border-radius: 4px;
+  color: var(--gk-color-primary);
+  background: var(--gk-color-primary-bg);
+  outline: none;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--gk-space-2);
+}
+
+.cluster-select {
+  width: 200px;
+}
+
+.cluster-select :deep(.el-input__wrapper) {
+  border-radius: var(--gk-radius-md);
+}
+
+.header-action-btn {
+  color: var(--gk-color-text-secondary);
+  border-radius: var(--gk-radius-md);
+  padding: var(--gk-space-2);
+}
+
+.header-action-btn:hover {
+  color: var(--gk-color-primary);
+  background: var(--gk-color-primary-bg);
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gk-space-2);
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: background-color 0.3s;
+  padding: var(--gk-space-1) var(--gk-space-2);
+  border-radius: var(--gk-radius-md);
+  transition: background-color var(--gk-transition-fast);
 }
 
 .user-info:hover {
-  background: #f5f7fa;
+  background: var(--gk-neutral-100);
+}
+
+.user-avatar {
+  background: var(--gk-color-primary);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: var(--gk-font-size-sm);
 }
 
 .username {
-  font-size: 14px;
-  color: #606266;
+  font-size: var(--gk-font-size-base);
+  color: var(--gk-color-text-primary);
+  font-weight: 500;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-arrow {
+  color: var(--gk-color-text-secondary);
+  font-size: 12px;
 }
 </style>
