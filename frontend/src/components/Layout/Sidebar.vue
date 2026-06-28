@@ -1,17 +1,21 @@
 <template>
   <div class="sidebar-container">
     <div class="sidebar-logo">
-      <img src="@/assets/vue.svg" alt="logo" class="logo-img" />
-      <span v-show="!isCollapse" class="logo-text">GKube</span>
+      <div class="logo-icon">
+        <svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+          <rect width="32" height="32" rx="8" fill="#3b82f6"/>
+          <path d="M8 16L14 22L24 10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <transition name="fade">
+        <span v-show="!isCollapse" class="logo-text">GKube</span>
+      </transition>
     </div>
     <el-menu
       :default-active="activeMenu"
       :collapse="isCollapse"
       :collapse-transition="false"
       router
-      background-color="#001529"
-      text-color="#ffffffb3"
-      active-text-color="#409eff"
       class="sidebar-menu"
     >
       <el-menu-item index="/dashboard">
@@ -212,38 +216,108 @@ const activeMenu = computed(() => route.path)
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #001529;
+  background-color: var(--gk-color-bg-sidebar);
 }
 
 .sidebar-logo {
-  height: 60px;
+  height: var(--gk-header-height);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--gk-space-4);
+  gap: var(--gk-space-3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.logo-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 16px;
-  gap: 8px;
-  border-bottom: 1px solid #ffffff1a;
-}
-
-.logo-img {
-  width: 32px;
-  height: 32px;
+  flex-shrink: 0;
 }
 
 .logo-text {
-  color: #fff;
-  font-size: 18px;
-  font-weight: 600;
+  color: #ffffff;
+  font-size: var(--gk-font-size-xl);
+  font-weight: 700;
   white-space: nowrap;
+  letter-spacing: -0.02em;
 }
 
 .sidebar-menu {
   flex: 1;
   border-right: none;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar-menu:not(.el-menu--collapse) {
-  width: 220px;
+  width: var(--gk-sidebar-width);
+}
+
+/* Override Element Plus menu item styles */
+.sidebar-menu .el-menu-item,
+.sidebar-menu :deep(.el-sub-menu__title) {
+  height: 44px;
+  line-height: 44px;
+  margin: 2px var(--gk-space-2);
+  border-radius: var(--gk-radius-md);
+  transition: all var(--gk-transition-fast);
+}
+
+.sidebar-menu .el-menu-item:hover,
+.sidebar-menu :deep(.el-sub-menu__title:hover) {
+  background-color: var(--gk-sidebar-hover-bg);
+}
+
+.sidebar-menu .el-menu-item.is-active {
+  background-color: var(--gk-sidebar-active-bg);
+  color: var(--gk-sidebar-text-active);
+  position: relative;
+}
+
+.sidebar-menu .el-menu-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background-color: var(--gk-sidebar-active-indicator);
+}
+
+/* Sub-menu items - more indentation */
+.sidebar-menu .el-sub-menu .el-menu-item {
+  padding-left: 52px !important;
+}
+
+/* Scrollbar styling for sidebar */
+.sidebar-menu::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.sidebar-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.sidebar-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Fade transition for logo text */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--gk-transition-fast);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
