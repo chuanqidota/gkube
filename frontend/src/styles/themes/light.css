@@ -1,0 +1,30 @@
+/* ============================================================
+   Light Theme (Default)
+   ============================================================ */
+
+[data-theme="light"],
+:root {
+  --gk-white: #ffffff;
+
+  /* Neutral Scale */
+  --gk-neutral-50: #f8fafc;
+  --gk-neutral-100: #f1f5f9;
+  --gk-neutral-200: #e2e8f0;
+  --gk-neutral-300: #cbd5e1;
+  --gk-neutral-400: #94a3b8;
+  --gk-neutral-500: #64748b;
+  --gk-neutral-600: #475569;
+  --gk-neutral-700: #334155;
+  --gk-neutral-800: #1e293b;
+  --gk-neutral-900: #0f172a;
+
+  /* Semantic Overrides */
+  --gk-color-bg-page: #f8fafc;
+  --gk-color-bg-card: #ffffff;
+  --gk-color-bg-sidebar: #0f172a;
+  --gk-color-bg-header: #ffffff;
+  --gk-color-text-primary: #0f172a;
+  --gk-color-text-secondary: #64748b;
+  --gk-color-text-placeholder: #94a3b8;
+  --gk-color-border: #e2e8f0;
+}

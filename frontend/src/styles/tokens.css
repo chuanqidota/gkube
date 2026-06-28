@@ -1,0 +1,92 @@
+/* ============================================================
+   GKube Design Tokens
+   Rancher-inspired design system for K8s multi-cluster management
+   ============================================================ */
+
+:root {
+  /* === Color System === */
+  /* Primary - Rancher Blue */
+  --gk-color-primary: #3b82f6;
+  --gk-color-primary-light: #60a5fa;
+  --gk-color-primary-dark: #2563eb;
+  --gk-color-primary-bg: #eff6ff;
+
+  /* Semantic Colors */
+  --gk-color-success: #22c55e;
+  --gk-color-success-light: #4ade80;
+  --gk-color-success-bg: #f0fdf4;
+  --gk-color-warning: #f59e0b;
+  --gk-color-warning-light: #fbbf24;
+  --gk-color-warning-bg: #fffbeb;
+  --gk-color-danger: #ef4444;
+  --gk-color-danger-light: #f87171;
+  --gk-color-danger-bg: #fef2f2;
+  --gk-color-info: #6366f1;
+  --gk-color-info-light: #818cf8;
+  --gk-color-info-bg: #eef2ff;
+
+  /* Neutral - resolved by theme files */
+  --gk-color-text-primary: var(--gk-neutral-900);
+  --gk-color-text-secondary: var(--gk-neutral-500);
+  --gk-color-text-placeholder: var(--gk-neutral-400);
+  --gk-color-text-disabled: var(--gk-neutral-300);
+  --gk-color-bg-page: var(--gk-neutral-50);
+  --gk-color-bg-card: var(--gk-white);
+  --gk-color-bg-sidebar: var(--gk-neutral-900);
+  --gk-color-bg-header: var(--gk-white);
+  --gk-color-border: var(--gk-neutral-200);
+  --gk-color-border-light: var(--gk-neutral-100);
+
+  /* === Spacing System (4px base) === */
+  --gk-space-1: 4px;
+  --gk-space-2: 8px;
+  --gk-space-3: 12px;
+  --gk-space-4: 16px;
+  --gk-space-5: 20px;
+  --gk-space-6: 24px;
+  --gk-space-8: 32px;
+  --gk-space-10: 40px;
+  --gk-space-12: 48px;
+
+  /* === Border Radius === */
+  --gk-radius-sm: 4px;
+  --gk-radius-md: 8px;
+  --gk-radius-lg: 12px;
+  --gk-radius-xl: 16px;
+  --gk-radius-full: 9999px;
+
+  /* === Shadows === */
+  --gk-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --gk-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --gk-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --gk-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+
+  /* === Sidebar Specific === */
+  --gk-sidebar-text: rgba(255, 255, 255, 0.7);
+  --gk-sidebar-text-active: #ffffff;
+  --gk-sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+  --gk-sidebar-active-bg: rgba(59, 130, 246, 0.2);
+  --gk-sidebar-active-indicator: #3b82f6;
+
+  /* === Typography === */
+  --gk-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --gk-font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --gk-font-size-xs: 12px;
+  --gk-font-size-sm: 13px;
+  --gk-font-size-base: 14px;
+  --gk-font-size-lg: 16px;
+  --gk-font-size-xl: 18px;
+  --gk-font-size-2xl: 20px;
+  --gk-font-size-3xl: 24px;
+
+  /* === Layout === */
+  --gk-sidebar-width: 240px;
+  --gk-sidebar-collapsed-width: 64px;
+  --gk-header-height: 56px;
+  --gk-content-max-width: 1400px;
+
+  /* === Transitions === */
+  --gk-transition-fast: 0.15s ease;
+  --gk-transition-base: 0.2s ease;
+  --gk-transition-slow: 0.3s ease;
+}

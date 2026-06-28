@@ -1,0 +1,48 @@
+/* ============================================================
+   Dark Theme
+   ============================================================ */
+
+[data-theme="dark"] {
+  --gk-white: #0f172a;
+
+  /* Neutral Scale (inverted) */
+  --gk-neutral-50: #1e293b;
+  --gk-neutral-100: #1e293b;
+  --gk-neutral-200: #334155;
+  --gk-neutral-300: #475569;
+  --gk-neutral-400: #64748b;
+  --gk-neutral-500: #94a3b8;
+  --gk-neutral-600: #cbd5e1;
+  --gk-neutral-700: #e2e8f0;
+  --gk-neutral-800: #f1f5f9;
+  --gk-neutral-900: #f8fafc;
+
+  /* Semantic Overrides */
+  --gk-color-bg-page: #0f172a;
+  --gk-color-bg-card: #1e293b;
+  --gk-color-bg-sidebar: #020617;
+  --gk-color-bg-header: #1e293b;
+  --gk-color-text-primary: #f1f5f9;
+  --gk-color-text-secondary: #94a3b8;
+  --gk-color-text-placeholder: #64748b;
+  --gk-color-border: #334155;
+
+  /* Sidebar specific - darker theme adjustments */
+  --gk-sidebar-text: rgba(255, 255, 255, 0.6);
+  --gk-sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --gk-sidebar-active-bg: rgba(59, 130, 246, 0.25);
+  --gk-sidebar-active-indicator: #60a5fa;
+
+  /* Shadows - stronger for dark mode visibility */
+  --gk-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --gk-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --gk-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  --gk-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
+
+  /* Semantic color backgrounds - muted for dark */
+  --gk-color-primary-bg: rgba(59, 130, 246, 0.15);
+  --gk-color-success-bg: rgba(34, 197, 94, 0.15);
+  --gk-color-warning-bg: rgba(245, 158, 11, 0.15);
+  --gk-color-danger-bg: rgba(239, 68, 68, 0.15);
+  --gk-color-info-bg: rgba(99, 102, 241, 0.15);
+}
