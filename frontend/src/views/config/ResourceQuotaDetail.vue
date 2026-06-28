@@ -58,13 +58,13 @@ function updateChart() {
         name: '配额',
         type: 'bar',
         data: hardValues,
-        itemStyle: { color: '#409EFF' }
+        itemStyle: { color: 'var(--gk-color-primary)' }
       },
       {
         name: '已使用',
         type: 'bar',
         data: usedValues,
-        itemStyle: { color: '#67C23A' }
+        itemStyle: { color: 'var(--gk-color-success)' }
       }
     ]
   })
@@ -107,9 +107,9 @@ function usagePercent(hard: string, used: string): number {
 }
 
 function progressColor(percent: number) {
-  if (percent >= 90) return '#F56C6C'
-  if (percent >= 70) return '#E6A23C'
-  return '#409EFF'
+  if (percent >= 90) return 'var(--gk-color-danger)'
+  if (percent >= 70) return 'var(--gk-color-warning)'
+  return 'var(--gk-color-primary)'
 }
 
 async function deleteQuota() {
@@ -168,7 +168,7 @@ onMounted(fetchQuota)
               {{ key }}={{ val }}
             </el-tag>
           </div>
-          <span v-else style="color: #909399;">无标签</span>
+          <span v-else style="color: var(--gk-color-text-secondary);">无标签</span>
         </el-card>
       </el-col>
 
@@ -190,7 +190,7 @@ onMounted(fetchQuota)
               />
             </div>
           </div>
-          <span v-else style="color: #909399;">无配额信息</span>
+          <span v-else style="color: var(--gk-color-text-secondary);">无配额信息</span>
         </el-card>
       </el-col>
     </el-row>
@@ -209,5 +209,5 @@ onMounted(fetchQuota)
 .quota-item { margin-bottom: 16px; }
 .quota-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
 .quota-name { font-weight: 500; }
-.quota-value { color: #909399; }
+.quota-value { color: var(--gk-color-text-secondary); }
 </style>

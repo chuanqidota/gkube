@@ -101,7 +101,7 @@ onMounted(fetchNamespaces)
           </el-select>
         </el-form-item>
 
-        <div v-for="(limit, i) in form.limits" :key="i" style="border: 1px solid #e4e7ed; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+        <div v-for="(limit, i) in form.limits" :key="i" style="border: 1px solid var(--gk-color-border); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
             <el-select v-model="limit.type" style="width: 200px;">
               <el-option label="Container" value="Container" />
