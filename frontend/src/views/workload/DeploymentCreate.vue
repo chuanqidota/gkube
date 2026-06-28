@@ -83,5 +83,5 @@ function handleCancel() {
 .yaml-mode { padding: 0 16px; }
 .form-header { margin-bottom: 24px; }
 .form-header h2 { margin: 0; font-size: 20px; font-weight: 600; }
-.form-actions { display: flex; justify-content: flex-end; gap: 12px; padding-top: 24px; border-top: 1px solid #e4e7ed; margin-top: 24px; }
+.form-actions { display: flex; justify-content: flex-end; gap: 12px; padding-top: 24px; border-top: 1px solid var(--gk-color-border); margin-top: 24px; }
 </style>

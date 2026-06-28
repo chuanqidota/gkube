@@ -231,8 +231,8 @@ onMounted(fetchDetail)
                         <el-table-column label="Value" min-width="250">
                           <template #default="{ row: envRow }">
                             <span v-if="envRow.value !== undefined && envRow.value !== ''">{{ envRow.value }}</span>
-                            <span v-else-if="envRow.valueFrom" style="color: #909399;">{{ envRow.valueFrom.fieldRef?.fieldPath || envRow.valueFrom.secretKeyRef?.name || envRow.valueFrom.configMapKeyRef?.name || 'From reference' }}</span>
-                            <span v-else style="color: #909399;">-</span>
+                            <span v-else-if="envRow.valueFrom" style="color: var(--gk-color-text-secondary);">{{ envRow.valueFrom.fieldRef?.fieldPath || envRow.valueFrom.secretKeyRef?.name || envRow.valueFrom.configMapKeyRef?.name || 'From reference' }}</span>
+                            <span v-else style="color: var(--gk-color-text-secondary);">-</span>
                           </template>
                         </el-table-column>
                       </el-table>
