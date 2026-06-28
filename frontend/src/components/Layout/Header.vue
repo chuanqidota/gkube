@@ -187,7 +187,7 @@ function handleCommand(command: string) {
 }
 
 .collapse-btn {
-  font-size: 20px;
+  font-size: var(--gk-font-size-2xl);
   cursor: pointer;
   color: var(--gk-color-text-secondary);
   transition: color var(--gk-transition-fast);
@@ -243,7 +243,7 @@ function handleCommand(command: string) {
 
 .user-avatar {
   background: var(--gk-color-primary);
-  color: #ffffff;
+  color: var(--gk-white);
   font-weight: 600;
   font-size: var(--gk-font-size-sm);
 }
@@ -260,6 +260,6 @@ function handleCommand(command: string) {
 
 .user-arrow {
   color: var(--gk-color-text-secondary);
-  font-size: 12px;
+  font-size: var(--gk-font-size-xs);
 }
 </style>
