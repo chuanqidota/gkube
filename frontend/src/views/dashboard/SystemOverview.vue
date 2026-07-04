@@ -347,7 +347,7 @@ onUnmounted(() => {
 .stat-card { display: flex; align-items: center; padding: 16px; }
 .stat-icon { width: 48px; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; margin-right: 16px; }
 .stat-info { flex: 1; }
-.stat-value { font-size: 24px; font-weight: bold; color: #303133; }
+.stat-value { font-size: 24px; font-weight: bold; color: var(--gk-color-text-primary); }
 .stat-label { font-size: 14px; color: var(--gk-color-text-secondary); }
 .resource-usage { display: flex; flex-direction: column; gap: 20px; }
 .usage-item { }

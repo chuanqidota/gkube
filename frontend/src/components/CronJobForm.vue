@@ -657,7 +657,7 @@ function handleCancel() {
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 16px;
-  background: #fafafa;
+  background: var(--gk-neutral-50);
 }
 
 .container-card-header {
@@ -673,7 +673,7 @@ function handleCancel() {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--gk-color-text-primary);
 }
 
 .resource-label {

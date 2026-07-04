@@ -417,7 +417,7 @@ onMounted(() => {
 .resource-title {
   font-weight: 600;
   font-size: 14px;
-  color: #303133;
+  color: var(--gk-color-text-primary);
 }
 
 .resource-detail {
@@ -453,7 +453,7 @@ onMounted(() => {
 }
 
 .workload-item:hover {
-  background: #ecf5ff;
+  background: var(--gk-color-primary-bg);
   transform: translateY(-2px);
 }
 

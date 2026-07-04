@@ -195,7 +195,7 @@ async function handleOIDCLogin() {
   margin: 0 0 8px;
   font-size: 32px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--gk-color-text-primary);
   letter-spacing: 2px;
 }
 
@@ -212,12 +212,12 @@ async function handleOIDCLogin() {
 
 .login-form :deep(.el-input__wrapper) {
   border-radius: 8px;
-  box-shadow: 0 0 0 1px #dcdfe6 inset;
+  box-shadow: 0 0 0 1px var(--gk-color-border) inset;
   padding: 4px 12px;
 }
 
 .login-form :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #c0c4cc inset;
+  box-shadow: 0 0 0 1px var(--gk-color-text-placeholder) inset;
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
@@ -255,13 +255,13 @@ async function handleOIDCLogin() {
   font-size: 14px;
   border-radius: 8px;
   background: var(--gk-neutral-100);
-  border-color: #dcdfe6;
+  border-color: var(--gk-color-border);
   color: var(--gk-color-text-primary);
 }
 
 .oidc-btn:hover {
-  background: #ecf5ff;
-  border-color: #b3d8ff;
+  background: var(--gk-color-primary-bg);
+  border-color: var(--gk-color-primary-light);
   color: var(--gk-color-primary);
 }
 
@@ -273,7 +273,7 @@ async function handleOIDCLogin() {
   text-align: center;
   margin-top: 24px;
   font-size: 12px;
-  color: #c0c4cc;
+  color: var(--gk-color-text-placeholder);
 }
 
 @media (max-width: 480px) {

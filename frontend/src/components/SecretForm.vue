@@ -359,7 +359,7 @@ function handleCancel() {
   border-radius: 6px;
   padding: 12px;
   margin-bottom: 8px;
-  background: #fafafa;
+  background: var(--gk-neutral-50);
 }
 
 .form-actions {

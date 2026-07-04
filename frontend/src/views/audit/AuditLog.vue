@@ -211,6 +211,6 @@ onMounted(() => {
 .stat-card { text-align: center; }
 .stat-card.success { border-left: 4px solid var(--gk-color-success); }
 .stat-card.danger { border-left: 4px solid var(--gk-color-danger); }
-.stat-value { font-size: 32px; font-weight: bold; color: #303133; }
+.stat-value { font-size: 32px; font-weight: bold; color: var(--gk-color-text-primary); }
 .stat-label { font-size: 14px; color: var(--gk-color-text-secondary); margin-top: 4px; }
 </style>

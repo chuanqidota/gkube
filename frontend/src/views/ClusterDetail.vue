@@ -186,5 +186,5 @@ onMounted(fetchDetail)
 .info-list { display: flex; flex-direction: column; gap: 12px; }
 .info-item { display: flex; justify-content: space-between; align-items: center; }
 .info-label { color: var(--gk-color-text-secondary); }
-.info-value { color: #303133; font-weight: 500; }
+.info-value { color: var(--gk-color-text-primary); font-weight: 500; }
 </style>

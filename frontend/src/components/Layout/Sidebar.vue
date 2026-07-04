@@ -237,7 +237,7 @@ const activeMenu = computed(() => route.path)
 }
 
 .logo-text {
-  color: #ffffff;
+  color: var(--gk-sidebar-text-active);
   font-size: var(--gk-font-size-xl);
   font-weight: 700;
   white-space: nowrap;

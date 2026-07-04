@@ -200,14 +200,14 @@ defineExpose({ saving, resetSaving })
 
 <style scoped>
 .yaml-editor {
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--gk-color-border);
   border-radius: 4px;
   overflow: hidden;
 }
 .yaml-editor-toolbar {
   padding: 6px 12px;
   background: var(--gk-neutral-100);
-  border-bottom: 1px solid #dcdfe6;
+  border-bottom: 1px solid var(--gk-color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
