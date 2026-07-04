@@ -2,13 +2,14 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getNodeDetail, getNodeYaml, getNodePods, getNodeEvents, cordonNode, taintNode, updateNodeYaml } from '@/api/resource'
+import { Delete, Plus } from '@element-plus/icons-vue'
+import { getNodeDetail, getNodeYaml, getNodePods, getNodeEvents, cordonNode, updateNodeTaints, updateNodeLabels, updateNodeYaml, drainNode, deleteNode, type NodeDetail as NodeDetailType } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
-const node = ref<any>(null)
+const node = ref<NodeDetailType | null>(null)
 const pods = ref<any[]>([])
 const podsLoading = ref(false)
 const events = ref<any[]>([])
@@ -20,6 +21,15 @@ const yamlSaving = ref(false)
 const activeTab = ref('info')
 const taintDialogVisible = ref(false)
 const taints = ref<any[]>([])
+const labelsDialogVisible = ref(false)
+const labelsArray = ref<{ key: string; value: string }[]>([])
+const drainDialogVisible = ref(false)
+const drainOptions = ref({
+  ignoreDaemonSets: true,
+  deleteLocalData: false,
+  gracePeriod: -1,
+  force: false
+})
 
 const nodeName = route.params.name as string
 
@@ -30,7 +40,7 @@ async function fetchDetail() {
     node.value = res.data
     if (node.value) fetchPods()
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load node detail')
+    ElMessage.error(e?.message || '加载节点详情失败')
   } finally {
     loading.value = false
   }
@@ -60,7 +70,7 @@ async function fetchYaml() {
     const res: any = await getNodeYaml({ name: nodeName })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load YAML')
+    ElMessage.error(e?.message || '加载 YAML 失败')
   } finally { yamlLoading.value = false }
 }
 
@@ -73,11 +83,11 @@ async function handleSaveYaml() {
   yamlSaving.value = true
   try {
     await updateNodeYaml({ name: nodeName, yaml: yamlContent.value })
-    ElMessage.success('YAML saved successfully')
+    ElMessage.success('YAML 保存成功')
     yamlEditing.value = false
     fetchDetail()
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to save YAML')
+    ElMessage.error(e?.message || '保存 YAML 失败')
   } finally { yamlSaving.value = false }
 }
 
@@ -89,15 +99,16 @@ function statusType(status: string) {
 
 async function handleCordon() {
   const isCordon = node.value?.unschedulable || node.value?.cordon
-  const action = isCordon ? 'uncordon' : 'cordon'
+  const actionLabel = isCordon ? '解除封锁' : '封锁'
   try {
-    await ElMessageBox.confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} node "${nodeName}"?`, 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(`确定要${actionLabel}节点 "${nodeName}" 吗？`, '确认操作', { type: 'warning' })
     await cordonNode({ name: nodeName, cordon: !isCordon })
-    ElMessage.success(`Node ${action}ed`)
+    ElMessage.success(`节点已${actionLabel}`)
     fetchDetail()
   } catch { /* cancelled */ }
 }
 
+// Taints
 function handleTaints() {
   taints.value = (node.value?.taints || []).map((t: any) => ({ ...t }))
   if (taints.value.length === 0) taints.value = [{ key: '', value: '', effect: 'NoSchedule' }]
@@ -109,11 +120,72 @@ function removeTaint(index: number) { taints.value.splice(index, 1) }
 
 async function handleSaveTaints() {
   try {
-    await taintNode({ name: nodeName, taints: taints.value.filter(t => t.key) })
-    ElMessage.success('Taints updated')
+    await updateNodeTaints({ name: nodeName, taints: taints.value.filter(t => t.key) })
+    ElMessage.success('污点已更新')
     taintDialogVisible.value = false
     fetchDetail()
-  } catch (e: any) { ElMessage.error(e?.message || 'Failed to update taints') }
+  } catch (e: any) { ElMessage.error(e?.message || '更新污点失败') }
+}
+
+// Labels
+function handleLabels() {
+  labelsArray.value = Object.entries(node.value?.labels || {}).map(([key, value]) => ({ key, value }))
+  if (labelsArray.value.length === 0) labelsArray.value = [{ key: '', value: '' }]
+  labelsDialogVisible.value = true
+}
+
+function addLabel() { labelsArray.value.push({ key: '', value: '' }) }
+function removeLabel(index: number) { labelsArray.value.splice(index, 1) }
+
+async function handleSaveLabels() {
+  try {
+    const labelsMap: Record<string, string> = {}
+    labelsArray.value.forEach(l => { if (l.key) labelsMap[l.key] = l.value })
+    await updateNodeLabels({ name: nodeName, labels: labelsMap })
+    ElMessage.success('标签已更新')
+    labelsDialogVisible.value = false
+    fetchDetail()
+  } catch (e: any) { ElMessage.error(e?.message || '更新标签失败') }
+}
+
+// Drain
+function handleDrain() {
+  drainOptions.value = { ignoreDaemonSets: true, deleteLocalData: false, gracePeriod: -1, force: false }
+  drainDialogVisible.value = true
+}
+
+async function handleConfirmDrain() {
+  try {
+    await ElMessageBox.confirm(
+      `确定要驱逐节点 "${nodeName}" 上的所有 Pod 吗？此操作会先封锁节点再驱逐 Pod。`,
+      '确认驱逐',
+      { type: 'warning', confirmButtonText: '驱逐', cancelButtonText: '取消' }
+    )
+    const res: any = await drainNode({ name: nodeName, ...drainOptions.value })
+    const evicted = res.data?.evicted || []
+    const skipped = res.data?.skipped || []
+    ElMessage.success(`驱逐完成：${evicted.length} 个 Pod 已驱逐，${skipped.length} 个已跳过`)
+    drainDialogVisible.value = false
+    fetchDetail()
+  } catch (e: any) {
+    if (e !== 'cancel') ElMessage.error(e?.message || '驱逐失败')
+  }
+}
+
+// Delete
+async function handleDelete() {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除节点 "${nodeName}" 吗？此操作不可恢复，节点将从集群中移除。`,
+      '确认删除',
+      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+    await deleteNode({ name: nodeName })
+    ElMessage.success('节点已删除')
+    router.push('/nodes')
+  } catch (e: any) {
+    if (e !== 'cancel') ElMessage.error(e?.message || '删除失败')
+  }
 }
 
 function handlePodDetail(row: any) {
@@ -140,79 +212,95 @@ onMounted(fetchDetail)
 <template>
   <div class="page-container" v-loading="loading">
     <div class="page-header">
-      <h2 style="margin: 0;">Node: {{ nodeName }}</h2>
+      <h2 style="margin: 0;">节点: {{ nodeName }}</h2>
       <div style="display: flex; gap: 8px;">
         <el-button :type="node?.unschedulable || node?.cordon ? 'success' : 'warning'" @click="handleCordon">
-          {{ node?.unschedulable || node?.cordon ? 'Uncordon' : 'Cordon' }}
+          {{ node?.unschedulable || node?.cordon ? '解除封锁' : '封锁' }}
         </el-button>
-        <el-button type="info" @click="handleTaints">Taints</el-button>
-        <el-button @click="router.push('/nodes')">Back to List</el-button>
+        <el-button type="info" @click="handleTaints">污点</el-button>
+        <el-button @click="handleLabels">标签</el-button>
+        <el-button type="warning" @click="handleDrain">驱逐</el-button>
+        <el-button type="danger" @click="handleDelete">删除</el-button>
+        <el-button @click="router.push('/nodes')">返回列表</el-button>
       </div>
     </div>
 
     <template v-if="node">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <!-- Info Tab -->
-        <el-tab-pane label="Info" name="info">
+        <el-tab-pane label="概览" name="info">
           <el-card shadow="never">
             <el-descriptions :column="2" border>
-              <el-descriptions-item label="Name">{{ node.name }}</el-descriptions-item>
-              <el-descriptions-item label="Status"><el-tag :type="statusType(node.status)" size="small">{{ node.status || 'Unknown' }}</el-tag></el-descriptions-item>
-              <el-descriptions-item label="Roles">{{ node.roles || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="Version">{{ node.version || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="OS">{{ node.os || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="Kernel">{{ node.kernel || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="Container Runtime">{{ node.container_runtime || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="Internal IP">{{ node.internal_ip || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="Age">{{ node.age || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="Unschedulable">
-                <el-tag :type="node.unschedulable || node.cordon ? 'danger' : 'success'" size="small">{{ node.unschedulable || node.cordon ? 'Yes' : 'No' }}</el-tag>
+              <el-descriptions-item label="名称">{{ node.name }}</el-descriptions-item>
+              <el-descriptions-item label="状态"><el-tag :type="statusType(node.status)" size="small">{{ node.status || 'Unknown' }}</el-tag></el-descriptions-item>
+              <el-descriptions-item label="角色">{{ node.roles || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="Kubelet 版本">{{ node.version || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="操作系统">{{ node.os || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="内核版本">{{ node.kernel || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="容器运行时">{{ node.container_runtime || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="内部 IP">{{ node.internal_ip || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="外部 IP">{{ node.external_ip || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="主机名">{{ node.hostname || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="架构">{{ node.architecture || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="创建时间">{{ node.age || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="不可调度">
+                <el-tag :type="node.unschedulable || node.cordon ? 'danger' : 'success'" size="small">{{ node.unschedulable || node.cordon ? '是' : '否' }}</el-tag>
               </el-descriptions-item>
             </el-descriptions>
 
             <!-- Resource Capacity -->
             <div v-if="node.capacity || node.allocatable" style="margin-top: 24px;">
-              <h4>Resources</h4>
+              <h4>资源容量</h4>
               <el-table :data="[
                 { resource: 'CPU', capacity: formatCapacity(node.capacity?.cpu), allocatable: formatCapacity(node.allocatable?.cpu) },
-                { resource: 'Memory', capacity: formatCapacity(node.capacity?.memory), allocatable: formatCapacity(node.allocatable?.memory) },
-                { resource: 'Pods', capacity: formatCapacity(node.capacity?.pods), allocatable: formatCapacity(node.allocatable?.pods) },
-                { resource: 'Ephemeral Storage', capacity: formatCapacity(node.capacity?.['ephemeral-storage']), allocatable: formatCapacity(node.allocatable?.['ephemeral-storage']) },
+                { resource: '内存', capacity: formatCapacity(node.capacity?.memory), allocatable: formatCapacity(node.allocatable?.memory) },
+                { resource: 'Pod 数量', capacity: formatCapacity(node.capacity?.pods), allocatable: formatCapacity(node.allocatable?.pods) },
+                { resource: '临时存储', capacity: formatCapacity(node.capacity?.['ephemeral-storage']), allocatable: formatCapacity(node.allocatable?.['ephemeral-storage']) },
               ]" border stripe>
-                <el-table-column prop="resource" label="Resource" width="160" />
-                <el-table-column prop="capacity" label="Capacity" min-width="150" />
-                <el-table-column prop="allocatable" label="Allocatable" min-width="150" />
+                <el-table-column prop="resource" label="资源" width="160" />
+                <el-table-column prop="capacity" label="容量" min-width="150" />
+                <el-table-column prop="allocatable" label="可分配" min-width="150" />
               </el-table>
             </div>
 
             <!-- Conditions -->
             <div v-if="node.conditions && node.conditions.length > 0" style="margin-top: 24px;">
-              <h4>Conditions</h4>
+              <h4>节点状态</h4>
               <el-table :data="node.conditions" border stripe>
-                <el-table-column prop="type" label="Type" width="180" />
-                <el-table-column label="Status" width="100">
+                <el-table-column prop="type" label="类型" width="180" />
+                <el-table-column label="状态" width="100">
                   <template #default="{ row }"><el-tag :type="row.status === 'True' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag></template>
                 </el-table-column>
-                <el-table-column prop="reason" label="Reason" width="180" />
-                <el-table-column prop="message" label="Message" min-width="250" show-overflow-tooltip />
-                <el-table-column prop="lastTransitionTime" label="Last Transition" width="180" />
+                <el-table-column prop="reason" label="原因" width="180" />
+                <el-table-column prop="message" label="消息" min-width="250" show-overflow-tooltip />
+                <el-table-column prop="lastTransitionTime" label="最后变更" width="180" />
               </el-table>
             </div>
 
             <!-- Labels -->
-            <div v-if="node.labels && Object.keys(node.labels).length > 0" style="margin-top: 24px;">
-              <h4>Labels</h4>
-              <el-tag v-for="(val, key) in node.labels" :key="key" style="margin-right: 8px; margin-bottom: 8px;">{{ key }}={{ val }}</el-tag>
+            <div style="margin-top: 24px;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <h4 style="margin: 0;">标签</h4>
+                <el-button size="small" @click="handleLabels">编辑</el-button>
+              </div>
+              <div v-if="node.labels && Object.keys(node.labels).length > 0">
+                <el-tag v-for="(val, key) in node.labels" :key="key" style="margin-right: 8px; margin-bottom: 8px;">{{ key }}={{ val }}</el-tag>
+              </div>
+              <span v-else style="color: #909399;">无标签</span>
             </div>
 
             <!-- Taints -->
-            <div v-if="node.taints && node.taints.length > 0" style="margin-top: 24px;">
-              <h4>Taints</h4>
-              <el-table :data="node.taints" stripe border>
+            <div style="margin-top: 24px;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <h4 style="margin: 0;">污点</h4>
+                <el-button size="small" @click="handleTaints">编辑</el-button>
+              </div>
+              <el-table v-if="node.taints && node.taints.length > 0" :data="node.taints" stripe border>
                 <el-table-column prop="key" label="Key" min-width="200" />
                 <el-table-column prop="value" label="Value" min-width="120" />
                 <el-table-column prop="effect" label="Effect" min-width="150" />
               </el-table>
+              <span v-else style="color: #909399;">无污点</span>
             </div>
           </el-card>
         </el-tab-pane>
@@ -221,29 +309,29 @@ onMounted(fetchDetail)
         <el-tab-pane label="Pods" name="pods">
           <el-card shadow="never">
             <el-table :data="pods" v-loading="podsLoading" stripe>
-              <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
+              <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
                 <template #default="{ row }"><el-button link type="primary" @click="handlePodDetail(row)">{{ row.name }}</el-button></template>
               </el-table-column>
-              <el-table-column prop="namespace" label="Namespace" width="140" />
-              <el-table-column prop="status" label="Status" width="120"><template #default="{ row }"><el-tag :type="podStatusType(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
+              <el-table-column prop="namespace" label="命名空间" width="140" />
+              <el-table-column prop="status" label="状态" width="120"><template #default="{ row }"><el-tag :type="podStatusType(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
               <el-table-column prop="ip" label="IP" width="140" />
-              <el-table-column prop="restarts" label="Restarts" width="100" />
-              <el-table-column prop="age" label="Age" width="120" />
+              <el-table-column prop="restarts" label="重启次数" width="100" />
+              <el-table-column prop="age" label="年龄" width="120" />
             </el-table>
-            <el-empty v-if="!podsLoading && pods.length === 0" description="No pods on this node" />
+            <el-empty v-if="!podsLoading && pods.length === 0" description="该节点上暂无 Pod" />
           </el-card>
         </el-tab-pane>
 
         <!-- Events Tab -->
-        <el-tab-pane label="Events" name="events">
+        <el-tab-pane label="事件" name="events">
           <el-card shadow="never">
             <el-table :data="events" v-loading="eventsLoading" stripe>
-              <el-table-column prop="type" label="Type" width="100"><template #default="{ row }"><el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag></template></el-table-column>
-              <el-table-column prop="reason" label="Reason" width="150" />
-              <el-table-column prop="message" label="Message" min-width="300" show-overflow-tooltip />
-              <el-table-column prop="last_seen" label="Last Seen" width="180" />
+              <el-table-column prop="type" label="类型" width="100"><template #default="{ row }"><el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag></template></el-table-column>
+              <el-table-column prop="reason" label="原因" width="150" />
+              <el-table-column prop="message" label="消息" min-width="300" show-overflow-tooltip />
+              <el-table-column prop="last_seen" label="最后发生" width="180" />
             </el-table>
-            <el-empty v-if="!eventsLoading && events.length === 0" description="No events" />
+            <el-empty v-if="!eventsLoading && events.length === 0" description="暂无事件" />
           </el-card>
         </el-tab-pane>
 
@@ -251,10 +339,10 @@ onMounted(fetchDetail)
         <el-tab-pane label="YAML" name="yaml">
           <el-card shadow="never">
             <div style="margin-bottom: 12px; display: flex; gap: 8px;">
-              <el-button v-if="!yamlEditing" type="primary" @click="yamlEditing = true">Edit YAML</el-button>
+              <el-button v-if="!yamlEditing" type="primary" @click="yamlEditing = true">编辑 YAML</el-button>
               <template v-if="yamlEditing">
-                <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">Save</el-button>
-                <el-button @click="yamlEditing = false; fetchYaml()">Cancel</el-button>
+                <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">保存</el-button>
+                <el-button @click="yamlEditing = false; fetchYaml()">取消</el-button>
               </template>
             </div>
             <div v-loading="yamlLoading">
@@ -266,7 +354,7 @@ onMounted(fetchDetail)
     </template>
 
     <!-- Taints Dialog -->
-    <el-dialog v-model="taintDialogVisible" title="Manage Taints" width="600px">
+    <el-dialog v-model="taintDialogVisible" title="管理污点" width="600px">
       <div v-for="(taint, index) in taints" :key="index" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
         <el-input v-model="taint.key" placeholder="Key" style="flex: 2;" />
         <el-input v-model="taint.value" placeholder="Value" style="flex: 1;" />
@@ -275,12 +363,55 @@ onMounted(fetchDetail)
           <el-option label="PreferNoSchedule" value="PreferNoSchedule" />
           <el-option label="NoExecute" value="NoExecute" />
         </el-select>
-        <el-button type="danger" circle size="small" @click="removeTaint(index)">X</el-button>
+        <el-button type="danger" circle size="small" @click="removeTaint(index)"><el-icon><Delete /></el-icon></el-button>
       </div>
-      <el-button @click="addTaint" style="margin-top: 8px;">Add Taint</el-button>
+      <el-button @click="addTaint" style="margin-top: 8px;"><el-icon><Plus /></el-icon> 添加污点</el-button>
       <template #footer>
-        <el-button @click="taintDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" @click="handleSaveTaints">Save</el-button>
+        <el-button @click="taintDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveTaints">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Labels Dialog -->
+    <el-dialog v-model="labelsDialogVisible" title="管理标签" width="650px">
+      <div v-for="(label, index) in labelsArray" :key="index" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
+        <el-input v-model="label.key" placeholder="Key" style="flex: 2;" />
+        <el-input v-model="label.value" placeholder="Value" style="flex: 2;" />
+        <el-button type="danger" circle size="small" @click="removeLabel(index)"><el-icon><Delete /></el-icon></el-button>
+      </div>
+      <el-button @click="addLabel" style="margin-top: 8px;"><el-icon><Plus /></el-icon> 添加标签</el-button>
+      <template #footer>
+        <el-button @click="labelsDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveLabels">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Drain Dialog -->
+    <el-dialog v-model="drainDialogVisible" title="驱逐 Pod" width="500px">
+      <el-alert type="warning" :closable="false" style="margin-bottom: 16px;">
+        <template #title>驱逐操作会先封锁节点，然后驱逐节点上的所有 Pod。请确认以下选项：</template>
+      </el-alert>
+      <el-form label-width="160px">
+        <el-form-item label="忽略 DaemonSet">
+          <el-switch v-model="drainOptions.ignoreDaemonSets" />
+          <span style="margin-left: 8px; color: #909399; font-size: 12px;">跳过 DaemonSet 管理的 Pod</span>
+        </el-form-item>
+        <el-form-item label="删除本地数据">
+          <el-switch v-model="drainOptions.deleteLocalData" />
+          <span style="margin-left: 8px; color: #909399; font-size: 12px;">删除使用 emptyDir 的 Pod</span>
+        </el-form-item>
+        <el-form-item label="优雅终止时间(秒)">
+          <el-input-number v-model="drainOptions.gracePeriod" :min="-1" :max="3600" />
+          <span style="margin-left: 8px; color: #909399; font-size: 12px;">-1 使用 Pod 默认值</span>
+        </el-form-item>
+        <el-form-item label="强制驱逐">
+          <el-switch v-model="drainOptions.force" />
+          <span style="margin-left: 8px; color: #909399; font-size: 12px;">驱逐 kube-system 下的 Pod</span>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="drainDialogVisible = false">取消</el-button>
+        <el-button type="warning" @click="handleConfirmDrain">确认驱逐</el-button>
       </template>
     </el-dialog>
   </div>

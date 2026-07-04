@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { createVolumeSnapshot, getNamespaceList, extractNamespaceNames } from '@/api/resource'
-import { onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const router = useRouter()
 const submitting = ref(false)
 const namespace = ref('default')
@@ -32,7 +33,6 @@ async function fetchNamespaces() {
 }
 
 function handleNamespaceChange() {
-  // Update namespace in YAML
   const doc = yamlContent.value.replace(/namespace:\s*\S+/, `namespace: ${namespace.value}`)
   yamlContent.value = doc
 }
@@ -41,7 +41,7 @@ async function handleSubmit() {
   submitting.value = true
   try {
     await createVolumeSnapshot({ namespace: namespace.value, yaml: yamlContent.value })
-    ElMessage.success('VolumeSnapshot created successfully')
+    ElMessage.success(t('common.create') + ' ' + t('common.success'))
     router.push('/storage/volumesnapshots')
   } catch (e: any) {
     ElMessage.error(e?.message || 'Create failed')
@@ -60,11 +60,11 @@ onMounted(fetchNamespaces)
 <template>
   <div class="create-page">
     <div class="form-header">
-      <h2>Create VolumeSnapshot</h2>
+      <h2>{{ t('common.create') }} {{ t('storage.volumeSnapshot') }}</h2>
     </div>
 
     <el-form label-width="140px" style="max-width: 700px; margin-bottom: 16px;">
-      <el-form-item label="Namespace" required>
+      <el-form-item :label="t('common.namespace_label')" required>
         <el-select v-model="namespace" style="width: 100%;" @change="handleNamespaceChange">
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
@@ -72,7 +72,7 @@ onMounted(fetchNamespaces)
     </el-form>
 
     <el-alert
-      title="Edit YAML below to configure the VolumeSnapshot"
+      :title="t('storage.createSnapshotYamlHint')"
       type="info"
       :closable="false"
       show-icon
@@ -82,8 +82,8 @@ onMounted(fetchNamespaces)
     <YamlEditor v-model="yamlContent" height="500px" />
 
     <div class="form-actions">
-      <el-button @click="handleCancel">Cancel</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">Create VolumeSnapshot</el-button>
+      <el-button @click="handleCancel">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.create') }} {{ t('storage.volumeSnapshot') }}</el-button>
     </div>
   </div>
 </template>

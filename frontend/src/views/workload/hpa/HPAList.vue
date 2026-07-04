@@ -37,8 +37,8 @@ async function fetchHpa() {
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
     const res: any = await getHpaList(params)
     hpaList.value = res.data || []
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load HPAs')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 

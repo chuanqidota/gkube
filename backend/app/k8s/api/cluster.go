@@ -22,7 +22,7 @@ var Cluster = new(cluster)
 //	@param c
 func (cl *cluster) GetClusterVersion(c *gin.Context) {
 	var query params.ClusterQueryParams
-	if err := c.ShouldBindQuery(&params.ClusterQueryParams{}); err != nil {
+	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
 		return
 	}
@@ -51,7 +51,7 @@ func (cl *cluster) GetClusterVersion(c *gin.Context) {
 //	@param c
 func (cl *cluster) GetClusterNodesInfo(c *gin.Context) {
 	var query params.ClusterQueryParams
-	if err := c.ShouldBindQuery(&params.ClusterQueryParams{}); err != nil {
+	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
 		return
 	}
@@ -66,8 +66,5 @@ func (cl *cluster) GetClusterNodesInfo(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取集群节点信息失败:%s", err.Error()))
 		return
 	}
-	result := map[string]any{
-		"nodes": nodes,
-	}
-	response.Success(c, "执行成功", result)
+	response.Success(c, "执行成功", nodes)
 }

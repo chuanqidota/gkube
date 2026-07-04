@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getIngressList, getIngressYaml, deleteIngress, getNamespaceList, extractNamespaceNames, transformIngresses } from '@/api/resource'
+import { getIngressList, getIngressYaml, updateIngress, deleteIngress, getNamespaceList, extractNamespaceNames, transformIngresses } from '@/api/resource'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import YamlEditor from '@/components/YamlEditor.vue'
 
@@ -17,6 +17,8 @@ const selectedRows = ref<any[]>([])
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
+const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
+const currentYamlRow = ref<any>(null)
 
 const filteredList = computed(() => {
   if (!searchName.value) return ingressList.value
@@ -39,8 +41,8 @@ async function fetchIngresses() {
     const res: any = await getIngressList(params)
     const items = res.data?.items || res.data || []
     ingressList.value = transformIngresses(items)
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load Ingresses')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 
@@ -48,12 +50,26 @@ function handleNamespaceChange() { fetchIngresses() }
 function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
 
 async function handleViewYaml(row: any) {
+  currentYamlRow.value = row
   yamlDialogVisible.value = true; yamlLoading.value = true; yamlContent.value = ''
   try {
     const res: any = await getIngressYaml({ name: row.name, namespace: row.namespace })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) { ElMessage.error(e?.message || 'Failed to load YAML'); yamlDialogVisible.value = false }
   finally { yamlLoading.value = false }
+}
+
+async function handleSaveYaml(content: string) {
+  if (!currentYamlRow.value) return
+  try {
+    await updateIngress({ namespace: currentYamlRow.value.namespace, name: currentYamlRow.value.name, yaml: content })
+    ElMessage.success('YAML saved successfully')
+    yamlDialogVisible.value = false
+    fetchIngresses()
+  } catch (e: any) {
+    ElMessage.error(e?.message || 'Failed to save YAML')
+    yamlEditorRef.value?.resetSaving()
+  }
 }
 
 function handleDetail(row: any) { router.push(`/ingresses/${row.namespace}/${row.name}`) }
@@ -120,7 +136,7 @@ onMounted(() => { fetchNamespaces(); fetchIngresses() })
       </el-table>
     </el-card>
     <el-dialog v-model="yamlDialogVisible" title="Ingress YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
+      <div v-loading="yamlLoading"><YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="500px" :read-only="true" :saveable="true" auto-format @save="handleSaveYaml" /></div>
     </el-dialog>
   </div>
 </template>

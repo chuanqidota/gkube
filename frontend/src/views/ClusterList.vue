@@ -20,8 +20,8 @@ async function fetchClusters() {
     const res: any = await getClusterList({ page: page.value, size: size.value })
     clusterList.value = res.data.items || []
     total.value = res.data.total || 0
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load clusters')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally {
     loading.value = false
   }

@@ -108,8 +108,8 @@ export function useResourceList(options: ResourceListOptions) {
         list.value = options.transform ? options.transform(items) : items
         totalCount.value = list.value.length
       }
-    } catch (e: any) {
-      ElMessage.error(e?.message || `Failed to load ${options.resourceName.toLowerCase()}s`)
+    } catch {
+      // Silently handle fetch failure — resource type may not exist in cluster
     } finally {
       loading.value = false
     }

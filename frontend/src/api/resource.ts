@@ -231,7 +231,63 @@ export function deleteService(data: { namespace: string; name: string }) {
   return request.delete('/k8s/service/delete', { data })
 }
 
+export function updateService(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/service/update', data)
+}
+
+export function getServiceEvents(params: { namespace: string; name: string }) {
+  return request.get('/k8s/service/events', { params })
+}
+
+export function getServicePods(params: { namespace: string; name: string }) {
+  return request.get('/k8s/service/pods', { params })
+}
+
 // Node
+export interface NodeInfo {
+  name: string
+  status: string
+  roles: string
+  version: string
+  internal_ip: string
+  external_ip: string
+  architecture: string
+  unschedulable: boolean
+  pod_count: number
+  labels: Record<string, string>
+  taints: { key: string; value: string; effect: string }[]
+  is_ready: boolean
+  capacity_cpu: string
+  capacity_memory: string
+  allocatable_cpu: string
+  allocatable_mem: string
+  os_image: string
+  kernel_version: string
+  container_runtime: string
+  age: string
+}
+
+export interface NodeDetail {
+  name: string
+  status: string
+  roles: string
+  version: string
+  os: string
+  kernel: string
+  container_runtime: string
+  architecture: string
+  internal_ip: string
+  external_ip: string
+  hostname: string
+  unschedulable: boolean
+  labels: Record<string, string>
+  taints: { key: string; value: string; effect: string }[]
+  conditions: { type: string; status: string; reason: string; message: string; lastTransitionTime: string }[]
+  capacity: Record<string, string>
+  allocatable: Record<string, string>
+  age: string
+}
+
 export function getNodeList(params?: { cluster_id?: number }) {
   return request.get('/k8s/cluster/nodes', { params })
 }
@@ -254,6 +310,28 @@ export function cordonNode(data: { name: string; cordon: boolean }) {
 
 export function taintNode(data: { name: string; taints: any[] }) {
   return request.put('/k8s/node/taint', data)
+}
+
+export function updateNodeTaints(data: { name: string; taints: { key: string; value: string; effect: string }[] }) {
+  return request.put('/k8s/node/taints', data)
+}
+
+export function updateNodeLabels(data: { name: string; labels: Record<string, string> }) {
+  return request.put('/k8s/node/labels', data)
+}
+
+export function drainNode(data: {
+  name: string
+  ignoreDaemonSets?: boolean
+  deleteLocalData?: boolean
+  gracePeriod?: number
+  force?: boolean
+}) {
+  return request.put('/k8s/node/drain', data)
+}
+
+export function deleteNode(data: { name: string }) {
+  return request.delete('/k8s/node/delete', { data })
 }
 
 export function getNodePods(params: { name: string }) {
@@ -284,6 +362,14 @@ export function getIngressYaml(params: { namespace: string; name: string }) {
 
 export function deleteIngress(data: { namespace: string; name: string }) {
   return request.delete('/k8s/ingress/delete', { data })
+}
+
+export function updateIngress(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/ingress/update', data)
+}
+
+export function getIngressEvents(params: { namespace: string; name: string }) {
+  return request.get('/k8s/ingress/events', { params })
 }
 
 // Service create

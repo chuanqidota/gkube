@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { getDashboardEvents, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 
 const router = useRouter()
@@ -52,8 +51,8 @@ async function fetchEvents() {
     }
 
     eventList.value = events
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load events')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally {
     loading.value = false
   }

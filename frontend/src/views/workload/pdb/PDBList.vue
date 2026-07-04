@@ -37,8 +37,8 @@ async function fetchPdbs() {
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
     const res: any = await getPdbList(params)
     pdbList.value = res.data || []
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load PDBs')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 

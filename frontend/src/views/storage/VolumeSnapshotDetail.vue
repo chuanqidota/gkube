@@ -2,9 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getVolumeSnapshotDetail, getVolumeSnapshotYaml } from '@/api/resource'
+import { getVolumeSnapshotDetail, getVolumeSnapshotYaml, updateVolumeSnapshot } from '@/api/resource'
+import { useI18n } from 'vue-i18n'
 import YamlEditor from '@/components/YamlEditor.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
@@ -12,6 +14,7 @@ const snapshot = ref<any>(null)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
 const activeTab = ref('info')
+const yamlEditorRef = ref<InstanceType<typeof YamlEditor> | null>(null)
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
@@ -46,6 +49,17 @@ function handleTabChange(tab: string) {
   }
 }
 
+async function handleSaveYaml(content: string) {
+  try {
+    await updateVolumeSnapshot({ namespace, yaml: content })
+    ElMessage.success(t('common.save') + ' ' + t('common.success'))
+    fetchDetail()
+  } catch (e: any) {
+    ElMessage.error(e?.message || 'Save failed')
+    yamlEditorRef.value?.resetSaving()
+  }
+}
+
 function getStatus(): string {
   if (!snapshot.value) return '-'
   if (snapshot.value.status?.readyToUse) return 'Ready'
@@ -68,24 +82,24 @@ onMounted(fetchDetail)
 <template>
   <div v-loading="loading">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h2 style="margin: 0;">VolumeSnapshot: {{ name }}</h2>
-      <el-button @click="router.push('/storage/volumesnapshots')">Back to List</el-button>
+      <h2 style="margin: 0;">{{ t('storage.volumeSnapshotTitle', { name }) }}</h2>
+      <el-button @click="router.push('/storage/volumesnapshots')">{{ t('common.back') }}</el-button>
     </div>
 
     <template v-if="snapshot">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="Info" name="info">
+        <el-tab-pane :label="t('common.detail')" name="info">
           <el-descriptions :column="2" border style="margin-top: 8px;">
-            <el-descriptions-item label="Name">{{ snapshot.metadata?.name || name }}</el-descriptions-item>
-            <el-descriptions-item label="Namespace">{{ snapshot.metadata?.namespace || namespace }}</el-descriptions-item>
-            <el-descriptions-item label="Status">
+            <el-descriptions-item :label="t('common.name')">{{ snapshot.metadata?.name || name }}</el-descriptions-item>
+            <el-descriptions-item :label="t('common.namespace_label')">{{ snapshot.metadata?.namespace || namespace }}</el-descriptions-item>
+            <el-descriptions-item :label="t('common.status')">
               <el-tag :type="statusType(getStatus())" size="small">{{ getStatus() }}</el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="Snapshot Class">{{ snapshot.spec?.volumeSnapshotClassName || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="Source PVC">{{ snapshot.spec?.source?.persistentVolumeClaimName || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="Restore Size">{{ snapshot.status?.restoreSize || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="Creation Time">{{ snapshot.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="Bound VSC">{{ snapshot.status?.boundVolumeSnapshotContentName || '-' }}</el-descriptions-item>
+            <el-descriptions-item :label="t('storage.snapshotClass')">{{ snapshot.spec?.volumeSnapshotClassName || '-' }}</el-descriptions-item>
+            <el-descriptions-item :label="t('storage.sourcePvc')">{{ snapshot.spec?.source?.persistentVolumeClaimName || '-' }}</el-descriptions-item>
+            <el-descriptions-item :label="t('storage.restoreSize')">{{ snapshot.status?.restoreSize || '-' }}</el-descriptions-item>
+            <el-descriptions-item :label="t('common.age')">{{ snapshot.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
+            <el-descriptions-item :label="t('storage.boundVsc')">{{ snapshot.status?.boundVolumeSnapshotContentName || '-' }}</el-descriptions-item>
           </el-descriptions>
 
           <!-- Error -->
@@ -109,19 +123,22 @@ onMounted(fetchDetail)
           <!-- Annotations -->
           <div v-if="snapshot.metadata?.annotations && Object.keys(snapshot.metadata.annotations).length > 0" style="margin-top: 16px;">
             <h4>Annotations</h4>
-            <el-tag
-              v-for="(val, key) in snapshot.metadata.annotations"
-              :key="key"
-              style="margin-right: 8px; margin-bottom: 8px;"
-            >
-              {{ key }}={{ val }}
-            </el-tag>
+            <div v-for="(val, key) in snapshot.metadata.annotations" :key="key" style="margin-bottom: 4px;">
+              <el-text size="small" type="info">{{ key }}:</el-text>
+              <el-text size="small" style="margin-left: 4px; word-break: break-all;">{{ val }}</el-text>
+            </div>
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="YAML" name="yaml">
+        <el-tab-pane :label="t('common.yaml')" name="yaml">
           <div v-loading="yamlLoading">
-            <YamlEditor v-model="yamlContent" height="600px" read-only />
+            <YamlEditor
+              ref="yamlEditorRef"
+              v-model="yamlContent"
+              height="600px"
+              saveable
+              @save="handleSaveYaml"
+            />
           </div>
         </el-tab-pane>
       </el-tabs>

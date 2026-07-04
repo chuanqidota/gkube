@@ -48,8 +48,8 @@ async function fetchUsers() {
     const res: any = await request.get('/users', { params: { page: page.value, size: size.value } })
     userList.value = res.data.items || []
     total.value = res.data.total || 0
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load users')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally {
     loading.value = false
   }

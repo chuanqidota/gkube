@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getServiceList, getServiceYaml, deleteService, getNamespaceList, extractNamespaceNames, transformServices } from '@/api/resource'
+import { getServiceList, getServiceYaml, updateService, deleteService, getNamespaceList, extractNamespaceNames, transformServices } from '@/api/resource'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import YamlEditor from '@/components/YamlEditor.vue'
 
@@ -17,6 +17,8 @@ const selectedRows = ref<any[]>([])
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
+const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
+const currentYamlRow = ref<any>(null)
 
 const filteredList = computed(() => {
   if (!searchName.value) return serviceList.value
@@ -41,8 +43,8 @@ async function fetchServices() {
     const res: any = await getServiceList(params)
     const items = res.data?.items || res.data || []
     serviceList.value = transformServices(items)
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load services')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally {
     loading.value = false
   }
@@ -57,6 +59,7 @@ function handleSelectionChange(rows: any[]) {
 }
 
 async function handleViewYaml(row: any) {
+  currentYamlRow.value = row
   yamlLoading.value = true
   yamlDialogVisible.value = true
   try {
@@ -70,6 +73,19 @@ async function handleViewYaml(row: any) {
     yamlDialogVisible.value = false
   } finally {
     yamlLoading.value = false
+  }
+}
+
+async function handleSaveYaml(content: string) {
+  if (!currentYamlRow.value) return
+  try {
+    await updateService({ namespace: currentYamlRow.value.namespace, name: currentYamlRow.value.name, yaml: content })
+    ElMessage.success('YAML saved successfully')
+    yamlDialogVisible.value = false
+    fetchServices()
+  } catch (e: any) {
+    ElMessage.error(e?.message || 'Failed to save YAML')
+    yamlEditorRef.value?.resetSaving()
   }
 }
 
@@ -189,7 +205,7 @@ onMounted(() => {
 
     <el-dialog v-model="yamlDialogVisible" title="Service YAML" width="70%" top="5vh" destroy-on-close>
       <div v-loading="yamlLoading">
-        <YamlEditor v-model="yamlContent" height="500px" read-only auto-format />
+        <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="500px" :read-only="true" :saveable="true" auto-format @save="handleSaveYaml" />
       </div>
     </el-dialog>
   </div>

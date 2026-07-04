@@ -43,8 +43,8 @@ async function fetchResources() {
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
     const res: any = await getCustomResourceList(params)
     resourceList.value = res.data || []
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load custom resources')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 

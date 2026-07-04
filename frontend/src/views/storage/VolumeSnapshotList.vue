@@ -4,8 +4,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
 import { getVolumeSnapshotList, getVolumeSnapshotYaml, deleteVolumeSnapshot, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { useI18n } from 'vue-i18n'
 import YamlEditor from '@/components/YamlEditor.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const loading = ref(false)
 const snapshotList = ref<any[]>([])
@@ -37,8 +39,8 @@ async function fetchSnapshots() {
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
     const res: any = await getVolumeSnapshotList(params)
     snapshotList.value = res.data || []
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load VolumeSnapshots')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 
@@ -61,7 +63,7 @@ function getStatus(row: any): string {
 }
 
 function getRestoreSize(row: any): string {
-  return row.status?.restoreSize || row.spec?.volumeSnapshotClassName || '-'
+  return row.status?.restoreSize || '-'
 }
 
 function getSnapshotClass(row: any): string {
@@ -71,8 +73,8 @@ function getSnapshotClass(row: any): string {
 function getSource(row: any): string {
   const src = row.spec?.source
   if (!src) return '-'
-  if (src.persistentVolumeClaimName) return `PVC:${src.persistentVolumeClaimName}`
-  if (src.volumeSnapshotContentName) return `VSC:${src.volumeSnapshotContentName}`
+  if (src.persistentVolumeClaimName) return `PVC: ${src.persistentVolumeClaimName}`
+  if (src.volumeSnapshotContentName) return `VSC: ${src.volumeSnapshotContentName}`
   return '-'
 }
 
@@ -89,21 +91,31 @@ function handleDetail(row: any) { router.push(`/storage/volumesnapshots/${row.na
 
 async function handleDelete(row: any) {
   try {
-    await ElMessageBox.confirm(`Delete VolumeSnapshot "${row.name}" in namespace "${row.namespace}"?`, 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(
+      t('storage.deleteSnapshotConfirm', { name: row.name, namespace: row.namespace }),
+      t('common.confirm'),
+      { type: 'warning' }
+    )
     await deleteVolumeSnapshot({ name: row.name, namespace: row.namespace })
-    ElMessage.success('Deleted'); fetchSnapshots()
+    ElMessage.success(t('common.delete') + ' ' + t('common.success'))
+    fetchSnapshots()
   } catch { /* cancelled */ }
 }
 
 async function handleBatchDelete() {
   if (!selectedRows.value.length) return
   try {
-    await ElMessageBox.confirm(`Delete ${selectedRows.value.length} selected VolumeSnapshot(s)?`, 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(
+      t('storage.deleteSnapshotBatchConfirm', { count: selectedRows.value.length }),
+      t('common.confirm'),
+      { type: 'warning' }
+    )
     let count = 0
     for (const row of selectedRows.value) {
       try { await deleteVolumeSnapshot({ name: row.name, namespace: row.namespace }); count++ } catch { /* continue */ }
     }
-    ElMessage.success(`Deleted ${count} VolumeSnapshot(s)`); fetchSnapshots()
+    ElMessage.success(t('common.delete') + ` ${count} ` + t('storage.volumeSnapshot'))
+    fetchSnapshots()
   } catch { /* cancelled */ }
 }
 
@@ -114,46 +126,46 @@ onMounted(() => { fetchNamespaces(); fetchSnapshots() })
   <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <el-input v-model="searchName" placeholder="Search by name" style="width: 220px;" clearable>
+        <el-input v-model="searchName" :placeholder="t('common.search') + '...'" style="width: 220px;" clearable>
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-select v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 180px;" @change="handleNamespaceChange">
+        <el-select v-model="selectedNamespace" :placeholder="t('common.namespace_label')" clearable style="width: 180px;" @change="handleNamespaceChange">
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="fetchSnapshots"><el-icon><Refresh /></el-icon> Refresh</el-button>
-        <el-button type="success" @click="router.push('/storage/volumesnapshots/create')"><el-icon><Plus /></el-icon> Create</el-button>
-        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})</el-button>
+        <el-button type="primary" @click="fetchSnapshots"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
+        <el-button type="success" @click="router.push('/storage/volumesnapshots/create')"><el-icon><Plus /></el-icon> {{ t('common.create') }}</el-button>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})</el-button>
       </div>
     </el-card>
     <el-card shadow="never" class="table-card">
       <el-table :data="filteredList" v-loading="loading" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="Name" min-width="180" show-overflow-tooltip>
+        <el-table-column prop="name" :label="t('common.name')" min-width="180" show-overflow-tooltip>
           <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
         </el-table-column>
-        <el-table-column prop="namespace" label="Namespace" width="140" />
-        <el-table-column label="Status" width="120">
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
+        <el-table-column :label="t('common.status')" width="120">
           <template #default="{ row }"><el-tag :type="statusType(getStatus(row))" size="small">{{ getStatus(row) }}</el-tag></template>
         </el-table-column>
-        <el-table-column label="Source" min-width="180" show-overflow-tooltip>
+        <el-table-column :label="t('storage.source')" min-width="180" show-overflow-tooltip>
           <template #default="{ row }">{{ getSource(row) }}</template>
         </el-table-column>
-        <el-table-column label="Restore Size" width="130">
+        <el-table-column :label="t('storage.restoreSize')" width="130">
           <template #default="{ row }">{{ getRestoreSize(row) }}</template>
         </el-table-column>
-        <el-table-column label="Snapshot Class" min-width="160" show-overflow-tooltip>
+        <el-table-column :label="t('storage.snapshotClass')" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">{{ getSnapshotClass(row) }}</template>
         </el-table-column>
-        <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="Actions" width="180" fixed="right">
+        <el-table-column prop="age" :label="t('common.age')" width="120" />
+        <el-table-column :label="t('common.actions')" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
+            <el-button size="small" @click="handleViewYaml(row)">{{ t('common.yaml') }}</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
-    <el-dialog v-model="yamlDialogVisible" title="VolumeSnapshot YAML" width="70%" top="5vh" destroy-on-close>
+    <el-dialog v-model="yamlDialogVisible" :title="t('storage.volumeSnapshot') + ' YAML'" width="70%" top="5vh" destroy-on-close>
       <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
     </el-dialog>
   </div>

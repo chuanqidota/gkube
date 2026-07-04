@@ -4,7 +4,9 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { createVolumeSnapshotClass } from '@/api/resource'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const router = useRouter()
 const submitting = ref(false)
 
@@ -24,7 +26,7 @@ async function handleSubmit() {
   submitting.value = true
   try {
     await createVolumeSnapshotClass({ yaml: yamlContent.value })
-    ElMessage.success('VolumeSnapshotClass created successfully')
+    ElMessage.success(t('common.create') + ' ' + t('common.success'))
     router.push('/storage/volumesnapshotclasses')
   } catch (e: any) {
     ElMessage.error(e?.message || 'Create failed')
@@ -41,11 +43,11 @@ function handleCancel() {
 <template>
   <div class="create-page">
     <div class="form-header">
-      <h2>Create VolumeSnapshotClass</h2>
+      <h2>{{ t('common.create') }} {{ t('storage.volumeSnapshotClass') }}</h2>
     </div>
 
     <el-alert
-      title="Edit YAML below to configure the VolumeSnapshotClass"
+      :title="t('storage.createSnapshotClassYamlHint')"
       type="info"
       :closable="false"
       show-icon
@@ -55,8 +57,8 @@ function handleCancel() {
     <YamlEditor v-model="yamlContent" height="500px" />
 
     <div class="form-actions">
-      <el-button @click="handleCancel">Cancel</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">Create VolumeSnapshotClass</el-button>
+      <el-button @click="handleCancel">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.create') }} {{ t('storage.volumeSnapshotClass') }}</el-button>
     </div>
   </div>
 </template>

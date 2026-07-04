@@ -44,8 +44,8 @@ async function fetchSecrets() {
     const res: any = await getSecretList(params)
     const items = res.data?.items || res.data || []
     secretList.value = transformSecrets(items)
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load Secrets')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 

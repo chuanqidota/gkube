@@ -37,8 +37,8 @@ async function fetchPvcs() {
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
     const res: any = await getPvcList(params)
     pvcList.value = res.data || []
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load PVCs')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 

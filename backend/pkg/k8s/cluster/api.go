@@ -33,26 +33,78 @@ func GetClusterNodesInfo(client *kubernetes.Clientset) ([]modelK8s.NodeInfo, err
 	if err != nil {
 		return nil, err
 	}
+
+	// 获取每个节点的 Pod 数量
+	podCounts := make(map[string]int)
+	pods, err := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+	if err == nil {
+		for _, pod := range pods.Items {
+			if pod.Spec.NodeName != "" && pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
+				podCounts[pod.Spec.NodeName]++
+			}
+		}
+	}
+
 	var nodesInfo []modelK8s.NodeInfo
 
-	// 遍历节点并提取信息
 	for _, node := range nodes.Items {
+		// Determine status
+		status := "Unknown"
+		isReady := false
+		for _, condition := range node.Status.Conditions {
+			if condition.Type == corev1.NodeReady {
+				if condition.Status == corev1.ConditionTrue {
+					status = "Ready"
+					isReady = true
+				} else {
+					status = "NotReady"
+				}
+				break
+			}
+		}
+
+		// Get roles from labels
+		var roles string
+		for label := range node.Labels {
+			if len(label) > 24 && label[:24] == "node-role.kubernetes.io/" {
+				if roles != "" {
+					roles += ", "
+				}
+				roles += label[24:]
+			}
+		}
+
+		// Get addresses
+		var internalIP, externalIP string
+		for _, addr := range node.Status.Addresses {
+			switch addr.Type {
+			case corev1.NodeInternalIP:
+				internalIP = addr.Address
+			case corev1.NodeExternalIP:
+				externalIP = addr.Address
+			}
+		}
+
 		nodeInfo := modelK8s.NodeInfo{
 			Name:             node.Name,
+			Status:           status,
+			Roles:            roles,
+			Version:          node.Status.NodeInfo.KubeletVersion,
+			InternalIP:       internalIP,
+			ExternalIP:       externalIP,
+			Architecture:     node.Status.NodeInfo.Architecture,
+			Unschedulable:    node.Spec.Unschedulable,
+			PodCount:         podCounts[node.Name],
 			Labels:           node.Labels,
+			Taints:           node.Spec.Taints,
+			IsReady:          isReady,
 			Addresses:        node.Status.Addresses,
 			OSImage:          node.Status.NodeInfo.OSImage,
 			KernelVersion:    node.Status.NodeInfo.KernelVersion,
 			ContainerRuntime: node.Status.NodeInfo.ContainerRuntimeVersion,
+			Age:              node.CreationTimestamp.Time.Format("2006-01-02 15:04:05"),
 		}
 
-		// 检查节点是否 Ready
-		for _, condition := range node.Status.Conditions {
-			if condition.Type == corev1.NodeReady {
-				nodeInfo.IsReady = condition.Status == corev1.ConditionTrue
-				break
-			}
-		}
 		// 提取资源容量和可分配资源
 		if cpu, ok := node.Status.Capacity[corev1.ResourceCPU]; ok {
 			nodeInfo.CapacityCPU = cpu.String()
@@ -66,7 +118,7 @@ func GetClusterNodesInfo(client *kubernetes.Clientset) ([]modelK8s.NodeInfo, err
 		if mem, ok := node.Status.Allocatable[corev1.ResourceMemory]; ok {
 			nodeInfo.AllocatableMem = formatMemory(mem)
 		}
-		// 将节点信息添加到数组
+
 		nodesInfo = append(nodesInfo, nodeInfo)
 	}
 

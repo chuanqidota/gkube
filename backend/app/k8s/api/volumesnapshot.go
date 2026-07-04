@@ -51,6 +51,7 @@ func (v *volumeSnapshot) GetVolumeSnapshotList(c *gin.Context) {
 			"namespace":         item.GetNamespace(),
 			"age":               item.GetCreationTimestamp().Time.Format("2006-01-02 15:04:05"),
 			"labels":            item.GetLabels(),
+			"annotations":       item.GetAnnotations(),
 			"spec":              item.Object["spec"],
 			"status":            item.Object["status"],
 		})

@@ -37,11 +37,13 @@ func (v *volumeSnapshotClass) GetVolumeSnapshotClassList(c *gin.Context) {
 	var result []map[string]any
 	for _, item := range items {
 		result = append(result, map[string]any{
-			"name":       item.GetName(),
-			"age":        item.GetCreationTimestamp().Time.Format("2006-01-02 15:04:05"),
-			"labels":     item.GetLabels(),
-			"driver":     item.Object["driver"],
-			"parameters": item.Object["parameters"],
+			"name":            item.GetName(),
+			"age":             item.GetCreationTimestamp().Time.Format("2006-01-02 15:04:05"),
+			"labels":          item.GetLabels(),
+			"annotations":     item.GetAnnotations(),
+			"driver":          item.Object["driver"],
+			"deletionPolicy":  item.Object["deletionPolicy"],
+			"parameters":      item.Object["parameters"],
 		})
 	}
 	response.Success(c, "执行成功", result)

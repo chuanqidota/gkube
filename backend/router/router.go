@@ -95,9 +95,13 @@ func Engine() *gin.Engine {
 			k8s.GET("node/get-yaml", k8sApi.Node.GetNodeYaml)           // /get-yaml
 			k8s.GET("node/pods", k8sApi.Node.GetNodePods)
 			k8s.GET("node/events", k8sApi.Node.GetNodeEvents)           // NEW
-			k8s.PUT("node/cordon", k8sApi.Node.UnscheduledNode)         // /cordon
+			k8s.PUT("node/cordon", k8sApi.Node.CordonNode)              // /cordon
 			k8s.PUT("node/taint", k8sApi.Node.SetTaintNode)
-			k8s.PUT("node/update-yaml", k8sApi.Node.UpdateNodeYaml)     // NEW
+			k8s.PUT("node/taints", k8sApi.Node.UpdateNodeTaints)       // 批量替换污点
+			k8s.PUT("node/labels", k8sApi.Node.UpdateNodeLabels)       // 更新标签
+			k8s.PUT("node/drain", k8sApi.Node.DrainNode)               // 驱逐节点
+			k8s.PUT("node/update-yaml", k8sApi.Node.UpdateNodeYaml)    // 更新YAML
+			k8s.DELETE("node/delete", k8sApi.Node.DeleteNode)          // 删除节点
 
 			// Namespace
 			k8s.GET("namespace/list", k8sApi.Namespace.GetNamespaceList)
@@ -166,6 +170,8 @@ func Engine() *gin.Engine {
 			k8s.GET("service/list", k8sApi.Service.GetServicesList)
 			k8s.GET("service/detail", k8sApi.Service.GetServicesByName) // /detail
 			k8s.GET("service/get-yaml", k8sApi.Service.GetServicesYaml) // /get-yaml
+			k8s.GET("service/events", k8sApi.Service.GetServiceEvents)  // /events
+			k8s.GET("service/pods", k8sApi.Service.ServicePodList)      // /pods
 			k8s.POST("service/create", k8sApi.Service.CreateService)
 			k8s.PUT("service/update", k8sApi.Service.UpdateService)
 			k8s.DELETE("service/delete", k8sApi.Service.DeleteService)
@@ -174,6 +180,7 @@ func Engine() *gin.Engine {
 			k8s.GET("ingress/list", k8sApi.Ingress.GetIngressList)
 			k8s.GET("ingress/detail", k8sApi.Ingress.GetIngressByName) // /detail
 			k8s.GET("ingress/get-yaml", k8sApi.Ingress.GetIngressYaml) // /get-yaml
+			k8s.GET("ingress/events", k8sApi.Ingress.GetIngressEvents) // /events
 			k8s.POST("ingress/create", k8sApi.Ingress.CreateIngress)
 			k8s.PUT("ingress/update", k8sApi.Ingress.UpdateIngress)
 			k8s.DELETE("ingress/delete", k8sApi.Ingress.DeleteIngressByName) // /delete

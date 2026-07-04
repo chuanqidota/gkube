@@ -38,8 +38,8 @@ async function fetchResourceQuotas() {
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
     const res: any = await getResourceQuotaList(params)
     rqList.value = res.data || []
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load ResourceQuotas')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 

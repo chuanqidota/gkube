@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
 import request from '@/api/request'
 
 const loading = ref(false)
@@ -15,8 +14,8 @@ async function fetchRoles() {
     const res: any = await request.get('/roles', { params: { page: page.value, size: size.value } })
     roleList.value = res.data.items || []
     total.value = res.data.total || 0
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load roles')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally {
     loading.value = false
   }

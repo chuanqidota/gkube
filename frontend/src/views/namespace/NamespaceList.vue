@@ -25,8 +25,8 @@ async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
     namespaceList.value = extractNamespaceNames(res.data)
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load namespaces')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 

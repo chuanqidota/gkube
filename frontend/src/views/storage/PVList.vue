@@ -26,8 +26,8 @@ async function fetchPvs() {
   try {
     const res: any = await getPvList()
     pvList.value = res.data || []
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load PVs')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 

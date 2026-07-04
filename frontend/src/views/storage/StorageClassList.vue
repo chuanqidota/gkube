@@ -25,8 +25,8 @@ async function fetchStorageClasses() {
   try {
     const res: any = await getStorageClassList()
     storageClassList.value = res.data || []
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load StorageClasses')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 

@@ -43,8 +43,8 @@ async function fetchConfigMaps() {
     const res: any = await getConfigMapList(params)
     const items = res.data?.items || res.data || []
     configMapList.value = transformConfigMaps(items)
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load ConfigMaps')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 

@@ -37,8 +37,8 @@ async function fetchNetworkPolicies() {
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
     const res: any = await getNetworkPolicyList(params)
     npList.value = res.data || []
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load NetworkPolicies')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 

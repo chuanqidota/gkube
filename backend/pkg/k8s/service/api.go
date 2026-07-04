@@ -172,3 +172,29 @@ func DeleteService(client *kubernetes.Clientset, namespace, name string) error {
 	}
 	return nil
 }
+
+// ServicePodList
+//
+//	@Description: 获取service关联的pod列表
+//	@param client
+//	@param namespace
+//	@param name
+//	@return *corev1.PodList
+//	@return error
+func ServicePodList(client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
+	svc, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取service资源失败:%s", err.Error())
+	}
+	if len(svc.Spec.Selector) == 0 {
+		return &corev1.PodList{}, nil
+	}
+	labelSelector := labels.Set(svc.Spec.Selector).AsSelectorPreValidated()
+	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: labelSelector.String(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("获取service关联pod列表失败:%s", err.Error())
+	}
+	return podList, nil
+}

@@ -7,6 +7,7 @@ import (
 	"gkube/pkg/response"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 
 	"gkube/pkg/k8s"
 	k8sNode "gkube/pkg/k8s/node"
@@ -36,7 +37,7 @@ func (n *node) GetNodeYaml(c *gin.Context) {
 		return
 
 	}
-	yaml, err := k8sNode.GetNodeYaml(client, query.NodeName)
+	yaml, err := k8sNode.GetNodeYaml(client, query.Name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取节点yaml失败:%s", err.Error()))
 		return
@@ -63,24 +64,21 @@ func (n *node) GetNodePods(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	pods, err := k8sNode.GetNodePods(client, query.NodeName)
+	pods, err := k8sNode.GetNodePods(client, query.Name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取节点pod失败:%s", err.Error()))
 		return
 	}
-	result := map[string]any{
-		"pods": pods,
-	}
-	response.Success(c, "执行成功", result)
+	response.Success(c, "执行成功", pods)
 }
 
-// UnscheduledNode
+// CordonNode
 //
-//	@Description: 禁止调度
+//	@Description: 封锁或解除封锁节点
 //	@receiver n
 //	@param c
-func (n *node) UnscheduledNode(c *gin.Context) {
-	var body params.NodeQueryParams
+func (n *node) CordonNode(c *gin.Context) {
+	var body params.CordonNodeParams
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
 		return
@@ -90,9 +88,13 @@ func (n *node) UnscheduledNode(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	isCordon, err := k8sNode.UnscheduledNode(client, body.NodeName)
+	isCordon, err := k8sNode.CordonNode(client, body.Name, *body.Cordon)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("禁止调度失败:%s", err.Error()))
+		action := "封锁"
+		if !*body.Cordon {
+			action = "解除封锁"
+		}
+		response.Fail(c, fmt.Sprintf("%s失败:%s", action, err.Error()))
 		return
 	}
 	result := map[string]bool{
@@ -101,13 +103,13 @@ func (n *node) UnscheduledNode(c *gin.Context) {
 	response.Success(c, "执行成功", result)
 }
 
-// EvictsNodeAllPods
+// DrainNode
 //
-//	@Description: 驱逐节点中的所有pod
+//	@Description: 驱逐节点上的所有 pod（封锁+驱逐）
 //	@receiver n
 //	@param c
-func (n *node) EvictsNodeAllPods(c *gin.Context) {
-	var body params.NodeQueryParams
+func (n *node) DrainNode(c *gin.Context) {
+	var body params.DrainNodeParams
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
 		return
@@ -117,13 +119,20 @@ func (n *node) EvictsNodeAllPods(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	isEvict, err := k8sNode.EvictsNodeAllPods(client, body.NodeName)
+	opts := k8sNode.DrainOptions{
+		IgnoreDaemonSets: body.IgnoreDaemonSets,
+		DeleteLocalData:  body.DeleteLocalData,
+		GracePeriod:      body.GracePeriod,
+		Force:            body.Force,
+	}
+	evicted, skipped, err := k8sNode.DrainNode(client, body.Name, opts)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("驱逐节点pod失败:%s", err.Error()))
+		response.Fail(c, fmt.Sprintf("驱逐节点失败:%s", err.Error()))
 		return
 	}
-	result := map[string]bool{
-		"isEvict": isEvict,
+	result := map[string]any{
+		"evicted": evicted,
+		"skipped": skipped,
 	}
 	response.Success(c, "执行成功", result)
 }
@@ -152,9 +161,55 @@ func (n *node) EvictsNodeSinglePod(c *gin.Context) {
 	response.Success(c, "执行成功", nil)
 }
 
+// DeleteNode
+//
+//	@Description: 删除节点
+//	@receiver n
+//	@param c
+func (n *node) DeleteNode(c *gin.Context) {
+	var body params.DeleteNodeParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	if err := k8sNode.DeleteNode(client, body.Name); err != nil {
+		response.Fail(c, fmt.Sprintf("删除节点失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}
+
+// UpdateNodeLabels
+//
+//	@Description: 更新节点标签（替换式）
+//	@receiver n
+//	@param c
+func (n *node) UpdateNodeLabels(c *gin.Context) {
+	var body params.UpdateNodeLabelsParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	if err := k8sNode.UpdateNodeLabels(client, body.Name, body.Labels); err != nil {
+		response.Fail(c, fmt.Sprintf("更新标签失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}
+
 // SetTaintNode
 //
-//	@Description: 给节点设置污点
+//	@Description: 给节点追加单个污点
 //	@receiver n
 //	@param c
 func (n *node) SetTaintNode(c *gin.Context) {
@@ -171,6 +226,41 @@ func (n *node) SetTaintNode(c *gin.Context) {
 
 	if err := k8sNode.SetTaintNode(client, body.NodeName, body.Key, body.Value, corev1.TaintEffect(body.Effect)); err != nil {
 		response.Fail(c, fmt.Sprintf("设置污点失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}
+
+// UpdateNodeTaints
+//
+//	@Description: 替换式更新节点污点
+//	@receiver n
+//	@param c
+func (n *node) UpdateNodeTaints(c *gin.Context) {
+	var body params.UpdateNodeTaintsParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	// Convert params.TaintItem to corev1.Taint
+	var taints []corev1.Taint
+	for _, t := range body.Taints {
+		if t.Key == "" {
+			continue // skip empty key entries
+		}
+		taints = append(taints, corev1.Taint{
+			Key:    t.Key,
+			Value:  t.Value,
+			Effect: corev1.TaintEffect(t.Effect),
+		})
+	}
+	if err := k8sNode.UpdateNodeTaints(client, body.Name, taints); err != nil {
+		response.Fail(c, fmt.Sprintf("更新污点失败:%s", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -272,6 +362,7 @@ func (n *node) GetNodeDetail(c *gin.Context) {
 		"os":                 nodeObj.Status.NodeInfo.OSImage,
 		"kernel":             nodeObj.Status.NodeInfo.KernelVersion,
 		"container_runtime":  nodeObj.Status.NodeInfo.ContainerRuntimeVersion,
+		"architecture":       nodeObj.Status.NodeInfo.Architecture,
 		"internal_ip":        internalIP,
 		"external_ip":        externalIP,
 		"hostname":           hostname,
@@ -334,8 +425,8 @@ func (n *node) GetNodeEvents(c *gin.Context) {
 func (n *node) UpdateNodeYaml(c *gin.Context) {
 	var body struct {
 		ClusterName string `json:"clusterName"`
-		Name        string `json:"name"`
-		Yaml        string `json:"yaml"`
+		Name        string `json:"name" binding:"required"`
+		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
@@ -346,13 +437,21 @@ func (n *node) UpdateNodeYaml(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	// Get current node and update labels/taints
-	nodeObj, err := client.CoreV1().Nodes().Get(context.TODO(), body.Name, metav1.GetOptions{})
+	// Get current node for ResourceVersion (required for update)
+	currentNode, err := client.CoreV1().Nodes().Get(context.TODO(), body.Name, metav1.GetOptions{})
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取节点失败:%s", err.Error()))
 		return
 	}
-	_, err = client.CoreV1().Nodes().Update(context.TODO(), nodeObj, metav1.UpdateOptions{})
+	// Parse YAML to Node object
+	var nodeObj corev1.Node
+	if err := yaml.Unmarshal([]byte(body.Yaml), &nodeObj); err != nil {
+		response.Fail(c, fmt.Sprintf("YAML解析失败:%s", err.Error()))
+		return
+	}
+	// Preserve ResourceVersion for optimistic concurrency
+	nodeObj.ResourceVersion = currentNode.ResourceVersion
+	_, err = client.CoreV1().Nodes().Update(context.TODO(), &nodeObj, metav1.UpdateOptions{})
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("更新节点失败:%s", err.Error()))
 		return

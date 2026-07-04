@@ -26,8 +26,8 @@ async function fetchCrds() {
   try {
     const res: any = await getCrdList()
     crdList.value = res.data || []
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load CRDs')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 

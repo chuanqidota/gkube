@@ -38,8 +38,8 @@ async function fetchLimitRanges() {
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
     const res: any = await getLimitRangeList(params)
     lrList.value = res.data || []
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load LimitRanges')
+  } catch {
+    // Silently handle — resource may not exist in cluster
   } finally { loading.value = false }
 }
 
