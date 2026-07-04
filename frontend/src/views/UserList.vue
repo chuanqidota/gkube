@@ -3,6 +3,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/request'
 import type { FormInstance, FormRules } from 'element-plus'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const loading = ref(false)
 const userList = ref<any[]>([])
@@ -123,6 +125,8 @@ function handlePageChange(newPage: number) {
   fetchUsers()
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchUsers)
+
 onMounted(fetchUsers)
 </script>
 
@@ -130,7 +134,19 @@ onMounted(fetchUsers)
   <div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <h2 style="margin: 0;">用户管理</h2>
-      <el-button type="primary" @click="openCreate">创建用户</el-button>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
+        <el-button type="primary" @click="openCreate">创建用户</el-button>
+      </div>
     </div>
 
     <el-table :data="userList" v-loading="loading" stripe style="width: 100%">

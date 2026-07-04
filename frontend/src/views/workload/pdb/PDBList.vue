@@ -2,9 +2,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
+import { Plus, Delete, Search } from '@element-plus/icons-vue'
 import { getPdbList, getPdbYaml, deletePdb, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -76,6 +78,8 @@ async function handleBatchDelete() {
   } catch { /* cancelled */ }
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchPdbs)
+
 onMounted(() => { fetchNamespaces(); fetchPdbs() })
 </script>
 
@@ -89,7 +93,16 @@ onMounted(() => { fetchNamespaces(); fetchPdbs() })
         <el-select v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 180px;" @change="handleNamespaceChange">
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="fetchPdbs"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button type="success" @click="router.push('/workloads/pdb/create')"><el-icon><Plus /></el-icon> Create PDB</el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})</el-button>
       </div>

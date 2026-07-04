@@ -3,9 +3,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Search } from '@element-plus/icons-vue'
+import { Search } from '@element-plus/icons-vue'
 import { getCustomResourceList, getCustomResourceYaml, deleteCustomResource, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -71,6 +73,8 @@ async function handleDelete(row: any) {
   } catch { /* cancelled */ }
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+
 onMounted(() => { fetchNamespaces(); fetchResources() })
 </script>
 
@@ -88,7 +92,16 @@ onMounted(() => { fetchNamespaces(); fetchResources() })
         <el-select v-if="scope === 'Namespaced'" v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 180px;" @change="handleNamespaceChange">
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="fetchResources"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
       </div>
     </el-card>
     <el-card shadow="never" class="table-card">

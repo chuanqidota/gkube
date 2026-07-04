@@ -2,9 +2,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Refresh, Search, Plus } from '@element-plus/icons-vue'
+import { Search, Plus } from '@element-plus/icons-vue'
 import { getStorageClassList, getStorageClassYaml } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -41,6 +43,8 @@ async function handleViewYaml(row: any) {
 
 function handleDetail(row: any) { router.push(`/storage/storageclasses/${row.name}`) }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchStorageClasses)
+
 onMounted(fetchStorageClasses)
 </script>
 
@@ -51,7 +55,16 @@ onMounted(fetchStorageClasses)
         <el-input v-model="searchName" placeholder="Search by name" style="width: 220px;" clearable>
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-button type="primary" @click="fetchStorageClasses"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button type="success" @click="router.push('/storage/storageclasses/create')"><el-icon><Plus /></el-icon> Create</el-button>
       </div>
     </el-card>

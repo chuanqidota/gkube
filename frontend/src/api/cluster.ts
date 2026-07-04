@@ -12,8 +12,8 @@ export function createCluster(data: any) {
   return request.post('/clusters', data)
 }
 
-export function updateCluster(id: string, data: any) {
-  return request.put(`/clusters/${id}`, data)
+export function updateCluster(data: { id: number; displayName?: string; description?: string; labels?: Record<string, string> }) {
+  return request.put('/clusters', data)
 }
 
 export function deleteCluster(id: string) {

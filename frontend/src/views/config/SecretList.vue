@@ -2,9 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
+import { Plus, Delete, Search } from '@element-plus/icons-vue'
 import { getSecretList, getSecretYaml, getSecretDetail, deleteSecret, getNamespaceList, extractNamespaceNames, transformSecrets } from '@/api/resource'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const router = useRouter()
@@ -98,7 +99,7 @@ async function handleBatchDelete() {
   } catch { /* cancelled */ }
 }
 
-const { isRunning, countdown, toggle, refresh } = useAutoRefresh(fetchSecrets)
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh, setIntervalOption } = useAutoRefresh(fetchSecrets)
 
 onMounted(() => { fetchNamespaces(); fetchSecrets() })
 </script>
@@ -113,10 +114,16 @@ onMounted(() => { fetchNamespaces(); fetchSecrets() })
         <el-select v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 180px;" @change="handleNamespaceChange">
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="refresh"><el-icon><Refresh /></el-icon> Refresh</el-button>
-        <el-button :type="isRunning ? 'success' : 'info'" @click="toggle">
-          {{ isRunning ? `Auto (${countdown}s)` : 'Manual' }}
-        </el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="refresh"
+          @toggle="toggle"
+          @interval-change="setIntervalOption"
+        />
         <el-button type="success" @click="router.push('/config/secrets/create')"><el-icon><Plus /></el-icon> Create</el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})</el-button>
       </div>

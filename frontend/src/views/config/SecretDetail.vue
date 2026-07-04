@@ -5,6 +5,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Delete, Edit } from '@element-plus/icons-vue'
 import { getSecretDetail, getSecretYaml, updateSecret, deleteSecret } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const route = useRoute()
 const router = useRouter()
@@ -119,6 +121,8 @@ function handleRefresh() {
   if (yamlContent.value) fetchYaml()
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+
 onMounted(fetchDetail)
 </script>
 
@@ -127,6 +131,16 @@ onMounted(fetchDetail)
     <div class="page-header">
       <h2 style="margin: 0;">Secret: {{ name }}</h2>
       <div style="display: flex; gap: 8px;">
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button @click="handleRefresh"><el-icon><Refresh /></el-icon> Refresh</el-button>
         <el-button type="primary" @click="handleEdit"><el-icon><Edit /></el-icon> Edit</el-button>
         <el-button type="danger" @click="handleDelete"><el-icon><Delete /></el-icon> Delete</el-button>

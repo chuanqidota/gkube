@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { Refresh, Delete, Search, Monitor, Timer } from '@element-plus/icons-vue'
+import { Delete, Search, Monitor } from '@element-plus/icons-vue'
 import { getPodList, getPodYaml, deletePod, transformPods } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import { useClusterStore } from '@/stores/cluster'
 import YamlEditor from '@/components/YamlEditor.vue'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const { t } = useI18n()
 const clusterStore = useClusterStore()
@@ -22,8 +24,6 @@ const {
   yamlLoading,
   hasMore,
   totalCount,
-  autoRefreshEnabled,
-  toggleAutoRefresh,
   fetchResources,
   fetchNextPage,
   handleNamespaceChange,
@@ -43,6 +43,8 @@ const {
   pageSize: 50,
   autoRefreshInterval: 15000,
 })
+
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
 
 function getClusterName(): string {
   return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.name || ''
@@ -90,15 +92,16 @@ function statusType(status: string) {
         >
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button @click="fetchResources()" :loading="loading">
-          <el-icon><Refresh /></el-icon> {{ t('common.refresh') }}
-        </el-button>
-        <el-button
-          :type="autoRefreshEnabled ? 'success' : 'default'"
-          @click="toggleAutoRefresh"
-        >
-          <el-icon><Timer /></el-icon> {{ autoRefreshEnabled ? 'Auto' : 'Manual' }}
-        </el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
           <el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})
         </el-button>

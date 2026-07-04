@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import request from '@/api/request'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const loading = ref(false)
 const roleList = ref<any[]>([])
@@ -26,12 +28,26 @@ function handlePageChange(newPage: number) {
   fetchRoles()
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchRoles)
+
 onMounted(fetchRoles)
 </script>
 
 <template>
   <div>
-    <h2 style="margin-bottom: 16px;">角色管理</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h2 style="margin: 0;">角色管理</h2>
+      <AutoRefreshToolbar
+        :is-running="isRunning"
+        :countdown="countdown"
+        :current-interval="currentInterval"
+        :available-intervals="availableIntervals"
+        :loading="loading"
+        @refresh="manualRefresh()"
+        @toggle="toggle()"
+        @interval-change="setIntervalOption"
+      />
+    </div>
 
     <el-table :data="roleList" v-loading="loading" stripe style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" />

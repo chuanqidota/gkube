@@ -2,9 +2,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
+import { Plus, Delete, Search } from '@element-plus/icons-vue'
 import { getPvList, getPvYaml, deletePv } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -73,6 +75,8 @@ async function handleBatchDelete() {
   } catch { /* cancelled */ }
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchPvs)
+
 onMounted(fetchPvs)
 </script>
 
@@ -83,7 +87,16 @@ onMounted(fetchPvs)
         <el-input v-model="searchName" placeholder="Search by name" style="width: 220px;" clearable>
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-button type="primary" @click="fetchPvs"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button type="success" @click="router.push('/storage/pvs/create')"><el-icon><Plus /></el-icon> Create</el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})</el-button>
       </div>

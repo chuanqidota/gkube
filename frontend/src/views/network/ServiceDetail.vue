@@ -11,6 +11,8 @@ import {
   getServicePods,
 } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const route = useRoute()
 const router = useRouter()
@@ -123,6 +125,11 @@ async function handleDelete() {
   }
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
+  fetchDetail()
+  fetchPods()
+}, { autoStart: false })
+
 onMounted(() => {
   fetchDetail()
   fetchPods()
@@ -142,6 +149,16 @@ onMounted(() => {
         <el-tag v-if="service?.namespace" type="info" size="small">{{ service.namespace }}</el-tag>
       </div>
       <div>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button @click="handleOpenYaml">Edit YAML</el-button>
         <el-button type="danger" @click="handleDelete">Delete</el-button>
       </div>

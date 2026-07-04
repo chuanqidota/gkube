@@ -65,13 +65,6 @@ const router = createRouter({
           component: () => import('@/views/ClusterCreate.vue'),
           meta: { title: '创建集群', parent: 'ClusterList' },
         },
-        {
-          path: 'clusters/:id',
-          name: 'ClusterDetail',
-          component: () => import('@/views/ClusterDetail.vue'),
-          props: true,
-          meta: { title: '集群详情', parent: 'ClusterList' },
-        },
         // Workloads - Pod
         {
           path: 'workloads/pods',

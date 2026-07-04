@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { getOverview, getWorkloads, getEvents, getResources } from '@/api/dashboard'
 import type { Overview, WorkloadSummary, K8sEvent, ResourceMetrics } from '@/api/dashboard'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import {
@@ -14,7 +15,6 @@ import {
   Box,
   DataLine,
   Bell,
-  Refresh,
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -212,7 +212,7 @@ async function fetchAll() {
   nextTick(updateGauges)
 }
 
-const { isRunning, countdown, toggle, refresh: manualRefresh } = useAutoRefresh(fetchAll, 15000, false)
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchAll, { interval: 15000, autoStart: false })
 
 onMounted(() => {
   fetchAll()
@@ -224,12 +224,15 @@ onMounted(() => {
   <div class="dashboard">
     <!-- Toolbar -->
     <div class="refresh-toolbar">
-      <el-button @click="manualRefresh()" :icon="Refresh" size="small">
-        {{ t('common.refresh') }}
-      </el-button>
-      <el-button @click="toggle()" :type="isRunning ? 'warning' : 'default'" size="small">
-        {{ isRunning ? t('dashboard.autoRefreshOn', { n: countdown }) : t('dashboard.autoRefreshOff') }}
-      </el-button>
+      <AutoRefreshToolbar
+        :is-running="isRunning"
+        :countdown="countdown"
+        :current-interval="currentInterval"
+        :available-intervals="availableIntervals"
+        @refresh="manualRefresh()"
+        @toggle="toggle()"
+        @interval-change="setIntervalOption"
+      />
     </div>
     <!-- Stat Cards -->
     <el-row :gutter="16" class="stat-row">

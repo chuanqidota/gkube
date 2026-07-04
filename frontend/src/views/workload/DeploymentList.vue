@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { Refresh, Plus, Delete, Search, Timer } from '@element-plus/icons-vue'
+import { Plus, Delete, Search } from '@element-plus/icons-vue'
 import {
   getDeploymentList,
   getDeploymentYaml,
@@ -11,8 +10,9 @@ import {
 } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
-const { t } = useI18n()
 // @ts-ignore -- used as template ref for YamlEditor component
 const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
 
@@ -29,8 +29,6 @@ const {
   yamlLoading,
   hasMore,
   totalCount,
-  autoRefreshEnabled,
-  toggleAutoRefresh,
   fetchResources,
   fetchNextPage,
   handleNamespaceChange,
@@ -53,6 +51,8 @@ const {
   pageSize: 50,
   autoRefreshInterval: 30000,
 })
+
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
 </script>
 
 <template>
@@ -77,15 +77,16 @@ const {
         >
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button @click="fetchResources()" :loading="loading">
-          <el-icon><Refresh /></el-icon> {{ t('common.refresh') }}
-        </el-button>
-        <el-button
-          :type="autoRefreshEnabled ? 'success' : 'default'"
-          @click="toggleAutoRefresh"
-        >
-          <el-icon><Timer /></el-icon> {{ autoRefreshEnabled ? 'Auto' : 'Manual' }}
-        </el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button type="success" @click="$router.push('/workloads/deployments/create')">
           <el-icon><Plus /></el-icon> Create
         </el-button>

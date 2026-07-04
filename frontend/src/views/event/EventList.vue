@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { Refresh, Bell, Warning, InfoFilled, Search } from '@element-plus/icons-vue'
+import { Bell, Warning, InfoFilled, Search } from '@element-plus/icons-vue'
 import { getDashboardEvents, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -24,8 +26,7 @@ const selectedType = ref('')
 const reasonSearch = ref('')
 
 // Auto-refresh
-const autoRefresh = ref(false)
-let refreshTimer: ReturnType<typeof setInterval> | null = null
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchEvents)
 
 // Event detail drawer
 const drawerVisible = ref(false)
@@ -86,17 +87,6 @@ function handleSizeChange(size: number) {
   continueToken.value = ''
   currentPage.value = 1
   fetchEvents()
-}
-
-function toggleAutoRefresh() {
-  if (autoRefresh.value) {
-    refreshTimer = setInterval(fetchEvents, 10000)
-  } else {
-    if (refreshTimer) {
-      clearInterval(refreshTimer)
-      refreshTimer = null
-    }
-  }
 }
 
 function handleObjectClick(row: any) {
@@ -203,13 +193,6 @@ const filteredEvents = computed(() => {
 
 onMounted(() => {
   fetchNamespaces()
-  fetchEvents()
-})
-
-onUnmounted(() => {
-  if (refreshTimer) {
-    clearInterval(refreshTimer)
-  }
 })
 </script>
 
@@ -222,16 +205,16 @@ onUnmounted(() => {
         <h2>{{ t('event.title') }}</h2>
       </div>
       <div class="header-right">
-        <el-tooltip :content="t('event.autoRefreshTip')" placement="top">
-          <el-switch
-            v-model="autoRefresh"
-            :active-text="t('event.autoRefresh')"
-            @change="toggleAutoRefresh"
-          />
-        </el-tooltip>
-        <el-button type="primary" :icon="Refresh" @click="fetchEvents">
-          {{ t('common.refresh') }}
-        </el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
       </div>
     </div>
 
@@ -456,7 +439,6 @@ onUnmounted(() => {
 </template>
 
 <script lang="ts">
-import { computed } from 'vue'
 export default {
   name: 'EventList',
 }

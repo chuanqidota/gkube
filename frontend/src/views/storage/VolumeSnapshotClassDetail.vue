@@ -5,6 +5,8 @@ import { ElMessage } from 'element-plus'
 import { getVolumeSnapshotClassDetail, getVolumeSnapshotClassYaml, updateVolumeSnapshotClass } from '@/api/resource'
 import { useI18n } from 'vue-i18n'
 import YamlEditor from '@/components/YamlEditor.vue'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -59,6 +61,8 @@ async function handleSaveYaml(content: string) {
   }
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+
 onMounted(fetchDetail)
 </script>
 
@@ -66,7 +70,19 @@ onMounted(fetchDetail)
   <div v-loading="loading">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <h2 style="margin: 0;">{{ t('storage.volumeSnapshotClassTitle', { name }) }}</h2>
-      <el-button @click="router.push('/storage/volumesnapshotclasses')">{{ t('common.back') }}</el-button>
+      <div style="display: flex; gap: 8px;">
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
+        <el-button @click="router.push('/storage/volumesnapshotclasses')">{{ t('common.back') }}</el-button>
+      </div>
     </div>
 
     <template v-if="snapshotClass">

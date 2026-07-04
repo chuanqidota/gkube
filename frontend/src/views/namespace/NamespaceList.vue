@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
+import { Plus, Delete, Search } from '@element-plus/icons-vue'
 import {
   getNamespaceList,
   createNamespace,
@@ -15,6 +15,8 @@ import {
 } from '@/api/resource'
 import { useNamespaceStore } from '@/stores/namespace'
 import YamlEditor from '@/components/YamlEditor.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const router = useRouter()
 const namespaceStore = useNamespaceStore()
@@ -183,6 +185,8 @@ function handleDetail(row: Namespace) {
   router.push(`/namespaces/${row.name}`)
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchNamespaces)
+
 onMounted(fetchNamespaces)
 </script>
 
@@ -198,9 +202,16 @@ onMounted(fetchNamespaces)
         >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-button @click="fetchNamespaces" :loading="loading">
-          <el-icon><Refresh /></el-icon> Refresh
-        </el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button type="success" @click="createDialogVisible = true">
           <el-icon><Plus /></el-icon> Create
         </el-button>

@@ -3,9 +3,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Search, Plus } from '@element-plus/icons-vue'
+import { Search, Plus } from '@element-plus/icons-vue'
 import { getCrdList, getCrdYaml, deleteCrd } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -56,6 +58,8 @@ async function handleDelete(row: any) {
   } catch { /* cancelled */ }
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchCrds)
+
 onMounted(fetchCrds)
 </script>
 
@@ -66,7 +70,16 @@ onMounted(fetchCrds)
         <el-input v-model="searchName" placeholder="Search by name or kind" style="width: 280px;" clearable>
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-button type="primary" @click="fetchCrds"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button type="success" @click="router.push('/crd/create')"><el-icon><Plus /></el-icon> Create CRD</el-button>
       </div>
     </el-card>

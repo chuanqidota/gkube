@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh, Delete, View, CircleCheck } from '@element-plus/icons-vue'
-import { getClusterList, deleteCluster, checkCluster } from '@/api/cluster'
-
+import { Plus, Delete, Edit, CircleCheck } from '@element-plus/icons-vue'
+import { getClusterList, deleteCluster, checkCluster, updateCluster } from '@/api/cluster'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 const { t } = useI18n()
 const router = useRouter()
 const loading = ref(false)
@@ -13,6 +14,16 @@ const clusterList = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+
+// 编辑对话框相关
+const editVisible = ref(false)
+const editLoading = ref(false)
+const editClusterId = ref(0)
+const editForm = reactive({
+  displayName: '',
+  description: '',
+  labels: [] as Array<{ key: string; value: string }>,
+})
 
 async function fetchClusters() {
   loading.value = true
@@ -25,10 +36,6 @@ async function fetchClusters() {
   } finally {
     loading.value = false
   }
-}
-
-function handleDetail(row: any) {
-  router.push(`/clusters/${row.id}`)
 }
 
 async function handleCheck(row: any) {
@@ -63,6 +70,57 @@ async function handleDelete(row: any) {
   }
 }
 
+function handleEdit(row: any) {
+  editClusterId.value = row.id
+  editForm.displayName = row.displayName || ''
+  editForm.description = row.description || ''
+  // 解析 labels JSON 字符串为 key-value 数组
+  editForm.labels = []
+  if (row.labels) {
+    try {
+      const parsed = typeof row.labels === 'string' ? JSON.parse(row.labels) : row.labels
+      Object.entries(parsed).forEach(([key, value]) => {
+        editForm.labels.push({ key, value: value as string })
+      })
+    } catch {
+      // ignore parse errors
+    }
+  }
+  editVisible.value = true
+}
+
+function addEditLabel() {
+  editForm.labels.push({ key: '', value: '' })
+}
+
+function removeEditLabel(index: number) {
+  editForm.labels.splice(index, 1)
+}
+
+async function handleEditSubmit() {
+  editLoading.value = true
+  try {
+    const labels: Record<string, string> = {}
+    editForm.labels.forEach((l) => {
+      if (l.key.trim()) labels[l.key.trim()] = l.value
+    })
+
+    await updateCluster({
+      id: editClusterId.value,
+      displayName: editForm.displayName,
+      description: editForm.description,
+      labels,
+    })
+    ElMessage.success(t('common.saveSuccess'))
+    editVisible.value = false
+    fetchClusters()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.saveFailed'))
+  } finally {
+    editLoading.value = false
+  }
+}
+
 function handlePageChange(newPage: number) {
   page.value = newPage
   fetchClusters()
@@ -80,6 +138,8 @@ function statusText(status: string) {
   return status || t('common.unknown')
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchClusters)
+
 onMounted(fetchClusters)
 </script>
 
@@ -89,7 +149,16 @@ onMounted(fetchClusters)
       <div class="filter-bar">
         <h3 style="margin: 0;">{{ t('cluster.clusterManagement') }}</h3>
         <div class="filter-right">
-          <el-button @click="fetchClusters"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
+          <AutoRefreshToolbar
+            :is-running="isRunning"
+            :countdown="countdown"
+            :current-interval="currentInterval"
+            :available-intervals="availableIntervals"
+            :loading="loading"
+            @refresh="manualRefresh()"
+            @toggle="toggle()"
+            @interval-change="setIntervalOption"
+          />
           <el-button type="primary" @click="router.push('/clusters/create')"><el-icon><Plus /></el-icon> {{ t('cluster.add') }}</el-button>
         </div>
       </div>
@@ -104,7 +173,6 @@ onMounted(fetchClusters)
                 <h4 style="margin: 0;">{{ cluster.displayName || cluster.clusterName }}</h4>
                 <el-tag :type="statusType(cluster.status)" size="small">{{ statusText(cluster.status) }}</el-tag>
               </div>
-              <el-button type="primary" link @click="handleDetail(cluster)"><el-icon><View /></el-icon></el-button>
             </div>
           </template>
           <div class="cluster-body">
@@ -127,7 +195,7 @@ onMounted(fetchClusters)
           </div>
           <div class="cluster-footer">
             <el-button size="small" @click="handleCheck(cluster)"><el-icon><CircleCheck /></el-icon> {{ t('cluster.checkConnection') }}</el-button>
-            <el-button size="small" @click="handleDetail(cluster)"><el-icon><View /></el-icon> {{ t('common.detail') }}</el-button>
+            <el-button size="small" @click="handleEdit(cluster)"><el-icon><Edit /></el-icon> {{ t('common.edit') }}</el-button>
             <el-button size="small" type="danger" @click="handleDelete(cluster)"><el-icon><Delete /></el-icon> {{ t('common.delete') }}</el-button>
           </div>
         </el-card>
@@ -148,6 +216,36 @@ onMounted(fetchClusters)
         @current-change="handlePageChange"
       />
     </div>
+
+    <!-- 编辑集群对话框 -->
+    <el-dialog v-model="editVisible" :title="t('cluster.edit')" width="560px" destroy-on-close>
+      <el-form :model="editForm" label-width="100px">
+        <el-form-item :label="t('cluster.displayName')">
+          <el-input v-model="editForm.displayName" :placeholder="t('cluster.displayNamePlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="t('cluster.description')">
+          <el-input v-model="editForm.description" type="textarea" :rows="3" :placeholder="t('cluster.descriptionPlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="t('cluster.labels')">
+          <div style="width: 100%;">
+            <div
+              v-for="(label, index) in editForm.labels"
+              :key="index"
+              style="display: flex; gap: 8px; margin-bottom: 8px;"
+            >
+              <el-input v-model="label.key" :placeholder="t('cluster.keyPlaceholder')" style="flex: 1;" />
+              <el-input v-model="label.value" :placeholder="t('cluster.valuePlaceholder')" style="flex: 1;" />
+              <el-button type="danger" circle @click="removeEditLabel(index)">-</el-button>
+            </div>
+            <el-button @click="addEditLabel" type="primary" plain>{{ t('cluster.addLabel') }}</el-button>
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="editLoading" @click="handleEditSubmit">{{ t('common.save') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 

@@ -2,8 +2,10 @@
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Delete, Download, Search } from '@element-plus/icons-vue'
+import { Delete, Download, Search } from '@element-plus/icons-vue'
 import request from '@/api/request'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const { t } = useI18n()
 const loading = ref(false)
@@ -115,6 +117,8 @@ function statusType(status: string) {
   return status === 'success' ? 'success' : 'danger'
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchAuditLogs, { autoStart: false })
+
 onMounted(() => {
   fetchAuditLogs()
   fetchStats()
@@ -143,7 +147,16 @@ onMounted(() => {
           </el-select>
           <el-button @click="exportLogs"><el-icon><Download /></el-icon> {{ t('common.export') }}</el-button>
           <el-button type="danger" @click="clearLogs"><el-icon><Delete /></el-icon> {{ t('common.clear') }}</el-button>
-          <el-button type="primary" @click="fetchAuditLogs"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
+          <AutoRefreshToolbar
+            :is-running="isRunning"
+            :countdown="countdown"
+            :current-interval="currentInterval"
+            :available-intervals="availableIntervals"
+            :loading="loading"
+            @refresh="manualRefresh()"
+            @toggle="toggle()"
+            @interval-change="setIntervalOption"
+          />
         </div>
       </div>
     </el-card>

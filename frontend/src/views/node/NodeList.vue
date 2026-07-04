@@ -2,9 +2,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Delete, Search, Plus, ArrowDown } from '@element-plus/icons-vue'
+import { Delete, Search, Plus, ArrowDown } from '@element-plus/icons-vue'
 import { getNodeList, getNodeYaml, cordonNode, updateNodeTaints, updateNodeLabels, drainNode, deleteNode, type NodeInfo } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -64,7 +66,6 @@ function handleDetail(row: any) { router.push(`/nodes/${row.name}`) }
 
 async function handleCordon(row: any) {
   const isCordon = row.unschedulable || row.cordon
-  const action = isCordon ? 'uncordon' : 'cordon'
   const actionLabel = isCordon ? '解除封锁' : '封锁'
   try {
     await ElMessageBox.confirm(`确定要${actionLabel}节点 "${row.name}" 吗？`, '确认操作', { type: 'warning' })
@@ -152,6 +153,8 @@ async function handleDelete(row: any) {
   }
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchNodes)
+
 onMounted(fetchNodes)
 </script>
 
@@ -162,7 +165,16 @@ onMounted(fetchNodes)
         <el-input v-model="searchName" placeholder="搜索节点名称" style="width: 220px;" clearable>
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-button type="primary" @click="fetchNodes"><el-icon><Refresh /></el-icon> 刷新</el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
       </div>
     </el-card>
     <el-card shadow="never" class="table-card">

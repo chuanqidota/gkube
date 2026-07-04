@@ -2,10 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
+import { Plus, Delete, Search } from '@element-plus/icons-vue'
 import { getVolumeSnapshotList, getVolumeSnapshotYaml, deleteVolumeSnapshot, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import { useI18n } from 'vue-i18n'
 import YamlEditor from '@/components/YamlEditor.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -119,6 +121,8 @@ async function handleBatchDelete() {
   } catch { /* cancelled */ }
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchSnapshots)
+
 onMounted(() => { fetchNamespaces(); fetchSnapshots() })
 </script>
 
@@ -132,7 +136,16 @@ onMounted(() => { fetchNamespaces(); fetchSnapshots() })
         <el-select v-model="selectedNamespace" :placeholder="t('common.namespace_label')" clearable style="width: 180px;" @change="handleNamespaceChange">
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="fetchSnapshots"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button type="success" @click="router.push('/storage/volumesnapshots/create')"><el-icon><Plus /></el-icon> {{ t('common.create') }}</el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})</el-button>
       </div>

@@ -5,6 +5,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import { getNodeDetail, getNodeYaml, getNodePods, getNodeEvents, cordonNode, updateNodeTaints, updateNodeLabels, updateNodeYaml, drainNode, deleteNode, type NodeDetail as NodeDetailType } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const route = useRoute()
 const router = useRouter()
@@ -206,6 +208,8 @@ function formatCapacity(val: any): string {
   return String(val)
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+
 onMounted(fetchDetail)
 </script>
 
@@ -214,6 +218,16 @@ onMounted(fetchDetail)
     <div class="page-header">
       <h2 style="margin: 0;">节点: {{ nodeName }}</h2>
       <div style="display: flex; gap: 8px;">
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button :type="node?.unschedulable || node?.cordon ? 'success' : 'warning'" @click="handleCordon">
           {{ node?.unschedulable || node?.cordon ? '解除封锁' : '封锁' }}
         </el-button>

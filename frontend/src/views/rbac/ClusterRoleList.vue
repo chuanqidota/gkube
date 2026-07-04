@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { Refresh, Delete, Search } from '@element-plus/icons-vue'
+import { Delete, Search } from '@element-plus/icons-vue'
 import { getClusterRoleList, getClusterRoleYaml, deleteClusterRole } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const { t } = useI18n()
 
@@ -16,8 +18,6 @@ const {
   yamlDialogVisible,
   yamlContent,
   yamlLoading,
-  autoRefreshEnabled,
-  toggleAutoRefresh,
   fetchResources,
   handleSelectionChange,
   handleViewYaml,
@@ -30,6 +30,8 @@ const {
   deleteResource: deleteClusterRole,
   autoRefreshInterval: 30000,
 })
+
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
 </script>
 
 <template>
@@ -45,15 +47,16 @@ const {
         >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-button @click="fetchResources()" :loading="loading">
-          <el-icon><Refresh /></el-icon> {{ t('common.refresh') }}
-        </el-button>
-        <el-button
-          :type="autoRefreshEnabled ? 'success' : 'default'"
-          @click="toggleAutoRefresh"
-        >
-          {{ autoRefreshEnabled ? 'Auto' : 'Manual' }}
-        </el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
           <el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})
         </el-button>

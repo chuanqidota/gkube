@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getPvDetail, getPvYaml } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const route = useRoute()
 const router = useRouter()
@@ -46,6 +48,8 @@ function handleTabChange(tab: string) {
   }
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+
 onMounted(fetchDetail)
 </script>
 
@@ -53,7 +57,19 @@ onMounted(fetchDetail)
   <div v-loading="loading">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <h2 style="margin: 0;">PersistentVolume: {{ name }}</h2>
-      <el-button @click="router.push('/storage/pvs')">Back to List</el-button>
+      <div style="display: flex; gap: 8px;">
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
+        <el-button @click="router.push('/storage/pvs')">Back to List</el-button>
+      </div>
     </div>
 
     <template v-if="pv">

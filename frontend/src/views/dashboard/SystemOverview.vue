@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Refresh, Monitor, Cpu, Coin, FolderOpened, Bell, Connection } from '@element-plus/icons-vue'
+import { Monitor, Cpu, Coin, FolderOpened, Bell, Connection } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import * as echarts from 'echarts'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const { t } = useI18n()
 const loading = ref(false)
-const refreshTimer = ref<ReturnType<typeof setInterval> | null>(null)
 
 // Stats
 const stats = ref({
@@ -179,15 +180,10 @@ async function fetchAll() {
   }
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchAll, { interval: 60000 })
+
 onMounted(() => {
   fetchAll()
-  refreshTimer.value = setInterval(fetchAll, 60000)
-})
-
-onUnmounted(() => {
-  if (refreshTimer.value) {
-    clearInterval(refreshTimer.value)
-  }
 })
 </script>
 
@@ -196,7 +192,16 @@ onUnmounted(() => {
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
         <h3 style="margin: 0;"><el-icon><Monitor /></el-icon> {{ t('systemOverview.title') }}</h3>
-        <el-button type="primary" @click="fetchAll"><el-icon><Refresh /></el-icon> {{ t('common.refresh') }}</el-button>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
       </div>
     </el-card>
 

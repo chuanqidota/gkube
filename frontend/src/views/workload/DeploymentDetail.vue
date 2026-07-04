@@ -16,6 +16,8 @@ import {
 } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { formatAge } from '@/utils/time'
 
 const route = useRoute()
@@ -293,6 +295,12 @@ async function handleRollbackConfirm() {
   }
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
+  fetchDetail()
+  fetchReplicaSets()
+  fetchEvents()
+}, { autoStart: false })
+
 onMounted(() => {
   fetchDetail().then(() => {
     fetchReplicaSets()
@@ -318,6 +326,16 @@ onMounted(() => {
         </div>
       </div>
       <div class="header-actions">
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button type="primary" size="small" @click="handleScale">扩缩容</el-button>
         <el-button type="warning" size="small" @click="handleRestart">重启</el-button>
         <el-button type="danger" size="small" @click="handleRollback">回滚</el-button>

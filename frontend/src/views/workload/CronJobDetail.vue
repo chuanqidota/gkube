@@ -11,6 +11,8 @@ import {
   getCronJobJobs,
 } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { formatAge } from '@/utils/time'
 
 const route = useRoute()
@@ -132,6 +134,8 @@ function getJobStatusType(job: any): string {
   return 'info'
 }
 
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+
 onMounted(fetchDetail)
 </script>
 
@@ -150,6 +154,16 @@ onMounted(fetchDetail)
         </div>
       </div>
       <div class="header-actions">
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
         <el-button size="small" @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" size="small" @click="handleDelete">Delete</el-button>
       </div>
