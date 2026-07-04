@@ -50,9 +50,7 @@ const router = createRouter({
         },
         {
           path: 'system/overview',
-          name: 'SystemOverview',
-          component: () => import('@/views/dashboard/SystemOverview.vue'),
-          meta: { title: '系统概览', icon: 'Monitor' },
+          redirect: '/dashboard',
         },
         // Clusters
         {
@@ -187,6 +185,13 @@ const router = createRouter({
           component: () => import('@/views/workload/CronJobDetail.vue'),
           props: true,
           meta: { title: 'CronJob详情', parent: 'CronJobList' },
+        },
+        // Workloads - ReplicaSet
+        {
+          path: 'workloads/replicasets',
+          name: 'ReplicaSetList',
+          component: () => import('@/views/workload/ReplicaSetList.vue'),
+          meta: { title: 'ReplicaSet', icon: 'CopyDocument' },
         },
         // Workloads - HPA
         {
@@ -494,24 +499,12 @@ const router = createRouter({
           props: true,
           meta: { title: '命名空间详情', parent: 'NamespaceList' },
         },
-        {
-          path: 'namespaces/manager',
-          name: 'NamespaceManager',
-          component: () => import('@/views/namespace/NamespaceManager.vue'),
-          meta: { title: '命名空间管理', parent: 'NamespaceList' },
-        },
         // Events
         {
           path: 'events',
           name: 'EventList',
           component: () => import('@/views/event/EventList.vue'),
           meta: { title: '事件', icon: 'Bell' },
-        },
-        {
-          path: 'events/viewer',
-          name: 'EventViewer',
-          component: () => import('@/views/event/EventViewer.vue'),
-          meta: { title: '事件查看器', parent: 'EventList' },
         },
         // CRD
         {
@@ -531,6 +524,41 @@ const router = createRouter({
           name: 'CustomResourceList',
           component: () => import('@/views/crd/CustomResourceList.vue'),
           meta: { title: '自定义资源', parent: 'CRDList' },
+        },
+        // RBAC - ServiceAccount
+        {
+          path: 'rbac/serviceaccounts',
+          name: 'ServiceAccountList',
+          component: () => import('@/views/rbac/ServiceAccountList.vue'),
+          meta: { title: 'ServiceAccount', icon: 'User' },
+        },
+        // RBAC - Role
+        {
+          path: 'rbac/roles',
+          name: 'RBACRoleList',
+          component: () => import('@/views/rbac/RoleList.vue'),
+          meta: { title: 'Role', icon: 'UserFilled' },
+        },
+        // RBAC - ClusterRole
+        {
+          path: 'rbac/clusterroles',
+          name: 'ClusterRoleList',
+          component: () => import('@/views/rbac/ClusterRoleList.vue'),
+          meta: { title: 'ClusterRole', icon: 'Stamp' },
+        },
+        // RBAC - RoleBinding
+        {
+          path: 'rbac/rolebindings',
+          name: 'RoleBindingList',
+          component: () => import('@/views/rbac/RoleBindingList.vue'),
+          meta: { title: 'RoleBinding', icon: 'Link' },
+        },
+        // RBAC - ClusterRoleBinding
+        {
+          path: 'rbac/clusterrolebindings',
+          name: 'ClusterRoleBindingList',
+          component: () => import('@/views/rbac/ClusterRoleBindingList.vue'),
+          meta: { title: 'ClusterRoleBinding', icon: 'CircleCheck' },
         },
         // System - Users
         {

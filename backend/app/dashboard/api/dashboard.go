@@ -229,7 +229,7 @@ func (d *dashboard) Workloads(c *gin.Context) {
 
 // Events
 //
-//	@Description: 获取集群事件列表
+//	@Description: 获取集群事件列表（支持分页）
 //	@receiver d
 //	@param c
 func (d *dashboard) Events(c *gin.Context) {
@@ -241,7 +241,7 @@ func (d *dashboard) Events(c *gin.Context) {
 
 	// 设置默认限制
 	if query.Limit <= 0 {
-		query.Limit = 50
+		query.Limit = 100
 	}
 
 	// 获取要查询的集群列表
@@ -272,7 +272,19 @@ func (d *dashboard) Events(c *gin.Context) {
 			continue
 		}
 
-		eventList, err := client.CoreV1().Events(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		// 构建命名空间
+		namespace := query.Namespace
+		if namespace == "" {
+			namespace = corev1.NamespaceAll
+		}
+
+		// 构建 ListOptions
+		listOpts := metav1.ListOptions{}
+		if query.FieldSelector != "" {
+			listOpts.FieldSelector = query.FieldSelector
+		}
+
+		eventList, err := client.CoreV1().Events(namespace).List(context.TODO(), listOpts)
 		if err != nil {
 			continue
 		}
@@ -283,6 +295,11 @@ func (d *dashboard) Events(c *gin.Context) {
 				continue
 			}
 
+			// 格式化时间
+			firstSeen := ""
+			if !event.FirstTimestamp.IsZero() {
+				firstSeen = event.FirstTimestamp.Time.Format("2006-01-02 15:04:05")
+			}
 			lastSeen := ""
 			if !event.LastTimestamp.IsZero() {
 				lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
@@ -291,12 +308,20 @@ func (d *dashboard) Events(c *gin.Context) {
 			}
 
 			allEvents = append(allEvents, map[string]any{
-				"type":            event.Type,
-				"reason":          event.Reason,
-				"message":         event.Message,
-				"namespace":       event.Namespace,
-				"involved_object": fmt.Sprintf("%s/%s", event.InvolvedObject.Kind, event.InvolvedObject.Name),
-				"last_seen":       lastSeen,
+				"type":                 event.Type,
+				"reason":               event.Reason,
+				"message":              event.Message,
+				"namespace":            event.Namespace,
+				"involved_object":      fmt.Sprintf("%s/%s", event.InvolvedObject.Kind, event.InvolvedObject.Name),
+				"involved_object_kind": event.InvolvedObject.Kind,
+				"involved_object_name": event.InvolvedObject.Name,
+				"first_seen":           firstSeen,
+				"last_seen":            lastSeen,
+				"count":                event.Count,
+				"reporting_component":  event.ReportingController,
+				"reporting_instance":   event.ReportingInstance,
+				"action":               event.Action,
+				"cluster_name":         cluster.ClusterName,
 			})
 		}
 	}
@@ -306,10 +331,38 @@ func (d *dashboard) Events(c *gin.Context) {
 		return allEvents[i]["last_seen"].(string) > allEvents[j]["last_seen"].(string)
 	})
 
-	// 限制返回数量
-	if len(allEvents) > query.Limit {
-		allEvents = allEvents[:query.Limit]
+	// 计算总数
+	total := len(allEvents)
+
+	// 处理分页（基于 offset 的简单分页）
+	offset := 0
+	if query.Continue != "" {
+		fmt.Sscanf(query.Continue, "%d", &offset)
 	}
 
-	response.Success(c, "获取事件列表成功", allEvents)
+	// 限制返回数量
+	end := offset + query.Limit
+	if end > total {
+		end = total
+	}
+	if offset > total {
+		offset = total
+	}
+
+	pagedEvents := allEvents[offset:end]
+
+	// 构建分页响应
+	continueToken := ""
+	if end < total {
+		continueToken = fmt.Sprintf("%d", end)
+	}
+
+	data := map[string]any{
+		"items":    pagedEvents,
+		"total":    total,
+		"continue": continueToken,
+		"has_more": continueToken != "",
+	}
+
+	response.Success(c, "获取事件列表成功", data)
 }

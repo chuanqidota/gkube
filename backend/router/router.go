@@ -109,6 +109,7 @@ func Engine() *gin.Engine {
 			k8s.GET("namespace/get-yaml", k8sApi.Namespace.GetNamespaceYaml)
 			k8s.POST("namespace/create", k8sApi.Namespace.CreateNamespace)
 			k8s.PUT("namespace/update", k8sApi.Namespace.UpdateNamespace)
+			k8s.PUT("namespace/labels", k8sApi.Namespace.UpdateNamespaceLabels)
 			k8s.DELETE("namespace/delete", k8sApi.Namespace.DeleteNamespace)
 
 			// Deployment
@@ -283,6 +284,42 @@ func Engine() *gin.Engine {
 			k8s.POST("pdb/create", k8sApi.Pdb.CreatePDB)
 			k8s.PUT("pdb/update", k8sApi.Pdb.UpdatePDB)
 			k8s.DELETE("pdb/delete", k8sApi.Pdb.DeletePDB)
+
+			// ReplicaSet
+			k8s.GET("replicaset/list", k8sApi.ReplicaSet.GetReplicaSetList)
+			k8s.GET("replicaset/yaml", k8sApi.ReplicaSet.GetReplicaSetYaml)
+			k8s.GET("replicaset/get-yaml", k8sApi.ReplicaSet.GetReplicaSetYaml) // alias
+			k8s.DELETE("replicaset/delete", k8sApi.ReplicaSet.DeleteReplicaSet)
+
+			// RBAC - ServiceAccount
+			k8s.GET("serviceaccount/list", k8sApi.ServiceAccount.GetServiceAccountList)
+			k8s.GET("serviceaccount/yaml", k8sApi.ServiceAccount.GetServiceAccountYaml)
+			k8s.GET("serviceaccount/get-yaml", k8sApi.ServiceAccount.GetServiceAccountYaml) // alias
+			k8s.DELETE("serviceaccount/delete", k8sApi.ServiceAccount.DeleteServiceAccount)
+
+			// RBAC - ClusterRole
+			k8s.GET("clusterrole/list", k8sApi.ClusterRole.GetClusterRoleList)
+			k8s.GET("clusterrole/yaml", k8sApi.ClusterRole.GetClusterRoleYaml)
+			k8s.GET("clusterrole/get-yaml", k8sApi.ClusterRole.GetClusterRoleYaml) // alias
+			k8s.DELETE("clusterrole/delete", k8sApi.ClusterRole.DeleteClusterRole)
+
+			// RBAC - Role
+			k8s.GET("role/list", k8sApi.Role.GetRoleList)
+			k8s.GET("role/yaml", k8sApi.Role.GetRoleYaml)
+			k8s.GET("role/get-yaml", k8sApi.Role.GetRoleYaml) // alias
+			k8s.DELETE("role/delete", k8sApi.Role.DeleteRole)
+
+			// RBAC - ClusterRoleBinding
+			k8s.GET("clusterrolebinding/list", k8sApi.ClusterRoleBinding.GetClusterRoleBindingList)
+			k8s.GET("clusterrolebinding/yaml", k8sApi.ClusterRoleBinding.GetClusterRoleBindingYaml)
+			k8s.GET("clusterrolebinding/get-yaml", k8sApi.ClusterRoleBinding.GetClusterRoleBindingYaml) // alias
+			k8s.DELETE("clusterrolebinding/delete", k8sApi.ClusterRoleBinding.DeleteClusterRoleBinding)
+
+			// RBAC - RoleBinding
+			k8s.GET("rolebinding/list", k8sApi.RoleBinding.GetRoleBindingList)
+			k8s.GET("rolebinding/yaml", k8sApi.RoleBinding.GetRoleBindingYaml)
+			k8s.GET("rolebinding/get-yaml", k8sApi.RoleBinding.GetRoleBindingYaml) // alias
+			k8s.DELETE("rolebinding/delete", k8sApi.RoleBinding.DeleteRoleBinding)
 
 			// ResourceQuota
 			k8s.GET("resourcequota/list", k8sApi.ResourceQuota.GetResourceQuotaList)

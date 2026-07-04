@@ -2,9 +2,17 @@
   <div class="sidebar-container">
     <div class="sidebar-logo">
       <div class="logo-icon">
-        <svg viewBox="0 0 32 32" width="28" height="28" fill="none">
-          <rect width="32" height="32" rx="8" fill="#3b82f6"/>
-          <path d="M8 16L14 22L24 10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg viewBox="0 0 48 48" width="32" height="32">
+          <defs>
+            <linearGradient id="sidebar-hex" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#6366f1"/>
+              <stop offset="50%" stop-color="#818cf8"/>
+              <stop offset="100%" stop-color="#3b82f6"/>
+            </linearGradient>
+          </defs>
+          <path d="M24 2 L44 14 L44 34 L24 46 L4 34 L4 14 Z" fill="url(#sidebar-hex)"/>
+          <path d="M30 16 C26.5 13.5 21.5 13.5 18 16 C14.5 18.5 14 23 14 24 C14 28 16 31 20 33 C23 34.5 27 34.5 30 33 L30 26 L24 26 L24 23 L30 23 Z" fill="white" opacity="0.95"/>
+          <circle cx="36" cy="12" r="3" fill="#a78bfa" opacity="0.8"/>
         </svg>
       </div>
       <transition name="fade">
@@ -18,18 +26,27 @@
       router
       class="sidebar-menu"
     >
+      <!-- Overview -->
       <el-menu-item index="/dashboard">
         <el-icon><Odometer /></el-icon>
-        <template #title>{{ t('sidebar.dashboard') }}</template>
+        <template #title>{{ t('sidebar.overview') }}</template>
       </el-menu-item>
-      <el-menu-item index="/system/overview">
-        <el-icon><Monitor /></el-icon>
-        <template #title>{{ t('sidebar.systemOverview') }}</template>
-      </el-menu-item>
+      <!-- Cluster Management -->
       <el-menu-item index="/clusters">
         <el-icon><Connection /></el-icon>
         <template #title>{{ t('sidebar.clusters') }}</template>
       </el-menu-item>
+      <!-- Nodes -->
+      <el-menu-item index="/nodes">
+        <el-icon><Cpu /></el-icon>
+        <template #title>{{ t('sidebar.nodes') }}</template>
+      </el-menu-item>
+      <!-- Namespaces -->
+      <el-menu-item index="/namespaces">
+        <el-icon><FolderOpened /></el-icon>
+        <template #title>{{ t('sidebar.namespaces') }}</template>
+      </el-menu-item>
+      <!-- Workloads -->
       <el-sub-menu index="workloads">
         <template #title>
           <el-icon><Box /></el-icon>
@@ -51,6 +68,10 @@
           <el-icon><SetUp /></el-icon>
           <template #title>{{ t('sidebar.daemonsets') }}</template>
         </el-menu-item>
+        <el-menu-item index="/workloads/replicasets">
+          <el-icon><CopyDocument /></el-icon>
+          <template #title>{{ t('sidebar.replicasets') }}</template>
+        </el-menu-item>
         <el-menu-item index="/workloads/jobs">
           <el-icon><Finished /></el-icon>
           <template #title>{{ t('sidebar.jobs') }}</template>
@@ -63,59 +84,8 @@
           <el-icon><DataLine /></el-icon>
           <template #title>{{ t('sidebar.hpa') }}</template>
         </el-menu-item>
-        <el-menu-item index="/workloads/pdb">
-          <el-icon><Warning /></el-icon>
-          <template #title>{{ t('sidebar.pdb') }}</template>
-        </el-menu-item>
       </el-sub-menu>
-      <el-sub-menu index="config">
-        <template #title>
-          <el-icon><Tickets /></el-icon>
-          <span>{{ t('sidebar.config') }}</span>
-        </template>
-        <el-menu-item index="/config/configmaps">
-          <el-icon><Tickets /></el-icon>
-          <template #title>{{ t('sidebar.configmaps') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/config/secrets">
-          <el-icon><Key /></el-icon>
-          <template #title>{{ t('sidebar.secrets') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/config/resourcequotas">
-          <el-icon><Coin /></el-icon>
-          <template #title>{{ t('sidebar.resourcequotas') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/config/limitranges">
-          <el-icon><ScaleToOriginal /></el-icon>
-          <template #title>{{ t('sidebar.limitranges') }}</template>
-        </el-menu-item>
-      </el-sub-menu>
-      <el-sub-menu index="storage">
-        <template #title>
-          <el-icon><Coin /></el-icon>
-          <span>{{ t('sidebar.storage') }}</span>
-        </template>
-        <el-menu-item index="/storage/pvs">
-          <el-icon><Coin /></el-icon>
-          <template #title>{{ t('sidebar.pvs') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/storage/pvcs">
-          <el-icon><Box /></el-icon>
-          <template #title>{{ t('sidebar.pvcs') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/storage/storageclasses">
-          <el-icon><Files /></el-icon>
-          <template #title>{{ t('sidebar.storageclasses') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/storage/volumesnapshots">
-          <el-icon><Camera /></el-icon>
-          <template #title>{{ t('sidebar.volumeSnapshots') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/storage/volumesnapshotclasses">
-          <el-icon><CameraFilled /></el-icon>
-          <template #title>{{ t('sidebar.volumeSnapshotClasses') }}</template>
-        </el-menu-item>
-      </el-sub-menu>
+      <!-- Network -->
       <el-sub-menu index="network">
         <template #title>
           <el-icon><Share /></el-icon>
@@ -134,22 +104,78 @@
           <template #title>{{ t('sidebar.networkpolicies') }}</template>
         </el-menu-item>
       </el-sub-menu>
-      <el-menu-item index="/nodes">
-        <el-icon><Cpu /></el-icon>
-        <template #title>{{ t('sidebar.nodes') }}</template>
-      </el-menu-item>
-      <el-menu-item index="/namespaces">
-        <el-icon><FolderOpened /></el-icon>
-        <template #title>{{ t('sidebar.namespaces') }}</template>
-      </el-menu-item>
+      <!-- Storage -->
+      <el-sub-menu index="storage">
+        <template #title>
+          <el-icon><Coin /></el-icon>
+          <span>{{ t('sidebar.storage') }}</span>
+        </template>
+        <el-menu-item index="/storage/pvs">
+          <el-icon><Coin /></el-icon>
+          <template #title>{{ t('sidebar.pvs') }}</template>
+        </el-menu-item>
+        <el-menu-item index="/storage/pvcs">
+          <el-icon><Box /></el-icon>
+          <template #title>{{ t('sidebar.pvcs') }}</template>
+        </el-menu-item>
+        <el-menu-item index="/storage/storageclasses">
+          <el-icon><Files /></el-icon>
+          <template #title>{{ t('sidebar.storageclasses') }}</template>
+        </el-menu-item>
+      </el-sub-menu>
+      <!-- Configuration -->
+      <el-sub-menu index="config">
+        <template #title>
+          <el-icon><Tickets /></el-icon>
+          <span>{{ t('sidebar.config') }}</span>
+        </template>
+        <el-menu-item index="/config/configmaps">
+          <el-icon><Tickets /></el-icon>
+          <template #title>{{ t('sidebar.configmaps') }}</template>
+        </el-menu-item>
+        <el-menu-item index="/config/secrets">
+          <el-icon><Key /></el-icon>
+          <template #title>{{ t('sidebar.secrets') }}</template>
+        </el-menu-item>
+      </el-sub-menu>
+      <!-- Access Control (RBAC) -->
+      <el-sub-menu index="access-control">
+        <template #title>
+          <el-icon><Lock /></el-icon>
+          <span>{{ t('sidebar.accessControl') }}</span>
+        </template>
+        <el-menu-item index="/rbac/serviceaccounts">
+          <el-icon><User /></el-icon>
+          <template #title>{{ t('sidebar.serviceaccounts') }}</template>
+        </el-menu-item>
+        <el-menu-item index="/rbac/roles">
+          <el-icon><UserFilled /></el-icon>
+          <template #title>{{ t('sidebar.roles') }}</template>
+        </el-menu-item>
+        <el-menu-item index="/rbac/clusterroles">
+          <el-icon><Stamp /></el-icon>
+          <template #title>{{ t('sidebar.clusterroles') }}</template>
+        </el-menu-item>
+        <el-menu-item index="/rbac/rolebindings">
+          <el-icon><Link /></el-icon>
+          <template #title>{{ t('sidebar.rolebindings') }}</template>
+        </el-menu-item>
+        <el-menu-item index="/rbac/clusterrolebindings">
+          <el-icon><CircleCheck /></el-icon>
+          <template #title>{{ t('sidebar.clusterrolebindings') }}</template>
+        </el-menu-item>
+      </el-sub-menu>
+      <!-- Events -->
       <el-menu-item index="/events">
         <el-icon><Bell /></el-icon>
         <template #title>{{ t('sidebar.events') }}</template>
       </el-menu-item>
+      <!-- CRD -->
       <el-menu-item index="/crd">
         <el-icon><Grid /></el-icon>
         <template #title>{{ t('sidebar.crd') }}</template>
       </el-menu-item>
+      <!-- System Management -->
       <el-sub-menu index="system">
         <template #title>
           <el-icon><Setting /></el-icon>
@@ -161,7 +187,7 @@
         </el-menu-item>
         <el-menu-item index="/roles">
           <el-icon><UserFilled /></el-icon>
-          <template #title>{{ t('sidebar.roles') }}</template>
+          <template #title>{{ t('sidebar.platformRoles') }}</template>
         </el-menu-item>
         <el-menu-item index="/settings/auth">
           <el-icon><Setting /></el-icon>
@@ -186,7 +212,6 @@ import {
   Setting,
   User,
   UserFilled,
-  Monitor,
   Document,
   Box,
   Coin,
@@ -200,16 +225,15 @@ import {
   Bell,
   DataLine,
   Lock,
-  Warning,
   Grid,
-  ScaleToOriginal,
   DocumentCopy,
   List,
   SetUp,
   Finished,
   Timer,
-  Camera,
-  CameraFilled,
+  CopyDocument,
+  Stamp,
+  CircleCheck,
 } from '@element-plus/icons-vue'
 
 defineProps<{

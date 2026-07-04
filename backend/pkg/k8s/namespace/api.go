@@ -28,18 +28,39 @@ func GetNamespaceList(client *kubernetes.Clientset) (*corev1.NamespaceList, erro
 //
 //	@Description: 创建命名空间
 //	@param client
-//	@param namespace
+//	@param name
+//	@param labels
+//	@param annotations
 //	@return error
-func CreateNamespace(client *kubernetes.Clientset, namespace string) error {
+func CreateNamespace(client *kubernetes.Clientset, name string, labels map[string]string, annotations map[string]string) error {
 	_, err := client.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name:        name,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 	}, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// UpdateNamespaceLabels
+//
+//	@Description: 更新命名空间标签
+//	@param client
+//	@param name
+//	@param labels
+//	@return error
+func UpdateNamespaceLabels(client *kubernetes.Clientset, name string, labels map[string]string) error {
+	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	ns.Labels = labels
+	_, err = client.CoreV1().Namespaces().Update(context.TODO(), ns, metav1.UpdateOptions{})
+	return err
 }
 
 // GetNamespaceDetail

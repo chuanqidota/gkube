@@ -1,16 +1,47 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Refresh, Plus, Search } from '@element-plus/icons-vue'
-import { getNamespaceList, createNamespace, extractNamespaceNames } from '@/api/resource'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
+import {
+  getNamespaceList,
+  createNamespace,
+  deleteNamespace,
+  getNamespaceYaml,
+  updateNamespace,
+  updateNamespaceLabels,
+  transformNamespaces,
+  type Namespace,
+} from '@/api/resource'
+import { useNamespaceStore } from '@/stores/namespace'
+import YamlEditor from '@/components/YamlEditor.vue'
 
+const router = useRouter()
+const namespaceStore = useNamespaceStore()
 const loading = ref(false)
-const namespaceList = ref<any[]>([])
+const namespaceList = ref<Namespace[]>([])
 const searchName = ref('')
+
+// Create dialog
 const createDialogVisible = ref(false)
-const newNamespaceName = ref('')
-const newNamespaceLabels = ref([{ key: '', value: '' }])
 const creating = ref(false)
+const createForm = ref({
+  name: '',
+  labels: [] as Array<{ key: string; value: string }>,
+  annotations: [] as Array<{ key: string; value: string }>,
+})
+
+// YAML dialog
+const yamlDialogVisible = ref(false)
+const yamlContent = ref('')
+const yamlLoading = ref(false)
+const yamlTarget = ref<Namespace | null>(null)
+const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
+
+// Labels dialog
+const labelsDialogVisible = ref(false)
+const labelsTarget = ref<Namespace | null>(null)
+const labelsArray = ref<Array<{ key: string; value: string }>>([])
 
 const filteredList = computed(() => {
   if (!searchName.value) return namespaceList.value
@@ -18,16 +49,16 @@ const filteredList = computed(() => {
   return namespaceList.value.filter((ns) => ns.name?.toLowerCase().includes(keyword))
 })
 
-import { computed } from 'vue'
-
 async function fetchNamespaces() {
   loading.value = true
   try {
     const res: any = await getNamespaceList()
-    namespaceList.value = extractNamespaceNames(res.data)
+    namespaceList.value = transformNamespaces(res.data || [])
   } catch {
     // Silently handle — resource may not exist in cluster
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+  }
 }
 
 function statusType(status: string) {
@@ -36,25 +67,120 @@ function statusType(status: string) {
   return 'info'
 }
 
-function addLabel() { newNamespaceLabels.value.push({ key: '', value: '' }) }
-function removeLabel(i: number) { newNamespaceLabels.value.splice(i, 1) }
+// Create
+function addLabel() { createForm.value.labels.push({ key: '', value: '' }) }
+function removeLabel(i: number) { createForm.value.labels.splice(i, 1) }
+function addAnnotation() { createForm.value.annotations.push({ key: '', value: '' }) }
+function removeAnnotation(i: number) { createForm.value.annotations.splice(i, 1) }
 
 async function handleCreate() {
-  if (!newNamespaceName.value.trim()) {
+  if (!createForm.value.name.trim()) {
     ElMessage.warning('Please enter a namespace name')
     return
   }
   creating.value = true
   try {
-    await createNamespace({ name: newNamespaceName.value.trim() })
+    const labels: Record<string, string> = {}
+    createForm.value.labels.forEach((l) => {
+      if (l.key.trim()) labels[l.key.trim()] = l.value
+    })
+    const annotations: Record<string, string> = {}
+    createForm.value.annotations.forEach((a) => {
+      if (a.key.trim()) annotations[a.key.trim()] = a.value
+    })
+    await createNamespace({
+      namespace: createForm.value.name.trim(),
+      labels: Object.keys(labels).length > 0 ? labels : undefined,
+      annotations: Object.keys(annotations).length > 0 ? annotations : undefined,
+    })
     ElMessage.success('Namespace created')
     createDialogVisible.value = false
-    newNamespaceName.value = ''
-    newNamespaceLabels.value = [{ key: '', value: '' }]
+    createForm.value = { name: '', labels: [], annotations: [] }
+    namespaceStore.clearCache()
     fetchNamespaces()
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to create namespace')
-  } finally { creating.value = false }
+  } finally {
+    creating.value = false
+  }
+}
+
+// Delete
+async function handleDelete(row: Namespace) {
+  try {
+    await ElMessageBox.confirm(
+      `Delete namespace "${row.name}"? All resources in this namespace will be deleted.`,
+      'Confirm',
+      { type: 'warning' }
+    )
+    await deleteNamespace({ name: row.name })
+    ElMessage.success('Namespace deleted')
+    namespaceStore.clearCache()
+    fetchNamespaces()
+  } catch {
+    // cancelled
+  }
+}
+
+// YAML
+async function handleViewYaml(row: Namespace) {
+  yamlTarget.value = row
+  yamlDialogVisible.value = true
+  yamlLoading.value = true
+  yamlContent.value = ''
+  try {
+    const res: any = await getNamespaceYaml({ name: row.name })
+    yamlContent.value = res.data?.yaml || res.data || ''
+  } catch (e: any) {
+    ElMessage.error(e?.message || 'Failed to load YAML')
+    yamlDialogVisible.value = false
+  } finally {
+    yamlLoading.value = false
+  }
+}
+
+async function handleSaveYaml(content: string) {
+  if (!yamlTarget.value) return
+  try {
+    await updateNamespace({ yaml: content })
+    ElMessage.success('YAML saved successfully')
+    yamlDialogVisible.value = false
+    fetchNamespaces()
+  } catch (e: any) {
+    ElMessage.error(e?.message || 'Failed to save YAML')
+    yamlEditorRef.value?.resetSaving()
+  }
+}
+
+// Labels
+function handleLabels(row: Namespace) {
+  labelsTarget.value = row
+  labelsArray.value = Object.entries(row.labels || {}).map(([key, value]) => ({ key, value }))
+  if (labelsArray.value.length === 0) labelsArray.value = [{ key: '', value: '' }]
+  labelsDialogVisible.value = true
+}
+
+function addEditLabel() { labelsArray.value.push({ key: '', value: '' }) }
+function removeEditLabel(i: number) { labelsArray.value.splice(i, 1) }
+
+async function handleSaveLabels() {
+  if (!labelsTarget.value) return
+  try {
+    const labels: Record<string, string> = {}
+    labelsArray.value.forEach((l) => {
+      if (l.key.trim()) labels[l.key.trim()] = l.value
+    })
+    await updateNamespaceLabels({ namespace: labelsTarget.value.name, labels })
+    ElMessage.success('Labels updated')
+    labelsDialogVisible.value = false
+    fetchNamespaces()
+  } catch (e: any) {
+    ElMessage.error(e?.message || 'Failed to update labels')
+  }
+}
+
+function handleDetail(row: Namespace) {
+  router.push(`/namespaces/${row.name}`)
 }
 
 onMounted(fetchNamespaces)
@@ -64,11 +190,21 @@ onMounted(fetchNamespaces)
   <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <el-input v-model="searchName" placeholder="Search by name" style="width: 220px;" clearable>
+        <el-input
+          v-model="searchName"
+          placeholder="Search by name"
+          style="width: 220px;"
+          clearable
+        >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-button type="primary" @click="fetchNamespaces"><el-icon><Refresh /></el-icon> Refresh</el-button>
-        <el-button type="success" @click="createDialogVisible = true"><el-icon><Plus /></el-icon> Create</el-button>
+        <el-button @click="fetchNamespaces" :loading="loading">
+          <el-icon><Refresh /></el-icon> Refresh
+        </el-button>
+        <el-button type="success" @click="createDialogVisible = true">
+          <el-icon><Plus /></el-icon> Create
+        </el-button>
+        <span class="total-count" v-if="namespaceList.length">Total: {{ namespaceList.length }}</span>
       </div>
     </el-card>
 
@@ -76,7 +212,7 @@ onMounted(fetchNamespaces)
       <el-table :data="filteredList" v-loading="loading" stripe>
         <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-button link type="primary" @click="$router.push(`/namespaces/${row.name}`)">{{ row.name }}</el-button>
+            <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
         <el-table-column label="Status" width="120">
@@ -86,22 +222,37 @@ onMounted(fetchNamespaces)
         </el-table-column>
         <el-table-column label="Labels" min-width="250" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-tag v-for="(v, k) in (row.labels || {})" :key="k" size="small" style="margin-right: 4px; margin-bottom: 2px;">{{ k }}={{ v }}</el-tag>
-            <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: var(--gk-color-text-secondary);">-</span>
+            <el-tag
+              v-for="(v, k) in (row.labels || {})"
+              :key="k"
+              size="small"
+              style="margin-right: 4px; margin-bottom: 2px;"
+            >{{ k }}={{ v }}</el-tag>
+            <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: var(--el-text-color-secondary);">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="age" label="Age" width="180" />
+        <el-table-column label="Actions" width="220" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+            <el-button size="small" @click="handleLabels(row)">Labels</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">
+              <el-icon><Delete /></el-icon>
+            </el-button>
+          </template>
+        </el-table-column>
       </el-table>
     </el-card>
 
-    <el-dialog v-model="createDialogVisible" title="Create Namespace" width="500px">
-      <el-form @submit.prevent="handleCreate" label-width="100px">
+    <!-- Create Namespace Dialog -->
+    <el-dialog v-model="createDialogVisible" title="Create Namespace" width="580px" destroy-on-close>
+      <el-form label-width="100px">
         <el-form-item label="Name" required>
-          <el-input v-model="newNamespaceName" placeholder="Enter namespace name" />
+          <el-input v-model="createForm.name" placeholder="my-namespace" />
         </el-form-item>
         <el-form-item label="Labels">
           <div style="width: 100%;">
-            <div v-for="(label, i) in newNamespaceLabels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <div v-for="(label, i) in createForm.labels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
               <el-input v-model="label.key" placeholder="Key" style="flex: 1;" />
               <el-input v-model="label.value" placeholder="Value" style="flex: 1;" />
               <el-button type="danger" circle size="small" @click="removeLabel(i)">X</el-button>
@@ -109,10 +260,53 @@ onMounted(fetchNamespaces)
             <el-button size="small" @click="addLabel">+ Add Label</el-button>
           </div>
         </el-form-item>
+        <el-form-item label="Annotations">
+          <div style="width: 100%;">
+            <div v-for="(anno, i) in createForm.annotations" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <el-input v-model="anno.key" placeholder="Key" style="flex: 1;" />
+              <el-input v-model="anno.value" placeholder="Value" style="flex: 1;" />
+              <el-button type="danger" circle size="small" @click="removeAnnotation(i)">X</el-button>
+            </div>
+            <el-button size="small" @click="addAnnotation">+ Add Annotation</el-button>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="createDialogVisible = false">Cancel</el-button>
         <el-button type="primary" @click="handleCreate" :loading="creating">Create</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- YAML Dialog -->
+    <el-dialog v-model="yamlDialogVisible" :title="`Namespace YAML: ${yamlTarget?.name}`" width="70%" top="5vh" destroy-on-close>
+      <div v-loading="yamlLoading">
+        <YamlEditor
+          ref="yamlEditorRef"
+          v-model="yamlContent"
+          height="600px"
+          :read-only="false"
+          :saveable="true"
+          auto-format
+          @save="handleSaveYaml"
+        />
+      </div>
+    </el-dialog>
+
+    <!-- Labels Dialog -->
+    <el-dialog v-model="labelsDialogVisible" :title="`Edit Labels: ${labelsTarget?.name}`" width="600px" destroy-on-close>
+      <div v-for="(label, i) in labelsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
+        <el-input v-model="label.key" placeholder="Key" style="flex: 2;" />
+        <el-input v-model="label.value" placeholder="Value" style="flex: 2;" />
+        <el-button type="danger" circle size="small" @click="removeEditLabel(i)">
+          <el-icon><Delete /></el-icon>
+        </el-button>
+      </div>
+      <el-button @click="addEditLabel" style="margin-top: 8px;">
+        <el-icon><Plus /></el-icon> Add Label
+      </el-button>
+      <template #footer>
+        <el-button @click="labelsDialogVisible = false">Cancel</el-button>
+        <el-button type="primary" @click="handleSaveLabels">Save</el-button>
       </template>
     </el-dialog>
   </div>
@@ -123,4 +317,5 @@ onMounted(fetchNamespaces)
 .filter-card { margin-bottom: 16px; }
 .filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .table-card { border-radius: 8px; }
+.total-count { color: var(--el-text-color-secondary); font-size: 13px; margin-left: auto; }
 </style>

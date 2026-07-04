@@ -91,89 +91,39 @@ onMounted(fetchDetail)
       </div>
     </el-card>
 
-    <el-row :gutter="16" v-loading="loading">
-      <el-col :span="16">
-        <el-card shadow="never">
-          <template #header>
-            <h4 style="margin: 0;">{{ t('cluster.basicInfo') }}</h4>
-          </template>
-          <el-descriptions :column="2" border v-if="cluster">
-            <el-descriptions-item :label="t('cluster.name')">{{ cluster.clusterName }}</el-descriptions-item>
-            <el-descriptions-item :label="t('cluster.displayName')">{{ cluster.displayName || '-' }}</el-descriptions-item>
-            <el-descriptions-item :label="t('cluster.status')">
-              <el-tag :type="statusType(cluster.status)">{{ statusText(cluster.status) }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item :label="t('cluster.version')">{{ cluster.clusterVersion || '-' }}</el-descriptions-item>
-            <el-descriptions-item :label="t('cluster.nodes')">{{ cluster.nodeCount ?? '-' }}</el-descriptions-item>
-            <el-descriptions-item :label="t('cluster.lastCheck')">{{ cluster.lastHealthCheck || '-' }}</el-descriptions-item>
-            <el-descriptions-item :label="t('cluster.description')" :span="2">{{ cluster.description || '-' }}</el-descriptions-item>
-            <el-descriptions-item :label="t('config.creationTime')" :span="2">{{ cluster.createdAt || '-' }}</el-descriptions-item>
-          </el-descriptions>
-        </el-card>
+    <div v-loading="loading">
+      <el-card shadow="never">
+        <template #header>
+          <h4 style="margin: 0;">{{ t('cluster.basicInfo') }}</h4>
+        </template>
+        <el-descriptions :column="2" border v-if="cluster">
+          <el-descriptions-item :label="t('cluster.clusterId')">{{ cluster.id }}</el-descriptions-item>
+          <el-descriptions-item :label="t('cluster.name')">{{ cluster.clusterName }}</el-descriptions-item>
+          <el-descriptions-item :label="t('cluster.displayName')">{{ cluster.displayName || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('cluster.status')">
+            <el-tag :type="statusType(cluster.status)">{{ statusText(cluster.status) }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('cluster.version')">{{ cluster.clusterVersion || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('cluster.nodes')">{{ cluster.nodeCount ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('cluster.lastCheck')">{{ cluster.lastHealthCheck || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('cluster.description')" :span="2">{{ cluster.description || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('config.creationTime')" :span="2">{{ cluster.createdAt || '-' }}</el-descriptions-item>
+        </el-descriptions>
+      </el-card>
 
-        <el-card shadow="never" style="margin-top: 16px;" v-if="cluster?.labels && Object.keys(cluster.labels).length > 0">
-          <template #header>
-            <h4 style="margin: 0;">{{ t('cluster.labels') }}</h4>
-          </template>
-          <el-tag
-            v-for="(val, key) in cluster.labels"
-            :key="key"
-            style="margin-right: 8px; margin-bottom: 8px;"
-          >
-            {{ key }}={{ val }}
-          </el-tag>
-        </el-card>
-      </el-col>
-
-      <el-col :span="8">
-        <el-card shadow="never">
-          <template #header>
-            <h4 style="margin: 0;">{{ t('cluster.quickActions') }}</h4>
-          </template>
-          <div class="quick-actions">
-            <el-button type="primary" style="width: 100%;" @click="router.push('/')">
-              {{ t('cluster.enterCluster') }}
-            </el-button>
-            <el-button style="width: 100%;" @click="handleCheck">
-              {{ t('cluster.check') }}
-            </el-button>
-            <el-button style="width: 100%;" @click="router.push('/clusters')">
-              {{ t('common.backToList') }}
-            </el-button>
-          </div>
-        </el-card>
-
-        <el-card shadow="never" style="margin-top: 16px;">
-          <template #header>
-            <h4 style="margin: 0;">{{ t('cluster.clusterInfo') }}</h4>
-          </template>
-          <div class="info-list">
-            <div class="info-item">
-              <span class="info-label">{{ t('cluster.clusterId') }}</span>
-              <span class="info-value">{{ cluster?.id }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ t('cluster.name') }}</span>
-              <span class="info-value">{{ cluster?.clusterName }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ t('cluster.status') }}</span>
-              <span class="info-value">
-                <el-tag :type="statusType(cluster?.status)" size="small">{{ statusText(cluster?.status) }}</el-tag>
-              </span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ t('cluster.version') }}</span>
-              <span class="info-value">{{ cluster?.clusterVersion || '-' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ t('cluster.nodes') }}</span>
-              <span class="info-value">{{ cluster?.nodeCount ?? '-' }}</span>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+      <el-card shadow="never" style="margin-top: 16px;" v-if="cluster?.labels && Object.keys(cluster.labels).length > 0">
+        <template #header>
+          <h4 style="margin: 0;">{{ t('cluster.labels') }}</h4>
+        </template>
+        <el-tag
+          v-for="(val, key) in cluster.labels"
+          :key="key"
+          style="margin-right: 8px; margin-bottom: 8px;"
+        >
+          {{ key }}={{ val }}
+        </el-tag>
+      </el-card>
+    </div>
   </div>
 </template>
 
@@ -182,9 +132,4 @@ onMounted(fetchDetail)
 .filter-card { margin-bottom: 16px; }
 .filter-bar { display: flex; justify-content: space-between; align-items: center; }
 .filter-right { display: flex; align-items: center; gap: 8px; }
-.quick-actions { display: flex; flex-direction: column; gap: 8px; }
-.info-list { display: flex; flex-direction: column; gap: 12px; }
-.info-item { display: flex; justify-content: space-between; align-items: center; }
-.info-label { color: var(--gk-color-text-secondary); }
-.info-value { color: var(--gk-color-text-primary); font-weight: 500; }
 </style>

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getOverview, getWorkloads, getEvents, getResources } from '@/api/dashboard'
 import type { Overview, WorkloadSummary, K8sEvent, ResourceMetrics } from '@/api/dashboard'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { ElMessage } from 'element-plus'
+import * as echarts from 'echarts'
 import {
   Monitor,
   CircleCheck,
@@ -68,6 +69,74 @@ function progressColor(percent: number) {
   return 'var(--gk-color-primary)'
 }
 
+// ECharts gauge refs
+const cpuGaugeRef = ref<HTMLElement | null>(null)
+const memGaugeRef = ref<HTMLElement | null>(null)
+let cpuChart: echarts.ECharts | null = null
+let memChart: echarts.ECharts | null = null
+
+function gaugeColor(percent: number) {
+  if (percent >= 80) return '#F56C6C'
+  if (percent >= 60) return '#E6A23C'
+  return '#409EFF'
+}
+
+function updateGauges() {
+  if (cpuGaugeRef.value && cpuChart) {
+    cpuChart.setOption({
+      series: [{
+        data: [{ value: cpuPercent.value, itemStyle: { color: gaugeColor(cpuPercent.value) } }],
+        detail: { formatter: `{value}%` },
+      }]
+    })
+  }
+  if (memGaugeRef.value && memChart) {
+    memChart.setOption({
+      series: [{
+        data: [{ value: memoryPercent.value, itemStyle: { color: gaugeColor(memoryPercent.value) } }],
+        detail: { formatter: `{value}%` },
+      }]
+    })
+  }
+}
+
+function initGauges() {
+  if (cpuGaugeRef.value) {
+    cpuChart = echarts.init(cpuGaugeRef.value)
+    cpuChart.setOption({
+      series: [{
+        type: 'gauge',
+        progress: { show: true, width: 18 },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: { show: false },
+        pointer: { show: false },
+        detail: { valueAnimation: true, formatter: '{value}%', fontSize: 24, offsetCenter: [0, '70%'] },
+        data: [{ value: 0 }],
+      }]
+    })
+  }
+  if (memGaugeRef.value) {
+    memChart = echarts.init(memGaugeRef.value)
+    memChart.setOption({
+      series: [{
+        type: 'gauge',
+        progress: { show: true, width: 18 },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: { show: false },
+        pointer: { show: false },
+        detail: { valueAnimation: true, formatter: '{value}%', fontSize: 24, offsetCenter: [0, '70%'] },
+        data: [{ value: 0 }],
+      }]
+    })
+  }
+  window.addEventListener('resize', () => {
+    cpuChart?.resize()
+    memChart?.resize()
+  })
+}
+
 const workloadItems = computed(() => [
   { label: t('workload.deployment'), value: workloads.value.deployments },
   { label: t('workload.statefulset'), value: workloads.value.statefulsets },
@@ -126,24 +195,26 @@ async function fetchEvents() {
 
 async function fetchAll() {
   await Promise.all([fetchOverview(), fetchResources(), fetchWorkloads(), fetchEvents()])
+  nextTick(updateGauges)
 }
 
-const { isRunning, countdown, toggle, refresh: autoRefresh } = useAutoRefresh(fetchAll, 15000)
+const { isRunning, countdown, toggle, refresh: manualRefresh } = useAutoRefresh(fetchAll, 15000, false)
 
 onMounted(() => {
   fetchAll()
+  nextTick(initGauges)
 })
 </script>
 
 <template>
   <div class="dashboard">
-    <!-- Auto-refresh toolbar -->
+    <!-- Toolbar -->
     <div class="refresh-toolbar">
-      <el-button @click="autoRefresh()" :icon="Refresh" size="small">
-        {{ t('common.refresh') }} ({{ countdown }}s)
+      <el-button @click="manualRefresh()" :icon="Refresh" size="small">
+        {{ t('common.refresh') }}
       </el-button>
-      <el-button @click="toggle()" :type="isRunning ? 'warning' : 'success'" size="small">
-        {{ isRunning ? t('common.paused') : t('common.resume') }}
+      <el-button @click="toggle()" :type="isRunning ? 'warning' : 'default'" size="small">
+        {{ isRunning ? t('dashboard.autoRefreshOn', { n: countdown }) : t('dashboard.autoRefreshOff') }}
       </el-button>
     </div>
     <!-- Stat Cards -->
@@ -202,43 +273,33 @@ onMounted(() => {
       </el-col>
     </el-row>
 
-    <!-- Resource Usage -->
-    <el-card v-loading="resourcesLoading" shadow="hover" class="section-card">
-      <template #header>
-        <div class="card-header">
-          <span><el-icon><Cpu /></el-icon> {{ t('dashboard.resourceUsage') }}</span>
-        </div>
-      </template>
-      <el-row :gutter="24">
-        <el-col :xs="24" :sm="24" :md="8">
-          <div class="resource-item">
-            <div class="resource-header">
-              <span class="resource-title">{{ t('dashboard.cpu') }}</span>
-              <span class="resource-detail">{{ resources.cpu.used }} / {{ resources.cpu.total }} Core</span>
-            </div>
-            <el-progress
-              :percentage="cpuPercent"
-              :color="progressColor(cpuPercent)"
-              :stroke-width="18"
-              :text-inside="true"
-            />
+    <!-- Resource Usage: Gauges + Progress -->
+    <el-row :gutter="16" class="resource-row">
+      <el-col :xs="24" :sm="24" :md="8">
+        <el-card v-loading="resourcesLoading" shadow="hover" class="section-card gauge-card">
+          <div ref="cpuGaugeRef" class="gauge-chart"></div>
+          <div class="gauge-detail">
+            <span class="resource-title">{{ t('dashboard.cpu') }}</span>
+            <span class="resource-detail">{{ resources.cpu.used }} / {{ resources.cpu.total }} Core</span>
           </div>
-        </el-col>
-        <el-col :xs="24" :sm="24" :md="8">
-          <div class="resource-item">
-            <div class="resource-header">
-              <span class="resource-title">{{ t('dashboard.memory') }}</span>
-              <span class="resource-detail">{{ resources.memory.used }} / {{ resources.memory.total }} Gi</span>
-            </div>
-            <el-progress
-              :percentage="memoryPercent"
-              :color="progressColor(memoryPercent)"
-              :stroke-width="18"
-              :text-inside="true"
-            />
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :sm="24" :md="8">
+        <el-card v-loading="resourcesLoading" shadow="hover" class="section-card gauge-card">
+          <div ref="memGaugeRef" class="gauge-chart"></div>
+          <div class="gauge-detail">
+            <span class="resource-title">{{ t('dashboard.memory') }}</span>
+            <span class="resource-detail">{{ resources.memory.used }} / {{ resources.memory.total }} Gi</span>
           </div>
-        </el-col>
-        <el-col :xs="24" :sm="24" :md="8">
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :sm="24" :md="8">
+        <el-card v-loading="resourcesLoading" shadow="hover" class="section-card">
+          <template #header>
+            <div class="card-header">
+              <span><el-icon><Cpu /></el-icon> {{ t('dashboard.storage') }}</span>
+            </div>
+          </template>
           <div class="resource-item">
             <div class="resource-header">
               <span class="resource-title">{{ t('dashboard.storage') }}</span>
@@ -251,9 +312,9 @@ onMounted(() => {
               :text-inside="true"
             />
           </div>
-        </el-col>
-      </el-row>
-    </el-card>
+        </el-card>
+      </el-col>
+    </el-row>
 
     <!-- Workloads and Events -->
     <el-row :gutter="16">
@@ -401,6 +462,31 @@ onMounted(() => {
 .card-header .el-icon {
   margin-right: 6px;
   vertical-align: middle;
+}
+
+/* Gauge charts */
+.resource-row {
+  margin-bottom: 16px;
+}
+
+.gauge-card {
+  text-align: center;
+}
+
+.gauge-card :deep(.el-card__body) {
+  padding: 16px;
+}
+
+.gauge-chart {
+  height: 200px;
+  width: 100%;
+}
+
+.gauge-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px 0;
 }
 
 /* Resource usage */

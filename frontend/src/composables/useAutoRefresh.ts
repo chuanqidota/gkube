@@ -1,7 +1,7 @@
 import { ref, onUnmounted } from 'vue'
 
-export function useAutoRefresh(fetchFn: () => Promise<void>, interval = 15000) {
-  const isRunning = ref(true)
+export function useAutoRefresh(fetchFn: () => Promise<void>, interval = 15000, autoStart = true) {
+  const isRunning = ref(autoStart)
   const countdown = ref(Math.floor(interval / 1000))
   let pollTimer: ReturnType<typeof setInterval> | null = null
   let countdownTimer: ReturnType<typeof setInterval> | null = null
@@ -56,8 +56,10 @@ export function useAutoRefresh(fetchFn: () => Promise<void>, interval = 15000) {
     }
   }
 
-  // Auto-start
-  start()
+  // Auto-start if enabled
+  if (autoStart) {
+    start()
+  }
 
   // Cleanup on unmount
   onUnmounted(() => {

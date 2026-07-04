@@ -32,6 +32,8 @@ export interface Service {
 export interface Namespace {
   name: string
   status: string
+  labels: Record<string, string>
+  annotations: Record<string, string>
   age: string
 }
 
@@ -62,25 +64,20 @@ export function getNamespaceList(params?: { cluster_id?: number }) {
 /**
  * Extract namespace names from API response.
  * Handles both formats:
- * 1. Simple string array: ["default", "kube-system", ...]
- * 2. Full K8s object: { namespaces: { items: [{metadata: {name: "default"}}, ...] } }
+ * 1. Object array: [{name: "default", ...}, ...]
+ * 2. Simple string array: ["default", "kube-system", ...]
  */
 export function extractNamespaceNames(data: any): string[] {
-  if (Array.isArray(data)) {
-    return data
-  }
-  if (data?.namespaces?.items) {
-    return data.namespaces.items
-      .map((ns: any) => ns.metadata?.name)
-      .filter(Boolean)
-  }
-  return []
+  if (!Array.isArray(data)) return []
+  return data
+    .map((item: any) => (typeof item === 'string' ? item : item.name))
+    .filter(Boolean)
 }
 
 /**
  * Calculate age string from a creation timestamp.
  */
-function calcAge(creationTimestamp: string): string {
+export function calcAge(creationTimestamp: string): string {
   if (!creationTimestamp) return ''
   const created = new Date(creationTimestamp).getTime()
   const now = Date.now()
@@ -199,6 +196,20 @@ export function transformSecrets(items: any[]) {
     type: s.type || 'Opaque',
     data: s.data ? Object.keys(s.data).length : 0,
     age: calcAge(s.metadata?.creationTimestamp),
+  }))
+}
+
+/**
+ * Transform namespace list response (already flat from backend) into display format.
+ */
+export function transformNamespaces(items: any[]): Namespace[] {
+  if (!Array.isArray(items)) return []
+  return items.map((ns: any) => ({
+    name: ns.name || '',
+    status: ns.status || 'Unknown',
+    labels: ns.labels || {},
+    annotations: ns.annotations || {},
+    age: ns.age || '',
   }))
 }
 
@@ -343,8 +354,19 @@ export function getNodeEvents(params: { name: string }) {
 }
 
 // Namespace
-export function createNamespace(data: { name: string; cluster_id?: number }) {
+export function createNamespace(data: {
+  namespace: string
+  labels?: Record<string, string>
+  annotations?: Record<string, string>
+}) {
   return request.post('/k8s/namespace/create', data)
+}
+
+export function updateNamespaceLabels(data: {
+  namespace: string
+  labels: Record<string, string>
+}) {
+  return request.put('/k8s/namespace/labels', data)
 }
 
 // Ingress
@@ -740,6 +762,19 @@ export function getRoleBindingYaml(params: { namespace: string; name: string }) 
 
 export function deleteRoleBinding(params: { namespace: string; name: string }) {
   return request.delete('/k8s/rolebinding/delete', { params })
+}
+
+// ReplicaSet
+export function getReplicaSetList(params?: { namespace?: string; cluster_id?: number }) {
+  return request.get('/k8s/replicaset/list', { params })
+}
+
+export function getReplicaSetYaml(params: { namespace: string; name: string }) {
+  return request.get('/k8s/replicaset/yaml', { params })
+}
+
+export function deleteReplicaSet(params: { namespace: string; name: string }) {
+  return request.delete('/k8s/replicaset/delete', { params })
 }
 
 // PDB

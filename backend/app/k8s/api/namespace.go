@@ -2,12 +2,13 @@ package api
 
 import (
 	"fmt"
+	"maps"
+
 	"github.com/gin-gonic/gin"
 	"gkube/app/k8s/params"
 	"gkube/pkg/k8s"
 	k8sNamespace "gkube/pkg/k8s/namespace"
 	"gkube/pkg/response"
-	"maps"
 )
 
 type namespace struct {
@@ -36,12 +37,31 @@ func (n *namespace) GetNamespaceList(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取集群命名空间列表失败:%s", err.Error()))
 		return
 	}
-	// 提取命名空间名称列表，简化前端处理
-	var nsNames []string
+	// 返回完整的命名空间对象列表
+	var result []map[string]any
 	for _, ns := range namespaces.Items {
-		nsNames = append(nsNames, ns.Name)
+		status := "Unknown"
+		if ns.Status.Phase == "Active" {
+			status = "Active"
+		} else if ns.Status.Phase == "Terminating" {
+			status = "Terminating"
+		}
+
+		labels := make(map[string]string)
+		maps.Copy(labels, ns.Labels)
+
+		annotations := make(map[string]string)
+		maps.Copy(annotations, ns.Annotations)
+
+		result = append(result, map[string]any{
+			"name":        ns.Name,
+			"status":      status,
+			"labels":      labels,
+			"annotations": annotations,
+			"age":         ns.CreationTimestamp.Time.Format("2006-01-02 15:04:05"),
+		})
 	}
-	response.Success(c, "执行成功", nsNames)
+	response.Success(c, "执行成功", result)
 }
 
 // CreateNamespace
@@ -61,11 +81,34 @@ func (n *namespace) CreateNamespace(c *gin.Context) {
 		return
 	}
 
-	if err := k8sNamespace.CreateNamespace(client, body.Namespace); err != nil {
+	if err := k8sNamespace.CreateNamespace(client, body.Namespace, body.Labels, body.Annotations); err != nil {
 		response.Fail(c, fmt.Sprintf("创建命名空间失败:%s", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", nil)
+}
+
+// UpdateNamespaceLabels
+//
+//	@Description: 更新命名空间标签
+//	@receiver n
+//	@param c
+func (n *namespace) UpdateNamespaceLabels(c *gin.Context) {
+	var body params.NamespaceLabelsParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	if err := k8sNamespace.UpdateNamespaceLabels(client, body.Namespace, body.Labels); err != nil {
+		response.Fail(c, fmt.Sprintf("更新命名空间标签失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "更新命名空间标签成功", nil)
 }
 
 // GetNamespaceDetail
