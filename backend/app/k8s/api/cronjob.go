@@ -1,12 +1,14 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"gkube/app/k8s/params"
 	"gkube/pkg/k8s"
 	k8sCronjob "gkube/pkg/k8s/cronjob"
 	"gkube/pkg/response"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type cronjob struct {
@@ -273,4 +275,67 @@ func (cj *cronjob) DeleteCronJobByField(c *gin.Context) {
 		return
 	}
 	response.Success(c, "执行成功", nil)
+}
+
+// GetCronJobEvents
+//
+//	@Description: 获取cronjob事件
+//	@receiver cj
+//	@param c
+func (cj *cronjob) GetCronJobEvents(c *gin.Context) {
+	var query params.JobQueryByNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	events, err := client.CoreV1().Events(query.Namespace).List(context.TODO(), metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=CronJob", query.Name),
+	})
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取cronjob事件失败:%v", err.Error()))
+		return
+	}
+	var result []map[string]any
+	for _, event := range events.Items {
+		lastSeen := ""
+		if !event.LastTimestamp.IsZero() {
+			lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
+		}
+		result = append(result, map[string]any{
+			"type":      event.Type,
+			"reason":    event.Reason,
+			"message":   event.Message,
+			"last_seen": lastSeen,
+		})
+	}
+	response.Success(c, "执行成功", result)
+}
+
+// CronJobJobsList
+//
+//	@Description: 获取cronjob关联的job列表
+//	@receiver cj
+//	@param c
+func (cj *cronjob) CronJobJobsList(c *gin.Context) {
+	var query params.JobQueryByNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	jobList, err := k8sCronjob.CronJobJobsList(client, query.Namespace, query.Name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取cronjob关联job列表失败:%v", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", jobList)
 }

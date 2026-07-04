@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -198,4 +199,38 @@ func DeleteJobByLabel(client *kubernetes.Clientset, namespace string, labelMap m
 		return fmt.Errorf("删除job资源失败:%s", err.Error())
 	}
 	return nil
+}
+
+// JobPodList
+//
+//	@Description: 获取job关联的pod列表
+//	@param client
+//	@param namespace
+//	@param name
+//	@return *corev1.PodList
+//	@return error
+func JobPodList(client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
+	job, err := client.BatchV1().Jobs(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取job资源失败:%s", err.Error())
+	}
+	var labelSelector string
+	if job.Spec.Selector != nil {
+		selector := labels.Set(job.Spec.Selector.MatchLabels).AsSelectorPreValidated()
+		labelSelector = selector.String()
+	} else {
+		// Fallback: use controller-uid from the job's own labels
+		if uid, ok := job.Labels["controller-uid"]; ok {
+			labelSelector = "controller-uid=" + uid
+		} else {
+			labelSelector = "job-name=" + name
+		}
+	}
+	podList, err := client.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
+	}
+	return podList, nil
 }

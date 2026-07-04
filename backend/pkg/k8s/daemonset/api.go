@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
 )
@@ -200,4 +202,27 @@ func DeleteDaemonSetByLabel(client *kubernetes.Clientset, namespace string, labe
 		return fmt.Errorf("删除daemonSet资源失败:%s", err.Error())
 	}
 	return nil
+}
+
+// DaemonSetPodList
+//
+//	@Description: 获取daemonSet关联的pod列表
+//	@param client
+//	@param namespace
+//	@param name
+//	@return *corev1.PodList
+//	@return error
+func DaemonSetPodList(client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
+	daemonSet, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取daemonSet资源失败:%s", err.Error())
+	}
+	selector := labels.Set(daemonSet.Spec.Selector.MatchLabels).AsSelectorPreValidated()
+	podList, err := client.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
+		LabelSelector: selector.String(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
+	}
+	return podList, nil
 }

@@ -366,6 +366,46 @@ const router = createRouter({
           props: true,
           meta: { title: 'StorageClass详情', parent: 'StorageClassList' },
         },
+        // Storage - VolumeSnapshot
+        {
+          path: 'storage/volumesnapshots',
+          name: 'VolumeSnapshotList',
+          component: () => import('@/views/storage/VolumeSnapshotList.vue'),
+          meta: { title: 'VolumeSnapshot', icon: 'Camera' },
+        },
+        {
+          path: 'storage/volumesnapshots/create',
+          name: 'VolumeSnapshotCreate',
+          component: () => import('@/views/storage/VolumeSnapshotCreate.vue'),
+          meta: { title: '创建VolumeSnapshot', parent: 'VolumeSnapshotList' },
+        },
+        {
+          path: 'storage/volumesnapshots/:namespace/:name',
+          name: 'VolumeSnapshotDetail',
+          component: () => import('@/views/storage/VolumeSnapshotDetail.vue'),
+          props: true,
+          meta: { title: 'VolumeSnapshot详情', parent: 'VolumeSnapshotList' },
+        },
+        // Storage - VolumeSnapshotClass
+        {
+          path: 'storage/volumesnapshotclasses',
+          name: 'VolumeSnapshotClassList',
+          component: () => import('@/views/storage/VolumeSnapshotClassList.vue'),
+          meta: { title: 'VolumeSnapshotClass', icon: 'CameraFilled' },
+        },
+        {
+          path: 'storage/volumesnapshotclasses/create',
+          name: 'VolumeSnapshotClassCreate',
+          component: () => import('@/views/storage/VolumeSnapshotClassCreate.vue'),
+          meta: { title: '创建VolumeSnapshotClass', parent: 'VolumeSnapshotClassList' },
+        },
+        {
+          path: 'storage/volumesnapshotclasses/:name',
+          name: 'VolumeSnapshotClassDetail',
+          component: () => import('@/views/storage/VolumeSnapshotClassDetail.vue'),
+          props: true,
+          meta: { title: 'VolumeSnapshotClass详情', parent: 'VolumeSnapshotClassList' },
+        },
         // Network - Service
         {
           path: 'services',

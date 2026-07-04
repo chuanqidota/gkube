@@ -107,6 +107,14 @@
           <el-icon><Files /></el-icon>
           <template #title>{{ t('sidebar.storageclasses') }}</template>
         </el-menu-item>
+        <el-menu-item index="/storage/volumesnapshots">
+          <el-icon><Camera /></el-icon>
+          <template #title>{{ t('sidebar.volumeSnapshots') }}</template>
+        </el-menu-item>
+        <el-menu-item index="/storage/volumesnapshotclasses">
+          <el-icon><CameraFilled /></el-icon>
+          <template #title>{{ t('sidebar.volumeSnapshotClasses') }}</template>
+        </el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="network">
         <template #title>
@@ -200,6 +208,8 @@ import {
   SetUp,
   Finished,
   Timer,
+  Camera,
+  CameraFilled,
 } from '@element-plus/icons-vue'
 
 defineProps<{

@@ -1,12 +1,14 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"gkube/app/k8s/params"
 	"gkube/pkg/k8s"
 	k8sDaemonSet "gkube/pkg/k8s/daemonset"
 	"gkube/pkg/response"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type daemonSet struct {
@@ -230,4 +232,67 @@ func (d *daemonSet) DeleteDaemonSetByField(c *gin.Context) {
 	}
 	response.Success(c, "执行成功", nil)
 
+}
+
+// GetDaemonSetEvents
+//
+//	@Description: 获取daemonset事件
+//	@receiver d
+//	@param c
+func (d *daemonSet) GetDaemonSetEvents(c *gin.Context) {
+	var query params.DaemonSetQueryByNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	events, err := client.CoreV1().Events(query.Namespace).List(context.TODO(), metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=DaemonSet", query.Name),
+	})
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取daemonset事件失败:%v", err.Error()))
+		return
+	}
+	var result []map[string]any
+	for _, event := range events.Items {
+		lastSeen := ""
+		if !event.LastTimestamp.IsZero() {
+			lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
+		}
+		result = append(result, map[string]any{
+			"type":      event.Type,
+			"reason":    event.Reason,
+			"message":   event.Message,
+			"last_seen": lastSeen,
+		})
+	}
+	response.Success(c, "执行成功", result)
+}
+
+// DaemonSetPodList
+//
+//	@Description: 获取daemonset关联的pod列表
+//	@receiver d
+//	@param c
+func (d *daemonSet) DaemonSetPodList(c *gin.Context) {
+	var query params.DaemonSetQueryByNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	podList, err := k8sDaemonSet.DaemonSetPodList(client, query.Namespace, query.Name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取daemonset pod列表失败:%v", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", podList)
 }

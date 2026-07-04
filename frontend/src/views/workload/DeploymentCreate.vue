@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
 import WorkloadForm from '@/components/WorkloadForm.vue'
@@ -8,6 +9,7 @@ import YamlEditor from '@/components/YamlEditor.vue'
 import { createDeployment } from '@/api/resource'
 
 const router = useRouter()
+const { t } = useI18n()
 const mode = ref<'form' | 'yaml'>('form')
 const yamlContent = ref(`apiVersion: apps/v1
 kind: Deployment
@@ -61,7 +63,7 @@ function handleCancel() {
 <template>
   <div class="deployment-create">
     <div class="mode-switcher">
-      <el-segmented v-model="mode" :options="[{ label: '表单创建', value: 'form' }, { label: 'YAML创建', value: 'yaml' }]" size="small" />
+      <el-segmented v-model="mode" :options="[{ label: t('common.formCreate'), value: 'form' }, { label: t('common.yamlCreate'), value: 'yaml' }]" size="small" />
     </div>
 
     <WorkloadForm v-if="mode === 'form'" kind="Deployment" />

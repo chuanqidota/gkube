@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getJobList, getJobYaml, deleteJob } from '@/api/resource'
+import { Refresh, Plus, Delete, Search, Timer } from '@element-plus/icons-vue'
+import {
+  getJobList,
+  getJobYaml,
+  updateJobYaml,
+  deleteJob,
+  transformJobs,
+} from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
 
@@ -9,6 +15,7 @@ const {
   filteredList,
   selectedNamespace,
   searchName,
+  onSearchInput,
   selectedRows,
   namespaceList,
   yamlDialogVisible,
@@ -16,23 +23,29 @@ const {
   yamlLoading,
   hasMore,
   totalCount,
+  autoRefreshEnabled,
+  toggleAutoRefresh,
   fetchResources,
   fetchNextPage,
   handleNamespaceChange,
   handleSelectionChange,
   handleViewYaml,
+  handleSaveYaml,
   handleDetail,
   handleDelete,
   handleBatchDelete,
 } = useResourceList({
   resourceName: 'Job',
   fetchList: getJobList,
+  transform: transformJobs,
   getYaml: getJobYaml,
+  updateYaml: updateJobYaml,
   deleteResource: deleteJob,
   detailRoute: '/workloads/jobs',
   createRoute: '/workloads/jobs/create',
   paginated: true,
   pageSize: 50,
+  autoRefreshInterval: 30000,
 })
 </script>
 
@@ -40,27 +53,58 @@ const {
   <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <el-input v-model="searchName" placeholder="Search by name" style="width: 220px;" clearable>
+        <el-input
+          :model-value="searchName"
+          @input="onSearchInput"
+          placeholder="Search by name"
+          style="width: 220px;"
+          clearable
+        >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-select v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 180px;" @change="handleNamespaceChange">
+        <el-select
+          v-model="selectedNamespace"
+          placeholder="All Namespaces"
+          clearable
+          style="width: 180px;"
+          @change="handleNamespaceChange"
+        >
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button @click="fetchResources()" :loading="loading"><el-icon><Refresh /></el-icon> Refresh</el-button>
-        <el-button type="success" @click="$router.push('/workloads/jobs/create')"><el-icon><Plus /></el-icon> Create</el-button>
-        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})</el-button>
+        <el-button @click="fetchResources()" :loading="loading">
+          <el-icon><Refresh /></el-icon> Refresh
+        </el-button>
+        <el-button
+          :type="autoRefreshEnabled ? 'success' : 'default'"
+          @click="toggleAutoRefresh"
+        >
+          <el-icon><Timer /></el-icon> {{ autoRefreshEnabled ? 'Auto' : 'Manual' }}
+        </el-button>
+        <el-button type="success" @click="$router.push('/workloads/jobs/create')">
+          <el-icon><Plus /></el-icon> Create
+        </el-button>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})
+        </el-button>
         <span class="total-count" v-if="totalCount">Total: {{ totalCount }}</span>
       </div>
     </el-card>
+
     <el-card shadow="never" class="table-card">
-      <el-table :data="filteredList" v-loading="loading" stripe @selection-change="handleSelectionChange">
+      <el-table
+        :data="filteredList"
+        v-loading="loading"
+        stripe
+        @selection-change="handleSelectionChange"
+      >
         <el-table-column type="selection" width="45" />
         <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
+          <template #default="{ row }">
+            <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
+          </template>
         </el-table-column>
         <el-table-column prop="namespace" label="Namespace" width="140" />
         <el-table-column prop="completions" label="Completions" width="120" />
-        <el-table-column prop="succeeded" label="Succeeded" width="120" />
         <el-table-column prop="age" label="Age" width="120" />
         <el-table-column label="Actions" width="200" fixed="right">
           <template #default="{ row }">
@@ -68,13 +112,32 @@ const {
             <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty description="No Jobs found">
+            <el-button type="primary" @click="$router.push('/workloads/jobs/create')">Create Job</el-button>
+          </el-empty>
+        </template>
       </el-table>
+
       <div v-if="hasMore" class="load-more">
-        <el-button @click="fetchNextPage" :loading="loading" link type="primary">Load More...</el-button>
+        <el-button @click="fetchNextPage" :loading="loading" link type="primary">
+          Load More...
+        </el-button>
       </div>
     </el-card>
+
+    <!-- YAML Dialog -->
     <el-dialog v-model="yamlDialogVisible" title="Job YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
+      <div v-loading="yamlLoading">
+        <YamlEditor
+          v-model="yamlContent"
+          height="600px"
+          :read-only="false"
+          :saveable="true"
+          auto-format
+          @save="handleSaveYaml"
+        />
+      </div>
     </el-dialog>
   </div>
 </template>

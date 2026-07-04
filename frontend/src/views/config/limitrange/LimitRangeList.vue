@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Search } from '@element-plus/icons-vue'
 import { getLimitRangeList, getLimitRangeYaml, deleteLimitRange, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const router = useRouter()
@@ -75,6 +76,8 @@ async function handleBatchDelete() {
   } catch { /* cancelled */ }
 }
 
+const { isRunning, countdown, toggle, refresh } = useAutoRefresh(fetchLimitRanges)
+
 onMounted(() => { fetchNamespaces(); fetchLimitRanges() })
 </script>
 
@@ -88,8 +91,11 @@ onMounted(() => { fetchNamespaces(); fetchLimitRanges() })
         <el-select v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 180px;" @change="handleNamespaceChange">
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
-        <el-button type="primary" @click="fetchLimitRanges"><el-icon><Refresh /></el-icon> Refresh</el-button>
-        <el-button type="success" @click="$router.push('/config/limitranges/create')"><el-icon><Plus /></el-icon> Create</el-button>
+        <el-button type="primary" @click="refresh"><el-icon><Refresh /></el-icon> Refresh</el-button>
+        <el-button :type="isRunning ? 'success' : 'info'" @click="toggle">
+          {{ isRunning ? `Auto (${countdown}s)` : 'Manual' }}
+        </el-button>
+        <el-button type="success" @click="router.push('/config/limitranges/create')"><el-icon><Plus /></el-icon> Create</el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})</el-button>
       </div>
     </el-card>

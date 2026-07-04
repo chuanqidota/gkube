@@ -90,53 +90,6 @@ func (cm *configmap) GetConfigMapYaml(c *gin.Context) {
 	response.Success(c, "执行成功", configMapYaml)
 }
 
-// CreateConfigMap
-//
-//	@Description: 创建cm
-//	@receiver cm
-//	@param c
-func (cm *configmap) CreateConfigMap(c *gin.Context) {
-	var body params.ConfigMapCreateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	if err := k8sConfigMap.CreateConfigMap(client, body.Namespace, body.Name, body.Data); err != nil {
-		response.Fail(c, fmt.Sprintf("创建ConfigMap失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// UpdateConfigMap
-//
-//	@Description: 更新cm
-//	@receiver cm
-//	@param c
-func (cm *configmap) UpdateConfigMap(c *gin.Context) {
-	var body params.ConfigMapUpdateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-
-	if err := k8sConfigMap.UpdateConfigMap(client, body.Namespace, body.Name, body.Data); err != nil {
-		response.Fail(c, fmt.Sprintf("更新ConfigMap失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
 // DeleteConfigMapByName
 //
 //	@Description: 删除cm根据名称
@@ -158,4 +111,58 @@ func (cm *configmap) DeleteConfigMapByName(c *gin.Context) {
 		return
 	}
 	response.Success(c, "执行成功", nil)
+}
+
+// UpdateConfigMapFromYaml
+//
+//	@Description: 通过YAML更新cm
+//	@receiver cm
+//	@param c
+func (cm *configmap) UpdateConfigMapFromYaml(c *gin.Context) {
+	var req struct {
+		ClusterName string `json:"clusterName"`
+		Namespace   string `json:"namespace"`
+		Yaml        string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	if err := k8sConfigMap.UpdateConfigMapFromYaml(client, req.Namespace, req.Yaml); err != nil {
+		response.Fail(c, fmt.Sprintf("更新ConfigMap失败:%v", err.Error()))
+		return
+	}
+	response.Success(c, "更新ConfigMap成功", nil)
+}
+
+// CreateConfigMapFromYaml
+//
+//	@Description: 通过YAML创建cm
+//	@receiver cm
+//	@param c
+func (cm *configmap) CreateConfigMapFromYaml(c *gin.Context) {
+	var req struct {
+		ClusterName string `json:"clusterName"`
+		Namespace   string `json:"namespace"`
+		Yaml        string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	if err := k8sConfigMap.CreateConfigMapFromYaml(client, req.Namespace, req.Yaml); err != nil {
+		response.Fail(c, fmt.Sprintf("创建ConfigMap失败:%v", err.Error()))
+		return
+	}
+	response.Success(c, "创建ConfigMap成功", nil)
 }

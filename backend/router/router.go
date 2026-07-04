@@ -126,6 +126,8 @@ func Engine() *gin.Engine {
 			k8s.GET("statefulset/list", k8sApi.StatefulSet.GetStatefulSetList)
 			k8s.GET("statefulset/detail", k8sApi.StatefulSet.GetStatefulSetByName) // /detail
 			k8s.GET("statefulset/get-yaml", k8sApi.StatefulSet.GetStatefulSetYaml) // /get-yaml
+			k8s.GET("statefulset/events", k8sApi.StatefulSet.GetStatefulSetEvents) // NEW
+			k8s.GET("statefulset/pods", k8sApi.StatefulSet.StatefulSetPodList)     // NEW
 			k8s.POST("statefulset/create", k8sApi.StatefulSet.CreateStatefulSet)
 			k8s.PUT("statefulset/update", k8sApi.StatefulSet.UpdateStatefulSet)
 			k8s.DELETE("statefulset/delete", k8sApi.StatefulSet.DeleteStatefulSetByName) // /delete
@@ -134,6 +136,8 @@ func Engine() *gin.Engine {
 			k8s.GET("daemonset/list", k8sApi.DaemonSet.GetDaemonSetList)
 			k8s.GET("daemonset/detail", k8sApi.DaemonSet.GetDaemonSetByName) // /detail
 			k8s.GET("daemonset/get-yaml", k8sApi.DaemonSet.GetDaemonSetYaml) // /get-yaml
+			k8s.GET("daemonset/events", k8sApi.DaemonSet.GetDaemonSetEvents) // NEW
+			k8s.GET("daemonset/pods", k8sApi.DaemonSet.DaemonSetPodList)     // NEW
 			k8s.POST("daemonset/create", k8sApi.DaemonSet.CreateDaemonSet)
 			k8s.PUT("daemonset/update", k8sApi.DaemonSet.UpdateDaemonSet)
 			k8s.DELETE("daemonset/delete", k8sApi.DaemonSet.DeleteDaemonSetByName) // /delete
@@ -142,6 +146,8 @@ func Engine() *gin.Engine {
 			k8s.GET("job/list", k8sApi.Job.GetJobList)
 			k8s.GET("job/detail", k8sApi.Job.GetJobByName)           // /detail
 			k8s.GET("job/get-yaml", k8sApi.Job.GetJobYaml)           // /get-yaml
+			k8s.GET("job/events", k8sApi.Job.GetJobEvents)           // NEW
+			k8s.GET("job/pods", k8sApi.Job.JobPodList)               // NEW
 			k8s.POST("job/create", k8sApi.Job.CreateJob)
 			k8s.PUT("job/update", k8sApi.Job.UpdateJob)
 			k8s.DELETE("job/delete", k8sApi.Job.DeleteJob)
@@ -150,6 +156,8 @@ func Engine() *gin.Engine {
 			k8s.GET("cronjob/list", k8sApi.Cronjob.GetCronJobList)
 			k8s.GET("cronjob/detail", k8sApi.Cronjob.GetCronJobByName) // /detail
 			k8s.GET("cronjob/get-yaml", k8sApi.Cronjob.GetCronJobYaml) // /get-yaml
+			k8s.GET("cronjob/events", k8sApi.Cronjob.GetCronJobEvents) // NEW
+			k8s.GET("cronjob/jobs", k8sApi.Cronjob.CronJobJobsList)    // NEW
 			k8s.POST("cronjob/create", k8sApi.Cronjob.CreateCronJob)
 			k8s.PUT("cronjob/update", k8sApi.Cronjob.UpdateCronJob)
 			k8s.DELETE("cronjob/delete", k8sApi.Cronjob.DeleteCronJobByName) // /delete
@@ -174,16 +182,16 @@ func Engine() *gin.Engine {
 			k8s.GET("configmap/list", k8sApi.ConfigMap.GetConfigMapList)
 			k8s.GET("configmap/detail", k8sApi.ConfigMap.GetConfigMapByName) // /detail
 			k8s.GET("configmap/get-yaml", k8sApi.ConfigMap.GetConfigMapYaml) // /get-yaml
-			k8s.POST("configmap/create", k8sApi.ConfigMap.CreateConfigMap)
-			k8s.PUT("configmap/update", k8sApi.ConfigMap.UpdateConfigMap)
+			k8s.POST("configmap/create", k8sApi.ConfigMap.CreateConfigMapFromYaml)
+			k8s.PUT("configmap/update", k8sApi.ConfigMap.UpdateConfigMapFromYaml)
 			k8s.DELETE("configmap/delete", k8sApi.ConfigMap.DeleteConfigMapByName) // /delete
 
 			// Secret
 			k8s.GET("secret/list", k8sApi.Secret.GetSecretsList)
 			k8s.GET("secret/detail", k8sApi.Secret.GetSecretByName) // /detail
 			k8s.GET("secret/get-yaml", k8sApi.Secret.GetSecretYaml) // /get-yaml
-			k8s.POST("secret/create", k8sApi.Secret.CreateSecret)
-			k8s.PUT("secret/update", k8sApi.Secret.UpdateSecret)
+			k8s.POST("secret/create", k8sApi.Secret.CreateSecretFromYaml)
+			k8s.PUT("secret/update", k8sApi.Secret.UpdateSecretFromYaml)
 			k8s.DELETE("secret/delete", k8sApi.Secret.DeleteSecret)
 
 			// Pod
@@ -218,6 +226,22 @@ func Engine() *gin.Engine {
 			k8s.POST("storageclass/create", k8sApi.StorageClass.CreateStorageClass)
 			k8s.PUT("storageclass/update", k8sApi.StorageClass.UpdateStorageClass)
 			k8s.DELETE("storageclass/delete", k8sApi.StorageClass.DeleteStorageClassByName)
+
+			// VolumeSnapshot
+			k8s.GET("volumesnapshot/list", k8sApi.VolumeSnapshot.GetVolumeSnapshotList)
+			k8s.GET("volumesnapshot/detail", k8sApi.VolumeSnapshot.GetVolumeSnapshotByName)
+			k8s.GET("volumesnapshot/get-yaml", k8sApi.VolumeSnapshot.GetVolumeSnapshotYaml)
+			k8s.POST("volumesnapshot/create", k8sApi.VolumeSnapshot.CreateVolumeSnapshot)
+			k8s.PUT("volumesnapshot/update", k8sApi.VolumeSnapshot.UpdateVolumeSnapshot)
+			k8s.DELETE("volumesnapshot/delete", k8sApi.VolumeSnapshot.DeleteVolumeSnapshotByName)
+
+			// VolumeSnapshotClass
+			k8s.GET("volumesnapshotclass/list", k8sApi.VolumeSnapshotClass.GetVolumeSnapshotClassList)
+			k8s.GET("volumesnapshotclass/detail", k8sApi.VolumeSnapshotClass.GetVolumeSnapshotClassByName)
+			k8s.GET("volumesnapshotclass/get-yaml", k8sApi.VolumeSnapshotClass.GetVolumeSnapshotClassYaml)
+			k8s.POST("volumesnapshotclass/create", k8sApi.VolumeSnapshotClass.CreateVolumeSnapshotClass)
+			k8s.PUT("volumesnapshotclass/update", k8sApi.VolumeSnapshotClass.UpdateVolumeSnapshotClass)
+			k8s.DELETE("volumesnapshotclass/delete", k8sApi.VolumeSnapshotClass.DeleteVolumeSnapshotClassByName)
 
 			// Container
 			k8s.GET("container/exec", k8sApi.HandleWebSocket)

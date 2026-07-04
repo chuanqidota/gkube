@@ -3,6 +3,7 @@ package configmap
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,51 +63,6 @@ func GetConfigMapYaml(client *kubernetes.Clientset, namespace, name string) (str
 	return string(configmapYAML), nil
 }
 
-// CreateConfigMap
-//
-//	@Description: 创建ConfigMap
-//	@param client
-//	@param namespace
-//	@param name
-//	@param data
-//	@return error
-func CreateConfigMap(client *kubernetes.Clientset, namespace, name string, data map[string]string) error {
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Data: data,
-	}
-	_, err := client.CoreV1().ConfigMaps(namespace).Create(context.TODO(), cm, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// UpdateConfigMap
-//
-//	@Description: 更新ConfigMap
-//	@param client
-//	@param namespace
-//	@param name
-//	@param data
-//	@return error
-func UpdateConfigMap(client *kubernetes.Clientset, namespace, name string, data map[string]string) error {
-	cm, err := client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	for key, value := range data {
-		cm.Data[key] = value
-	}
-	_, err = client.CoreV1().ConfigMaps(namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // DeleteConfigMap
 //
 //	@Description: 删除ConfigMap
@@ -116,4 +72,54 @@ func UpdateConfigMap(client *kubernetes.Clientset, namespace, name string, data 
 //	@return error
 func DeleteConfigMap(client *kubernetes.Clientset, namespace, name string) error {
 	return client.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+// UpdateConfigMapFromYaml
+//
+//	@Description: 通过YAML更新ConfigMap
+//	@param client
+//	@param namespace
+//	@param yamlContent
+//	@return error
+func UpdateConfigMapFromYaml(client *kubernetes.Clientset, namespace, yamlContent string) error {
+	if yamlContent == "" {
+		return fmt.Errorf("YAML content cannot be empty")
+	}
+	var cm corev1.ConfigMap
+	if err := yaml.Unmarshal([]byte(yamlContent), &cm); err != nil {
+		return fmt.Errorf("failed to unmarshal ConfigMap YAML: %w", err)
+	}
+	if cm.Name == "" {
+		return fmt.Errorf("ConfigMap name is required")
+	}
+	if cm.Namespace == "" {
+		cm.Namespace = namespace
+	}
+	_, err := client.CoreV1().ConfigMaps(namespace).Update(context.TODO(), &cm, metav1.UpdateOptions{})
+	return err
+}
+
+// CreateConfigMapFromYaml
+//
+//	@Description: 通过YAML创建ConfigMap
+//	@param client
+//	@param namespace
+//	@param yamlContent
+//	@return error
+func CreateConfigMapFromYaml(client *kubernetes.Clientset, namespace, yamlContent string) error {
+	if yamlContent == "" {
+		return fmt.Errorf("YAML content cannot be empty")
+	}
+	var cm corev1.ConfigMap
+	if err := yaml.Unmarshal([]byte(yamlContent), &cm); err != nil {
+		return fmt.Errorf("failed to unmarshal ConfigMap YAML: %w", err)
+	}
+	if cm.Name == "" {
+		return fmt.Errorf("ConfigMap name is required")
+	}
+	if cm.Namespace == "" {
+		cm.Namespace = namespace
+	}
+	_, err := client.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &cm, metav1.CreateOptions{})
+	return err
 }

@@ -10,6 +10,37 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// CronJobJobsList
+//
+//	@Description: 获取cronjob关联的job列表
+//	@param client
+//	@param namespace
+//	@param name
+//	@return []batchv1.Job
+//	@return error
+func CronJobJobsList(client *kubernetes.Clientset, namespace, name string) ([]batchv1.Job, error) {
+	cronJob, err := client.BatchV1().CronJobs(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取cronjob资源失败:%s", err.Error())
+	}
+	// CronJob doesn't have a selector like Deployment/StatefulSet
+	// We need to find jobs owned by this CronJob using ownerReferences
+	jobList, err := client.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取job列表失败:%s", err.Error())
+	}
+	var ownedJobs []batchv1.Job
+	for _, job := range jobList.Items {
+		for _, ref := range job.OwnerReferences {
+			if ref.Kind == "CronJob" && ref.Name == cronJob.Name {
+				ownedJobs = append(ownedJobs, job)
+				break
+			}
+		}
+	}
+	return ownedJobs, nil
+}
+
 // GetCronJobList
 //
 //	@Description: 获取cronjob列表

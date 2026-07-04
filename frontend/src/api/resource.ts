@@ -301,9 +301,19 @@ export function createConfigMap(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/configmap/create', data)
 }
 
+// ConfigMap update
+export function updateConfigMap(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/configmap/update', data)
+}
+
 // Secret create
 export function createSecret(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/secret/create', data)
+}
+
+// Secret update
+export function updateSecret(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/secret/update', data)
 }
 
 // Pod detail / actions
@@ -479,6 +489,56 @@ export function createStorageClass(data: any) {
 
 export function deleteStorageClass(params: { name: string }) {
   return request.delete('/k8s/storageclass/delete', { params })
+}
+
+// VolumeSnapshot
+export function getVolumeSnapshotList(params?: { namespace?: string; cluster_id?: number }) {
+  return request.get('/k8s/volumesnapshot/list', { params })
+}
+
+export function getVolumeSnapshotDetail(params: { namespace: string; name: string }) {
+  return request.get('/k8s/volumesnapshot/detail', { params })
+}
+
+export function getVolumeSnapshotYaml(params: { namespace: string; name: string }) {
+  return request.get('/k8s/volumesnapshot/get-yaml', { params })
+}
+
+export function createVolumeSnapshot(data: { namespace: string; yaml: string }) {
+  return request.post('/k8s/volumesnapshot/create', data)
+}
+
+export function updateVolumeSnapshot(data: { namespace: string; yaml: string }) {
+  return request.put('/k8s/volumesnapshot/update', data)
+}
+
+export function deleteVolumeSnapshot(data: { namespace: string; name: string }) {
+  return request.delete('/k8s/volumesnapshot/delete', { data })
+}
+
+// VolumeSnapshotClass
+export function getVolumeSnapshotClassList(params?: { cluster_id?: number }) {
+  return request.get('/k8s/volumesnapshotclass/list', { params })
+}
+
+export function getVolumeSnapshotClassDetail(params: { name: string }) {
+  return request.get('/k8s/volumesnapshotclass/detail', { params })
+}
+
+export function getVolumeSnapshotClassYaml(params: { name: string }) {
+  return request.get('/k8s/volumesnapshotclass/get-yaml', { params })
+}
+
+export function createVolumeSnapshotClass(data: { yaml: string }) {
+  return request.post('/k8s/volumesnapshotclass/create', data)
+}
+
+export function updateVolumeSnapshotClass(data: { yaml: string }) {
+  return request.put('/k8s/volumesnapshotclass/update', data)
+}
+
+export function deleteVolumeSnapshotClass(params: { name: string }) {
+  return request.delete('/k8s/volumesnapshotclass/delete', { params })
 }
 
 // HPA
@@ -713,6 +773,30 @@ export function deleteCustomResource(params: { group: string; version: string; r
 }
 
 // StatefulSet
+export interface StatefulSet {
+  name: string
+  namespace: string
+  ready: string
+  age: string
+  serviceName: string
+  updateStrategy: string
+}
+
+/**
+ * Transform raw K8s StatefulSet objects into simplified display format.
+ */
+export function transformStatefulSets(items: any[]): StatefulSet[] {
+  if (!Array.isArray(items)) return []
+  return items.map((d: any) => ({
+    name: d.metadata?.name || '',
+    namespace: d.metadata?.namespace || '',
+    ready: `${d.status?.readyReplicas || 0}/${d.spec?.replicas || 0}`,
+    serviceName: d.spec?.serviceName || '',
+    updateStrategy: d.spec?.updateStrategy?.type || 'RollingUpdate',
+    age: calcAge(d.metadata?.creationTimestamp),
+  }))
+}
+
 export function createStatefulSet(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/statefulset/create', data)
 }
@@ -726,11 +810,46 @@ export function getStatefulSetDetail(params: any) {
 export function getStatefulSetYaml(params: any) {
   return request.get('/k8s/statefulset/get-yaml', { params })
 }
+export function updateStatefulSetYaml(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/statefulset/update', data)
+}
 export function deleteStatefulSet(data: any) {
   return request.delete('/k8s/statefulset/delete', { data })
 }
+export function getStatefulSetEvents(params: { namespace: string; name: string }) {
+  return request.get('/k8s/statefulset/events', { params })
+}
+export function getStatefulSetPods(params: { namespace: string; name: string }) {
+  return request.get('/k8s/statefulset/pods', { params })
+}
 
 // DaemonSet
+export interface DaemonSet {
+  name: string
+  namespace: string
+  desired: number
+  current: number
+  ready: number
+  age: string
+  updateStrategy: string
+}
+
+/**
+ * Transform raw K8s DaemonSet objects into simplified display format.
+ */
+export function transformDaemonSets(items: any[]): DaemonSet[] {
+  if (!Array.isArray(items)) return []
+  return items.map((d: any) => ({
+    name: d.metadata?.name || '',
+    namespace: d.metadata?.namespace || '',
+    desired: d.status?.desiredNumberScheduled || 0,
+    current: d.status?.currentNumberScheduled || 0,
+    ready: d.status?.numberReady || 0,
+    updateStrategy: d.spec?.updateStrategy?.type || 'RollingUpdate',
+    age: calcAge(d.metadata?.creationTimestamp),
+  }))
+}
+
 export function createDaemonSet(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/daemonset/create', data)
 }
@@ -744,11 +863,42 @@ export function getDaemonSetDetail(params: any) {
 export function getDaemonSetYaml(params: any) {
   return request.get('/k8s/daemonset/get-yaml', { params })
 }
+export function updateDaemonSetYaml(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/daemonset/update', data)
+}
 export function deleteDaemonSet(data: any) {
   return request.delete('/k8s/daemonset/delete', { data })
 }
+export function getDaemonSetEvents(params: { namespace: string; name: string }) {
+  return request.get('/k8s/daemonset/events', { params })
+}
+export function getDaemonSetPods(params: { namespace: string; name: string }) {
+  return request.get('/k8s/daemonset/pods', { params })
+}
 
 // Job
+export interface Job {
+  name: string
+  namespace: string
+  completions: string
+  succeeded: number
+  age: string
+}
+
+/**
+ * Transform raw K8s Job objects into simplified display format.
+ */
+export function transformJobs(items: any[]): Job[] {
+  if (!Array.isArray(items)) return []
+  return items.map((d: any) => ({
+    name: d.metadata?.name || '',
+    namespace: d.metadata?.namespace || '',
+    completions: `${d.status?.succeeded || 0}/${d.spec?.completions || 1}`,
+    succeeded: d.status?.succeeded || 0,
+    age: calcAge(d.metadata?.creationTimestamp),
+  }))
+}
+
 export function createJob(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/job/create', data)
 }
@@ -762,11 +912,46 @@ export function getJobDetail(params: any) {
 export function getJobYaml(params: any) {
   return request.get('/k8s/job/get-yaml', { params })
 }
+export function updateJobYaml(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/job/update', data)
+}
 export function deleteJob(data: any) {
   return request.delete('/k8s/job/delete', { data })
 }
+export function getJobEvents(params: { namespace: string; name: string }) {
+  return request.get('/k8s/job/events', { params })
+}
+export function getJobPods(params: { namespace: string; name: string }) {
+  return request.get('/k8s/job/pods', { params })
+}
 
 // CronJob
+export interface CronJob {
+  name: string
+  namespace: string
+  schedule: string
+  suspend: boolean
+  active: number
+  lastSchedule: string
+  age: string
+}
+
+/**
+ * Transform raw K8s CronJob objects into simplified display format.
+ */
+export function transformCronJobs(items: any[]): CronJob[] {
+  if (!Array.isArray(items)) return []
+  return items.map((d: any) => ({
+    name: d.metadata?.name || '',
+    namespace: d.metadata?.namespace || '',
+    schedule: d.spec?.schedule || '',
+    suspend: d.spec?.suspend || false,
+    active: d.status?.active?.length || 0,
+    lastSchedule: d.status?.lastScheduleTime || '',
+    age: calcAge(d.metadata?.creationTimestamp),
+  }))
+}
+
 export function createCronJob(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/cronjob/create', data)
 }
@@ -780,6 +965,15 @@ export function getCronJobDetail(params: any) {
 export function getCronJobYaml(params: any) {
   return request.get('/k8s/cronjob/get-yaml', { params })
 }
+export function updateCronJobYaml(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/cronjob/update', data)
+}
 export function deleteCronJob(data: any) {
   return request.delete('/k8s/cronjob/delete', { data })
+}
+export function getCronJobEvents(params: { namespace: string; name: string }) {
+  return request.get('/k8s/cronjob/events', { params })
+}
+export function getCronJobJobs(params: { namespace: string; name: string }) {
+  return request.get('/k8s/cronjob/jobs', { params })
 }

@@ -90,52 +90,6 @@ func (s *secret) GetSecretYaml(c *gin.Context) {
 	response.Success(c, "执行成功", secretYaml)
 }
 
-// CreateSecret
-//
-//	@Description: 创建secret
-//	@receiver s
-//	@param c
-func (s *secret) CreateSecret(c *gin.Context) {
-	var body params.SecretCreateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	if err := k8sSecret.CreateSecret(client, body.Namespace, body.Name, body.Data); err != nil {
-		response.Fail(c, fmt.Sprintf("创建secret失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// UpdateSecret
-//
-//	@Description: 更新secret
-//	@receiver s
-//	@param c
-func (s *secret) UpdateSecret(c *gin.Context) {
-	var body params.SecretUpdateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	if err := k8sSecret.UpdateSecret(client, body.Namespace, body.Name, body.Data); err != nil {
-		response.Fail(c, fmt.Sprintf("更新secret失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
 // DeleteSecret
 //
 //	@Description: 删除secret
@@ -157,4 +111,58 @@ func (s *secret) DeleteSecret(c *gin.Context) {
 		return
 	}
 	response.Success(c, "执行成功", nil)
+}
+
+// UpdateSecretFromYaml
+//
+//	@Description: 通过YAML更新secret
+//	@receiver s
+//	@param c
+func (s *secret) UpdateSecretFromYaml(c *gin.Context) {
+	var req struct {
+		ClusterName string `json:"clusterName"`
+		Namespace   string `json:"namespace"`
+		Yaml        string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	if err := k8sSecret.UpdateSecretFromYaml(client, req.Namespace, req.Yaml); err != nil {
+		response.Fail(c, fmt.Sprintf("更新secret失败:%v", err.Error()))
+		return
+	}
+	response.Success(c, "更新secret成功", nil)
+}
+
+// CreateSecretFromYaml
+//
+//	@Description: 通过YAML创建secret
+//	@receiver s
+//	@param c
+func (s *secret) CreateSecretFromYaml(c *gin.Context) {
+	var req struct {
+		ClusterName string `json:"clusterName"`
+		Namespace   string `json:"namespace"`
+		Yaml        string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	if err := k8sSecret.CreateSecretFromYaml(client, req.Namespace, req.Yaml); err != nil {
+		response.Fail(c, fmt.Sprintf("创建secret失败:%v", err.Error()))
+		return
+	}
+	response.Success(c, "创建secret成功", nil)
 }

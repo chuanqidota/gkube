@@ -3,6 +3,7 @@ package secret
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,62 +62,6 @@ func GetSecretYaml(client *kubernetes.Clientset, namespace, name string) (string
 	return string(secretYAML), nil
 }
 
-// CreateSecret
-//
-//	@Description: 创建secret
-//	@param client
-//	@param namespace
-//	@param name
-//	@param data
-//	@return error
-func CreateSecret(client *kubernetes.Clientset, namespace, name string, data map[string]string) error {
-	// 将字符串数据编码为 base64
-	encodedData := make(map[string][]byte)
-	for k, v := range data {
-		encodedData[k] = []byte(v)
-	}
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Data: encodedData,
-		Type: corev1.SecretTypeOpaque,
-	}
-	_, err := client.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// UpdateSecret
-//
-//	@Description: 更新secret
-//	@param client
-//	@param namespace
-//	@param name
-//	@param data
-//	@return bool
-//	@return error
-func UpdateSecret(client *kubernetes.Clientset, namespace, name string, data map[string]string) error {
-	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	// 更新数据
-	encodedData := make(map[string][]byte)
-	for k, v := range data {
-		encodedData[k] = []byte(v)
-	}
-	secret.Data = encodedData
-
-	_, err = client.CoreV1().Secrets(namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // DeleteSecret
 //
 //	@Description: 删除secret
@@ -126,4 +71,54 @@ func UpdateSecret(client *kubernetes.Clientset, namespace, name string, data map
 //	@return error
 func DeleteSecret(client *kubernetes.Clientset, namespace, name string) error {
 	return client.CoreV1().Secrets(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+// UpdateSecretFromYaml
+//
+//	@Description: 通过YAML更新Secret
+//	@param client
+//	@param namespace
+//	@param yamlContent
+//	@return error
+func UpdateSecretFromYaml(client *kubernetes.Clientset, namespace, yamlContent string) error {
+	if yamlContent == "" {
+		return fmt.Errorf("YAML content cannot be empty")
+	}
+	var secret corev1.Secret
+	if err := yaml.Unmarshal([]byte(yamlContent), &secret); err != nil {
+		return fmt.Errorf("failed to unmarshal Secret YAML: %w", err)
+	}
+	if secret.Name == "" {
+		return fmt.Errorf("Secret name is required")
+	}
+	if secret.Namespace == "" {
+		secret.Namespace = namespace
+	}
+	_, err := client.CoreV1().Secrets(namespace).Update(context.TODO(), &secret, metav1.UpdateOptions{})
+	return err
+}
+
+// CreateSecretFromYaml
+//
+//	@Description: 通过YAML创建Secret
+//	@param client
+//	@param namespace
+//	@param yamlContent
+//	@return error
+func CreateSecretFromYaml(client *kubernetes.Clientset, namespace, yamlContent string) error {
+	if yamlContent == "" {
+		return fmt.Errorf("YAML content cannot be empty")
+	}
+	var secret corev1.Secret
+	if err := yaml.Unmarshal([]byte(yamlContent), &secret); err != nil {
+		return fmt.Errorf("failed to unmarshal Secret YAML: %w", err)
+	}
+	if secret.Name == "" {
+		return fmt.Errorf("Secret name is required")
+	}
+	if secret.Namespace == "" {
+		secret.Namespace = namespace
+	}
+	_, err := client.CoreV1().Secrets(namespace).Create(context.TODO(), &secret, metav1.CreateOptions{})
+	return err
 }
