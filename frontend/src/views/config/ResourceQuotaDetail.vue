@@ -58,13 +58,13 @@ function updateChart() {
         name: '配额',
         type: 'bar',
         data: hardValues,
-        itemStyle: { color: 'var(--gk-color-primary)' }
+        itemStyle: { color: '#409eff' }
       },
       {
         name: '已使用',
         type: 'bar',
         data: usedValues,
-        itemStyle: { color: 'var(--gk-color-success)' }
+        itemStyle: { color: '#67c23a' }
       }
     ]
   })
