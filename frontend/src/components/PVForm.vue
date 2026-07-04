@@ -403,7 +403,7 @@ function handleCancel() {
   justify-content: flex-end;
   gap: 12px;
   padding-top: 24px;
-  border-top: 1px solid #e4e7ed;
+  border-top: 1px solid var(--gk-color-border);
   margin-top: 24px;
 }
 </style>

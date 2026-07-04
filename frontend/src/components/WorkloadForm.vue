@@ -542,9 +542,9 @@ function handleCancel() { router.push(getListRoute()) }
 .form-header { margin-bottom: 24px; }
 .form-header h2 { margin: 0; font-size: 20px; font-weight: 600; }
 .step-content { min-height: 400px; padding: 16px 0; }
-.container-card { border: 1px solid #e4e7ed; border-radius: 8px; padding: 20px; margin-bottom: 16px; background: #fafafa; }
-.container-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #e4e7ed; }
+.container-card { border: 1px solid var(--gk-color-border); border-radius: 8px; padding: 20px; margin-bottom: 16px; background: #fafafa; }
+.container-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--gk-color-border); }
 .container-card-header h4 { margin: 0; font-size: 15px; font-weight: 600; color: #303133; }
-.resource-label { font-size: 12px; color: #909399; margin-bottom: 4px; }
-.form-actions { display: flex; justify-content: flex-end; gap: 12px; padding-top: 24px; border-top: 1px solid #e4e7ed; margin-top: 24px; }
+.resource-label { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: 4px; }
+.form-actions { display: flex; justify-content: flex-end; gap: 12px; padding-top: 24px; border-top: 1px solid var(--gk-color-border); margin-top: 24px; }
 </style>

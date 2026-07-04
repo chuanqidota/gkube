@@ -8,6 +8,6 @@
 .fullscreen-layout {
   height: 100vh;
   width: 100vw;
-  background: #f0f2f5;
+  background: var(--gk-color-bg-page);
 }
 </style>

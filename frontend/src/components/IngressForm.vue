@@ -373,7 +373,7 @@ function handleCancel() {
                   </el-button>
                 </div>
                 <div style="display: flex; gap: 8px; align-items: center;">
-                  <span style="font-size: 13px; color: #606266; white-space: nowrap;">Backend:</span>
+                  <span style="font-size: 13px; color: var(--gk-color-text-primary); white-space: nowrap;">Backend:</span>
                   <el-input v-model="rule.backendService" placeholder="Service name" style="flex: 1;" />
                   <el-input-number v-model="rule.backendPort" :min="1" :max="65535" placeholder="Port" style="width: 140px;" />
                 </div>
@@ -478,7 +478,7 @@ function handleCancel() {
 }
 
 .rule-card {
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--gk-color-border);
   border-radius: 6px;
   padding: 12px;
   margin-bottom: 8px;
@@ -486,7 +486,7 @@ function handleCancel() {
 }
 
 .tls-card {
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--gk-color-border);
   border-radius: 6px;
   padding: 12px;
   margin-bottom: 8px;
@@ -498,7 +498,7 @@ function handleCancel() {
   justify-content: flex-end;
   gap: 12px;
   padding-top: 24px;
-  border-top: 1px solid #e4e7ed;
+  border-top: 1px solid var(--gk-color-border);
   margin-top: 24px;
 }
 </style>

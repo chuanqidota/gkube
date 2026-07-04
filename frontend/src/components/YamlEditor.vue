@@ -206,7 +206,7 @@ defineExpose({ saving, resetSaving })
 }
 .yaml-editor-toolbar {
   padding: 6px 12px;
-  background: #f5f7fa;
+  background: var(--gk-neutral-100);
   border-bottom: 1px solid #dcdfe6;
   display: flex;
   align-items: center;
@@ -228,7 +228,7 @@ defineExpose({ saving, resetSaving })
 }
 .toolbar-title {
   font-size: 13px;
-  color: #909399;
+  color: var(--gk-color-text-secondary);
   margin-left: 4px;
 }
 </style>

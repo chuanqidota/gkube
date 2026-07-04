@@ -314,7 +314,7 @@ function handleCancel() {
 }
 
 .data-entry-card {
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--gk-color-border);
   border-radius: 6px;
   padding: 12px;
   margin-bottom: 8px;
@@ -326,7 +326,7 @@ function handleCancel() {
   justify-content: flex-end;
   gap: 12px;
   padding-top: 24px;
-  border-top: 1px solid #e4e7ed;
+  border-top: 1px solid var(--gk-color-border);
   margin-top: 24px;
 }
 </style>

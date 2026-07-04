@@ -597,7 +597,7 @@ function handleCancel() {
 }
 
 .container-card {
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--gk-color-border);
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 16px;
@@ -610,7 +610,7 @@ function handleCancel() {
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid var(--gk-color-border);
 }
 
 .container-card-header h4 {
@@ -622,7 +622,7 @@ function handleCancel() {
 
 .resource-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--gk-color-text-secondary);
   margin-bottom: 4px;
 }
 
@@ -631,7 +631,7 @@ function handleCancel() {
   justify-content: flex-end;
   gap: 12px;
   padding-top: 24px;
-  border-top: 1px solid #e4e7ed;
+  border-top: 1px solid var(--gk-color-border);
   margin-top: 24px;
 }
 </style>
