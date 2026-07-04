@@ -64,54 +64,6 @@ func (i *ingress) GetIngressByName(c *gin.Context) {
 	response.Success(c, "执行成功", ingress)
 }
 
-// GetIngressByLabel
-//
-//	@Description: 获取ingress根据标签
-//	@receiver i
-//	@param c
-func (i *ingress) GetIngressByLabel(c *gin.Context) {
-	var body params.IngressQueryByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, err.Error())
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, err.Error())
-		return
-	}
-	ingressList, err := k8sIngress.GetIngressByLabel(client, body.Namespace, body.LabelMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取ingress失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", ingressList)
-}
-
-// GetIngressByField
-//
-//	@Description: 获取ingress根据字段
-//	@receiver i
-//	@param c
-func (i *ingress) GetIngressByField(c *gin.Context) {
-	var body params.IngressQueryByFieldParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, err.Error())
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, err.Error())
-		return
-	}
-	ingressList, err := k8sIngress.GetIngressByFiled(client, body.Namespace, body.FieldMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取ingress失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", ingressList)
-}
-
 // GetIngressYaml
 //
 //	@Description: 获取ingress的yaml
@@ -201,52 +153,6 @@ func (i *ingress) DeleteIngressByName(c *gin.Context) {
 	}
 
 	if err := k8sIngress.DeleteIngressByName(client, body.Namespace, body.Name); err != nil {
-		response.Fail(c, fmt.Sprintf("删除ingress失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// DeleteIngressByLabel
-//
-//	@Description: 删除ingress根据标签
-//	@receiver i
-//	@param c
-func (i *ingress) DeleteIngressByLabel(c *gin.Context) {
-	var body params.IngressDeleteByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	if err := k8sIngress.DeleteIngressByLabel(client, body.Namespace, body.LabelMap); err != nil {
-		response.Fail(c, fmt.Sprintf("删除ingress失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// DeleteIngressByField
-//
-//	@Description: 删除ingress根据字段
-//	@receiver i
-//	@param c
-func (i *ingress) DeleteIngressByField(c *gin.Context) {
-	var body params.IngressDeleteByFieldParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	if err := k8sIngress.DeleteIngressByField(client, body.Namespace, body.FieldMap); err != nil {
 		response.Fail(c, fmt.Sprintf("删除ingress失败:%v", err.Error()))
 		return
 	}

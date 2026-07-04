@@ -82,54 +82,6 @@ func (j *job) GetJobByName(c *gin.Context) {
 	response.Success(c, "执行成功", job)
 }
 
-// GetJobByFiled
-//
-//	@Description: 根据字段查询job
-//	@receiver j
-//	@param c
-func (j *job) GetJobByFiled(c *gin.Context) {
-	var body params.JobQueryByFiledParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	jobs, err := k8sJob.GetJobByFiled(client, body.Namespace, body.FieldMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取job失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", jobs)
-}
-
-// GetJobByLabel
-//
-//	@Description: 根据标签查询job
-//	@receiver j
-//	@param c
-func (j *job) GetJobByLabel(c *gin.Context) {
-	var body params.JobQueryByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	jobs, err := k8sJob.GetJobByLabel(client, body.Namespace, body.LabelMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取job失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", jobs)
-}
-
 // GetJobYaml
 //
 //	@Description: 获取job的yaml
@@ -224,52 +176,6 @@ func (j *job) DeleteJob(c *gin.Context) {
 	}
 	response.Success(c, "执行成功", nil)
 
-}
-
-// DeleteJobByField
-//
-//	@Description: 根据字段删除job
-//	@receiver j
-//	@param c
-func (j *job) DeleteJobByField(c *gin.Context) {
-	var body params.JobDeleteByFieldParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	if err := k8sJob.DeleteJobByField(client, body.Namespace, body.FieldMap); err != nil {
-		response.Fail(c, fmt.Sprintf("删除job失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// DeleteJobByLabel
-//
-//	@Description: 根据标签删除job
-//	@receiver j
-//	@param c
-func (j *job) DeleteJobByLabel(c *gin.Context) {
-	var body params.JobDeleteByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	if err := k8sJob.DeleteJobByLabel(client, body.Namespace, body.LabelMap); err != nil {
-		response.Fail(c, fmt.Sprintf("删除job失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
 }
 
 // GetJobEvents

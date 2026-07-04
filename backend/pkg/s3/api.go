@@ -33,13 +33,8 @@ func Init() {
 
 // UploadFile 上传数据到as3中，文件名key
 func UploadFile(key string, data []byte) {
-	//jsonData, err := json.Marshal(data)
-	//if err != nil {
-	//	logger.Error(fmt.Sprintf("上传As3前解析文件失败-%s", err.Error()))
-	//}
 	BucketName := config.Conf.S3.Bucket
 	_, err := As3Client.PutObject(context.Background(), BucketName, key, bytes.NewReader(data), int64(len(data)), minio.PutObjectOptions{})
-	//_, err = As3Client.PutObject(context.Background(), BucketName, key, bytes.NewReader(jsonData), int64(len(jsonData)), minio.PutObjectOptions{})
 	if err != nil {
 		logger.Error(fmt.Sprintf("上传As3文件失败-%s", err.Error()))
 	}

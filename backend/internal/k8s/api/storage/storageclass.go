@@ -66,56 +66,6 @@ func (s *storageClass) GetStorageClassByName(c *gin.Context) {
 
 }
 
-// GetStorageClassByField
-//
-//	@Description: 获取sc根据字段
-//	@receiver s
-//	@param c
-func (s *storageClass) GetStorageClassByField(c *gin.Context) {
-	var body params.StorageClassQueryByFieldParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-
-	storageClasses, err := k8sStorageClass.GetStorageClassByField(client, body.FieldMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取StorageClass失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", storageClasses)
-}
-
-// GetStorageClassByLabel
-//
-//	@Description: 获取sc根据标签
-//	@receiver s
-//	@param c
-func (s *storageClass) GetStorageClassByLabel(c *gin.Context) {
-	var body params.StorageClassQueryByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	storageClasses, err := k8sStorageClass.GetStorageClassByLabel(client, body.LabelMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取StorageClass失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", storageClasses)
-}
-
 // GetStorageClassYaml
 //
 //	@Description: 获取sc的yaml文件
@@ -219,48 +169,3 @@ func (s *storageClass) DeleteStorageClassByName(c *gin.Context) {
 	response.Success(c, "执行成功", nil)
 }
 
-// DeleteStorageClassByField
-//
-//	@Description: 删除sc根据字段
-//	@receiver s
-//	@param c
-func (s *storageClass) DeleteStorageClassByField(c *gin.Context) {
-	var body params.StorageClassDeleteByFieldParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	if err := k8sStorageClass.DeleteStorageClassByField(client, body.FieldMap); err != nil {
-		response.Fail(c, fmt.Sprintf("删除StorageClass失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// DeleteStorageClassByLabel
-//
-//	@Description: 删除sc根据标签
-//	@receiver s
-//	@param c
-func (s *storageClass) DeleteStorageClassByLabel(c *gin.Context) {
-	var body params.StorageClassDeleteByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	if err := k8sStorageClass.DeleteStorageClassByLabel(client, body.LabelMap); err != nil {
-		response.Fail(c, fmt.Sprintf("删除StorageClass失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}

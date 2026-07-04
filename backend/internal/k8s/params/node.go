@@ -13,12 +13,6 @@ type CordonNodeParams struct {
 	Cordon      *bool  `json:"cordon" binding:"required" label:"是否封锁"`
 }
 
-type NodeEvictParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
-	PodName     string `form:"podName" json:"podName" label:"Pod名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-}
-
 // TaintNodeParams 单个污点参数（保留兼容）
 type TaintNodeParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`

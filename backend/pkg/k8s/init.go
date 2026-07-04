@@ -10,7 +10,6 @@ import (
 	"gkube/pkg/database"
 
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -31,9 +30,6 @@ var (
 
 	aeClientCache   = make(map[string]cachedClient[*apiextensionsclientset.Clientset])
 	aeClientCacheMu sync.RWMutex
-
-	dynamicClientCache   = make(map[string]cachedClient[dynamic.Interface])
-	dynamicClientCacheMu sync.RWMutex
 
 	restConfigCache   = make(map[string]cachedClient[*rest.Config])
 	restConfigCacheMu sync.RWMutex
@@ -71,42 +67,6 @@ func GetK8sClient(k8sConf string) (*kubernetes.Clientset, error) {
 	return clientSet, nil
 }
 
-// GetK8sClientClusterID retrieves a k8s client by cluster ID with caching
-func GetK8sClientClusterID(id uint) (*kubernetes.Clientset, error) {
-	cacheKey := fmt.Sprintf("id:%d", id)
-
-	clientCacheMu.RLock()
-	if cached, ok := clientCache[cacheKey]; ok && time.Now().Before(cached.expiresAt) {
-		clientCacheMu.RUnlock()
-		return cached.client, nil
-	}
-	clientCacheMu.RUnlock()
-
-	var k8sCluster model.K8SCluster
-	if err := database.DB.Model(&model.K8SCluster{}).
-		Where(map[string]any{"id": id}).
-		Scan(&k8sCluster).Error; err != nil {
-		return nil, err
-	}
-	kubeConfig, err := auth.DecryptAES(k8sCluster.KubeConfig)
-	if err != nil {
-		return nil, fmt.Errorf("解密集群凭证失败:%s", err.Error())
-	}
-	clientSet, err := GetK8sClient(kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	clientCacheMu.Lock()
-	clientCache[cacheKey] = cachedClient[*kubernetes.Clientset]{
-		client:    clientSet,
-		expiresAt: time.Now().Add(clientCacheTTL),
-	}
-	clientCacheMu.Unlock()
-
-	return clientSet, nil
-}
-
 // GetK8sClientByName retrieves a k8s client by cluster name with caching
 func GetK8sClientByName(name string) (*kubernetes.Clientset, error) {
 	cacheKey := "name:" + name
@@ -140,31 +100,6 @@ func GetK8sClientByName(name string) (*kubernetes.Clientset, error) {
 // GetK8sConf retrieves the kubeconfig string by cluster name
 func GetK8sConf(name string) (string, error) {
 	return getCachedKubeConfig(name)
-}
-
-// CreateDynamicClient creates a dynamic client from kubeconfig string
-func CreateDynamicClient(kubeConf string) (dynamic.Interface, error) {
-	config, err := clientcmd.Load([]byte(kubeConf))
-	if err != nil {
-		return nil, fmt.Errorf("加载 kubeconfig 失败: %v", err)
-	}
-
-	clientConfig := clientcmd.NewDefaultClientConfig(
-		*config,
-		&clientcmd.ConfigOverrides{},
-	)
-
-	restConfig, err := clientConfig.ClientConfig()
-	if err != nil {
-		return nil, fmt.Errorf("创建 REST 配置失败: %v", err)
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(restConfig)
-	if err != nil {
-		return nil, fmt.Errorf("创建动态客户端失败: %v", err)
-	}
-
-	return dynamicClient, nil
 }
 
 // GetApiExtensionsClientByName retrieves an apiextensions client by cluster name with caching

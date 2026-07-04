@@ -62,54 +62,6 @@ func (p *pv) GetPVByName(c *gin.Context) {
 	response.Success(c, "执行成功", pv)
 }
 
-// GetPVByLabel
-//
-//	@Description: 根据标签获取pv列表
-//	@receiver p
-//	@param c
-func (p *pv) GetPVByLabel(c *gin.Context) {
-	var body params.PvQueryByLabel
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	pvList, err := k8sPv.GetPVByLabel(client, body.LabelMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取pv列表失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", pvList)
-}
-
-// GetPVByField
-//
-//	@Description: 根据字段获取pv列表
-//	@receiver p
-//	@param c
-func (p *pv) GetPVByField(c *gin.Context) {
-	var body params.PvQueryByField
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	pvList, err := k8sPv.GetPVByField(client, body.FieldMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取pv列表失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", pvList)
-}
-
 // GetPVYaml
 //
 //	@Description: 获取pv详情
@@ -206,50 +158,3 @@ func (p *pv) DeletePVByName(c *gin.Context) {
 	response.Success(c, "执行成功", nil)
 }
 
-// DeletePVByLabel
-//
-//	@Description: 根据标签删除pv
-//	@receiver p
-//	@param c
-func (p *pv) DeletePVByLabel(c *gin.Context) {
-	var body params.PvQueryByLabel
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	err = k8sPv.DeletePVByLabel(client, body.LabelMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("删除pv失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// DeletePVByField
-//
-//	@Description: 根据字段删除pv
-//	@receiver p
-//	@param c
-func (p *pv) DeletePVByField(c *gin.Context) {
-	var body params.PvQueryByField
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	err = k8sPv.DeletePVByField(client, body.FieldMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("删除pv失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}

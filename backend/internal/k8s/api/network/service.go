@@ -81,54 +81,6 @@ func (s *service) GetServicesByName(c *gin.Context) {
 	response.Success(c, "获取成功", service)
 }
 
-// GetServicesByLabel
-//
-//	@Description: 获取svc根据标签
-//	@receiver s
-//	@param c
-func (s *service) GetServicesByLabel(c *gin.Context) {
-	var body params.ServiceQueryByLabelParams
-	if err := c.ShouldBindQuery(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	services, err := k8sService.GetServicesByLabel(client, body.Namespace, body.LabelMap)
-	if err != nil {
-		response.Fail(c, err.Error())
-		return
-	}
-	response.Success(c, "获取成功", services)
-}
-
-// GetServicesByField
-//
-//	@Description: 获取svc根据字段
-//	@receiver s
-//	@param c
-func (s *service) GetServicesByField(c *gin.Context) {
-	var body params.ServiceQueryByFieldParams
-	if err := c.ShouldBindQuery(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	services, err := k8sService.GetServicesByField(client, body.Namespace, body.FieldMap)
-	if err != nil {
-		response.Fail(c, err.Error())
-		return
-	}
-	response.Success(c, "获取成功", services)
-}
-
 // GetServicesYaml
 //
 //	@Description: 获取svc的yaml

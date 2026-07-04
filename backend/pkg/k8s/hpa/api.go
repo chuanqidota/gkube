@@ -6,36 +6,12 @@ import (
 
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
 )
 
 func GetHPAList(client *kubernetes.Clientset, namespace string) ([]autoscalingv2.HorizontalPodAutoscaler, error) {
 	hpaList, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return hpaList.Items, nil
-}
-
-func GetHPAByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]autoscalingv2.HorizontalPodAutoscaler, error) {
-	fieldSelector := fields.SelectorFromSet(fieldMap)
-	hpaList, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fieldSelector.String(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return hpaList.Items, nil
-}
-
-func GetHPAByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]autoscalingv2.HorizontalPodAutoscaler, error) {
-	labelSelector := labels.SelectorFromSet(labelMap)
-	hpaList, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
-	})
 	if err != nil {
 		return nil, err
 	}

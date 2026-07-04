@@ -73,48 +73,6 @@ func (d *daemonSet) GetDaemonSetByName(c *gin.Context) {
 	response.Success(c, "执行成功", daemonSet)
 }
 
-func (d *daemonSet) GetDaemonSetByLabel(c *gin.Context) {
-	var body params.DaemonSetQueryByLabelParams
-	if err := c.ShouldBindQuery(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-
-	daemonSets, err := k8sDaemonSet.GetDaemonSetByLabel(client, body.Namespace, body.LabelMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取DaemonSet失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", daemonSets)
-}
-
-func (d *daemonSet) GetDaemonSetByField(c *gin.Context) {
-	var body params.DaemonSetQueryByFieldParams
-	if err := c.ShouldBindQuery(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-
-	daemonSets, err := k8sDaemonSet.GetDaemonSetByField(client, body.Namespace, body.FieldMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取DaemonSet失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", daemonSets)
-}
-
 func (d *daemonSet) GetDaemonSetYaml(c *gin.Context) {
 	var query params.DaemonSetQueryByNameParams
 	if err := c.ShouldBindQuery(&query); err != nil {
@@ -193,45 +151,6 @@ func (d *daemonSet) DeleteDaemonSetByName(c *gin.Context) {
 	}
 
 	response.Success(c, "执行成功", nil)
-}
-
-func (d *daemonSet) DeleteDaemonSetByLabel(c *gin.Context) {
-	var body params.DaemonSetDeleteByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	if err := k8sDaemonSet.DeleteDaemonSetByLabel(client, body.Namespace, body.LabelMap); err != nil {
-		response.Fail(c, fmt.Sprintf("删除DaemonSet失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-func (d *daemonSet) DeleteDaemonSetByField(c *gin.Context) {
-	var body params.DaemonSetDeleteByFieldParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	if err := k8sDaemonSet.DeleteDaemonSetByField(client, body.Namespace, body.FieldMap); err != nil {
-		response.Fail(c, fmt.Sprintf("删除DaemonSet失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-
 }
 
 // GetDaemonSetEvents

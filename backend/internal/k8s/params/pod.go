@@ -11,17 +11,7 @@ type PodQueryByNameParams struct {
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
 }
 
-type PodQueryByLabelParams struct {
-	ClusterName string            `form:"clusterName" json:"clusterName" label:"集群名称"`
-	LabelMap    map[string]string `form:"labelMap" json:"labelMap" label:"标签"`
-	Namespace   string            `form:"namespace" json:"namespace" label:"命名空间"`
-}
 
-type PodQueryByFiledParams struct {
-	ClusterName string            `form:"clusterName" json:"clusterName" label:"集群名称"`
-	FieldMap    map[string]string `form:"fieldMap" json:"fieldMap" label:"字段"`
-	Namespace   string            `form:"namespace" json:"namespace" label:"命名空间"`
-}
 
 type PodCreateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
@@ -39,17 +29,7 @@ type PodDeleteByNameParams struct {
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
 }
 
-type PodDeleteByLabelParams struct {
-	ClusterName string            `form:"clusterName" json:"clusterName" label:"集群名称"`
-	LabelMap    map[string]string `form:"labelMap" json:"labelMap" label:"标签"`
-	Namespace   string            `form:"namespace" json:"namespace" label:"命名空间"`
-}
 
-type PodDeleteByFieldParams struct {
-	ClusterName string            `form:"clusterName" json:"clusterName" label:"集群名称"`
-	FieldMap    map[string]string `form:"fieldMap" json:"fieldMap" label:"字段"`
-	Namespace   string            `form:"namespace" json:"namespace" label:"命名空间"`
-}
 
 type PodEventQueryParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`

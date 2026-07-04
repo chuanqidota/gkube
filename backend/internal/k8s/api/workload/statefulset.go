@@ -105,54 +105,6 @@ func (s *statefulSet) GetStatefulSetYaml(c *gin.Context) {
 	response.Success(c, "执行成功", statefulSetYaml)
 }
 
-// GetStatefulSetByField
-//
-//	@Description: 获取statefulset根据字段查询
-//	@receiver s
-//	@param c
-func (s *statefulSet) GetStatefulSetByField(c *gin.Context) {
-	var body params.StatefulSetQueryByFieldParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	statefulSets, err := k8sStatefulSet.GetStatefulSetByField(client, body.Namespace, body.FieldMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取statefulset列表失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", statefulSets)
-}
-
-// GetStatefulSetByLabel
-//
-//	@Description: 获取statefulset根据标签查询
-//	@receiver s
-//	@param c
-func (s *statefulSet) GetStatefulSetByLabel(c *gin.Context) {
-	var body params.StatefulSetQueryByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	statefulSets, err := k8sStatefulSet.GetStatefulSetByLabel(client, body.Namespace, body.LabelMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取statefulset列表失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", statefulSets)
-}
-
 // CreateStatefulSet
 //
 //	@Description: 创建statefulset
@@ -223,54 +175,6 @@ func (s *statefulSet) DeleteStatefulSetByName(c *gin.Context) {
 
 	err = k8sStatefulSet.DeleteStatefulSetByName(client, body.Namespace, body.Name)
 
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("删除statefulset失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// DeleteStatefulSetByLabel
-//
-//	@Description: 删除statefulset根据标签
-//	@receiver s
-//	@param c
-func (s *statefulSet) DeleteStatefulSetByLabel(c *gin.Context) {
-	var body params.StatefulSetDeleteByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	err = k8sStatefulSet.DeleteStatefulSetByLabel(client, body.Namespace, body.LabelMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("删除statefulset失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// DeleteStatefulSetByField
-//
-//	@Description: 删除statefulset根据字段
-//	@receiver s
-//	@param c
-func (s *statefulSet) DeleteStatefulSetByField(c *gin.Context) {
-	var body params.StatefulSetDeleteByFieldParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	err = k8sStatefulSet.DeleteStatefulSetByField(client, body.Namespace, body.FieldMap)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("删除statefulset失败:%v", err.Error()))
 		return

@@ -134,55 +134,6 @@ func (dp *deployment) RollbackDeployment(c *gin.Context) {
 	response.Success(c, "执行成功", nil)
 }
 
-// GetDeploymentByField
-//
-//	@Description: 根据字段查询deployment列表
-//	@receiver dp
-//	@param c
-func (dp *deployment) GetDeploymentByField(c *gin.Context) {
-	var body params.DeploymentQueryByFieldParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	deployments, err := k8sDeployment.GetDeploymentByFiled(client, body.Namespace, body.FieldMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取deployment列表失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", deployments)
-}
-
-// GetDeploymentByLabel
-//
-//	@Description: 根据标签查询deployment列表
-//	@receiver dp
-//	@param c
-func (dp *deployment) GetDeploymentByLabel(c *gin.Context) {
-	var body params.DeploymentQueryByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-
-	deployments, err := k8sDeployment.GetDeploymentByLabel(client, body.Namespace, body.LabelMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取deployment列表失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", deployments)
-}
-
 // CreateDeployment
 //
 //	@Description: 创建deployment
@@ -257,62 +208,6 @@ func (dp *deployment) DeleteDeployment(c *gin.Context) {
 		return
 	}
 	ok, err := k8sDeployment.DeleteDeployment(client, body.Namespace, body.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("删除deployment失败:%s", err.Error()))
-		return
-	}
-	if !ok {
-		response.Fail(c, fmt.Sprintf("删除deployment失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// DeleteDeploymentByField
-//
-//	@Description: 根据字段删除deployment
-//	@receiver dp
-//	@param c
-func (dp *deployment) DeleteDeploymentByField(c *gin.Context) {
-	var body params.DeploymentDeleteByFieldParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	ok, err := k8sDeployment.DeleteDeploymentByField(client, body.Namespace, body.FieldMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("删除deployment失败:%s", err.Error()))
-		return
-	}
-	if !ok {
-		response.Fail(c, fmt.Sprintf("删除deployment失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// DeleteDeploymentByLabel
-//
-//	@Description: 根据标签删除deployment
-//	@receiver dp
-//	@param c
-func (dp *deployment) DeleteDeploymentByLabel(c *gin.Context) {
-	var body params.DeploymentDeleteByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	ok, err := k8sDeployment.DeleteDeploymentByLabel(client, body.Namespace, body.LabelMap)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("删除deployment失败:%s", err.Error()))
 		return

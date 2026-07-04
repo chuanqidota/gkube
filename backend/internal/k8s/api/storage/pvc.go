@@ -62,55 +62,6 @@ func (p *pvc) GetPVCByName(c *gin.Context) {
 	response.Success(c, "执行成功", pvc)
 }
 
-// GetPVCByLabel
-//
-//	@Description: 根据标签获取pvc
-//	@receiver p
-//	@param c
-func (p *pvc) GetPVCByLabel(c *gin.Context) {
-	var body params.PvcQueryByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	pvcList, err := k8sPvc.GetPVCByLabel(client, body.Namespace, body.LabelMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("查询pvc失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", pvcList)
-}
-
-// GetPVCByField
-//
-//	@Description: 根据字段获取pvc
-//	@receiver p
-//	@param c
-func (p *pvc) GetPVCByField(c *gin.Context) {
-	var body params.PvcQueryByFieldParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-
-	pvcList, err := k8sPvc.GetPVCByField(client, body.Namespace, body.FieldMap)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("查询pvc失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", pvcList)
-}
-
 // GetPVCYaml
 //
 //	@Description: 获取pvc的yaml
@@ -181,48 +132,3 @@ func (p *pvc) DeletePVCByName(c *gin.Context) {
 	response.Success(c, "执行成功", nil)
 }
 
-// DeletePVCByLabel
-//
-//	@Description: 根据标签删除pvc
-//	@receiver p
-//	@param c
-func (p *pvc) DeletePVCByLabel(c *gin.Context) {
-	var body params.PvcDeleteByLabelParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	if err := k8sPvc.DeletePVCByLabel(client, body.Namespace, body.LabelMap); err != nil {
-		response.Fail(c, fmt.Sprintf("删除pvc失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// DeletePVCByField
-//
-//	@Description: 根据字段删除pvc
-//	@receiver p
-//	@param c
-func (p *pvc) DeletePVCByField(c *gin.Context) {
-	var body params.PvcDeleteByFieldParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	if err := k8sPvc.DeletePVCByField(client, body.Namespace, body.FieldMap); err != nil {
-		response.Fail(c, fmt.Sprintf("删除pvc失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}

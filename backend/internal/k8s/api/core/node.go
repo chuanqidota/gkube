@@ -137,30 +137,6 @@ func (n *node) DrainNode(c *gin.Context) {
 	response.Success(c, "执行成功", result)
 }
 
-// EvictsNodeSinglePod
-//
-//	@Description: 驱逐节点中的指定pod
-//	@receiver n
-//	@param c
-func (n *node) EvictsNodeSinglePod(c *gin.Context) {
-	var body params.NodeEvictParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
-		return
-	}
-	client, err := k8s.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	err = k8sNode.EvictsNodeSinglePod(client, body.Namespace, body.PodName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("驱逐节点pod失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
 // DeleteNode
 //
 //	@Description: 删除节点
