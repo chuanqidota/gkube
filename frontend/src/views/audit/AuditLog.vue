@@ -209,8 +209,8 @@ onMounted(() => {
 .filter-bar { display: flex; justify-content: space-between; align-items: center; }
 .filter-right { display: flex; align-items: center; gap: 8px; }
 .stat-card { text-align: center; }
-.stat-card.success { border-left: 4px solid #67C23A; }
-.stat-card.danger { border-left: 4px solid #F56C6C; }
+.stat-card.success { border-left: 4px solid var(--gk-color-success); }
+.stat-card.danger { border-left: 4px solid var(--gk-color-danger); }
 .stat-value { font-size: 32px; font-weight: bold; color: #303133; }
-.stat-label { font-size: 14px; color: #909399; margin-top: 4px; }
+.stat-label { font-size: 14px; color: var(--gk-color-text-secondary); margin-top: 4px; }
 </style>

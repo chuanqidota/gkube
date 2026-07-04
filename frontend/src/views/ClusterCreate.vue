@@ -127,5 +127,5 @@ async function handleSubmit() {
 <style scoped>
 .page-container { padding: 20px; }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
-.form-tip { font-size: 12px; color: #909399; margin-top: 4px; }
+.form-tip { font-size: 12px; color: var(--gk-color-text-secondary); margin-top: 4px; }
 </style>

@@ -63,9 +63,9 @@ const storagePercent = computed(() => {
 })
 
 function progressColor(percent: number) {
-  if (percent >= 90) return '#F56C6C'
-  if (percent >= 70) return '#E6A23C'
-  return '#409EFF'
+  if (percent >= 90) return 'var(--gk-color-danger)'
+  if (percent >= 70) return 'var(--gk-color-warning)'
+  return 'var(--gk-color-primary)'
 }
 
 const workloadItems = computed(() => [
@@ -308,7 +308,7 @@ onMounted(() => {
 <style scoped>
 .dashboard {
   padding: 20px;
-  background: #f5f7fa;
+  background: var(--gk-neutral-100);
   min-height: calc(100vh - 84px);
 }
 
@@ -340,17 +340,17 @@ onMounted(() => {
 }
 
 .stat-card-blue {
-  background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%);
+  background: linear-gradient(135deg, var(--gk-color-primary) 0%, #66b1ff 100%);
   color: #fff;
 }
 
 .stat-card-green {
-  background: linear-gradient(135deg, #67C23A 0%, #85ce61 100%);
+  background: linear-gradient(135deg, var(--gk-color-success) 0%, #85ce61 100%);
   color: #fff;
 }
 
 .stat-card-orange {
-  background: linear-gradient(135deg, #E6A23C 0%, #ebb563 100%);
+  background: linear-gradient(135deg, var(--gk-color-warning) 0%, #ebb563 100%);
   color: #fff;
 }
 
@@ -422,7 +422,7 @@ onMounted(() => {
 
 .resource-detail {
   font-size: 13px;
-  color: #909399;
+  color: var(--gk-color-text-secondary);
 }
 
 /* Workload grid */
@@ -447,7 +447,7 @@ onMounted(() => {
 .workload-item {
   text-align: center;
   padding: 16px 8px;
-  background: #f5f7fa;
+  background: var(--gk-neutral-100);
   border-radius: 8px;
   transition: all 0.2s;
 }
@@ -460,13 +460,13 @@ onMounted(() => {
 .workload-count {
   font-size: 28px;
   font-weight: 700;
-  color: #409EFF;
+  color: var(--gk-color-primary);
   line-height: 1.2;
 }
 
 .workload-label {
   font-size: 13px;
-  color: #909399;
+  color: var(--gk-color-text-secondary);
   margin-top: 6px;
 }
 </style>

@@ -72,7 +72,7 @@ async function handleOIDCLogin() {
     <div class="login-card">
       <!-- Logo -->
       <div class="login-logo">
-        <el-icon :size="48" color="#409EFF"><Ship /></el-icon>
+        <el-icon :size="48" color="var(--gk-color-primary)"><Ship /></el-icon>
       </div>
       <h1 class="login-title">gkube</h1>
       <p class="login-subtitle">{{ t('login.subtitle') }}</p>
@@ -203,7 +203,7 @@ async function handleOIDCLogin() {
   text-align: center;
   margin: 0 0 36px;
   font-size: 14px;
-  color: #909399;
+  color: var(--gk-color-text-secondary);
 }
 
 .login-form {
@@ -221,7 +221,7 @@ async function handleOIDCLogin() {
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px #409eff inset;
+  box-shadow: 0 0 0 1px var(--gk-color-primary) inset;
 }
 
 .login-options {
@@ -245,7 +245,7 @@ async function handleOIDCLogin() {
 }
 
 .divider-text {
-  color: #909399;
+  color: var(--gk-color-text-secondary);
   font-size: 12px;
 }
 
@@ -254,15 +254,15 @@ async function handleOIDCLogin() {
   height: 44px;
   font-size: 14px;
   border-radius: 8px;
-  background: #f5f7fa;
+  background: var(--gk-neutral-100);
   border-color: #dcdfe6;
-  color: #606266;
+  color: var(--gk-color-text-primary);
 }
 
 .oidc-btn:hover {
   background: #ecf5ff;
   border-color: #b3d8ff;
-  color: #409eff;
+  color: var(--gk-color-primary);
 }
 
 .oidc-icon {

@@ -210,5 +210,5 @@ onMounted(fetchConfig)
 .page-container { padding: 20px; }
 .filter-card { margin-bottom: 16px; }
 .filter-bar { display: flex; justify-content: space-between; align-items: center; }
-.form-hint { font-size: 12px; color: #909399; margin-top: 4px; }
+.form-hint { font-size: 12px; color: var(--gk-color-text-secondary); margin-top: 4px; }
 </style>

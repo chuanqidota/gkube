@@ -125,7 +125,7 @@ onMounted(() => {
       <el-table :data="filteredEvents" v-loading="loading" stripe>
         <el-table-column :label="t('event.type')" width="80">
           <template #default="{ row }">
-            <el-icon :style="{ color: row.type === 'Warning' ? '#E6A23C' : '#409EFF' }">
+            <el-icon :style="{ color: row.type === 'Warning' ? 'var(--gk-color-warning)' : 'var(--gk-color-primary)' }">
               <component :is="eventIcon(row.type)" />
             </el-icon>
           </template>
@@ -135,7 +135,7 @@ onMounted(() => {
           <template #default="{ row }">
             <div>
               <div style="font-weight: 500;">{{ row.involvedObject?.name }}</div>
-              <div style="font-size: 12px; color: #909399;">{{ row.involvedObject?.kind }}</div>
+              <div style="font-size: 12px; color: var(--gk-color-text-secondary);">{{ row.involvedObject?.kind }}</div>
             </div>
           </template>
         </el-table-column>

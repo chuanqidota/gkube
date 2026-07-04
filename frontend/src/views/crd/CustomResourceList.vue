@@ -77,7 +77,7 @@ onMounted(() => { fetchNamespaces(); fetchResources() })
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 style="margin: 0;">{{ resource }} <span style="color: #909399; font-size: 14px;">({{ group }}/{{ version }})</span></h2>
+      <h2 style="margin: 0;">{{ resource }} <span style="color: var(--gk-color-text-secondary); font-size: 14px;">({{ group }}/{{ version }})</span></h2>
       <el-button @click="router.push('/crd')">Back to CRDs</el-button>
     </div>
     <el-card shadow="never" class="filter-card">

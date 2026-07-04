@@ -87,7 +87,7 @@ onMounted(fetchNamespaces)
         <el-table-column label="Labels" min-width="250" show-overflow-tooltip>
           <template #default="{ row }">
             <el-tag v-for="(v, k) in (row.labels || {})" :key="k" size="small" style="margin-right: 4px; margin-bottom: 2px;">{{ k }}={{ v }}</el-tag>
-            <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: #909399;">-</span>
+            <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: var(--gk-color-text-secondary);">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="age" label="Age" width="180" />

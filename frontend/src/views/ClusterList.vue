@@ -161,7 +161,7 @@ onMounted(fetchClusters)
 .cluster-info { display: flex; align-items: center; gap: 8px; }
 .cluster-body { margin-bottom: 12px; }
 .cluster-detail { display: flex; margin-bottom: 8px; }
-.cluster-detail .label { color: #909399; width: 70px; flex-shrink: 0; }
+.cluster-detail .label { color: var(--gk-color-text-secondary); width: 70px; flex-shrink: 0; }
 .cluster-detail .value { color: #303133; }
-.cluster-footer { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #ebeef5; padding-top: 12px; }
+.cluster-footer { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
 </style>

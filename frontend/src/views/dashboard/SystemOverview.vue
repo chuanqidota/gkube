@@ -204,7 +204,7 @@ onUnmounted(() => {
     <el-row :gutter="16" style="margin-bottom: 16px;">
       <el-col :span="4">
         <el-card shadow="never" class="stat-card">
-          <div class="stat-icon" style="background: #409EFF;"><el-icon><Connection /></el-icon></div>
+          <div class="stat-icon" style="background: var(--gk-color-primary);"><el-icon><Connection /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.clusters }}</div>
             <div class="stat-label">{{ t('systemOverview.clusters') }}</div>
@@ -213,7 +213,7 @@ onUnmounted(() => {
       </el-col>
       <el-col :span="4">
         <el-card shadow="never" class="stat-card">
-          <div class="stat-icon" style="background: #67C23A;"><el-icon><Cpu /></el-icon></div>
+          <div class="stat-icon" style="background: var(--gk-color-success);"><el-icon><Cpu /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.nodes }}</div>
             <div class="stat-label">{{ t('systemOverview.nodes') }}</div>
@@ -222,7 +222,7 @@ onUnmounted(() => {
       </el-col>
       <el-col :span="4">
         <el-card shadow="never" class="stat-card">
-          <div class="stat-icon" style="background: #E6A23C;"><el-icon><Coin /></el-icon></div>
+          <div class="stat-icon" style="background: var(--gk-color-warning);"><el-icon><Coin /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.pods }}</div>
             <div class="stat-label">{{ t('systemOverview.pods') }}</div>
@@ -231,7 +231,7 @@ onUnmounted(() => {
       </el-col>
       <el-col :span="4">
         <el-card shadow="never" class="stat-card">
-          <div class="stat-icon" style="background: #F56C6C;"><el-icon><FolderOpened /></el-icon></div>
+          <div class="stat-icon" style="background: var(--gk-color-danger);"><el-icon><FolderOpened /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.namespaces }}</div>
             <div class="stat-label">{{ t('systemOverview.namespaces') }}</div>
@@ -240,7 +240,7 @@ onUnmounted(() => {
       </el-col>
       <el-col :span="4">
         <el-card shadow="never" class="stat-card">
-          <div class="stat-icon" style="background: #909399;"><el-icon><Monitor /></el-icon></div>
+          <div class="stat-icon" style="background: var(--gk-color-text-secondary);"><el-icon><Monitor /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.deployments }}</div>
             <div class="stat-label">{{ t('systemOverview.deployments') }}</div>
@@ -249,7 +249,7 @@ onUnmounted(() => {
       </el-col>
       <el-col :span="4">
         <el-card shadow="never" class="stat-card">
-          <div class="stat-icon" style="background: #606266;"><el-icon><Connection /></el-icon></div>
+          <div class="stat-icon" style="background: var(--gk-color-text-primary);"><el-icon><Connection /></el-icon></div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.services }}</div>
             <div class="stat-label">{{ t('systemOverview.services') }}</div>
@@ -310,7 +310,7 @@ onUnmounted(() => {
               </div>
               <el-progress
                 :percentage="resourceUsage.cpu.total > 0 ? Math.round((resourceUsage.cpu.used / resourceUsage.cpu.total) * 100) : 0"
-                :color="resourceUsage.cpu.total > 0 && (resourceUsage.cpu.used / resourceUsage.cpu.total) >= 0.8 ? '#F56C6C' : '#409EFF'"
+                :color="resourceUsage.cpu.total > 0 && (resourceUsage.cpu.used / resourceUsage.cpu.total) >= 0.8 ? 'var(--gk-color-danger)' : 'var(--gk-color-primary)'"
               />
             </div>
             <div class="usage-item">
@@ -320,7 +320,7 @@ onUnmounted(() => {
               </div>
               <el-progress
                 :percentage="resourceUsage.memory.total > 0 ? Math.round((resourceUsage.memory.used / resourceUsage.memory.total) * 100) : 0"
-                :color="resourceUsage.memory.total > 0 && (resourceUsage.memory.used / resourceUsage.memory.total) >= 0.8 ? '#F56C6C' : '#67C23A'"
+                :color="resourceUsage.memory.total > 0 && (resourceUsage.memory.used / resourceUsage.memory.total) >= 0.8 ? 'var(--gk-color-danger)' : 'var(--gk-color-success)'"
               />
             </div>
             <div class="usage-item">
@@ -330,7 +330,7 @@ onUnmounted(() => {
               </div>
               <el-progress
                 :percentage="resourceUsage.storage.total > 0 ? Math.round((resourceUsage.storage.used / resourceUsage.storage.total) * 100) : 0"
-                :color="resourceUsage.storage.total > 0 && (resourceUsage.storage.used / resourceUsage.storage.total) >= 0.8 ? '#F56C6C' : '#E6A23C'"
+                :color="resourceUsage.storage.total > 0 && (resourceUsage.storage.used / resourceUsage.storage.total) >= 0.8 ? 'var(--gk-color-danger)' : 'var(--gk-color-warning)'"
               />
             </div>
           </div>
@@ -348,7 +348,7 @@ onUnmounted(() => {
 .stat-icon { width: 48px; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; margin-right: 16px; }
 .stat-info { flex: 1; }
 .stat-value { font-size: 24px; font-weight: bold; color: #303133; }
-.stat-label { font-size: 14px; color: #909399; }
+.stat-label { font-size: 14px; color: var(--gk-color-text-secondary); }
 .resource-usage { display: flex; flex-direction: column; gap: 20px; }
 .usage-item { }
 .usage-header { display: flex; justify-content: space-between; margin-bottom: 8px; }

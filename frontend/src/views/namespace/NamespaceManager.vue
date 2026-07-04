@@ -185,7 +185,7 @@ onMounted(fetchNamespaces)
             <el-tag v-for="(val, key) in row.labels" :key="key" size="small" style="margin: 2px;">
               {{ key }}={{ val }}
             </el-tag>
-            <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: #909399;">{{ t('namespace.noLabels') }}</span>
+            <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: var(--gk-color-text-secondary);">{{ t('namespace.noLabels') }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="creationTimestamp" :label="t('config.creationTime')" width="180" />
