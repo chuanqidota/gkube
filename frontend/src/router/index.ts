@@ -56,13 +56,13 @@ const router = createRouter({
         {
           path: 'clusters',
           name: 'ClusterList',
-          component: () => import('@/views/ClusterList.vue'),
+          component: () => import('@/views/cluster/ClusterList.vue'),
           meta: { title: '集群管理', icon: 'Connection' },
         },
         {
           path: 'clusters/create',
           name: 'ClusterCreate',
-          component: () => import('@/views/ClusterCreate.vue'),
+          component: () => import('@/views/cluster/ClusterCreate.vue'),
           meta: { title: '创建集群', parent: 'ClusterList' },
         },
         // Workloads - Pod
@@ -229,19 +229,19 @@ const router = createRouter({
         {
           path: 'config/configmaps',
           name: 'ConfigMapList',
-          component: () => import('@/views/config/ConfigMapList.vue'),
+          component: () => import('@/views/config/configmap/ConfigMapList.vue'),
           meta: { title: 'ConfigMap', icon: 'Tickets' },
         },
         {
           path: 'config/configmaps/create',
           name: 'ConfigMapCreate',
-          component: () => import('@/views/config/ConfigMapCreate.vue'),
+          component: () => import('@/views/config/configmap/ConfigMapCreate.vue'),
           meta: { title: '创建ConfigMap', parent: 'ConfigMapList' },
         },
         {
           path: 'config/configmaps/:namespace/:name',
           name: 'ConfigMapDetail',
-          component: () => import('@/views/config/ConfigMapDetail.vue'),
+          component: () => import('@/views/config/configmap/ConfigMapDetail.vue'),
           props: true,
           meta: { title: 'ConfigMap详情', parent: 'ConfigMapList' },
         },
@@ -249,19 +249,19 @@ const router = createRouter({
         {
           path: 'config/secrets',
           name: 'SecretList',
-          component: () => import('@/views/config/SecretList.vue'),
+          component: () => import('@/views/config/secret/SecretList.vue'),
           meta: { title: 'Secret', icon: 'Key' },
         },
         {
           path: 'config/secrets/create',
           name: 'SecretCreate',
-          component: () => import('@/views/config/SecretCreate.vue'),
+          component: () => import('@/views/config/secret/SecretCreate.vue'),
           meta: { title: '创建Secret', parent: 'SecretList' },
         },
         {
           path: 'config/secrets/:namespace/:name',
           name: 'SecretDetail',
-          component: () => import('@/views/config/SecretDetail.vue'),
+          component: () => import('@/views/config/secret/SecretDetail.vue'),
           props: true,
           meta: { title: 'Secret详情', parent: 'SecretList' },
         },
@@ -281,7 +281,7 @@ const router = createRouter({
         {
           path: 'config/resourcequotas/:namespace/:name',
           name: 'ResourceQuotaDetail',
-          component: () => import('@/views/config/ResourceQuotaDetail.vue'),
+          component: () => import('@/views/config/resourcequota/ResourceQuotaDetail.vue'),
           props: true,
           meta: { title: 'ResourceQuota详情', parent: 'ResourceQuotaList' },
         },
@@ -557,14 +557,14 @@ const router = createRouter({
         {
           path: 'users',
           name: 'UserList',
-          component: () => import('@/views/UserList.vue'),
+          component: () => import('@/views/system/UserList.vue'),
           meta: { title: '用户管理', icon: 'User' },
         },
         // System - Roles
         {
           path: 'roles',
           name: 'RoleList',
-          component: () => import('@/views/RoleList.vue'),
+          component: () => import('@/views/system/RoleList.vue'),
           meta: { title: '角色管理', icon: 'UserFilled' },
         },
         // System - Auth Settings

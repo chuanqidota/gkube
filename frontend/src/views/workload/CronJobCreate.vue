@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
-import CronJobForm from '@/components/CronJobForm.vue'
+import CronJobForm from '@/views/workload/components/CronJobForm.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { createCronJob } from '@/api/resource'
 

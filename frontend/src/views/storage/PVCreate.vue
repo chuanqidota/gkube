@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PVForm from '@/components/PVForm.vue'
+import PVForm from '@/views/storage/components/PVForm.vue'
 </script>
 
 <template>

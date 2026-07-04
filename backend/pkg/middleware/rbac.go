@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gkube/app/auth/model"
+	"gkube/internal/auth/model"
 	"gkube/pkg/database"
 	"gkube/pkg/response"
 )

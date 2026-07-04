@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
-import WorkloadForm from '@/components/WorkloadForm.vue'
+import WorkloadForm from '@/views/workload/components/WorkloadForm.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { createDaemonSet } from '@/api/resource'
 

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"gkube/app/k8s/model"
+	"gkube/internal/k8s/model"
 	"gkube/pkg/auth"
 	"gkube/pkg/database"
 

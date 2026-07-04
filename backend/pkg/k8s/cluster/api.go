@@ -2,7 +2,7 @@ package cluster
 
 import (
 	"context"
-	modelK8s "gkube/models/k8s"
+	clusterModel "gkube/internal/cluster/model"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -26,9 +26,9 @@ func GetClusterVersion(client *kubernetes.Clientset) (string, error) {
 //
 //	@Description: 获取集群节点信息
 //	@param client
-//	@return []modelK8s.NodeInfo
+//	@return []clusterModel.NodeInfo
 //	@return error
-func GetClusterNodesInfo(client *kubernetes.Clientset) ([]modelK8s.NodeInfo, error) {
+func GetClusterNodesInfo(client *kubernetes.Clientset) ([]clusterModel.NodeInfo, error) {
 	nodes, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func GetClusterNodesInfo(client *kubernetes.Clientset) ([]modelK8s.NodeInfo, err
 		}
 	}
 
-	var nodesInfo []modelK8s.NodeInfo
+	var nodesInfo []clusterModel.NodeInfo
 
 	for _, node := range nodes.Items {
 		// Determine status
@@ -85,7 +85,7 @@ func GetClusterNodesInfo(client *kubernetes.Clientset) ([]modelK8s.NodeInfo, err
 			}
 		}
 
-		nodeInfo := modelK8s.NodeInfo{
+		nodeInfo := clusterModel.NodeInfo{
 			Name:             node.Name,
 			Status:           status,
 			Roles:            roles,

@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
-import JobForm from '@/components/JobForm.vue'
+import JobForm from '@/views/workload/components/JobForm.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { createJob } from '@/api/resource'
 

@@ -7,9 +7,9 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	authmodel "gkube/app/auth/model"
-	clustermodel "gkube/app/cluster/model"
-	"gkube/app/k8s/model"
+	authmodel "gkube/internal/auth/model"
+	clustermodel "gkube/internal/cluster/model"
+	"gkube/internal/k8s/model"
 	"gkube/pkg/database"
 )
 

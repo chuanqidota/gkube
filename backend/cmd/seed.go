@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	authmodel "gkube/app/auth/model"
+	authmodel "gkube/internal/auth/model"
 	"gkube/pkg/auth"
 	"gkube/pkg/database"
 )

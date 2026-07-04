@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import IngressForm from '@/components/IngressForm.vue'
+import IngressForm from '@/views/network/components/IngressForm.vue'
 </script>
 
 <template>

@@ -10,13 +10,13 @@ import (
 	"gkube/pkg/database"
 	"gkube/pkg/es"
 	"gkube/pkg/logger"
-	"gkube/router"
+	"gkube/internal/router"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
-	clusterService "gkube/app/cluster/service"
+	clusterService "gkube/internal/cluster/service"
 
 	"github.com/spf13/cobra"
 )

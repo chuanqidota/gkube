@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PVCForm from '@/components/PVCForm.vue'
+import PVCForm from '@/views/storage/components/PVCForm.vue'
 </script>
 
 <template>
