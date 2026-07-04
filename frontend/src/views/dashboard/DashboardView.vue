@@ -20,6 +20,12 @@ import {
 const router = useRouter()
 const { t } = useI18n()
 
+// 格式化数字，保留两位小数
+function formatNumber(num: number): string {
+  if (typeof num !== 'number' || isNaN(num)) return '0'
+  return num.toFixed(2)
+}
+
 const overviewLoading = ref(false)
 const workloadsLoading = ref(false)
 const eventsLoading = ref(false)
@@ -185,7 +191,15 @@ async function fetchEvents() {
   eventsLoading.value = true
   try {
     const res = await getEvents()
-    events.value = res.data
+    // 后端返回 { items: [...], total, continue, has_more }，需要提取 items 数组
+    if (res.data && Array.isArray(res.data.items)) {
+      events.value = res.data.items
+    } else if (Array.isArray(res.data)) {
+      // 兼容直接返回数组的情况
+      events.value = res.data
+    } else {
+      events.value = []
+    }
   } catch (e: any) {
     ElMessage.error(e?.message || t('dashboard.loadFailed'))
   } finally {
@@ -280,7 +294,7 @@ onMounted(() => {
           <div ref="cpuGaugeRef" class="gauge-chart"></div>
           <div class="gauge-detail">
             <span class="resource-title">{{ t('dashboard.cpu') }}</span>
-            <span class="resource-detail">{{ resources.cpu.used }} / {{ resources.cpu.total }} Core</span>
+            <span class="resource-detail">{{ formatNumber(resources.cpu.used) }} / {{ formatNumber(resources.cpu.total) }} Core</span>
           </div>
         </el-card>
       </el-col>
@@ -289,7 +303,7 @@ onMounted(() => {
           <div ref="memGaugeRef" class="gauge-chart"></div>
           <div class="gauge-detail">
             <span class="resource-title">{{ t('dashboard.memory') }}</span>
-            <span class="resource-detail">{{ resources.memory.used }} / {{ resources.memory.total }} Gi</span>
+            <span class="resource-detail">{{ formatNumber(resources.memory.used) }} / {{ formatNumber(resources.memory.total) }} Gi</span>
           </div>
         </el-card>
       </el-col>
@@ -303,7 +317,7 @@ onMounted(() => {
           <div class="resource-item">
             <div class="resource-header">
               <span class="resource-title">{{ t('dashboard.storage') }}</span>
-              <span class="resource-detail">{{ resources.storage.used }} / {{ resources.storage.total }} Gi</span>
+              <span class="resource-detail">{{ formatNumber(resources.storage.used) }} / {{ formatNumber(resources.storage.total) }} Gi</span>
             </div>
             <el-progress
               :percentage="storagePercent"

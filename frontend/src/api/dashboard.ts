@@ -42,6 +42,13 @@ export function getWorkloads() {
   return request.get<WorkloadSummary>('/dashboard/workloads')
 }
 
+export interface EventsResponse {
+  items: K8sEvent[]
+  total: number
+  continue: string
+  has_more: boolean
+}
+
 export function getEvents() {
-  return request.get<K8sEvent[]>('/dashboard/events')
+  return request.get<EventsResponse>('/dashboard/events')
 }

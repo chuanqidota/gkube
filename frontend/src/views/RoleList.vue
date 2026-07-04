@@ -31,13 +31,13 @@ onMounted(fetchRoles)
 
 <template>
   <div>
-    <h2 style="margin-bottom: 16px;">Roles</h2>
+    <h2 style="margin-bottom: 16px;">角色管理</h2>
 
     <el-table :data="roleList" v-loading="loading" stripe style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="name" label="Role Name" min-width="160" />
-      <el-table-column prop="description" label="Description" min-width="300" show-overflow-tooltip />
-      <el-table-column prop="createdAt" label="Created At" min-width="180" />
+      <el-table-column prop="name" label="角色名称" min-width="160" />
+      <el-table-column prop="description" label="描述" min-width="300" show-overflow-tooltip />
+      <el-table-column prop="createdAt" label="创建时间" min-width="180" />
     </el-table>
 
     <div style="display: flex; justify-content: flex-end; margin-top: 16px;">

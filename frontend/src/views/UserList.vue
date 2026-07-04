@@ -11,7 +11,7 @@ const page = ref(1)
 const size = ref(10)
 
 const dialogVisible = ref(false)
-const dialogTitle = ref('Create User')
+const dialogTitle = ref('创建用户')
 const formRef = ref<FormInstance>()
 const saving = ref(false)
 const editingId = ref<number | null>(null)
@@ -24,16 +24,16 @@ const form = reactive({
 })
 
 const rules: FormRules = {
-  username: [{ required: true, message: 'Username is required', trigger: 'blur' }],
+  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [
     {
       required: true,
-      message: 'Password is required',
+      message: '请输入密码',
       trigger: 'blur',
       // Only required when creating (not editing)
       validator: (_rule: any, value: string, callback: any) => {
         if (!editingId.value && !value) {
-          callback(new Error('Password is required'))
+          callback(new Error('请输入密码'))
         } else {
           callback()
         }
@@ -57,7 +57,7 @@ async function fetchUsers() {
 
 function openCreate() {
   editingId.value = null
-  dialogTitle.value = 'Create User'
+  dialogTitle.value = '创建用户'
   form.username = ''
   form.password = ''
   form.email = ''
@@ -67,7 +67,7 @@ function openCreate() {
 
 function openEdit(row: any) {
   editingId.value = row.id
-  dialogTitle.value = 'Edit User'
+  dialogTitle.value = '编辑用户'
   form.username = row.username || ''
   form.password = ''
   form.email = row.email || ''
@@ -92,16 +92,16 @@ async function handleSave() {
 
     if (editingId.value) {
       await request.put(`/users/${editingId.value}`, payload)
-      ElMessage.success('User updated')
+      ElMessage.success('用户已更新')
     } else {
       payload.password = form.password
       await request.post('/users', payload)
-      ElMessage.success('User created')
+      ElMessage.success('用户已创建')
     }
     dialogVisible.value = false
     fetchUsers()
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Save failed')
+    ElMessage.error(e?.message || '保存失败')
   } finally {
     saving.value = false
   }
@@ -109,9 +109,9 @@ async function handleSave() {
 
 async function handleDelete(row: any) {
   try {
-    await ElMessageBox.confirm(`Delete user "${row.username}"?`, 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(`确定删除用户 "${row.username}" 吗？`, '确认删除', { type: 'warning' })
     await request.delete('/users', { data: { id: row.id } })
-    ElMessage.success('Deleted')
+    ElMessage.success('已删除')
     fetchUsers()
   } catch {
     // cancelled
@@ -129,20 +129,20 @@ onMounted(fetchUsers)
 <template>
   <div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h2 style="margin: 0;">Users</h2>
-      <el-button type="primary" @click="openCreate">Create User</el-button>
+      <h2 style="margin: 0;">用户管理</h2>
+      <el-button type="primary" @click="openCreate">创建用户</el-button>
     </div>
 
     <el-table :data="userList" v-loading="loading" stripe style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="username" label="Username" min-width="140" />
-      <el-table-column prop="nickname" label="Nickname" min-width="140" />
-      <el-table-column prop="email" label="Email" min-width="200" />
-      <el-table-column prop="createdAt" label="Created At" min-width="180" />
-      <el-table-column label="Actions" width="160" fixed="right">
+      <el-table-column prop="username" label="用户名" min-width="140" />
+      <el-table-column prop="nickname" label="昵称" min-width="140" />
+      <el-table-column prop="email" label="邮箱" min-width="200" />
+      <el-table-column prop="createdAt" label="创建时间" min-width="180" />
+      <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">Edit</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
+          <el-button size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -161,28 +161,28 @@ onMounted(fetchUsers)
     <!-- Create / Edit Dialog -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="480px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="Username" prop="username">
+        <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" :disabled="!!editingId" />
         </el-form-item>
-        <el-form-item label="Password" prop="password">
+        <el-form-item label="密码" prop="password">
           <el-input
             v-model="form.password"
             type="password"
             show-password
-            :placeholder="editingId ? 'Leave blank to keep current' : ''"
+            :placeholder="editingId ? '留空保持不变' : ''"
           />
         </el-form-item>
-        <el-form-item label="Nickname" prop="nickname">
+        <el-form-item label="昵称" prop="nickname">
           <el-input v-model="form.nickname" />
         </el-form-item>
-        <el-form-item label="Email" prop="email">
+        <el-form-item label="邮箱" prop="email">
           <el-input v-model="form.email" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">Cancel</el-button>
+        <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="handleSave">
-          {{ editingId ? 'Update' : 'Create' }}
+          {{ editingId ? '更新' : '创建' }}
         </el-button>
       </template>
     </el-dialog>
