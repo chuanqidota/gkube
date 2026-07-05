@@ -160,7 +160,7 @@ onMounted(() => {
           @interval-change="setIntervalOption"
         />
         <el-button @click="handleOpenYaml">Edit YAML</el-button>
-        <el-button type="danger" @click="handleDelete">Delete</el-button>
+        <el-button type="danger" @click="handleDelete">删除</el-button>
       </div>
     </div>
 

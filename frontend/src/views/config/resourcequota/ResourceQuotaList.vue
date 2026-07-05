@@ -102,8 +102,8 @@ onMounted(() => { fetchNamespaces(); fetchResourceQuotas() })
           @toggle="toggle"
           @interval-change="setIntervalOption"
         />
-        <el-button type="success" @click="router.push('/config/resourcequotas/create')"><el-icon><Plus /></el-icon> Create</el-button>
-        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})</el-button>
+        <el-button type="success" @click="router.push('/config/resourcequotas/create')"><el-icon><Plus /></el-icon> 创建</el-button>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})</el-button>
       </div>
     </el-card>
     <el-card shadow="never" class="table-card">
@@ -127,7 +127,7 @@ onMounted(() => { fetchNamespaces(); fetchResourceQuotas() })
         <el-table-column label="Actions" width="160" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

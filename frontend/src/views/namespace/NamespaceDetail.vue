@@ -185,7 +185,7 @@ onMounted(fetchDetail)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="danger" @click="handleDelete">Delete</el-button>
+        <el-button type="danger" @click="handleDelete">删除</el-button>
         <el-button @click="router.push('/namespaces')">Back to List</el-button>
       </div>
     </div>
@@ -207,7 +207,7 @@ onMounted(fetchDetail)
             <div style="margin-top: 16px;">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                 <h4 style="margin: 0;">Labels</h4>
-                <el-button size="small" @click="handleEditLabels">Edit</el-button>
+                <el-button size="small" @click="handleEditLabels">编辑</el-button>
               </div>
               <div v-if="namespace.labels && Object.keys(namespace.labels).length > 0">
                 <el-tag v-for="(v, k) in namespace.labels" :key="k" style="margin-right: 8px; margin-bottom: 8px;">{{ k }}={{ v }}</el-tag>
@@ -219,7 +219,7 @@ onMounted(fetchDetail)
             <div style="margin-top: 16px;">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                 <h4 style="margin: 0;">Annotations</h4>
-                <el-button size="small" @click="handleEditAnnotations">Edit</el-button>
+                <el-button size="small" @click="handleEditAnnotations">编辑</el-button>
               </div>
               <div v-if="namespace.annotations && Object.keys(namespace.annotations).length > 0">
                 <div v-for="(v, k) in namespace.annotations" :key="k" style="margin-bottom: 4px;">
@@ -278,8 +278,8 @@ onMounted(fetchDetail)
             <div style="margin-bottom: 12px; display: flex; gap: 8px;">
               <el-button v-if="!yamlEditing" type="primary" @click="yamlEditing = true">Edit YAML</el-button>
               <template v-if="yamlEditing">
-                <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">Save</el-button>
-                <el-button @click="yamlEditing = false; fetchYaml()">Cancel</el-button>
+                <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">保存</el-button>
+                <el-button @click="yamlEditing = false; fetchYaml()">取消</el-button>
               </template>
             </div>
             <div v-loading="yamlLoading">
@@ -303,8 +303,8 @@ onMounted(fetchDetail)
         <el-icon><Plus /></el-icon> Add Label
       </el-button>
       <template #footer>
-        <el-button @click="labelsDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" @click="handleSaveLabels">Save</el-button>
+        <el-button @click="labelsDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveLabels">保存</el-button>
       </template>
     </el-dialog>
 
@@ -321,8 +321,8 @@ onMounted(fetchDetail)
         <el-icon><Plus /></el-icon> Add Annotation
       </el-button>
       <template #footer>
-        <el-button @click="annotationsDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" @click="handleSaveAnnotations">Save</el-button>
+        <el-button @click="annotationsDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveAnnotations">保存</el-button>
       </template>
     </el-dialog>
   </div>

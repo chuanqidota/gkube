@@ -165,7 +165,7 @@ onMounted(fetchDetail)
           @interval-change="setIntervalOption"
         />
         <el-button size="small" @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" size="small" @click="handleDelete">Delete</el-button>
+        <el-button type="danger" size="small" @click="handleDelete">删除</el-button>
       </div>
     </div>
 

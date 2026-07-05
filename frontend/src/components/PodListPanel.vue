@@ -58,9 +58,6 @@ const getRestarts = (pod: Pod): number => {
   return pod.status.containerStatuses?.reduce((sum, cs) => sum + cs.restartCount, 0) || 0
 }
 
-const getImage = (pod: Pod): string => {
-  return pod.spec.containers?.[0]?.image || '-'
-}
 </script>
 
 <template>
@@ -69,36 +66,21 @@ const getImage = (pod: Pod): string => {
       暂无 Pod
     </div>
     <el-table v-else :data="pods" style="width: 100%" row-key="metadata.name" size="small">
-      <el-table-column label="名称" min-width="200">
+      <el-table-column label="名称" min-width="260">
         <template #default="{ row }">
           <span class="pod-name">{{ row.metadata.name }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="90">
+      <el-table-column label="状态" width="80">
         <template #default="{ row }">
           <el-tag :type="getStatusType(row.status.phase)" size="small">
             {{ row.status.phase }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="Pod IP" width="125">
+      <el-table-column label="Pod IP" width="120">
         <template #default="{ row }">
           <span class="mono">{{ row.status?.podIP || '-' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="Node" width="110">
-        <template #default="{ row }">
-          {{ row.spec.nodeName || '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column label="Node IP" width="125">
-        <template #default="{ row }">
-          <span class="mono">{{ row.status?.hostIP || '-' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="镜像" min-width="160" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ getImage(row) }}
         </template>
       </el-table-column>
       <el-table-column label="重启" width="65">

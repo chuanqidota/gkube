@@ -103,7 +103,7 @@ function statusType(status: string) {
           @interval-change="setIntervalOption"
         />
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> Delete ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
         </el-button>
         <span class="total-count" v-if="totalCount">Total: {{ totalCount }}</span>
       </div>

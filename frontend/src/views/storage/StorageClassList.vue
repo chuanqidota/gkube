@@ -65,7 +65,7 @@ onMounted(fetchStorageClasses)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="success" @click="router.push('/storage/storageclasses/create')"><el-icon><Plus /></el-icon> Create</el-button>
+        <el-button type="success" @click="router.push('/storage/storageclasses/create')"><el-icon><Plus /></el-icon> 创建</el-button>
       </div>
     </el-card>
     <el-card shadow="never" class="table-card">

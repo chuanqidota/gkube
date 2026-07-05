@@ -105,7 +105,7 @@ onMounted(fetchNamespaces)
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 style="margin: 0;">Create HPA</h2>
+      <h2 style="margin: 0;">创建 HPA</h2>
       <el-button @click="router.push('/workloads/hpa')">Back to List</el-button>
     </div>
 
@@ -139,7 +139,7 @@ onMounted(fetchNamespaces)
           <el-input-number v-model="form.cpuUtilization" :min="1" :max="100" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleCreate">Create HPA</el-button>
+          <el-button type="primary" :loading="loading" @click="handleCreate">创建 HPA</el-button>
         </el-form-item>
       </el-form>
     </el-card>

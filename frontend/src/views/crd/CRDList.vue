@@ -80,7 +80,7 @@ onMounted(fetchCrds)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="success" @click="router.push('/crd/create')"><el-icon><Plus /></el-icon> Create CRD</el-button>
+        <el-button type="success" @click="router.push('/crd/create')"><el-icon><Plus /></el-icon> 创建 CRD</el-button>
       </div>
     </el-card>
     <el-card shadow="never" class="table-card">
@@ -100,7 +100,7 @@ onMounted(fetchCrds)
         <el-table-column label="Actions" width="180" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

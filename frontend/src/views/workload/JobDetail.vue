@@ -195,7 +195,7 @@ onMounted(fetchDetail)
           @interval-change="setIntervalOption"
         />
         <el-button size="small" @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" size="small" @click="handleDelete">Delete</el-button>
+        <el-button type="danger" size="small" @click="handleDelete">删除</el-button>
       </div>
     </div>
 
@@ -261,7 +261,7 @@ onMounted(fetchDetail)
             </el-table-column>
             <el-table-column label="Actions" width="100" fixed="right">
               <template #default="{ row }">
-                <el-button size="small" type="danger" link @click="handleDeletePod(row)">Delete</el-button>
+                <el-button size="small" type="danger" link @click="handleDeletePod(row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>

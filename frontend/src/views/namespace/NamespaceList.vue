@@ -213,7 +213,7 @@ onMounted(fetchNamespaces)
           @interval-change="setIntervalOption"
         />
         <el-button type="success" @click="createDialogVisible = true">
-          <el-icon><Plus /></el-icon> Create
+          <el-icon><Plus /></el-icon> 创建
         </el-button>
         <span class="total-count" v-if="namespaceList.length">Total: {{ namespaceList.length }}</span>
       </div>
@@ -256,7 +256,7 @@ onMounted(fetchNamespaces)
     </el-card>
 
     <!-- Create Namespace Dialog -->
-    <el-dialog v-model="createDialogVisible" title="Create Namespace" width="580px" destroy-on-close>
+    <el-dialog v-model="createDialogVisible" title="创建命名空间" width="580px" destroy-on-close>
       <el-form label-width="100px">
         <el-form-item label="Name" required>
           <el-input v-model="createForm.name" placeholder="my-namespace" />
@@ -283,8 +283,8 @@ onMounted(fetchNamespaces)
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" @click="handleCreate" :loading="creating">Create</el-button>
+        <el-button @click="createDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleCreate" :loading="creating">创建</el-button>
       </template>
     </el-dialog>
 
@@ -316,8 +316,8 @@ onMounted(fetchNamespaces)
         <el-icon><Plus /></el-icon> Add Label
       </el-button>
       <template #footer>
-        <el-button @click="labelsDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" @click="handleSaveLabels">Save</el-button>
+        <el-button @click="labelsDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveLabels">保存</el-button>
       </template>
     </el-dialog>
   </div>

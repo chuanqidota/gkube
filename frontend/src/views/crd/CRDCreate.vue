@@ -55,14 +55,14 @@ async function handleCreate() {
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 style="margin: 0;">Create CustomResourceDefinition</h2>
+      <h2 style="margin: 0;">创建 CustomResourceDefinition</h2>
       <el-button @click="router.push('/crd')">Back to List</el-button>
     </div>
     <el-card shadow="never">
       <el-alert title="Enter the CRD YAML below. The CRD defines a new custom resource type in your cluster." type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
       <YamlEditor v-model="yamlContent" height="500px" />
       <div style="margin-top: 16px;">
-        <el-button type="primary" :loading="loading" @click="handleCreate">Create CRD</el-button>
+        <el-button type="primary" :loading="loading" @click="handleCreate">创建 CRD</el-button>
       </div>
     </el-card>
   </div>

@@ -89,7 +89,7 @@ onMounted(fetchNamespaces)
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 style="margin: 0;">Create LimitRange</h2>
+      <h2 style="margin: 0;">创建 LimitRange</h2>
       <el-button @click="router.push('/config/limitranges')">Back to List</el-button>
     </div>
     <el-card shadow="never">
@@ -108,7 +108,7 @@ onMounted(fetchNamespaces)
               <el-option label="Pod" value="Pod" />
               <el-option label="PersistentVolumeClaim" value="PersistentVolumeClaim" />
             </el-select>
-            <el-button v-if="form.limits.length > 1" type="danger" size="small" @click="removeLimit(i)">Remove</el-button>
+            <el-button v-if="form.limits.length > 1" type="danger" size="small" @click="removeLimit(i)">移除</el-button>
           </div>
           <el-form-item label="Max CPU"><el-input v-model="limit.maxCpu" placeholder="e.g. 4" /></el-form-item>
           <el-form-item label="Max Memory"><el-input v-model="limit.maxMemory" placeholder="e.g. 8Gi" /></el-form-item>
@@ -122,7 +122,7 @@ onMounted(fetchNamespaces)
         <el-button @click="addLimit" style="margin-bottom: 16px;">+ Add Limit</el-button>
 
         <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleCreate">Create LimitRange</el-button>
+          <el-button type="primary" :loading="loading" @click="handleCreate">创建 LimitRange</el-button>
         </el-form-item>
       </el-form>
     </el-card>

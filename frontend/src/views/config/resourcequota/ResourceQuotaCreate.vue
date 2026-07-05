@@ -67,7 +67,7 @@ onMounted(fetchNamespaces)
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 style="margin: 0;">Create ResourceQuota</h2>
+      <h2 style="margin: 0;">创建 ResourceQuota</h2>
       <el-button @click="router.push('/config/resourcequotas')">Back to List</el-button>
     </div>
     <el-card shadow="never">
@@ -83,7 +83,7 @@ onMounted(fetchNamespaces)
           <el-input v-model="limit.value" :placeholder="limit.resource === 'pods' || limit.resource === 'services' || limit.resource === 'persistentvolumeclaims' ? 'e.g. 10' : 'e.g. 4 or 8Gi'" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleCreate">Create ResourceQuota</el-button>
+          <el-button type="primary" :loading="loading" @click="handleCreate">创建 ResourceQuota</el-button>
         </el-form-item>
       </el-form>
     </el-card>

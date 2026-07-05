@@ -71,7 +71,7 @@ onMounted(fetchDetail)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="danger" @click="handleDelete">Delete</el-button>
+        <el-button type="danger" @click="handleDelete">删除</el-button>
         <el-button @click="router.push('/workloads/pdb')">Back to List</el-button>
       </div>
     </div>

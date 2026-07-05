@@ -97,7 +97,7 @@ onMounted(fetchNamespaces)
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 style="margin: 0;">Create NetworkPolicy</h2>
+      <h2 style="margin: 0;">创建 NetworkPolicy</h2>
       <el-button @click="router.push('/network/networkpolicies')">Back to List</el-button>
     </div>
     <el-card shadow="never">
@@ -125,7 +125,7 @@ onMounted(fetchNamespaces)
           <el-button size="small" @click="addLabel">Add Label</el-button>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleCreate">Create NetworkPolicy</el-button>
+          <el-button type="primary" :loading="loading" @click="handleCreate">创建 NetworkPolicy</el-button>
         </el-form-item>
       </el-form>
     </el-card>

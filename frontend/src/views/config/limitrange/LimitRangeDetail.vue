@@ -121,7 +121,7 @@ onMounted(fetchDetail)
         />
         <el-button @click="handleRefresh"><el-icon><Refresh /></el-icon> Refresh</el-button>
         <el-button type="primary" @click="handleEdit"><el-icon><Edit /></el-icon> Edit</el-button>
-        <el-button type="danger" @click="handleDelete"><el-icon><Delete /></el-icon> Delete</el-button>
+        <el-button type="danger" @click="handleDelete"><el-icon><Delete /></el-icon> 删除</el-button>
         <el-button @click="router.push('/config/limitranges')">Back to List</el-button>
       </div>
     </div>
@@ -204,8 +204,8 @@ onMounted(fetchDetail)
           <el-card shadow="never">
             <div v-if="editing">
               <div style="margin-bottom: 12px; display: flex; gap: 8px;">
-                <el-button type="primary" :loading="saving" @click="handleSave">Save</el-button>
-                <el-button @click="handleCancelEdit">Cancel</el-button>
+                <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
+                <el-button @click="handleCancelEdit">取消</el-button>
               </div>
               <YamlEditor v-model="editYaml" height="600px" />
             </div>

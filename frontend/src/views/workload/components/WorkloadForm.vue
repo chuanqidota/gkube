@@ -273,7 +273,7 @@ function handleCancel() { router.push(getListRoute()) }
 
 <template>
   <div class="workload-form">
-    <div class="form-header"><h2>Create {{ kind }}</h2></div>
+    <div class="form-header"><h2>创建 {{ kind }}</h2></div>
     <el-steps :active="currentStep" finish-status="success" align-center style="margin-bottom: 32px;">
       <el-step v-for="(step, index) in steps" :key="index" :title="step.title" @click="handleStepClick(index)" style="cursor: pointer;" />
     </el-steps>
@@ -320,7 +320,7 @@ function handleCancel() { router.push(getListRoute()) }
         <div v-for="(container, ci) in form.containers" :key="ci" class="container-card">
           <div class="container-card-header">
             <h4>Container {{ ci + 1 }}: {{ container.name || '(unnamed)' }}</h4>
-            <el-button v-if="form.containers.length > 1" type="danger" size="small" @click="removeContainer(ci)">Remove</el-button>
+            <el-button v-if="form.containers.length > 1" type="danger" size="small" @click="removeContainer(ci)">移除</el-button>
           </div>
           <el-form label-width="140px" style="max-width: 700px;">
             <el-form-item label="Container Name" required><el-input v-model="container.name" placeholder="e.g. nginx" /></el-form-item>
@@ -414,8 +414,8 @@ function handleCancel() { router.push(getListRoute()) }
             <template #header>
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span>Liveness Probe</span>
-                <el-button v-if="!container.livenessProbe" size="small" type="primary" @click="enableLivenessProbe(ci)">Enable</el-button>
-                <el-button v-else size="small" type="danger" @click="disableLivenessProbe(ci)">Disable</el-button>
+                <el-button v-if="!container.livenessProbe" size="small" type="primary" @click="enableLivenessProbe(ci)">启用</el-button>
+                <el-button v-else size="small" type="danger" @click="disableLivenessProbe(ci)">禁用</el-button>
               </div>
             </template>
             <template v-if="container.livenessProbe">
@@ -438,8 +438,8 @@ function handleCancel() { router.push(getListRoute()) }
             <template #header>
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span>Readiness Probe</span>
-                <el-button v-if="!container.readinessProbe" size="small" type="primary" @click="enableReadinessProbe(ci)">Enable</el-button>
-                <el-button v-else size="small" type="danger" @click="disableReadinessProbe(ci)">Disable</el-button>
+                <el-button v-if="!container.readinessProbe" size="small" type="primary" @click="enableReadinessProbe(ci)">启用</el-button>
+                <el-button v-else size="small" type="danger" @click="disableReadinessProbe(ci)">禁用</el-button>
               </div>
             </template>
             <template v-if="container.readinessProbe">
@@ -529,10 +529,10 @@ function handleCancel() { router.push(getListRoute()) }
     </div>
 
     <div class="form-actions">
-      <el-button @click="handleCancel">Cancel</el-button>
+      <el-button @click="handleCancel">取消</el-button>
       <el-button v-if="currentStep > 0" @click="handlePrev">Previous</el-button>
       <el-button v-if="currentStep < steps.length - 1" type="primary" @click="handleNext">Next</el-button>
-      <el-button v-if="currentStep === steps.length - 1" type="primary" :loading="submitting" @click="handleSubmit">Create {{ kind }}</el-button>
+      <el-button v-if="currentStep === steps.length - 1" type="primary" :loading="submitting" @click="handleSubmit">创建 {{ kind }}</el-button>
     </div>
   </div>
 </template>

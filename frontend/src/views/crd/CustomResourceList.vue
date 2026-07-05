@@ -112,7 +112,7 @@ onMounted(() => { fetchNamespaces(); fetchResources() })
         <el-table-column label="Actions" width="160" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">Delete</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

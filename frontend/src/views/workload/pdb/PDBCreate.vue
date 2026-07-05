@@ -72,7 +72,7 @@ onMounted(fetchNamespaces)
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 style="margin: 0;">Create PodDisruptionBudget</h2>
+      <h2 style="margin: 0;">创建 PodDisruptionBudget</h2>
       <el-button @click="router.push('/workloads/pdb')">Back to List</el-button>
     </div>
     <el-card shadow="never">
@@ -106,7 +106,7 @@ onMounted(fetchNamespaces)
           <el-input v-model="form.maxUnavailable" placeholder="e.g. 1 or 25%" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleCreate">Create PDB</el-button>
+          <el-button type="primary" :loading="loading" @click="handleCreate">创建 PDB</el-button>
         </el-form-item>
       </el-form>
     </el-card>

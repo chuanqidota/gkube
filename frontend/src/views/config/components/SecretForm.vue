@@ -184,7 +184,7 @@ function handleCancel() {
   <div class="secret-form">
     <!-- Header -->
     <div class="form-header">
-      <h2>Create Secret</h2>
+      <h2>创建 Secret</h2>
     </div>
 
     <!-- Steps -->
@@ -311,7 +311,7 @@ function handleCancel() {
 
     <!-- Navigation Buttons -->
     <div class="form-actions">
-      <el-button @click="handleCancel">Cancel</el-button>
+      <el-button @click="handleCancel">取消</el-button>
       <el-button v-if="currentStep > 0" @click="handlePrev">Previous</el-button>
       <el-button
         v-if="currentStep < 2"

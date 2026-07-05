@@ -97,7 +97,7 @@ const handleRollback = (rs: ReplicaSet) => {
           <span class="value">{{ getImage(rs) }}</span>
         </div>
         <div class="rs-detail">
-          <span class="label">Created:</span>
+          <span class="label">创建时间：</span>
           <span class="value">{{ formatAge(rs.metadata.creationTimestamp) }}</span>
         </div>
         <div class="rs-detail">
@@ -106,7 +106,7 @@ const handleRollback = (rs: ReplicaSet) => {
         </div>
       </div>
       <div class="rs-actions" v-if="getRevision(rs) !== currentRevision">
-        <el-button size="small" @click.stop="handleRollback(rs)">Rollback</el-button>
+        <el-button size="small" @click.stop="handleRollback(rs)">回滚</el-button>
       </div>
     </div>
   </div>

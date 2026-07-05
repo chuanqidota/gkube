@@ -11,7 +11,7 @@
             <el-button size="small" type="success" :loading="saving" @click="handleSave">
               <el-icon><Check /></el-icon> Save
             </el-button>
-            <el-button size="small" @click="handleCancel">Cancel</el-button>
+            <el-button size="small" @click="handleCancel">取消</el-button>
           </template>
         </template>
         <span v-if="title" class="toolbar-title">{{ title }}</span>
@@ -21,7 +21,7 @@
       <div class="toolbar-center" v-if="isEditing || (editable && !saveable)">
         <el-button-group>
           <el-button size="small" @click="handleFormat">Format</el-button>
-          <el-button size="small" @click="handleCopy">Copy</el-button>
+          <el-button size="small" @click="handleCopy">复制</el-button>
         </el-button-group>
       </div>
 

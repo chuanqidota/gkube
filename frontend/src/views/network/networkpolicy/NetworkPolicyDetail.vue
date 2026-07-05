@@ -85,7 +85,7 @@ onMounted(fetchDetail)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="danger" @click="handleDelete">Delete</el-button>
+        <el-button type="danger" @click="handleDelete">删除</el-button>
         <el-button @click="router.push('/network/networkpolicies')">Back to List</el-button>
       </div>
     </div>
@@ -153,8 +153,8 @@ onMounted(fetchDetail)
             <div style="margin-bottom: 12px; display: flex; gap: 8px;">
               <el-button v-if="!yamlEditing" type="primary" @click="yamlEditing = true">Edit YAML</el-button>
               <template v-if="yamlEditing">
-                <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">Save</el-button>
-                <el-button @click="yamlEditing = false; fetchYaml()">Cancel</el-button>
+                <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">保存</el-button>
+                <el-button @click="yamlEditing = false; fetchYaml()">取消</el-button>
               </template>
             </div>
             <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="600px" :read-only="!yamlEditing" /></div>

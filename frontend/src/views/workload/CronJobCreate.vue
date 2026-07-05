@@ -71,11 +71,11 @@ function handleCancel() {
     <CronJobForm v-if="mode === 'form'" />
 
     <div v-else class="yaml-mode">
-      <div class="form-header"><h2>Create CronJob (YAML)</h2></div>
+      <div class="form-header"><h2>创建 CronJob (YAML)</h2></div>
       <YamlEditor v-model="yamlContent" height="calc(100vh - 230px)" :read-only="false" editable auto-format />
       <div class="form-actions">
-        <el-button @click="handleCancel">Cancel</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleYamlSubmit">Create CronJob</el-button>
+        <el-button @click="handleCancel">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleYamlSubmit">创建 CronJob</el-button>
       </div>
     </div>
   </div>

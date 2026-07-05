@@ -68,11 +68,11 @@ function handleCancel() {
     <WorkloadForm v-if="mode === 'form'" kind="DaemonSet" />
 
     <div v-else class="yaml-mode">
-      <div class="form-header"><h2>Create DaemonSet (YAML)</h2></div>
+      <div class="form-header"><h2>创建 DaemonSet (YAML)</h2></div>
       <YamlEditor v-model="yamlContent" height="calc(100vh - 230px)" :read-only="false" editable auto-format />
       <div class="form-actions">
-        <el-button @click="handleCancel">Cancel</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleYamlSubmit">Create DaemonSet</el-button>
+        <el-button @click="handleCancel">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleYamlSubmit">创建 DaemonSet</el-button>
       </div>
     </div>
   </div>
