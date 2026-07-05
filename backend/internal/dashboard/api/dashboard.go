@@ -103,7 +103,7 @@ func (d *dashboard) Resources(c *gin.Context) {
 			continue
 		}
 
-		// Sum node capacity and allocatable
+		// Sum node capacity as totals
 		nodeList, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			continue
@@ -111,10 +111,9 @@ func (d *dashboard) Resources(c *gin.Context) {
 		for _, node := range nodeList.Items {
 			totalCPUTotal.Add(*node.Status.Capacity.Cpu())
 			totalMemTotal.Add(*node.Status.Capacity.Memory())
-			totalStorageTotal.Add(*node.Status.Capacity.StorageEphemeral())
-
-			totalCPUUsed.Add(*node.Status.Allocatable.Cpu())
-			totalMemUsed.Add(*node.Status.Allocatable.Memory())
+			if storageCap := node.Status.Capacity.StorageEphemeral(); !storageCap.IsZero() {
+				totalStorageTotal.Add(*storageCap)
+			}
 		}
 
 		// Sum pod resource requests as "used"
@@ -132,6 +131,9 @@ func (d *dashboard) Resources(c *gin.Context) {
 				}
 				if req, ok := container.Resources.Requests[corev1.ResourceMemory]; ok {
 					totalMemUsed.Add(req)
+				}
+				if req, ok := container.Resources.Requests[corev1.ResourceEphemeralStorage]; ok {
+					totalStorageUsed.Add(req)
 				}
 			}
 		}
