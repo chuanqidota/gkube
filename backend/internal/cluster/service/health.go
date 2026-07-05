@@ -18,6 +18,7 @@ import (
 type HealthChecker struct {
 	interval time.Duration
 	stopCh   chan struct{}
+	stopOnce sync.Once
 }
 
 // NewHealthChecker creates a HealthChecker that runs checks at the given interval.
@@ -50,9 +51,11 @@ func (hc *HealthChecker) Start() {
 	logrus.Infof("HealthChecker started with interval %s", hc.interval)
 }
 
-// Stop signals the background goroutine to exit.
+// Stop signals the background goroutine to exit. Safe to call multiple times.
 func (hc *HealthChecker) Stop() {
-	close(hc.stopCh)
+	hc.stopOnce.Do(func() {
+		close(hc.stopCh)
+	})
 }
 
 // checkAll queries all clusters from the database and checks each one concurrently.

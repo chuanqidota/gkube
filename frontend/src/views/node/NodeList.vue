@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Search, Plus, ArrowDown } from '@element-plus/icons-vue'
+import { Delete, Search, Plus } from '@element-plus/icons-vue'
 import { getNodeList, getNodeYaml, cordonNode, updateNodeTaints, updateNodeLabels, drainNode, deleteNode, type NodeInfo } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -65,7 +65,7 @@ async function handleViewYaml(row: any) {
 function handleDetail(row: any) { router.push(`/nodes/${row.name}`) }
 
 async function handleCordon(row: any) {
-  const isCordon = row.unschedulable || row.cordon
+  const isCordon = row.unschedulable
   const actionLabel = isCordon ? '解除封锁' : '封锁'
   try {
     await ElMessageBox.confirm(`确定要${actionLabel}节点 "${row.name}" 吗？`, '确认操作', { type: 'warning' })
@@ -179,43 +179,25 @@ onMounted(fetchNodes)
     </el-card>
     <el-card shadow="never" class="table-card">
       <el-table :data="filteredList" v-loading="loading" stripe>
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column label="状态" width="90" align="center">
+          <template #default="{ row }"><el-tag :type="statusType(row)" size="small" effect="dark">{{ row.status || 'Unknown' }}</el-tag></template>
+        </el-table-column>
+        <el-table-column prop="name" label="名称" min-width="240" show-overflow-tooltip>
           <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
-          <template #default="{ row }"><el-tag :type="statusType(row)" size="small">{{ row.status || 'Unknown' }}</el-tag></template>
+        <el-table-column prop="internal_ip" label="IP 地址" min-width="180">
+          <template #default="{ row }">{{ row.internal_ip || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="roles" label="角色" min-width="120" />
-        <el-table-column prop="version" label="版本" width="130" />
-        <el-table-column prop="internal_ip" label="内部IP" width="140" />
-        <el-table-column prop="external_ip" label="外部IP" width="140">
-          <template #default="{ row }">{{ row.external_ip || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="Pod 数量" width="100">
-          <template #default="{ row }">{{ row.pod_count ?? '-' }}</template>
-        </el-table-column>
-        <el-table-column label="年龄" width="120">
-          <template #default="{ row }">{{ row.age || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="360" fixed="right">
+        <el-table-column label="操作" min-width="360" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" :type="row.unschedulable || row.cordon ? 'success' : 'warning'" @click="handleCordon(row)">
-              {{ row.unschedulable || row.cordon ? '解除封锁' : '封锁' }}
+            <el-button size="small" :type="row.unschedulable ? 'success' : 'warning'" @click="handleCordon(row)">
+              {{ row.unschedulable ? '解除封锁' : '封锁' }}
             </el-button>
-            <el-dropdown trigger="click" style="margin-left: 8px;">
-              <el-button size="small" type="info">更多<el-icon class="el-icon--right"><arrow-down /></el-icon></el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="handleTaints(row)">污点管理</el-dropdown-item>
-                  <el-dropdown-item @click="handleLabels(row)">标签管理</el-dropdown-item>
-                  <el-dropdown-item @click="handleDrain(row)" divided>驱逐 Pod</el-dropdown-item>
-                  <el-dropdown-item @click="handleDelete(row)" divided>
-                    <span style="color: #f56c6c;">删除节点</span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <el-button size="small" @click="handleTaints(row)">污点</el-button>
+            <el-button size="small" @click="handleLabels(row)">标签</el-button>
+            <el-button size="small" type="warning" @click="handleDrain(row)">驱逐</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

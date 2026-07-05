@@ -31,8 +31,8 @@ async function fetchClusters() {
     const res: any = await getClusterList({ page: page.value, size: size.value })
     clusterList.value = res.data.items || []
     total.value = res.data.total || 0
-  } catch {
-    // Silently handle — resource may not exist in cluster
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('cluster.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -44,29 +44,37 @@ async function handleCheck(row: any) {
     const info = res.data
     if (info.status === 'online') {
       ElMessage.success(
-        `Connected (v${info.clusterVersion}, ${info.nodeCount} nodes, ${info.responseTimeMs}ms)`
+        t('cluster.connectedSuccess', {
+          version: info.clusterVersion,
+          nodeCount: info.nodeCount,
+          responseTimeMs: info.responseTimeMs,
+        })
       )
     } else {
-      ElMessage.warning(info.message || 'Connection failed')
+      ElMessage.warning(info.message || t('cluster.connectionFailed'))
     }
     fetchClusters()
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Check failed')
+    ElMessage.error(e?.message || t('cluster.checkFailed'))
   }
 }
 
 async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(
-      `Delete cluster "${row.displayName || row.clusterName}"?`,
-      'Confirm',
+      t('cluster.deleteClusterConfirm', { name: row.displayName || row.clusterName }),
+      t('common.confirm'),
       { type: 'warning' }
     )
-    await deleteCluster(row.id)
-    ElMessage.success('Deleted')
-    fetchClusters()
   } catch {
-    // cancelled
+    return // user cancelled
+  }
+  try {
+    await deleteCluster(row.id)
+    ElMessage.success(t('cluster.deleted'))
+    fetchClusters()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.deleteFailed'))
   }
 }
 
@@ -105,8 +113,7 @@ async function handleEditSubmit() {
       if (l.key.trim()) labels[l.key.trim()] = l.value
     })
 
-    await updateCluster({
-      id: editClusterId.value,
+    await updateCluster(editClusterId.value, {
       displayName: editForm.displayName,
       description: editForm.description,
       labels,

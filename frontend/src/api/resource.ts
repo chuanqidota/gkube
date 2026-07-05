@@ -319,10 +319,6 @@ export function cordonNode(data: { name: string; cordon: boolean }) {
   return request.put('/k8s/node/cordon', data)
 }
 
-export function taintNode(data: { name: string; taints: any[] }) {
-  return request.put('/k8s/node/taint', data)
-}
-
 export function updateNodeTaints(data: { name: string; taints: { key: string; value: string; effect: string }[] }) {
   return request.put('/k8s/node/taints', data)
 }

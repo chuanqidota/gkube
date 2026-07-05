@@ -19,7 +19,7 @@ const router = createRouter({
     },
     // Fullscreen layout for terminal and logs (no sidebar/header, opens in new tab)
     {
-      path: '/',
+      path: '/fullscreen',
       component: () => import('@/components/Layout/FullscreenLayout.vue'),
       children: [
         {

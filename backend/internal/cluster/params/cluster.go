@@ -9,10 +9,9 @@ type CreateClusterParams struct {
 }
 
 type UpdateClusterParams struct {
-	ID          uint              `json:"id" binding:"required" label:"集群ID"`
-	DisplayName string            `json:"displayName" label:"显示名称"`
-	Description string            `json:"description" label:"描述"`
-	Labels      map[string]string `json:"labels" label:"标签"`
+	DisplayName *string            `json:"displayName" label:"显示名称"`
+	Description *string            `json:"description" label:"描述"`
+	Labels      *map[string]string `json:"labels" label:"标签"`
 }
 
 type ClusterQueryParams struct {

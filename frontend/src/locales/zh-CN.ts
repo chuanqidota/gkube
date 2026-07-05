@@ -73,6 +73,7 @@ export default {
     saveSuccess: '保存成功',
     saveFailed: '保存失败',
     loadFailed: '加载失败',
+    deleteFailed: '删除失败',
     apply: '应用',
     validate: '验证',
     download: '下载',
@@ -573,6 +574,7 @@ export default {
     createFailed: '创建失败',
     keyPlaceholder: '键',
     valuePlaceholder: '值',
+    loadFailed: '加载集群列表失败',
   },
   sidebar: {
     overview: '概览',

@@ -52,12 +52,12 @@ function getClusterName(): string {
 
 function handleViewLogs(row: any) {
   const cluster = getClusterName()
-  window.open(`/logs?namespace=${row.namespace}&pod=${row.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(`/fullscreen/logs?namespace=${row.namespace}&pod=${row.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function handleExec(row: any) {
   const cluster = getClusterName()
-  window.open(`/terminal?namespace=${row.namespace}&pod=${row.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(`/fullscreen/terminal?namespace=${row.namespace}&pod=${row.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function statusType(status: string) {

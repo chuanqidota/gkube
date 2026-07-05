@@ -100,7 +100,7 @@ function statusType(status: string) {
 }
 
 async function handleCordon() {
-  const isCordon = node.value?.unschedulable || node.value?.cordon
+  const isCordon = node.value?.unschedulable
   const actionLabel = isCordon ? '解除封锁' : '封锁'
   try {
     await ElMessageBox.confirm(`确定要${actionLabel}节点 "${nodeName}" 吗？`, '确认操作', { type: 'warning' })
@@ -228,8 +228,8 @@ onMounted(fetchDetail)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button :type="node?.unschedulable || node?.cordon ? 'success' : 'warning'" @click="handleCordon">
-          {{ node?.unschedulable || node?.cordon ? '解除封锁' : '封锁' }}
+        <el-button :type="node?.unschedulable ? 'success' : 'warning'" @click="handleCordon">
+          {{ node?.unschedulable ? '解除封锁' : '封锁' }}
         </el-button>
         <el-button type="info" @click="handleTaints">污点</el-button>
         <el-button @click="handleLabels">标签</el-button>
@@ -258,7 +258,7 @@ onMounted(fetchDetail)
               <el-descriptions-item label="架构">{{ node.architecture || '-' }}</el-descriptions-item>
               <el-descriptions-item label="创建时间">{{ node.age || '-' }}</el-descriptions-item>
               <el-descriptions-item label="不可调度">
-                <el-tag :type="node.unschedulable || node.cordon ? 'danger' : 'success'" size="small">{{ node.unschedulable || node.cordon ? '是' : '否' }}</el-tag>
+                <el-tag :type="node.unschedulable ? 'danger' : 'success'" size="small">{{ node.unschedulable ? '是' : '否' }}</el-tag>
               </el-descriptions-item>
             </el-descriptions>
 
@@ -432,6 +432,6 @@ onMounted(fetchDetail)
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
+.page-container { padding: 20px; position: relative; min-height: 100%; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 </style>

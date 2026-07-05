@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -37,14 +38,18 @@ func (cl *clusterHandler) List(c *gin.Context) {
 	if query.Size <= 0 {
 		query.Size = 10
 	}
+	if query.Size > 100 {
+		query.Size = 100
+	}
 
 	db := database.DB.Model(&model.K8SCluster{})
 	if query.Status != "" {
 		db = db.Where("status = ?", query.Status)
 	}
 	if query.Keyword != "" {
+		keyword := escapeLike(query.Keyword)
 		db = db.Where("cluster_name LIKE ? OR display_name LIKE ?",
-			"%"+query.Keyword+"%", "%"+query.Keyword+"%")
+			"%"+keyword+"%", "%"+keyword+"%")
 	}
 
 	var total int64
@@ -175,6 +180,12 @@ func (cl *clusterHandler) Detail(c *gin.Context) {
 //	@receiver cl
 //	@param c
 func (cl *clusterHandler) Update(c *gin.Context) {
+	var uriParams params.ClusterIDParams
+	if err := c.ShouldBindUri(&uriParams); err != nil {
+		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		return
+	}
+
 	var p params.UpdateClusterParams
 	if err := c.ShouldBindJSON(&p); err != nil {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
@@ -182,21 +193,24 @@ func (cl *clusterHandler) Update(c *gin.Context) {
 	}
 
 	var cluster model.K8SCluster
-	if err := database.DB.First(&cluster, p.ID).Error; err != nil {
+	if err := database.DB.First(&cluster, uriParams.ID).Error; err != nil {
 		response.Fail(c, "集群不存在")
 		return
 	}
 
 	updates := map[string]interface{}{}
-	if p.DisplayName != "" {
-		updates["display_name"] = p.DisplayName
+	if p.DisplayName != nil {
+		updates["display_name"] = *p.DisplayName
 	}
-	if p.Description != "" {
-		updates["description"] = p.Description
+	if p.Description != nil {
+		updates["description"] = *p.Description
 	}
-	if len(p.Labels) > 0 {
-		if b, err := json.Marshal(p.Labels); err == nil {
+	if p.Labels != nil {
+		if b, err := json.Marshal(*p.Labels); err == nil {
 			updates["labels"] = string(b)
+		} else {
+			response.Fail(c, fmt.Sprintf("序列化标签失败:%s", err.Error()))
+			return
 		}
 	}
 
@@ -207,7 +221,10 @@ func (cl *clusterHandler) Update(c *gin.Context) {
 		}
 	}
 
-	database.DB.First(&cluster, cluster.ID)
+	if err := database.DB.First(&cluster, cluster.ID).Error; err != nil {
+		response.Fail(c, fmt.Sprintf("获取更新后集群失败:%s", err.Error()))
+		return
+	}
 	response.Success(c, "更新集群成功", cluster)
 }
 
@@ -217,16 +234,14 @@ func (cl *clusterHandler) Update(c *gin.Context) {
 //	@receiver cl
 //	@param c
 func (cl *clusterHandler) Delete(c *gin.Context) {
-	var body struct {
-		ID uint `json:"id" binding:"required" label:"集群ID"`
-	}
-	if err := c.ShouldBindJSON(&body); err != nil {
+	var p params.ClusterIDParams
+	if err := c.ShouldBindUri(&p); err != nil {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
 		return
 	}
 
 	var cluster model.K8SCluster
-	if err := database.DB.First(&cluster, body.ID).Error; err != nil {
+	if err := database.DB.First(&cluster, p.ID).Error; err != nil {
 		response.Fail(c, "集群不存在")
 		return
 	}
@@ -317,4 +332,12 @@ func (cl *clusterHandler) Check(c *gin.Context) {
 		"nodeCount":      nodeCount,
 		"responseTimeMs": responseTimeMs,
 	})
+}
+
+// escapeLike escapes SQL LIKE metacharacters (%, _, \) in user input.
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
 }

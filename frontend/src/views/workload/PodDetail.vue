@@ -106,17 +106,17 @@ function getClusterName(): string {
 
 function handleLogs() {
   const cluster = getClusterName()
-  window.open(`/logs?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(`/fullscreen/logs?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function handleExec() {
   const cluster = getClusterName()
-  window.open(`/terminal?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(`/fullscreen/terminal?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function handleFullLogViewer() {
   const cluster = getClusterName()
-  window.open(`/logs?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(`/fullscreen/logs?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 async function handleDelete() {

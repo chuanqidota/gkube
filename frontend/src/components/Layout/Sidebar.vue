@@ -23,26 +23,25 @@
       :default-active="activeMenu"
       :collapse="isCollapse"
       :collapse-transition="false"
-      router
       class="sidebar-menu"
     >
       <!-- Overview -->
-      <el-menu-item index="/dashboard">
+      <el-menu-item index="/dashboard" @click="navigateTo('/dashboard')">
         <el-icon><Odometer /></el-icon>
         <template #title>{{ t('sidebar.overview') }}</template>
       </el-menu-item>
       <!-- Cluster Management -->
-      <el-menu-item index="/clusters">
+      <el-menu-item index="/clusters" @click="navigateTo('/clusters')">
         <el-icon><Connection /></el-icon>
         <template #title>{{ t('sidebar.clusters') }}</template>
       </el-menu-item>
       <!-- Nodes -->
-      <el-menu-item index="/nodes">
+      <el-menu-item index="/nodes" @click="navigateTo('/nodes')">
         <el-icon><Cpu /></el-icon>
         <template #title>{{ t('sidebar.nodes') }}</template>
       </el-menu-item>
       <!-- Namespaces -->
-      <el-menu-item index="/namespaces">
+      <el-menu-item index="/namespaces" @click="navigateTo('/namespaces')">
         <el-icon><FolderOpened /></el-icon>
         <template #title>{{ t('sidebar.namespaces') }}</template>
       </el-menu-item>
@@ -52,35 +51,35 @@
           <el-icon><Box /></el-icon>
           <span>{{ t('sidebar.workloads') }}</span>
         </template>
-        <el-menu-item index="/workloads/pods">
+        <el-menu-item index="/workloads/pods" @click="navigateTo('/workloads/pods')">
           <el-icon><Coin /></el-icon>
           <template #title>{{ t('sidebar.pods') }}</template>
         </el-menu-item>
-        <el-menu-item index="/workloads/deployments">
+        <el-menu-item index="/workloads/deployments" @click="navigateTo('/workloads/deployments')">
           <el-icon><DocumentCopy /></el-icon>
           <template #title>{{ t('sidebar.deployments') }}</template>
         </el-menu-item>
-        <el-menu-item index="/workloads/statefulsets">
+        <el-menu-item index="/workloads/statefulsets" @click="navigateTo('/workloads/statefulsets')">
           <el-icon><List /></el-icon>
           <template #title>{{ t('sidebar.statefulsets') }}</template>
         </el-menu-item>
-        <el-menu-item index="/workloads/daemonsets">
+        <el-menu-item index="/workloads/daemonsets" @click="navigateTo('/workloads/daemonsets')">
           <el-icon><SetUp /></el-icon>
           <template #title>{{ t('sidebar.daemonsets') }}</template>
         </el-menu-item>
-        <el-menu-item index="/workloads/replicasets">
+        <el-menu-item index="/workloads/replicasets" @click="navigateTo('/workloads/replicasets')">
           <el-icon><CopyDocument /></el-icon>
           <template #title>{{ t('sidebar.replicasets') }}</template>
         </el-menu-item>
-        <el-menu-item index="/workloads/jobs">
+        <el-menu-item index="/workloads/jobs" @click="navigateTo('/workloads/jobs')">
           <el-icon><Finished /></el-icon>
           <template #title>{{ t('sidebar.jobs') }}</template>
         </el-menu-item>
-        <el-menu-item index="/workloads/cronjobs">
+        <el-menu-item index="/workloads/cronjobs" @click="navigateTo('/workloads/cronjobs')">
           <el-icon><Timer /></el-icon>
           <template #title>{{ t('sidebar.cronjobs') }}</template>
         </el-menu-item>
-        <el-menu-item index="/workloads/hpa">
+        <el-menu-item index="/workloads/hpa" @click="navigateTo('/workloads/hpa')">
           <el-icon><DataLine /></el-icon>
           <template #title>{{ t('sidebar.hpa') }}</template>
         </el-menu-item>
@@ -91,15 +90,15 @@
           <el-icon><Share /></el-icon>
           <span>{{ t('sidebar.network') }}</span>
         </template>
-        <el-menu-item index="/services">
+        <el-menu-item index="/services" @click="navigateTo('/services')">
           <el-icon><Connection /></el-icon>
           <template #title>{{ t('sidebar.services') }}</template>
         </el-menu-item>
-        <el-menu-item index="/ingresses">
+        <el-menu-item index="/ingresses" @click="navigateTo('/ingresses')">
           <el-icon><Link /></el-icon>
           <template #title>{{ t('sidebar.ingresses') }}</template>
         </el-menu-item>
-        <el-menu-item index="/network/networkpolicies">
+        <el-menu-item index="/network/networkpolicies" @click="navigateTo('/network/networkpolicies')">
           <el-icon><Lock /></el-icon>
           <template #title>{{ t('sidebar.networkpolicies') }}</template>
         </el-menu-item>
@@ -110,15 +109,15 @@
           <el-icon><Coin /></el-icon>
           <span>{{ t('sidebar.storage') }}</span>
         </template>
-        <el-menu-item index="/storage/pvs">
+        <el-menu-item index="/storage/pvs" @click="navigateTo('/storage/pvs')">
           <el-icon><Coin /></el-icon>
           <template #title>{{ t('sidebar.pvs') }}</template>
         </el-menu-item>
-        <el-menu-item index="/storage/pvcs">
+        <el-menu-item index="/storage/pvcs" @click="navigateTo('/storage/pvcs')">
           <el-icon><Box /></el-icon>
           <template #title>{{ t('sidebar.pvcs') }}</template>
         </el-menu-item>
-        <el-menu-item index="/storage/storageclasses">
+        <el-menu-item index="/storage/storageclasses" @click="navigateTo('/storage/storageclasses')">
           <el-icon><Files /></el-icon>
           <template #title>{{ t('sidebar.storageclasses') }}</template>
         </el-menu-item>
@@ -129,11 +128,11 @@
           <el-icon><Tickets /></el-icon>
           <span>{{ t('sidebar.config') }}</span>
         </template>
-        <el-menu-item index="/config/configmaps">
+        <el-menu-item index="/config/configmaps" @click="navigateTo('/config/configmaps')">
           <el-icon><Tickets /></el-icon>
           <template #title>{{ t('sidebar.configmaps') }}</template>
         </el-menu-item>
-        <el-menu-item index="/config/secrets">
+        <el-menu-item index="/config/secrets" @click="navigateTo('/config/secrets')">
           <el-icon><Key /></el-icon>
           <template #title>{{ t('sidebar.secrets') }}</template>
         </el-menu-item>
@@ -144,34 +143,34 @@
           <el-icon><Lock /></el-icon>
           <span>{{ t('sidebar.accessControl') }}</span>
         </template>
-        <el-menu-item index="/rbac/serviceaccounts">
+        <el-menu-item index="/rbac/serviceaccounts" @click="navigateTo('/rbac/serviceaccounts')">
           <el-icon><User /></el-icon>
           <template #title>{{ t('sidebar.serviceaccounts') }}</template>
         </el-menu-item>
-        <el-menu-item index="/rbac/roles">
+        <el-menu-item index="/rbac/roles" @click="navigateTo('/rbac/roles')">
           <el-icon><UserFilled /></el-icon>
           <template #title>{{ t('sidebar.roles') }}</template>
         </el-menu-item>
-        <el-menu-item index="/rbac/clusterroles">
+        <el-menu-item index="/rbac/clusterroles" @click="navigateTo('/rbac/clusterroles')">
           <el-icon><Stamp /></el-icon>
           <template #title>{{ t('sidebar.clusterroles') }}</template>
         </el-menu-item>
-        <el-menu-item index="/rbac/rolebindings">
+        <el-menu-item index="/rbac/rolebindings" @click="navigateTo('/rbac/rolebindings')">
           <el-icon><Link /></el-icon>
           <template #title>{{ t('sidebar.rolebindings') }}</template>
         </el-menu-item>
-        <el-menu-item index="/rbac/clusterrolebindings">
+        <el-menu-item index="/rbac/clusterrolebindings" @click="navigateTo('/rbac/clusterrolebindings')">
           <el-icon><CircleCheck /></el-icon>
           <template #title>{{ t('sidebar.clusterrolebindings') }}</template>
         </el-menu-item>
       </el-sub-menu>
       <!-- Events -->
-      <el-menu-item index="/events">
+      <el-menu-item index="/events" @click="navigateTo('/events')">
         <el-icon><Bell /></el-icon>
         <template #title>{{ t('sidebar.events') }}</template>
       </el-menu-item>
       <!-- CRD -->
-      <el-menu-item index="/crd">
+      <el-menu-item index="/crd" @click="navigateTo('/crd')">
         <el-icon><Grid /></el-icon>
         <template #title>{{ t('sidebar.crd') }}</template>
       </el-menu-item>
@@ -181,19 +180,19 @@
           <el-icon><Setting /></el-icon>
           <span>{{ t('sidebar.system') }}</span>
         </template>
-        <el-menu-item index="/users">
+        <el-menu-item index="/users" @click="navigateTo('/users')">
           <el-icon><User /></el-icon>
           <template #title>{{ t('sidebar.users') }}</template>
         </el-menu-item>
-        <el-menu-item index="/roles">
+        <el-menu-item index="/roles" @click="navigateTo('/roles')">
           <el-icon><UserFilled /></el-icon>
           <template #title>{{ t('sidebar.platformRoles') }}</template>
         </el-menu-item>
-        <el-menu-item index="/settings/auth">
+        <el-menu-item index="/settings/auth" @click="navigateTo('/settings/auth')">
           <el-icon><Setting /></el-icon>
           <template #title>{{ t('sidebar.authSettings') }}</template>
         </el-menu-item>
-        <el-menu-item index="/audit">
+        <el-menu-item index="/audit" @click="navigateTo('/audit')">
           <el-icon><Document /></el-icon>
           <template #title>{{ t('sidebar.audit') }}</template>
         </el-menu-item>
@@ -204,7 +203,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   Odometer,
@@ -241,8 +240,23 @@ defineProps<{
 }>()
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
-const activeMenu = computed(() => route.path)
+
+const activeMenu = computed(() => {
+  // 详情页高亮父级菜单项
+  if (route.meta.parent) {
+    const parentRoute = router.resolve({ name: route.meta.parent as string })
+    if (parentRoute.matched.length) return parentRoute.path
+  }
+  return route.path
+})
+
+function navigateTo(path: string) {
+  if (route.path !== path) {
+    router.push(path).catch(() => {})
+  }
+}
 </script>
 
 <style scoped>

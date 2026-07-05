@@ -11,18 +11,25 @@
         <Header @toggle-collapse="isCollapse = !isCollapse" />
       </el-header>
       <el-main class="app-main">
-        <router-view />
+        <router-view :key="viewKey" />
       </el-main>
     </el-container>
   </el-container>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Sidebar from './Sidebar.vue'
 import Header from './Header.vue'
 
+const route = useRoute()
 const isCollapse = ref(false)
+const viewKey = ref(0)
+
+watch(() => route.fullPath, () => {
+  viewKey.value++
+})
 </script>
 
 <style scoped>

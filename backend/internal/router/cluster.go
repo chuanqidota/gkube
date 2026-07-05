@@ -13,8 +13,8 @@ func registerClusterRoutes(rg *gin.RouterGroup) {
 		clusters.GET("", clusterApi.Cluster.List)
 		clusters.POST("", clusterApi.Cluster.Create)
 		clusters.GET("/:id", clusterApi.Cluster.Detail)
-		clusters.PUT("", clusterApi.Cluster.Update)
-		clusters.DELETE("", clusterApi.Cluster.Delete)
+		clusters.PUT("/:id", clusterApi.Cluster.Update)
+		clusters.DELETE("/:id", clusterApi.Cluster.Delete)
 		clusters.GET("/:id/check", clusterApi.Cluster.Check)
 	}
 }

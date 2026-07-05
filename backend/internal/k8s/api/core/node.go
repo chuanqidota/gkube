@@ -200,7 +200,7 @@ func (n *node) SetTaintNode(c *gin.Context) {
 		return
 	}
 
-	if err := k8sNode.SetTaintNode(client, body.NodeName, body.Key, body.Value, corev1.TaintEffect(body.Effect)); err != nil {
+	if err := k8sNode.SetTaintNode(client, body.Name, body.Key, body.Value, corev1.TaintEffect(body.Effect)); err != nil {
 		response.Fail(c, fmt.Sprintf("设置污点失败:%s", err.Error()))
 		return
 	}
@@ -248,18 +248,21 @@ func (n *node) UpdateNodeTaints(c *gin.Context) {
 //	@receiver n
 //	@param c
 func (n *node) GetNodeDetail(c *gin.Context) {
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
+	var query params.NodeQueryParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		return
+	}
+	if query.Name == "" {
 		response.Fail(c, "name参数不能为空")
 		return
 	}
-	client, err := k8s.GetK8sClientByName(clusterName)
+	client, err := k8s.GetK8sClientByName(query.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	nodeObj, err := client.CoreV1().Nodes().Get(context.TODO(), name, metav1.GetOptions{})
+	nodeObj, err := client.CoreV1().Nodes().Get(context.TODO(), query.Name, metav1.GetOptions{})
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取节点详情失败:%s", err.Error()))
 		return
@@ -359,19 +362,22 @@ func (n *node) GetNodeDetail(c *gin.Context) {
 //	@receiver n
 //	@param c
 func (n *node) GetNodeEvents(c *gin.Context) {
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
+	var query params.NodeQueryParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		return
+	}
+	if query.Name == "" {
 		response.Fail(c, "name参数不能为空")
 		return
 	}
-	client, err := k8s.GetK8sClientByName(clusterName)
+	client, err := k8s.GetK8sClientByName(query.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
 	events, err := client.CoreV1().Events(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Node", name),
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Node", query.Name),
 	})
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取节点事件失败:%s", err.Error()))

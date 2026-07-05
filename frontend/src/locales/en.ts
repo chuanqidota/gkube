@@ -73,6 +73,7 @@ export default {
     saveSuccess: 'Saved successfully',
     saveFailed: 'Save failed',
     loadFailed: 'Load failed',
+    deleteFailed: 'Delete failed',
     apply: 'Apply',
     validate: 'Validate',
     download: 'Download',
@@ -548,6 +549,7 @@ export default {
     createFailed: 'Creation failed',
     keyPlaceholder: 'Key',
     valuePlaceholder: 'Value',
+    loadFailed: 'Failed to load clusters',
   },
   sidebar: {
     overview: 'Overview',

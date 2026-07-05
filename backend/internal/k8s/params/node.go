@@ -16,10 +16,10 @@ type CordonNodeParams struct {
 // TaintNodeParams 单个污点参数（保留兼容）
 type TaintNodeParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
-	NodeName    string `form:"nodeName" json:"nodeName" label:"节点名称"`
-	Key         string `form:"key" json:"key" label:"污点key"`
+	Name        string `form:"name" json:"name" binding:"required" label:"节点名称"`
+	Key         string `form:"key" json:"key" binding:"required" label:"污点key"`
 	Value       string `form:"value" json:"value" label:"污点value"`
-	Effect      string `form:"effect" json:"effect" label:"污点effect"`
+	Effect      string `form:"effect" json:"effect" binding:"required" label:"污点effect"`
 }
 
 // UpdateNodeTaintsParams 批量更新污点参数（替换式）
