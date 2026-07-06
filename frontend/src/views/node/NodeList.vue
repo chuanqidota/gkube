@@ -194,10 +194,10 @@ onMounted(fetchNodes)
             <el-button size="small" :type="row.unschedulable ? 'success' : 'warning'" @click="handleCordon(row)">
               {{ row.unschedulable ? '解除封锁' : '封锁' }}
             </el-button>
-            <el-button size="small" @click="handleTaints(row)">污点</el-button>
-            <el-button size="small" @click="handleLabels(row)">标签</el-button>
-            <el-button size="small" type="warning" @click="handleDrain(row)">驱逐</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button size="small" type="primary" @click="handleTaints(row)">污点</el-button>
+            <el-button size="small" type="info" @click="handleLabels(row)">标签</el-button>
+            <el-button size="small" type="danger" @click="handleDrain(row)">驱逐</el-button>
+            <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

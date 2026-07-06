@@ -6,6 +6,7 @@ export interface Pod {
   status: string
   node: string
   ip: string
+  hostIP: string
   restarts: number
   age: string
 }
@@ -105,6 +106,7 @@ export function transformPods(items: any[]): Pod[] {
       status: pod.status?.phase || 'Unknown',
       node: pod.spec?.nodeName || '',
       ip: pod.status?.podIP || '',
+      hostIP: pod.status?.hostIP || '',
       restarts,
       age: calcAge(pod.metadata?.creationTimestamp),
     }
@@ -933,6 +935,15 @@ export function updateStatefulSetYaml(data: { namespace: string; name: string; y
 export function deleteStatefulSet(data: any) {
   return request.delete('/k8s/statefulset/delete', { data })
 }
+
+export function scaleStatefulSet(data: { namespace: string; name: string; replicas: number }) {
+  return request.put('/k8s/statefulset/scale', data)
+}
+
+export function restartStatefulSet(data: { namespace: string; name: string }) {
+  return request.put('/k8s/statefulset/restart', data)
+}
+
 export function getStatefulSetEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/statefulset/events', { params })
 }

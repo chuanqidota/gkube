@@ -104,6 +104,8 @@ func registerWorkloadRoutes(k8s *gin.RouterGroup) {
 	k8s.POST("statefulset/create", k8sWorkload.StatefulSet.CreateStatefulSet)
 	k8s.PUT("statefulset/update", k8sWorkload.StatefulSet.UpdateStatefulSet)
 	k8s.DELETE("statefulset/delete", k8sWorkload.StatefulSet.DeleteStatefulSetByName)
+	k8s.PUT("statefulset/scale", k8sWorkload.StatefulSet.ScaleStatefulSet)
+	k8s.PUT("statefulset/restart", k8sWorkload.StatefulSet.RestartStatefulSet)
 
 	// DaemonSet
 	k8s.GET("daemonset/list", k8sWorkload.DaemonSet.GetDaemonSetList)

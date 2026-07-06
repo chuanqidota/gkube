@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ElTag, ElButton } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { formatAge } from '@/utils/time'
+
+const router = useRouter()
 
 interface Pod {
   metadata: {
@@ -68,7 +71,7 @@ const getRestarts = (pod: Pod): number => {
     <el-table v-else :data="pods" style="width: 100%" row-key="metadata.name" size="small">
       <el-table-column label="名称" min-width="260">
         <template #default="{ row }">
-          <span class="pod-name">{{ row.metadata.name }}</span>
+          <el-button link type="primary" @click="router.push(`/workloads/pods/${row.metadata.namespace}/${row.metadata.name}`)">{{ row.metadata.name }}</el-button>
         </template>
       </el-table-column>
       <el-table-column label="状态" width="80">
@@ -83,6 +86,11 @@ const getRestarts = (pod: Pod): number => {
           <span class="mono">{{ row.status?.podIP || '-' }}</span>
         </template>
       </el-table-column>
+      <el-table-column label="节点 IP" width="120">
+        <template #default="{ row }">
+          <span class="mono">{{ row.status?.hostIP || '-' }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="重启" width="65">
         <template #default="{ row }">
           <span :class="{ warning: getRestarts(row) > 0 }">{{ getRestarts(row) }}</span>
@@ -93,11 +101,11 @@ const getRestarts = (pod: Pod): number => {
           {{ formatAge(row.metadata.creationTimestamp, false) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="170" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="emit('logs', row)">日志</el-button>
-          <el-button link type="primary" size="small" @click="emit('exec', row)">终端</el-button>
-          <el-button link type="danger" size="small" @click="emit('delete', row)">删除</el-button>
+          <el-button size="small" type="primary" @click="emit('logs', row)">日志</el-button>
+          <el-button size="small" type="success" @click="emit('exec', row)">终端</el-button>
+          <el-button size="small" type="danger" plain @click="emit('delete', row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -114,11 +122,6 @@ const getRestarts = (pod: Pod): number => {
   text-align: center;
   color: var(--el-text-color-secondary);
   font-size: 13px;
-}
-
-.pod-name {
-  font-size: 13px;
-  font-family: monospace;
 }
 
 .mono {

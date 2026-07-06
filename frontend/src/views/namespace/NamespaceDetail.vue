@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, PriceTag, Notebook } from '@element-plus/icons-vue'
 import {
   getNamespaceDetail,
   getNamespaceYaml,
@@ -46,7 +46,7 @@ async function fetchDetail() {
     const res: any = await getNamespaceDetail({ name })
     namespace.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load namespace detail')
+    ElMessage.error(e?.message || '加载命名空间详情失败')
   } finally {
     loading.value = false
   }
@@ -58,7 +58,7 @@ async function fetchYaml() {
     const res: any = await getNamespaceYaml({ name })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load YAML')
+    ElMessage.error(e?.message || '加载 YAML 失败')
   } finally {
     yamlLoading.value = false
   }
@@ -88,11 +88,11 @@ async function handleSaveYaml() {
   yamlSaving.value = true
   try {
     await updateNamespace({ yaml: yamlContent.value })
-    ElMessage.success('YAML saved successfully')
+    ElMessage.success('YAML 保存成功')
     yamlEditing.value = false
     fetchDetail()
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to save YAML')
+    ElMessage.error(e?.message || '保存 YAML 失败')
   } finally {
     yamlSaving.value = false
   }
@@ -101,12 +101,12 @@ async function handleSaveYaml() {
 async function handleDelete() {
   try {
     await ElMessageBox.confirm(
-      `Delete namespace "${name}"? This will delete ALL resources in this namespace!`,
-      'Confirm',
-      { type: 'error' }
+      `确定要删除命名空间 "${name}" 吗？该命名空间下的所有资源将被删除。`,
+      '确认删除',
+      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
     await deleteNamespace({ name })
-    ElMessage.success('Namespace deleted')
+    ElMessage.success('命名空间已删除')
     namespaceStore.clearCache()
     router.push('/namespaces')
   } catch { /* cancelled */ }
@@ -129,11 +129,11 @@ async function handleSaveLabels() {
       if (l.key.trim()) labels[l.key.trim()] = l.value
     })
     await updateNamespaceLabels({ namespace: name, labels })
-    ElMessage.success('Labels updated')
+    ElMessage.success('标签已更新')
     labelsDialogVisible.value = false
     fetchDetail()
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to update labels')
+    ElMessage.error(e?.message || '更新标签失败')
   }
 }
 
@@ -149,19 +149,16 @@ function removeAnnotation(i: number) { annotationsArray.value.splice(i, 1) }
 
 async function handleSaveAnnotations() {
   try {
-    // Save annotations via YAML update since we don't have a dedicated API
     const annotations: Record<string, string> = {}
     annotationsArray.value.forEach((a) => {
       if (a.key.trim()) annotations[a.key.trim()] = a.value
     })
-    // Fetch current YAML, update annotations, save back
+    // Save annotations via YAML update since we don't have a dedicated API
     await getNamespaceYaml({ name })
-    // We'll use the updateNamespaceLabels approach but for annotations via YAML
-    // For now, show a message that this requires YAML editing
-    ElMessage.info('Annotations can be edited via the YAML tab')
+    ElMessage.info('注解请通过 YAML 标签页编辑')
     annotationsDialogVisible.value = false
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to update annotations')
+    ElMessage.error(e?.message || '更新注解失败')
   }
 }
 
@@ -173,7 +170,7 @@ onMounted(fetchDetail)
 <template>
   <div class="page-container" v-loading="loading">
     <div class="page-header">
-      <h2 style="margin: 0;">Namespace: {{ name }}</h2>
+      <h2 style="margin: 0;">命名空间: {{ name }}</h2>
       <div style="display: flex; gap: 8px;">
         <AutoRefreshToolbar
           :is-running="isRunning"
@@ -185,79 +182,82 @@ onMounted(fetchDetail)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="danger" @click="handleDelete">删除</el-button>
-        <el-button @click="router.push('/namespaces')">Back to List</el-button>
+        <el-button type="primary" @click="handleEditLabels">标签</el-button>
+        <el-button type="danger" plain @click="handleDelete">删除</el-button>
+        <el-button @click="router.push('/namespaces')">返回列表</el-button>
       </div>
     </div>
 
     <template v-if="namespace">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <!-- Info Tab -->
-        <el-tab-pane label="Info" name="info">
+        <!-- 概览 Tab -->
+        <el-tab-pane label="概览" name="info">
           <el-card shadow="never">
             <el-descriptions :column="2" border>
-              <el-descriptions-item label="Name">{{ namespace.name }}</el-descriptions-item>
-              <el-descriptions-item label="Status">
-                <el-tag :type="namespace.status === 'Active' ? 'success' : 'warning'" size="small">{{ namespace.status }}</el-tag>
+              <el-descriptions-item label="名称">{{ namespace.name }}</el-descriptions-item>
+              <el-descriptions-item label="状态">
+                <el-tag :type="namespace.status === 'Active' ? 'success' : 'warning'" size="small" effect="dark">{{ namespace.status }}</el-tag>
               </el-descriptions-item>
-              <el-descriptions-item label="Age">{{ namespace.age }}</el-descriptions-item>
+              <el-descriptions-item label="创建时间">{{ namespace.age }}</el-descriptions-item>
             </el-descriptions>
 
             <!-- Labels -->
-            <div style="margin-top: 16px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                <h4 style="margin: 0;">Labels</h4>
-                <el-button size="small" @click="handleEditLabels">编辑</el-button>
+            <div style="margin-top: 24px;">
+              <div class="section-header">
+                <el-icon class="section-icon"><PriceTag /></el-icon>
+                <span class="section-title">标签</span>
+                <el-button size="small" @click="handleEditLabels" style="margin-left: auto;">编辑</el-button>
               </div>
               <div v-if="namespace.labels && Object.keys(namespace.labels).length > 0">
                 <el-tag v-for="(v, k) in namespace.labels" :key="k" style="margin-right: 8px; margin-bottom: 8px;">{{ k }}={{ v }}</el-tag>
               </div>
-              <span v-else style="color: var(--el-text-color-secondary);">No labels</span>
+              <span v-else style="color: #909399;">无标签</span>
             </div>
 
             <!-- Annotations -->
-            <div style="margin-top: 16px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                <h4 style="margin: 0;">Annotations</h4>
-                <el-button size="small" @click="handleEditAnnotations">编辑</el-button>
+            <div style="margin-top: 24px;">
+              <div class="section-header">
+                <el-icon class="section-icon"><Notebook /></el-icon>
+                <span class="section-title">注解</span>
+                <el-button size="small" @click="handleEditAnnotations" style="margin-left: auto;">编辑</el-button>
               </div>
               <div v-if="namespace.annotations && Object.keys(namespace.annotations).length > 0">
                 <div v-for="(v, k) in namespace.annotations" :key="k" style="margin-bottom: 4px;">
                   <span style="font-weight: 600;">{{ k }}:</span> {{ v }}
                 </div>
               </div>
-              <span v-else style="color: var(--el-text-color-secondary);">No annotations</span>
+              <span v-else style="color: #909399;">无注解</span>
             </div>
           </el-card>
         </el-tab-pane>
 
         <!-- Resource Quotas Tab -->
-        <el-tab-pane label="Resource Quotas" name="quotas">
+        <el-tab-pane label="资源配额" name="quotas">
           <el-card shadow="never">
             <el-table :data="resourceQuotas" stripe>
-              <el-table-column prop="name" label="Name" min-width="200" />
-              <el-table-column label="Hard Limits" min-width="250">
+              <el-table-column prop="name" label="名称" min-width="200" />
+              <el-table-column label="硬限制" min-width="250">
                 <template #default="{ row }">
                   <div v-for="(v, k) in (row.hard || {})" :key="k" style="font-size: 12px;">{{ k }}: {{ v }}</div>
                 </template>
               </el-table-column>
-              <el-table-column label="Used" min-width="250">
+              <el-table-column label="已使用" min-width="250">
                 <template #default="{ row }">
                   <div v-for="(v, k) in (row.used || {})" :key="k" style="font-size: 12px;">{{ k }}: {{ v }}</div>
                 </template>
               </el-table-column>
-              <el-table-column prop="age" label="Age" width="180" />
+              <el-table-column prop="age" label="创建时间" width="180" />
             </el-table>
-            <el-empty v-if="resourceQuotas.length === 0" description="No ResourceQuotas in this namespace" />
+            <el-empty v-if="resourceQuotas.length === 0" description="该命名空间下暂无资源配额" />
           </el-card>
         </el-tab-pane>
 
         <!-- Limit Ranges Tab -->
-        <el-tab-pane label="Limit Ranges" name="limits">
+        <el-tab-pane label="资源限制" name="limits">
           <el-card shadow="never">
             <el-table :data="limitRanges" stripe>
-              <el-table-column prop="name" label="Name" min-width="200" />
-              <el-table-column label="Limits" min-width="300">
+              <el-table-column prop="name" label="名称" min-width="200" />
+              <el-table-column label="限制" min-width="300">
                 <template #default="{ row }">
                   <div v-for="(limit, i) in (row.limits || [])" :key="i" style="font-size: 12px; margin-bottom: 4px;">
                     <el-tag size="small" style="margin-right: 4px;">{{ limit.type }}</el-tag>
@@ -266,9 +266,9 @@ onMounted(fetchDetail)
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column prop="age" label="Age" width="180" />
+              <el-table-column prop="age" label="创建时间" width="180" />
             </el-table>
-            <el-empty v-if="limitRanges.length === 0" description="No LimitRanges in this namespace" />
+            <el-empty v-if="limitRanges.length === 0" description="该命名空间下暂无资源限制" />
           </el-card>
         </el-tab-pane>
 
@@ -276,7 +276,7 @@ onMounted(fetchDetail)
         <el-tab-pane label="YAML" name="yaml">
           <el-card shadow="never">
             <div style="margin-bottom: 12px; display: flex; gap: 8px;">
-              <el-button v-if="!yamlEditing" type="primary" @click="yamlEditing = true">Edit YAML</el-button>
+              <el-button v-if="!yamlEditing" type="primary" @click="yamlEditing = true">编辑 YAML</el-button>
               <template v-if="yamlEditing">
                 <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">保存</el-button>
                 <el-button @click="yamlEditing = false; fetchYaml()">取消</el-button>
@@ -291,7 +291,7 @@ onMounted(fetchDetail)
     </template>
 
     <!-- Labels Dialog -->
-    <el-dialog v-model="labelsDialogVisible" title="Edit Labels" width="600px" destroy-on-close>
+    <el-dialog v-model="labelsDialogVisible" title="管理标签" width="600px" destroy-on-close>
       <div v-for="(label, i) in labelsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
         <el-input v-model="label.key" placeholder="Key" style="flex: 2;" />
         <el-input v-model="label.value" placeholder="Value" style="flex: 2;" />
@@ -300,7 +300,7 @@ onMounted(fetchDetail)
         </el-button>
       </div>
       <el-button @click="addLabel" style="margin-top: 8px;">
-        <el-icon><Plus /></el-icon> Add Label
+        <el-icon><Plus /></el-icon> 添加标签
       </el-button>
       <template #footer>
         <el-button @click="labelsDialogVisible = false">取消</el-button>
@@ -309,7 +309,7 @@ onMounted(fetchDetail)
     </el-dialog>
 
     <!-- Annotations Dialog -->
-    <el-dialog v-model="annotationsDialogVisible" title="Edit Annotations" width="650px" destroy-on-close>
+    <el-dialog v-model="annotationsDialogVisible" title="管理注解" width="650px" destroy-on-close>
       <div v-for="(anno, i) in annotationsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
         <el-input v-model="anno.key" placeholder="Key" style="flex: 2;" />
         <el-input v-model="anno.value" placeholder="Value" style="flex: 2;" />
@@ -318,7 +318,7 @@ onMounted(fetchDetail)
         </el-button>
       </div>
       <el-button @click="addAnnotation" style="margin-top: 8px;">
-        <el-icon><Plus /></el-icon> Add Annotation
+        <el-icon><Plus /></el-icon> 添加注解
       </el-button>
       <template #footer>
         <el-button @click="annotationsDialogVisible = false">取消</el-button>
@@ -329,6 +329,27 @@ onMounted(fetchDetail)
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
+.page-container { padding: 20px; position: relative; min-height: 100%; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--el-color-primary);
+}
+
+.section-icon {
+  font-size: 20px;
+  color: var(--el-color-primary);
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  letter-spacing: 1px;
+}
 </style>

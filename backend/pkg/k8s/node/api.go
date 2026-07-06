@@ -43,19 +43,21 @@ func GetNodeYaml(client *kubernetes.Clientset, nodeName string) (string, error) 
 //	@return []corev1.Pod
 //	@return error
 func GetNodePods(client *kubernetes.Clientset, nodeName string) ([]corev1.Pod, error) {
-	fieldSelector, err := fields.ParseSelector("spec.nodeName=" + nodeName +
-		",status.phase!=" + string(corev1.PodSucceeded) +
-		",status.phase!=" + string(corev1.PodFailed))
-	if err != nil {
-		return nil, err
-	}
+	fieldSelector := fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName})
 	podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
 		return nil, err
 	}
-	return podList.Items, nil
+	// Filter out Succeeded and Failed pods
+	var pods []corev1.Pod
+	for _, pod := range podList.Items {
+		if pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
+			pods = append(pods, pod)
+		}
+	}
+	return pods, nil
 }
 
 // CordonNode

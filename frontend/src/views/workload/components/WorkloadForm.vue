@@ -13,10 +13,10 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
-const currentStep = ref(0)
 const submitting = ref(false)
 const namespaceLoading = ref(false)
 const namespaces = ref<string[]>([])
+const showYamlPreview = ref(false)
 
 interface Label { key: string; value: string }
 interface Port { name: string; containerPort: number | null; protocol: string }
@@ -33,6 +33,9 @@ interface Container {
 }
 interface Tolerance { key: string; operator: string; value: string; effect: string; tolerationSeconds: number | null }
 interface Annotation { key: string; value: string }
+interface VolumeClaimTemplate {
+  name: string; storageSize: string; storageClassName: string; accessModes: string[]
+}
 
 interface FormData {
   name: string; namespace: string; replicas: number; labels: Label[]
@@ -42,6 +45,7 @@ interface FormData {
   nodeSelector: Label[]; tolerations: Tolerance[]; annotations: Annotation[]
   serviceAccountName: string; terminationGracePeriodSeconds: number | null
   imagePullSecrets: string[]
+  volumeClaimTemplates: VolumeClaimTemplate[]
 }
 
 function createEmptyProbe(): Probe {
@@ -67,26 +71,18 @@ const form = reactive<FormData>({
   serviceName: '', updateStrategy: 'RollingUpdate', dsUpdateStrategy: 'RollingUpdate',
   nodeSelector: [], tolerations: [], annotations: [],
   serviceAccountName: '', terminationGracePeriodSeconds: null, imagePullSecrets: [],
+  volumeClaimTemplates: [],
 })
 
-const step0FormRef = ref<FormInstance>()
-const step0Rules: FormRules = {
+const formRef = ref<FormInstance>()
+const formRules: FormRules = {
   name: [
-    { required: true, message: 'Name is required', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: 'Lowercase letters, numbers, hyphens only.', trigger: 'blur' },
+    { required: true, message: '请输入名称', trigger: 'blur' },
+    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符', trigger: 'blur' },
   ],
-  namespace: [{ required: true, message: 'Namespace is required', trigger: 'change' }],
-  replicas: [{ required: true, message: 'Replicas is required', trigger: 'change' }],
+  namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
+  replicas: [{ required: true, message: '请输入副本数', trigger: 'change' }],
 }
-
-const steps = [
-  { title: 'Basic Info' },
-  { title: 'Containers' },
-  { title: 'Volumes & Mounts' },
-  { title: 'Probes & Security' },
-  { title: 'Advanced' },
-  { title: 'YAML Preview' },
-]
 
 async function fetchNamespaces() {
   namespaceLoading.value = true
@@ -109,49 +105,22 @@ function addEnv(ci: number) { form.containers[ci].env.push({ name: '', value: ''
 function removeEnv(ci: number, ei: number) { form.containers[ci].env.splice(ei, 1) }
 function addNodeSelector() { form.nodeSelector.push({ key: '', value: '' }) }
 function removeNodeSelector(i: number) { form.nodeSelector.splice(i, 1) }
-
-// Volume management
 function addVolume() { form.volumes.push({ name: '', type: 'emptyDir', hostPath: '', configMapName: '', secretName: '', pvcName: '' }) }
 function removeVolume(i: number) { form.volumes.splice(i, 1) }
-
-// Volume mount management
 function addVolumeMount(ci: number) { form.containers[ci].volumeMounts.push({ name: '', mountPath: '', subPath: '', readOnly: false }) }
 function removeVolumeMount(ci: number, mi: number) { form.containers[ci].volumeMounts.splice(mi, 1) }
-
-// Probe management
 function enableLivenessProbe(ci: number) { form.containers[ci].livenessProbe = createEmptyProbe() }
 function disableLivenessProbe(ci: number) { form.containers[ci].livenessProbe = null }
 function enableReadinessProbe(ci: number) { form.containers[ci].readinessProbe = createEmptyProbe() }
 function disableReadinessProbe(ci: number) { form.containers[ci].readinessProbe = null }
-
-// Toleration management
 function addToleration() { form.tolerations.push({ key: '', operator: 'Equal', value: '', effect: 'NoSchedule', tolerationSeconds: null }) }
 function removeToleration(i: number) { form.tolerations.splice(i, 1) }
-
-// Annotation management
 function addAnnotation() { form.annotations.push({ key: '', value: '' }) }
 function removeAnnotation(i: number) { form.annotations.splice(i, 1) }
-
-// Image pull secrets
 function addImagePullSecret() { form.imagePullSecrets.push('') }
 function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
-
-async function handleNext() {
-  if (currentStep.value === 0) {
-    const valid = await step0FormRef.value?.validate().catch(() => false)
-    if (!valid) return
-  }
-  if (currentStep.value === 1) {
-    for (let i = 0; i < form.containers.length; i++) {
-      if (!form.containers[i].name) { ElMessage.error(`Container ${i + 1}: name is required`); return }
-      if (!form.containers[i].image) { ElMessage.error(`Container ${i + 1}: image is required`); return }
-    }
-  }
-  if (currentStep.value < steps.length - 1) currentStep.value++
-}
-
-function handlePrev() { if (currentStep.value > 0) currentStep.value-- }
-function handleStepClick(step: number) { if (step <= currentStep.value) currentStep.value = step }
+function addVolumeClaimTemplate() { form.volumeClaimTemplates.push({ name: '', storageSize: '1Gi', storageClassName: '', accessModes: ['ReadWriteOnce'] }) }
+function removeVolumeClaimTemplate(i: number) { form.volumeClaimTemplates.splice(i, 1) }
 
 const generatedYaml = computed(() => yaml.dump(buildK8sResource(), { indent: 2, lineWidth: -1, noRefs: true }))
 
@@ -182,15 +151,12 @@ function buildK8sResource(): Record<string, any> {
     if (Object.keys(requests).length > 0) resources.requests = requests
     if (Object.keys(limits).length > 0) resources.limits = limits
     if (Object.keys(resources).length > 0) container.resources = resources
-    // Volume mounts
     const mounts = c.volumeMounts.filter(m => m.name && m.mountPath).map(m => { const vm: any = { name: m.name, mountPath: m.mountPath }; if (m.subPath) vm.subPath = m.subPath; if (m.readOnly) vm.readOnly = true; return vm })
     if (mounts.length > 0) container.volumeMounts = mounts
-    // Probes
     const liveness = buildProbe(c.livenessProbe)
     if (liveness) container.livenessProbe = liveness
     const readiness = buildProbe(c.readinessProbe)
     if (readiness) container.readinessProbe = readiness
-    // Security context
     const sc: any = {}
     if (c.securityContext.runAsUser !== null) sc.runAsUser = c.securityContext.runAsUser
     if (c.securityContext.runAsNonRoot) sc.runAsNonRoot = true
@@ -200,7 +166,6 @@ function buildK8sResource(): Record<string, any> {
     return container
   })
 
-  // Volumes
   const volumes = form.volumes.filter(v => v.name).map(v => {
     const vol: any = { name: v.name }
     if (v.type === 'emptyDir') vol.emptyDir = {}
@@ -214,11 +179,9 @@ function buildK8sResource(): Record<string, any> {
   const nodeSelector: Record<string, string> = {}
   form.nodeSelector.forEach(ns => { if (ns.key.trim()) nodeSelector[ns.key.trim()] = ns.value })
 
-  // Annotations
   const annotations: Record<string, string> = {}
   form.annotations.forEach(a => { if (a.key.trim()) annotations[a.key.trim()] = a.value })
 
-  // Tolerations
   const tolerations = form.tolerations.filter(t => t.key).map(t => {
     const tol: any = { key: t.key, operator: t.operator, effect: t.effect }
     if (t.value) tol.value = t.value
@@ -226,7 +189,6 @@ function buildK8sResource(): Record<string, any> {
     return tol
   })
 
-  // Image pull secrets
   const imagePullSecrets = form.imagePullSecrets.filter(s => s).map(s => ({ name: s }))
 
   const podSpec: any = { containers }
@@ -247,6 +209,12 @@ function buildK8sResource(): Record<string, any> {
     if (form.strategyType === 'RollingUpdate') resource.spec.strategy.rollingUpdate = { maxSurge: form.maxSurge, maxUnavailable: form.maxUnavailable }
   } else if (props.kind === 'StatefulSet') {
     resource.spec = { replicas: form.replicas, selector: { matchLabels: { ...labels } }, template: podTemplate, serviceName: form.serviceName || form.name, updateStrategy: { type: form.updateStrategy } }
+    const vcts = form.volumeClaimTemplates.filter(v => v.name).map(v => {
+      const vct: any = { metadata: { name: v.name }, spec: { accessModes: v.accessModes, resources: { requests: { storage: v.storageSize } } } }
+      if (v.storageClassName) vct.spec.storageClassName = v.storageClassName
+      return vct
+    })
+    if (vcts.length > 0) resource.spec.volumeClaimTemplates = vcts
   } else if (props.kind === 'DaemonSet') {
     resource.spec = { selector: { matchLabels: { ...labels } }, template: podTemplate, updateStrategy: { type: form.dsUpdateStrategy } }
   }
@@ -255,12 +223,21 @@ function buildK8sResource(): Record<string, any> {
 }
 
 async function handleSubmit() {
+  // Validate basic fields
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
+  // Validate containers
+  for (let i = 0; i < form.containers.length; i++) {
+    if (!form.containers[i].name) { ElMessage.error(`容器 ${i + 1}: 名称不能为空`); return }
+    if (!form.containers[i].image) { ElMessage.error(`容器 ${i + 1}: 镜像不能为空`); return }
+  }
+
   submitting.value = true
   try {
     await (props.kind === 'Deployment' ? createDeployment : props.kind === 'StatefulSet' ? createStatefulSet : createDaemonSet)({ namespace: form.namespace, yaml: generatedYaml.value })
-    ElMessage.success(`${props.kind} created successfully`)
+    ElMessage.success(`${props.kind} 创建成功`)
     router.push(getListRoute())
-  } catch (e: any) { ElMessage.error(e?.message || 'Create failed') }
+  } catch (e: any) { ElMessage.error(e?.message || '创建失败') }
   finally { submitting.value = false }
 }
 
@@ -273,278 +250,895 @@ function handleCancel() { router.push(getListRoute()) }
 
 <template>
   <div class="workload-form">
-    <div class="form-header"><h2>创建 {{ kind }}</h2></div>
-    <el-steps :active="currentStep" finish-status="success" align-center style="margin-bottom: 32px;">
-      <el-step v-for="(step, index) in steps" :key="index" :title="step.title" @click="handleStepClick(index)" style="cursor: pointer;" />
-    </el-steps>
-
-    <div class="step-content">
-      <!-- Step 0: Basic Info -->
-      <div v-show="currentStep === 0">
-        <el-form ref="step0FormRef" :model="form" :rules="step0Rules" label-width="140px" style="max-width: 700px;">
-          <el-form-item label="Name" prop="name"><el-input v-model="form.name" placeholder="e.g. my-app" /></el-form-item>
-          <el-form-item label="Namespace" prop="namespace">
-            <el-select v-model="form.namespace" filterable placeholder="Select namespace" style="width: 100%;" :loading="namespaceLoading">
-              <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="Replicas" prop="replicas"><el-input-number v-model="form.replicas" :min="1" :max="1000" /></el-form-item>
-          <el-form-item label="Labels">
-            <div style="width: 100%;">
-              <div v-for="(label, i) in form.labels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-                <el-input v-model="label.key" placeholder="Key" style="flex: 1;" />
-                <el-input v-model="label.value" placeholder="Value" style="flex: 1;" />
-                <el-button type="danger" circle :disabled="form.labels.length <= 1" @click="removeLabel(i)">X</el-button>
-              </div>
-              <el-button @click="addLabel" size="small">+ Add Label</el-button>
-            </div>
-          </el-form-item>
-          <el-form-item label="Annotations">
-            <div style="width: 100%;">
-              <div v-for="(ann, i) in form.annotations" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-                <el-input v-model="ann.key" placeholder="Key" style="flex: 1;" />
-                <el-input v-model="ann.value" placeholder="Value" style="flex: 1;" />
-                <el-button type="danger" circle size="small" @click="removeAnnotation(i)">X</el-button>
-              </div>
-              <el-button @click="addAnnotation" size="small">+ Add Annotation</el-button>
-            </div>
-          </el-form-item>
-          <el-form-item label="Service Account">
-            <el-input v-model="form.serviceAccountName" placeholder="default" />
-          </el-form-item>
-        </el-form>
-      </div>
-
-      <!-- Step 1: Containers -->
-      <div v-show="currentStep === 1">
-        <div v-for="(container, ci) in form.containers" :key="ci" class="container-card">
-          <div class="container-card-header">
-            <h4>Container {{ ci + 1 }}: {{ container.name || '(unnamed)' }}</h4>
-            <el-button v-if="form.containers.length > 1" type="danger" size="small" @click="removeContainer(ci)">移除</el-button>
-          </div>
-          <el-form label-width="140px" style="max-width: 700px;">
-            <el-form-item label="Container Name" required><el-input v-model="container.name" placeholder="e.g. nginx" /></el-form-item>
-            <el-form-item label="Image" required><el-input v-model="container.image" placeholder="e.g. nginx:1.25" /></el-form-item>
-            <el-form-item label="Pull Policy">
-              <el-select v-model="container.imagePullPolicy" style="width: 100%;">
-                <el-option label="Always" value="Always" /><el-option label="IfNotPresent" value="IfNotPresent" /><el-option label="Never" value="Never" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="Ports">
-              <div style="width: 100%;">
-                <div v-for="(port, pi) in container.ports" :key="pi" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-                  <el-input v-model="port.name" placeholder="Name" style="width: 120px;" />
-                  <el-input-number v-model="port.containerPort" :min="1" :max="65535" placeholder="Port" style="width: 160px;" />
-                  <el-select v-model="port.protocol" style="width: 110px;"><el-option label="TCP" value="TCP" /><el-option label="UDP" value="UDP" /></el-select>
-                  <el-button type="danger" circle size="small" @click="removePort(ci, pi)">X</el-button>
-                </div>
-                <el-button size="small" @click="addPort(ci)">+ Add Port</el-button>
-              </div>
-            </el-form-item>
-            <el-form-item label="Env Variables">
-              <div style="width: 100%;">
-                <div v-for="(env, ei) in container.env" :key="ei" style="display: flex; gap: 8px; margin-bottom: 8px;">
-                  <el-input v-model="env.name" placeholder="Name" style="flex: 1;" />
-                  <el-input v-model="env.value" placeholder="Value" style="flex: 1;" />
-                  <el-button type="danger" circle size="small" @click="removeEnv(ci, ei)">X</el-button>
-                </div>
-                <el-button size="small" @click="addEnv(ci)">+ Add Env</el-button>
-              </div>
-            </el-form-item>
-            <el-form-item label="Requests">
-              <div style="display: flex; gap: 16px; width: 100%;">
-                <div style="flex: 1;"><div class="resource-label">CPU</div><el-input v-model="container.resources.requests.cpu" placeholder="e.g. 100m" /></div>
-                <div style="flex: 1;"><div class="resource-label">Memory</div><el-input v-model="container.resources.requests.memory" placeholder="e.g. 128Mi" /></div>
-              </div>
-            </el-form-item>
-            <el-form-item label="Limits">
-              <div style="display: flex; gap: 16px; width: 100%;">
-                <div style="flex: 1;"><div class="resource-label">CPU</div><el-input v-model="container.resources.limits.cpu" placeholder="e.g. 500m" /></div>
-                <div style="flex: 1;"><div class="resource-label">Memory</div><el-input v-model="container.resources.limits.memory" placeholder="e.g. 512Mi" /></div>
-              </div>
-            </el-form-item>
-          </el-form>
-        </div>
-        <el-button @click="addContainer">+ Add Container</el-button>
-      </div>
-
-      <!-- Step 2: Volumes & Mounts -->
-      <div v-show="currentStep === 2">
-        <h4>Volumes</h4>
-        <div v-for="(vol, vi) in form.volumes" :key="vi" class="container-card" style="margin-bottom: 12px;">
-          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
-            <el-input v-model="vol.name" placeholder="Volume Name" style="flex: 1;" />
-            <el-select v-model="vol.type" style="width: 160px;">
-              <el-option label="emptyDir" value="emptyDir" /><el-option label="hostPath" value="hostPath" />
-              <el-option label="ConfigMap" value="configMap" /><el-option label="Secret" value="secret" />
-              <el-option label="PVC" value="pvc" />
-            </el-select>
-            <el-button type="danger" circle size="small" @click="removeVolume(vi)">X</el-button>
-          </div>
-          <el-input v-if="vol.type === 'hostPath'" v-model="vol.hostPath" placeholder="Host path (e.g. /data)" style="margin-bottom: 8px;" />
-          <el-input v-if="vol.type === 'configMap'" v-model="vol.configMapName" placeholder="ConfigMap name" style="margin-bottom: 8px;" />
-          <el-input v-if="vol.type === 'secret'" v-model="vol.secretName" placeholder="Secret name" style="margin-bottom: 8px;" />
-          <el-input v-if="vol.type === 'pvc'" v-model="vol.pvcName" placeholder="PVC name" style="margin-bottom: 8px;" />
-        </div>
-        <el-button @click="addVolume">+ Add Volume</el-button>
-
-        <h4 style="margin-top: 24px;">Volume Mounts (per container)</h4>
-        <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: 16px;">
-          <h5>{{ container.name || `Container ${ci + 1}` }}</h5>
-          <div v-for="(mount, mi) in container.volumeMounts" :key="mi" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-            <el-select v-model="mount.name" placeholder="Volume" style="width: 160px;">
-              <el-option v-for="v in form.volumes.filter(v => v.name)" :key="v.name" :label="v.name" :value="v.name" />
-            </el-select>
-            <el-input v-model="mount.mountPath" placeholder="Mount path" style="flex: 1;" />
-            <el-input v-model="mount.subPath" placeholder="Sub path" style="width: 120px;" />
-            <el-checkbox v-model="mount.readOnly">RO</el-checkbox>
-            <el-button type="danger" circle size="small" @click="removeVolumeMount(ci, mi)">X</el-button>
-          </div>
-          <el-button size="small" @click="addVolumeMount(ci)">+ Add Mount</el-button>
+    <!-- Page Header -->
+    <div class="form-header">
+      <div class="form-header-left">
+        <el-button text @click="handleCancel" class="back-btn">
+          <el-icon><ArrowLeft /></el-icon>
+        </el-button>
+        <div>
+          <h2>创建 {{ kind }}</h2>
+          <p class="form-subtitle">填写以下信息来创建一个新的 {{ kind }} 负载</p>
         </div>
       </div>
-
-      <!-- Step 3: Probes & Security -->
-      <div v-show="currentStep === 3">
-        <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: 24px;">
-          <h4>{{ container.name || `Container ${ci + 1}` }}</h4>
-
-          <!-- Liveness Probe -->
-          <el-card shadow="never" style="margin-bottom: 12px;">
-            <template #header>
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span>Liveness Probe</span>
-                <el-button v-if="!container.livenessProbe" size="small" type="primary" @click="enableLivenessProbe(ci)">启用</el-button>
-                <el-button v-else size="small" type="danger" @click="disableLivenessProbe(ci)">禁用</el-button>
-              </div>
-            </template>
-            <template v-if="container.livenessProbe">
-              <el-form label-width="120px" size="small">
-                <el-form-item label="Type">
-                  <el-select v-model="container.livenessProbe.type"><el-option label="HTTP GET" value="httpGet" /><el-option label="TCP Socket" value="tcpSocket" /><el-option label="Exec" value="exec" /></el-select>
-                </el-form-item>
-                <el-form-item v-if="container.livenessProbe.type === 'httpGet'" label="Path"><el-input v-model="container.livenessProbe.httpGetPath" placeholder="/" /></el-form-item>
-                <el-form-item v-if="container.livenessProbe.type === 'httpGet'" label="Port"><el-input-number v-model="container.livenessProbe.httpGetPort" :min="1" :max="65535" /></el-form-item>
-                <el-form-item v-if="container.livenessProbe.type === 'tcpSocket'" label="Port"><el-input-number v-model="container.livenessProbe.tcpSocketPort" :min="1" :max="65535" /></el-form-item>
-                <el-form-item v-if="container.livenessProbe.type === 'exec'" label="Command"><el-input v-model="container.livenessProbe.execCommand" placeholder="e.g. cat /tmp/healthy" /></el-form-item>
-                <el-form-item label="Initial Delay"><el-input-number v-model="container.livenessProbe.initialDelaySeconds" :min="0" />s</el-form-item>
-                <el-form-item label="Period"><el-input-number v-model="container.livenessProbe.periodSeconds" :min="1" />s</el-form-item>
-              </el-form>
-            </template>
-          </el-card>
-
-          <!-- Readiness Probe -->
-          <el-card shadow="never" style="margin-bottom: 12px;">
-            <template #header>
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span>Readiness Probe</span>
-                <el-button v-if="!container.readinessProbe" size="small" type="primary" @click="enableReadinessProbe(ci)">启用</el-button>
-                <el-button v-else size="small" type="danger" @click="disableReadinessProbe(ci)">禁用</el-button>
-              </div>
-            </template>
-            <template v-if="container.readinessProbe">
-              <el-form label-width="120px" size="small">
-                <el-form-item label="Type">
-                  <el-select v-model="container.readinessProbe.type"><el-option label="HTTP GET" value="httpGet" /><el-option label="TCP Socket" value="tcpSocket" /><el-option label="Exec" value="exec" /></el-select>
-                </el-form-item>
-                <el-form-item v-if="container.readinessProbe.type === 'httpGet'" label="Path"><el-input v-model="container.readinessProbe.httpGetPath" placeholder="/" /></el-form-item>
-                <el-form-item v-if="container.readinessProbe.type === 'httpGet'" label="Port"><el-input-number v-model="container.readinessProbe.httpGetPort" :min="1" :max="65535" /></el-form-item>
-                <el-form-item v-if="container.readinessProbe.type === 'tcpSocket'" label="Port"><el-input-number v-model="container.readinessProbe.tcpSocketPort" :min="1" :max="65535" /></el-form-item>
-                <el-form-item v-if="container.readinessProbe.type === 'exec'" label="Command"><el-input v-model="container.readinessProbe.execCommand" placeholder="e.g. cat /tmp/healthy" /></el-form-item>
-                <el-form-item label="Initial Delay"><el-input-number v-model="container.readinessProbe.initialDelaySeconds" :min="0" />s</el-form-item>
-                <el-form-item label="Period"><el-input-number v-model="container.readinessProbe.periodSeconds" :min="1" />s</el-form-item>
-              </el-form>
-            </template>
-          </el-card>
-
-          <!-- Security Context -->
-          <el-card shadow="never">
-            <template #header><span>Security Context</span></template>
-            <el-form label-width="160px" size="small">
-              <el-form-item label="Run as User"><el-input-number v-model="container.securityContext.runAsUser" :min="0" placeholder="UID" /></el-form-item>
-              <el-form-item label="Run as Non-Root"><el-switch v-model="container.securityContext.runAsNonRoot" /></el-form-item>
-              <el-form-item label="Read-Only Root FS"><el-switch v-model="container.securityContext.readOnlyRootFilesystem" /></el-form-item>
-              <el-form-item label="Privileged"><el-switch v-model="container.securityContext.privileged" /></el-form-item>
-            </el-form>
-          </el-card>
-        </div>
-      </div>
-
-      <!-- Step 4: Advanced -->
-      <div v-show="currentStep === 4">
-        <el-form label-width="180px" style="max-width: 700px;">
-          <template v-if="kind === 'Deployment'">
-            <el-form-item label="Strategy Type"><el-select v-model="form.strategyType" style="width: 100%;"><el-option label="RollingUpdate" value="RollingUpdate" /><el-option label="Recreate" value="Recreate" /></el-select></el-form-item>
-            <el-form-item v-if="form.strategyType === 'RollingUpdate'" label="Max Surge"><el-input v-model="form.maxSurge" placeholder="e.g. 25% or 2" /></el-form-item>
-            <el-form-item v-if="form.strategyType === 'RollingUpdate'" label="Max Unavailable"><el-input v-model="form.maxUnavailable" placeholder="e.g. 25% or 1" /></el-form-item>
-          </template>
-          <template v-if="kind === 'StatefulSet'">
-            <el-form-item label="Service Name"><el-input v-model="form.serviceName" placeholder="Headless service name" /></el-form-item>
-            <el-form-item label="Update Strategy"><el-select v-model="form.updateStrategy" style="width: 100%;"><el-option label="RollingUpdate" value="RollingUpdate" /><el-option label="OnDelete" value="OnDelete" /></el-select></el-form-item>
-          </template>
-          <template v-if="kind === 'DaemonSet'">
-            <el-form-item label="Update Strategy"><el-select v-model="form.dsUpdateStrategy" style="width: 100%;"><el-option label="RollingUpdate" value="RollingUpdate" /><el-option label="OnDelete" value="OnDelete" /></el-select></el-form-item>
-          </template>
-          <el-form-item label="Node Selector">
-            <div style="width: 100%;">
-              <div v-for="(ns, i) in form.nodeSelector" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-                <el-input v-model="ns.key" placeholder="Key" style="flex: 1;" /><el-input v-model="ns.value" placeholder="Value" style="flex: 1;" />
-                <el-button type="danger" circle size="small" @click="removeNodeSelector(i)">X</el-button>
-              </div>
-              <el-button size="small" @click="addNodeSelector">+ Add Node Selector</el-button>
-            </div>
-          </el-form-item>
-          <el-form-item label="Tolerations">
-            <div style="width: 100%;">
-              <div v-for="(tol, i) in form.tolerations" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-                <el-input v-model="tol.key" placeholder="Key" style="flex: 1;" />
-                <el-select v-model="tol.operator" style="width: 100px;"><el-option label="Equal" value="Equal" /><el-option label="Exists" value="Exists" /></el-select>
-                <el-input v-model="tol.value" placeholder="Value" style="flex: 1;" />
-                <el-select v-model="tol.effect" style="width: 140px;"><el-option label="NoSchedule" value="NoSchedule" /><el-option label="PreferNoSchedule" value="PreferNoSchedule" /><el-option label="NoExecute" value="NoExecute" /></el-select>
-                <el-button type="danger" circle size="small" @click="removeToleration(i)">X</el-button>
-              </div>
-              <el-button size="small" @click="addToleration">+ Add Toleration</el-button>
-            </div>
-          </el-form-item>
-          <el-form-item label="Termination Grace">
-            <el-input-number v-model="form.terminationGracePeriodSeconds" :min="0" :max="300" placeholder="seconds" />
-          </el-form-item>
-          <el-form-item label="Image Pull Secrets">
-            <div style="width: 100%;">
-              <div v-for="(_s, i) in form.imagePullSecrets" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-                <el-input v-model="form.imagePullSecrets[i]" placeholder="Secret name" style="flex: 1;" />
-                <el-button type="danger" circle size="small" @click="removeImagePullSecret(i)">X</el-button>
-              </div>
-              <el-button size="small" @click="addImagePullSecret">+ Add Secret</el-button>
-            </div>
-          </el-form-item>
-        </el-form>
-      </div>
-
-      <!-- Step 5: YAML Preview -->
-      <div v-show="currentStep === 5">
-        <el-alert :title="`Generated ${kind} YAML`" description="Review the generated YAML before creating." type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
-        <YamlEditor :model-value="generatedYaml" height="500px" read-only />
-      </div>
+      <el-button @click="showYamlPreview = !showYamlPreview" class="yaml-preview-btn">
+        <el-icon><Document /></el-icon>
+        {{ showYamlPreview ? '隐藏 YAML' : '查看 YAML' }}
+      </el-button>
     </div>
 
+    <!-- YAML Preview Drawer -->
+    <el-drawer v-model="showYamlPreview" title="YAML 预览" size="560px" direction="rtl">
+      <YamlEditor :model-value="generatedYaml" height="calc(100vh - 120px)" read-only />
+    </el-drawer>
+
+    <el-form ref="formRef" :model="form" :rules="formRules" label-position="top">
+      <div class="form-grid">
+
+        <!-- Section 1: Basic Info -->
+        <el-card shadow="never" class="form-section">
+          <template #header>
+            <div class="section-header">
+              <div class="section-icon basic"><el-icon size="16"><Box /></el-icon></div>
+              <div>
+                <h3>基本信息</h3>
+                <p>设置名称、命名空间和副本数</p>
+              </div>
+            </div>
+          </template>
+          <div class="fields-grid">
+            <el-form-item label="名称" prop="name">
+              <el-input v-model="form.name" placeholder="my-app" />
+            </el-form-item>
+            <el-form-item label="命名空间" prop="namespace">
+              <el-select v-model="form.namespace" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+                <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
+              </el-select>
+            </el-form-item>
+            <el-form-item v-if="kind !== 'DaemonSet'" label="副本数" prop="replicas">
+              <el-input-number v-model="form.replicas" :min="1" :max="1000" style="width: 100%;" />
+            </el-form-item>
+            <el-form-item label="服务账号">
+              <el-input v-model="form.serviceAccountName" placeholder="default" />
+            </el-form-item>
+          </div>
+          <el-divider />
+          <el-form-item label="标签">
+            <div style="width: 100%;">
+              <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
+                <el-input v-model="label.key" placeholder="Key" />
+                <el-input v-model="label.value" placeholder="Value" />
+                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="removeLabel(i)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button text type="primary" @click="addLabel" size="small">
+                <el-icon><Plus /></el-icon> 添加标签
+              </el-button>
+            </div>
+          </el-form-item>
+          <el-form-item label="注解">
+            <div style="width: 100%;">
+              <div v-for="(ann, i) in form.annotations" :key="i" class="kv-row">
+                <el-input v-model="ann.key" placeholder="Key" />
+                <el-input v-model="ann.value" placeholder="Value" />
+                <el-button type="danger" text circle @click="removeAnnotation(i)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button text type="primary" @click="addAnnotation" size="small">
+                <el-icon><Plus /></el-icon> 添加注解
+              </el-button>
+            </div>
+          </el-form-item>
+        </el-card>
+
+        <!-- Section 2: Container Config -->
+        <el-card shadow="never" class="form-section">
+          <template #header>
+            <div class="section-header">
+              <div class="section-icon container"><el-icon size="16"><Cpu /></el-icon></div>
+              <div>
+                <h3>容器配置</h3>
+                <p>定义镜像、端口、环境变量和资源</p>
+              </div>
+            </div>
+          </template>
+          <div v-for="(container, ci) in form.containers" :key="ci" class="container-card">
+            <div class="container-card-header">
+              <div class="container-title">
+                <span class="container-index">{{ ci + 1 }}</span>
+                <span>{{ container.name || '未命名容器' }}</span>
+              </div>
+              <el-button v-if="form.containers.length > 1" type="danger" text size="small" @click="removeContainer(ci)">
+                <el-icon><Delete /></el-icon> 移除
+              </el-button>
+            </div>
+            <div class="fields-grid">
+              <el-form-item label="容器名称" required>
+                <el-input v-model="container.name" placeholder="nginx" />
+              </el-form-item>
+              <el-form-item label="镜像" required>
+                <el-input v-model="container.image" placeholder="nginx:1.25" />
+              </el-form-item>
+              <el-form-item label="拉取策略">
+                <el-select v-model="container.imagePullPolicy" style="width: 100%;">
+                  <el-option label="Always" value="Always" />
+                  <el-option label="IfNotPresent" value="IfNotPresent" />
+                  <el-option label="Never" value="Never" />
+                </el-select>
+              </el-form-item>
+            </div>
+
+            <!-- Ports -->
+            <el-divider content-position="left">端口</el-divider>
+            <div v-for="(port, pi) in container.ports" :key="pi" class="kv-row">
+              <el-input v-model="port.name" placeholder="名称" style="width: 120px;" />
+              <el-input-number v-model="port.containerPort" :min="1" :max="65535" placeholder="端口" style="flex: 1;" />
+              <el-select v-model="port.protocol" style="width: 100px;">
+                <el-option label="TCP" value="TCP" /><el-option label="UDP" value="UDP" />
+              </el-select>
+              <el-button type="danger" text circle @click="removePort(ci, pi)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </div>
+            <el-button text type="primary" size="small" @click="addPort(ci)">
+              <el-icon><Plus /></el-icon> 添加端口
+            </el-button>
+
+            <!-- Env -->
+            <el-divider content-position="left">环境变量</el-divider>
+            <div v-for="(env, ei) in container.env" :key="ei" class="kv-row">
+              <el-input v-model="env.name" placeholder="名称" />
+              <el-input v-model="env.value" placeholder="值" />
+              <el-button type="danger" text circle @click="removeEnv(ci, ei)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </div>
+            <el-button text type="primary" size="small" @click="addEnv(ci)">
+              <el-icon><Plus /></el-icon> 添加环境变量
+            </el-button>
+
+            <!-- Resources -->
+            <el-divider content-position="left">资源配额</el-divider>
+            <div class="resources-grid">
+              <div class="resource-group">
+                <div class="resource-group-title">Requests</div>
+                <div class="resource-fields">
+                  <el-form-item label="CPU"><el-input v-model="container.resources.requests.cpu" placeholder="100m" /></el-form-item>
+                  <el-form-item label="Memory"><el-input v-model="container.resources.requests.memory" placeholder="128Mi" /></el-form-item>
+                </div>
+              </div>
+              <div class="resource-group">
+                <div class="resource-group-title">Limits</div>
+                <div class="resource-fields">
+                  <el-form-item label="CPU"><el-input v-model="container.resources.limits.cpu" placeholder="500m" /></el-form-item>
+                  <el-form-item label="Memory"><el-input v-model="container.resources.limits.memory" placeholder="512Mi" /></el-form-item>
+                </div>
+              </div>
+            </div>
+          </div>
+          <el-button text type="primary" @click="addContainer" class="add-container-btn">
+            <el-icon><Plus /></el-icon> 添加容器
+          </el-button>
+        </el-card>
+
+        <!-- Section 3: Storage -->
+        <el-card shadow="never" class="form-section">
+          <template #header>
+            <div class="section-header">
+              <div class="section-icon storage"><el-icon size="16"><Coin /></el-icon></div>
+              <div>
+                <h3>存储配置</h3>
+                <p>{{ kind === 'StatefulSet' ? '配置持久卷声明模板和数据卷' : '配置数据卷和挂载' }}</p>
+              </div>
+            </div>
+          </template>
+
+          <!-- Volume Claim Templates (StatefulSet only) -->
+          <template v-if="kind === 'StatefulSet'">
+            <el-form-item label="持久卷声明模板 (VolumeClaimTemplates)">
+              <div style="width: 100%;">
+                <div v-for="(vct, vi) in form.volumeClaimTemplates" :key="vi" class="volume-card">
+                  <div class="volume-row">
+                    <el-input v-model="vct.name" placeholder="模板名称 (如: data)" />
+                    <el-button type="danger" text circle @click="removeVolumeClaimTemplate(vi)">
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </div>
+                  <div class="fields-grid" style="margin-top: 8px;">
+                    <el-form-item label="存储大小">
+                      <el-input v-model="vct.storageSize" placeholder="1Gi" />
+                    </el-form-item>
+                    <el-form-item label="存储类名">
+                      <el-input v-model="vct.storageClassName" placeholder="留空使用默认 StorageClass" />
+                    </el-form-item>
+                    <el-form-item label="访问模式" class="full-width">
+                      <el-checkbox-group v-model="vct.accessModes">
+                        <el-checkbox label="ReadWriteOnce" />
+                        <el-checkbox label="ReadOnlyMany" />
+                        <el-checkbox label="ReadWriteMany" />
+                      </el-checkbox-group>
+                    </el-form-item>
+                  </div>
+                </div>
+                <el-button text type="primary" @click="addVolumeClaimTemplate" size="small">
+                  <el-icon><Plus /></el-icon> 添加持久卷声明模板
+                </el-button>
+              </div>
+            </el-form-item>
+            <el-divider />
+          </template>
+
+          <el-form-item label="数据卷">
+            <div style="width: 100%;">
+              <div v-for="(vol, vi) in form.volumes" :key="vi" class="volume-card">
+                <div class="volume-row">
+                  <el-input v-model="vol.name" placeholder="卷名称" />
+                  <el-select v-model="vol.type" style="width: 160px;">
+                    <el-option label="emptyDir" value="emptyDir" />
+                    <el-option label="hostPath" value="hostPath" />
+                    <el-option label="ConfigMap" value="configMap" />
+                    <el-option label="Secret" value="secret" />
+                    <el-option label="PVC" value="pvc" />
+                  </el-select>
+                  <el-button type="danger" text circle @click="removeVolume(vi)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+                <el-input v-if="vol.type === 'hostPath'" v-model="vol.hostPath" placeholder="主机路径 (e.g. /data)" style="margin-top: 8px;" />
+                <el-input v-if="vol.type === 'configMap'" v-model="vol.configMapName" placeholder="ConfigMap 名称" style="margin-top: 8px;" />
+                <el-input v-if="vol.type === 'secret'" v-model="vol.secretName" placeholder="Secret 名称" style="margin-top: 8px;" />
+                <el-input v-if="vol.type === 'pvc'" v-model="vol.pvcName" placeholder="PVC 名称" style="margin-top: 8px;" />
+              </div>
+              <el-button text type="primary" @click="addVolume" size="small">
+                <el-icon><Plus /></el-icon> 添加数据卷
+              </el-button>
+            </div>
+          </el-form-item>
+
+          <el-divider v-if="form.volumes.length > 0" />
+
+          <el-form-item v-if="form.volumes.length > 0" label="卷挂载">
+            <div style="width: 100%;">
+              <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: 16px;">
+                <div class="mount-container-name">{{ container.name || `容器 ${ci + 1}` }}</div>
+                <div v-for="(mount, mi) in container.volumeMounts" :key="mi" class="kv-row">
+                  <el-select v-model="mount.name" placeholder="选择卷" style="width: 160px;">
+                    <el-option v-for="v in form.volumes.filter(v => v.name)" :key="v.name" :label="v.name" :value="v.name" />
+                  </el-select>
+                  <el-input v-model="mount.mountPath" placeholder="挂载路径" />
+                  <el-input v-model="mount.subPath" placeholder="子路径" style="width: 120px;" />
+                  <el-checkbox v-model="mount.readOnly">只读</el-checkbox>
+                  <el-button type="danger" text circle @click="removeVolumeMount(ci, mi)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+                <el-button text type="primary" size="small" @click="addVolumeMount(ci)">
+                  <el-icon><Plus /></el-icon> 添加挂载
+                </el-button>
+              </div>
+            </div>
+          </el-form-item>
+        </el-card>
+
+        <!-- Section 4: Health Probes -->
+        <el-card shadow="never" class="form-section">
+          <template #header>
+            <div class="section-header">
+              <div class="section-icon probe"><el-icon size="16"><CircleCheck /></el-icon></div>
+              <div>
+                <h3>健康检查</h3>
+                <p>配置存活探针和就绪探针</p>
+              </div>
+            </div>
+          </template>
+
+          <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: 24px;">
+            <div class="mount-container-name">{{ container.name || `容器 ${ci + 1}` }}</div>
+
+            <!-- Liveness -->
+            <div class="probe-card">
+              <div class="probe-header">
+                <div>
+                  <span class="probe-label">存活探针</span>
+                  <span class="probe-desc">容器是否正在运行</span>
+                </div>
+                <el-switch :model-value="!!container.livenessProbe" @update:model-value="(v: boolean) => v ? enableLivenessProbe(ci) : disableLivenessProbe(ci)" />
+              </div>
+              <template v-if="container.livenessProbe">
+                <div class="fields-grid" style="margin-top: 16px;">
+                  <el-form-item label="检测类型">
+                    <el-select v-model="container.livenessProbe.type" style="width: 100%;">
+                      <el-option label="HTTP GET" value="httpGet" />
+                      <el-option label="TCP Socket" value="tcpSocket" />
+                      <el-option label="Exec" value="exec" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item v-if="container.livenessProbe.type === 'httpGet'" label="路径">
+                    <el-input v-model="container.livenessProbe.httpGetPath" placeholder="/" />
+                  </el-form-item>
+                  <el-form-item v-if="container.livenessProbe.type === 'httpGet'" label="端口">
+                    <el-input-number v-model="container.livenessProbe.httpGetPort" :min="1" :max="65535" style="width: 100%;" />
+                  </el-form-item>
+                  <el-form-item v-if="container.livenessProbe.type === 'tcpSocket'" label="端口">
+                    <el-input-number v-model="container.livenessProbe.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
+                  </el-form-item>
+                  <el-form-item v-if="container.livenessProbe.type === 'exec'" label="命令">
+                    <el-input v-model="container.livenessProbe.execCommand" placeholder="cat /tmp/healthy" />
+                  </el-form-item>
+                  <el-form-item label="初始延迟(秒)">
+                    <el-input-number v-model="container.livenessProbe.initialDelaySeconds" :min="0" style="width: 100%;" />
+                  </el-form-item>
+                  <el-form-item label="检测周期(秒)">
+                    <el-input-number v-model="container.livenessProbe.periodSeconds" :min="1" style="width: 100%;" />
+                  </el-form-item>
+                </div>
+              </template>
+            </div>
+
+            <!-- Readiness -->
+            <div class="probe-card">
+              <div class="probe-header">
+                <div>
+                  <span class="probe-label">就绪探针</span>
+                  <span class="probe-desc">容器是否准备好接收流量</span>
+                </div>
+                <el-switch :model-value="!!container.readinessProbe" @update:model-value="(v: boolean) => v ? enableReadinessProbe(ci) : disableReadinessProbe(ci)" />
+              </div>
+              <template v-if="container.readinessProbe">
+                <div class="fields-grid" style="margin-top: 16px;">
+                  <el-form-item label="检测类型">
+                    <el-select v-model="container.readinessProbe.type" style="width: 100%;">
+                      <el-option label="HTTP GET" value="httpGet" />
+                      <el-option label="TCP Socket" value="tcpSocket" />
+                      <el-option label="Exec" value="exec" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item v-if="container.readinessProbe.type === 'httpGet'" label="路径">
+                    <el-input v-model="container.readinessProbe.httpGetPath" placeholder="/" />
+                  </el-form-item>
+                  <el-form-item v-if="container.readinessProbe.type === 'httpGet'" label="端口">
+                    <el-input-number v-model="container.readinessProbe.httpGetPort" :min="1" :max="65535" style="width: 100%;" />
+                  </el-form-item>
+                  <el-form-item v-if="container.readinessProbe.type === 'tcpSocket'" label="端口">
+                    <el-input-number v-model="container.readinessProbe.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
+                  </el-form-item>
+                  <el-form-item v-if="container.readinessProbe.type === 'exec'" label="命令">
+                    <el-input v-model="container.readinessProbe.execCommand" placeholder="cat /tmp/healthy" />
+                  </el-form-item>
+                  <el-form-item label="初始延迟(秒)">
+                    <el-input-number v-model="container.readinessProbe.initialDelaySeconds" :min="0" style="width: 100%;" />
+                  </el-form-item>
+                  <el-form-item label="检测周期(秒)">
+                    <el-input-number v-model="container.readinessProbe.periodSeconds" :min="1" style="width: 100%;" />
+                  </el-form-item>
+                </div>
+              </template>
+            </div>
+          </div>
+        </el-card>
+
+        <!-- Section 5: Security -->
+        <el-card shadow="never" class="form-section">
+          <template #header>
+            <div class="section-header">
+              <div class="section-icon security"><el-icon size="16"><Lock /></el-icon></div>
+              <div>
+                <h3>安全设置</h3>
+                <p>配置安全上下文</p>
+              </div>
+            </div>
+          </template>
+
+          <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: 24px;">
+            <div class="mount-container-name">{{ container.name || `容器 ${ci + 1}` }}</div>
+            <div class="security-grid">
+              <div class="security-item">
+                <div class="security-item-label">运行用户 ID</div>
+                <el-input-number v-model="container.securityContext.runAsUser" :min="0" placeholder="UID" style="width: 100%;" />
+              </div>
+              <div class="security-item">
+                <div class="security-item-label">非 Root 运行</div>
+                <el-switch v-model="container.securityContext.runAsNonRoot" />
+              </div>
+              <div class="security-item">
+                <div class="security-item-label">只读根文件系统</div>
+                <el-switch v-model="container.securityContext.readOnlyRootFilesystem" />
+              </div>
+              <div class="security-item">
+                <div class="security-item-label">特权模式</div>
+                <el-switch v-model="container.securityContext.privileged" />
+              </div>
+            </div>
+          </div>
+        </el-card>
+
+        <!-- Section 6: Scheduling -->
+        <el-card shadow="never" class="form-section">
+          <template #header>
+            <div class="section-header">
+              <div class="section-icon scheduling"><el-icon size="16"><Location /></el-icon></div>
+              <div>
+                <h3>调度配置</h3>
+                <p>节点选择器和容忍规则</p>
+              </div>
+            </div>
+          </template>
+
+          <el-form-item label="节点选择器">
+            <div style="width: 100%;">
+              <div v-for="(ns, i) in form.nodeSelector" :key="i" class="kv-row">
+                <el-input v-model="ns.key" placeholder="Key" />
+                <el-input v-model="ns.value" placeholder="Value" />
+                <el-button type="danger" text circle @click="removeNodeSelector(i)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button text type="primary" @click="addNodeSelector" size="small">
+                <el-icon><Plus /></el-icon> 添加节点选择器
+              </el-button>
+            </div>
+          </el-form-item>
+
+          <el-form-item label="容忍规则">
+            <div style="width: 100%;">
+              <div v-for="(tol, i) in form.tolerations" :key="i" class="toleration-row">
+                <el-input v-model="tol.key" placeholder="Key" />
+                <el-select v-model="tol.operator" style="width: 100px;">
+                  <el-option label="Equal" value="Equal" /><el-option label="Exists" value="Exists" />
+                </el-select>
+                <el-input v-model="tol.value" placeholder="Value" />
+                <el-select v-model="tol.effect" style="width: 150px;">
+                  <el-option label="NoSchedule" value="NoSchedule" />
+                  <el-option label="PreferNoSchedule" value="PreferNoSchedule" />
+                  <el-option label="NoExecute" value="NoExecute" />
+                </el-select>
+                <el-button type="danger" text circle @click="removeToleration(i)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button text type="primary" @click="addToleration" size="small">
+                <el-icon><Plus /></el-icon> 添加容忍规则
+              </el-button>
+            </div>
+          </el-form-item>
+        </el-card>
+
+        <!-- Section 7: Advanced -->
+        <el-card shadow="never" class="form-section">
+          <template #header>
+            <div class="section-header">
+              <div class="section-icon advanced"><el-icon size="16"><Setting /></el-icon></div>
+              <div>
+                <h3>高级配置</h3>
+                <p>部署策略、镜像密钥等</p>
+              </div>
+            </div>
+          </template>
+
+          <template v-if="kind === 'Deployment'">
+            <div class="fields-grid">
+              <el-form-item label="更新策略">
+                <el-select v-model="form.strategyType" style="width: 100%;">
+                  <el-option label="RollingUpdate" value="RollingUpdate" />
+                  <el-option label="Recreate" value="Recreate" />
+                </el-select>
+              </el-form-item>
+              <template v-if="form.strategyType === 'RollingUpdate'">
+                <el-form-item label="Max Surge">
+                  <el-input v-model="form.maxSurge" placeholder="25% 或 2" />
+                </el-form-item>
+                <el-form-item label="Max Unavailable">
+                  <el-input v-model="form.maxUnavailable" placeholder="25% 或 1" />
+                </el-form-item>
+              </template>
+            </div>
+          </template>
+          <template v-if="kind === 'StatefulSet'">
+            <div class="fields-grid">
+              <el-form-item label="服务名称">
+                <el-input v-model="form.serviceName" placeholder="Headless service 名称" />
+              </el-form-item>
+              <el-form-item label="更新策略">
+                <el-select v-model="form.updateStrategy" style="width: 100%;">
+                  <el-option label="RollingUpdate" value="RollingUpdate" />
+                  <el-option label="OnDelete" value="OnDelete" />
+                </el-select>
+              </el-form-item>
+            </div>
+          </template>
+          <template v-if="kind === 'DaemonSet'">
+            <el-form-item label="更新策略">
+              <el-select v-model="form.dsUpdateStrategy" style="width: 100%;">
+                <el-option label="RollingUpdate" value="RollingUpdate" />
+                <el-option label="OnDelete" value="OnDelete" />
+              </el-select>
+            </el-form-item>
+          </template>
+
+          <el-divider />
+
+          <div class="fields-grid">
+            <el-form-item label="优雅终止时间(秒)">
+              <el-input-number v-model="form.terminationGracePeriodSeconds" :min="0" :max="300" style="width: 100%;" />
+            </el-form-item>
+          </div>
+
+          <el-form-item label="镜像拉取密钥">
+            <div style="width: 100%;">
+              <div v-for="(_s, i) in form.imagePullSecrets" :key="i" class="kv-row">
+                <el-input v-model="form.imagePullSecrets[i]" placeholder="Secret 名称" />
+                <el-button type="danger" text circle @click="removeImagePullSecret(i)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button text type="primary" @click="addImagePullSecret" size="small">
+                <el-icon><Plus /></el-icon> 添加密钥
+              </el-button>
+            </div>
+          </el-form-item>
+        </el-card>
+
+      </div>
+    </el-form>
+
+    <!-- Bottom Action Bar -->
     <div class="form-actions">
-      <el-button @click="handleCancel">取消</el-button>
-      <el-button v-if="currentStep > 0" @click="handlePrev">Previous</el-button>
-      <el-button v-if="currentStep < steps.length - 1" type="primary" @click="handleNext">Next</el-button>
-      <el-button v-if="currentStep === steps.length - 1" type="primary" :loading="submitting" @click="handleSubmit">创建 {{ kind }}</el-button>
+      <el-button @click="handleCancel" size="large">取消</el-button>
+      <el-button type="primary" :loading="submitting" @click="handleSubmit" size="large">
+        创建 {{ kind }}
+      </el-button>
     </div>
   </div>
 </template>
 
 <style scoped>
-.workload-form { max-width: 900px; margin: 0 auto; padding: 20px 0; }
-.form-header { margin-bottom: 24px; }
-.form-header h2 { margin: 0; font-size: 20px; font-weight: 600; }
-.step-content { min-height: 400px; padding: 16px 0; }
-.container-card { border: 1px solid var(--gk-color-border); border-radius: 8px; padding: 20px; margin-bottom: 16px; background: var(--gk-neutral-50); }
-.container-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--gk-color-border); }
-.container-card-header h4 { margin: 0; font-size: 15px; font-weight: 600; color: var(--gk-color-text-primary); }
-.resource-label { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: 4px; }
-.form-actions { display: flex; justify-content: flex-end; gap: 12px; padding-top: 24px; border-top: 1px solid var(--gk-color-border); margin-top: 24px; }
+.workload-form {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px 0 100px;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.form-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.back-btn {
+  margin-top: 2px;
+}
+
+.form-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.form-subtitle {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--el-text-color-secondary);
+}
+
+.yaml-preview-btn {
+  flex-shrink: 0;
+}
+
+.form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-section {
+  border-radius: 12px;
+  border: 1px solid var(--el-border-color-lighter);
+}
+
+.form-section :deep(.el-card__header) {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+  background: var(--el-fill-color-blank);
+  border-radius: 12px 12px 0 0;
+}
+
+.form-section :deep(.el-card__body) {
+  padding: 20px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.section-icon.basic {
+  background: #ecf5ff;
+  color: #409eff;
+}
+
+.section-icon.container {
+  background: #f0f9eb;
+  color: #67c23a;
+}
+
+.section-icon.storage {
+  background: #fdf6ec;
+  color: #e6a23c;
+}
+
+.section-icon.probe {
+  background: #f0f9eb;
+  color: #67c23a;
+}
+
+.section-icon.security {
+  background: #fef0f0;
+  color: #f56c6c;
+}
+
+.section-icon.scheduling {
+  background: #f4f4f5;
+  color: #909399;
+}
+
+.section-icon.advanced {
+  background: #f4ecff;
+  color: #9b59b6;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.section-header p {
+  margin: 1px 0 0;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 24px;
+}
+
+.fields-grid :deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+
+.fields-grid :deep(.el-form-item:last-child) {
+  margin-bottom: 0;
+}
+
+.fields-grid :deep(.el-form-item.full-width) {
+  grid-column: 1 / -1;
+}
+
+/* Container cards */
+.container-card {
+  border: 1px solid var(--el-border-color-extra-light);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: var(--el-fill-color-blank);
+  transition: box-shadow 0.2s;
+}
+
+.container-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.container-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+}
+
+.container-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--el-text-color-primary);
+}
+
+.container-index {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--el-color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.add-container-btn {
+  margin-top: 8px;
+}
+
+/* Key-value rows */
+.kv-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.kv-row :deep(.el-input) {
+  flex: 1;
+}
+
+/* Resources */
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.resource-group {
+  border: 1px solid var(--el-border-color-extra-light);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--el-fill-color-lighter);
+}
+
+.resource-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-regular);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.resource-fields {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.resource-fields :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
+/* Volume cards */
+.volume-card {
+  border: 1px solid var(--el-border-color-extra-light);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 8px;
+  background: var(--el-fill-color-lighter);
+}
+
+.volume-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.volume-row :deep(.el-input) {
+  flex: 1;
+}
+
+.mount-container-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-regular);
+  margin-bottom: 10px;
+  padding: 4px 10px;
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* Probe cards */
+.probe-card {
+  border: 1px solid var(--el-border-color-extra-light);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 10px;
+  background: var(--el-fill-color-blank);
+}
+
+.probe-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.probe-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+}
+
+.probe-desc {
+  display: block;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-top: 2px;
+}
+
+/* Security grid */
+.security-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.security-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--el-border-color-extra-light);
+  border-radius: 8px;
+  background: var(--el-fill-color-lighter);
+}
+
+.security-item-label {
+  font-size: 14px;
+  color: var(--el-text-color-regular);
+}
+
+/* Toleration row */
+.toleration-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.toleration-row :deep(.el-input) {
+  flex: 1;
+}
+
+/* Bottom action bar */
+.form-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 32px;
+  background: var(--el-bg-color);
+  border-top: 1px solid var(--el-border-color-lighter);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+  z-index: 100;
+}
 </style>

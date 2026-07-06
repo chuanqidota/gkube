@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Plus, Delete, Search } from '@element-plus/icons-vue'
 import {
   getStatefulSetList,
@@ -11,6 +12,9 @@ import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+
+// @ts-ignore -- used as template ref for YamlEditor component
+const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
 
 const {
   loading,
@@ -58,7 +62,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <el-input
           :model-value="searchName"
           @input="onSearchInput"
-          placeholder="Search by name"
+          placeholder="搜索名称"
           style="width: 220px;"
           clearable
         >
@@ -66,7 +70,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         </el-input>
         <el-select
           v-model="selectedNamespace"
-          placeholder="All Namespaces"
+          placeholder="所有命名空间"
           clearable
           style="width: 180px;"
           @change="handleNamespaceChange"
@@ -89,7 +93,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
           <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
         </el-button>
-        <span class="total-count" v-if="totalCount">Total: {{ totalCount }}</span>
+        <span class="total-count" v-if="totalCount">总计: {{ totalCount }}</span>
       </div>
     </el-card>
 
@@ -101,32 +105,33 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="namespace" label="Namespace" width="140" />
-        <el-table-column prop="ready" label="Ready" width="100" />
-        <el-table-column prop="serviceName" label="Service" width="160" show-overflow-tooltip />
-        <el-table-column prop="updateStrategy" label="Update Strategy" width="140" />
+        <el-table-column prop="namespace" label="命名空间" width="140" />
+        <el-table-column prop="ready" label="就绪" width="100" />
+        <el-table-column prop="serviceName" label="服务" width="160" show-overflow-tooltip />
+        <el-table-column prop="updateStrategy" label="更新策略" width="140" />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="Actions" width="200" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty description="No StatefulSets found">
+          <el-empty description="暂无有状态负载">
             <el-button type="primary" @click="$router.push('/workloads/statefulsets/create')">创建 StatefulSet</el-button>
           </el-empty>
         </template>
       </el-table>
 
+      <!-- Load More Button -->
       <div v-if="hasMore" class="load-more">
         <el-button @click="fetchNextPage" :loading="loading" link type="primary">
-          Load More...
+          加载更多...
         </el-button>
       </div>
     </el-card>
@@ -135,6 +140,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     <el-dialog v-model="yamlDialogVisible" title="StatefulSet YAML" width="70%" top="5vh" destroy-on-close>
       <div v-loading="yamlLoading">
         <YamlEditor
+          ref="yamlEditorRef"
           v-model="yamlContent"
           height="600px"
           :read-only="false"

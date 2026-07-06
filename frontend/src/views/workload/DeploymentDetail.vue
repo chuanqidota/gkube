@@ -315,7 +315,6 @@ onMounted(() => {
     <!-- ===== 顶部标题栏 ===== -->
     <div class="page-header">
       <div class="header-left">
-        <el-button link type="primary" @click="router.push('/workloads/deployments')" class="back-btn">← 返回列表</el-button>
         <div class="title-line">
           <h2 class="res-name">{{ name }}</h2>
           <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
@@ -336,10 +335,11 @@ onMounted(() => {
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="primary" size="small" @click="handleScale">扩缩容</el-button>
-        <el-button type="warning" size="small" @click="handleRestart">重启</el-button>
-        <el-button type="danger" size="small" @click="handleRollback">回滚</el-button>
-        <el-button size="small" @click="handleOpenYaml">YAML</el-button>
+        <el-button type="primary" @click="handleScale">扩缩容</el-button>
+        <el-button type="warning" @click="handleRestart">重启</el-button>
+        <el-button type="danger" @click="handleRollback">回滚</el-button>
+        <el-button @click="handleOpenYaml">YAML</el-button>
+        <el-button @click="router.push('/workloads/deployments')">返回列表</el-button>
       </div>
     </div>
 
@@ -492,11 +492,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-.back-btn {
-  align-self: flex-start;
-  margin-bottom: 2px;
 }
 
 .title-line {

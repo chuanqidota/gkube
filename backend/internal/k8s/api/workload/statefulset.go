@@ -244,3 +244,59 @@ func (s *statefulSet) StatefulSetPodList(c *gin.Context) {
 	}
 	response.Success(c, "执行成功", podList)
 }
+
+// ScaleStatefulSet
+//
+//	@Description: 扩缩容statefulset
+//	@receiver s
+//	@param c
+func (s *statefulSet) ScaleStatefulSet(c *gin.Context) {
+	var body params.StatefulSetScaleParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	ok, err := k8sStatefulSet.ScaleStatefulSet(client, body.Namespace, body.Name, body.Replicas)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("扩缩容statefulset失败:%s", err.Error()))
+		return
+	}
+	if !ok {
+		response.Fail(c, fmt.Sprintf("扩缩容statefulset失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}
+
+// RestartStatefulSet
+//
+//	@Description: 重启statefulset
+//	@receiver s
+//	@param c
+func (s *statefulSet) RestartStatefulSet(c *gin.Context) {
+	var body params.StatefulSetRestartParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	ok, err := k8sStatefulSet.RestartStatefulSet(client, body.Namespace, body.Name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("重启statefulset失败:%s", err.Error()))
+		return
+	}
+	if !ok {
+		response.Fail(c, fmt.Sprintf("重启statefulset失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}

@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
+	"time"
 )
 
 // GetStatefulSetList
@@ -224,4 +225,49 @@ func StatefulSetPodList(client *kubernetes.Clientset, namespace, name string) (*
 		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
 	}
 	return podList, nil
+}
+
+// ScaleStatefulSet
+//
+//	@Description: 扩缩容statefulSet
+//	@param client
+//	@param namespace
+//	@param name
+//	@param replicas
+//	@return bool
+//	@return error
+func ScaleStatefulSet(client *kubernetes.Clientset, namespace, name string, replicas int32) (bool, error) {
+	statefulSet, err := client.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("获取statefulSet资源失败:%s", err.Error())
+	}
+	statefulSet.Spec.Replicas = &replicas
+	_, err = client.AppsV1().StatefulSets(namespace).Update(context.TODO(), statefulSet, metav1.UpdateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("更新statefulSet资源失败:%s", err.Error())
+	}
+	return true, nil
+}
+
+// RestartStatefulSet
+//
+//	@Description: 重启statefulSet
+//	@param client
+//	@param namespace
+//	@param name
+//	@return bool
+//	@return error
+func RestartStatefulSet(client *kubernetes.Clientset, namespace, name string) (bool, error) {
+	statefulSet, err := client.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("获取statefulSet资源失败:%s", err.Error())
+	}
+	statefulSet.Spec.Template.Annotations = map[string]string{
+		"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.DateTime),
+	}
+	_, err = client.AppsV1().StatefulSets(namespace).Update(context.TODO(), statefulSet, metav1.UpdateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("更新statefulSet资源失败:%s", err.Error())
+	}
+	return true, nil
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { Delete, Search, Monitor } from '@element-plus/icons-vue'
+import { Delete, Search } from '@element-plus/icons-vue'
 import { getPodList, getPodYaml, deletePod, transformPods } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import { useClusterStore } from '@/stores/cluster'
@@ -117,30 +117,27 @@ function statusType(status: string) {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="namespace" label="Namespace" width="140" />
-        <el-table-column prop="status" label="Status" width="120">
+        <el-table-column prop="namespace" label="命名空间" width="140" />
+        <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="restarts" label="Restarts" width="100" />
+        <el-table-column prop="ip" label="Pod IP" width="140" />
+        <el-table-column prop="hostIP" label="节点 IP" width="140" />
+        <el-table-column prop="restarts" label="重启" width="100" />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column prop="node" label="Node" width="160" show-overflow-tooltip />
-        <el-table-column label="Actions" width="280" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="primary" @click="handleViewLogs(row)">
-              <el-icon><Monitor /></el-icon> Logs
-            </el-button>
-            <el-button size="small" type="success" @click="handleExec(row)">Exec</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">
-              <el-icon><Delete /></el-icon>
-            </el-button>
+            <el-button size="small" type="primary" @click="handleViewLogs(row)">日志</el-button>
+            <el-button size="small" type="success" @click="handleExec(row)">终端</el-button>
+            <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

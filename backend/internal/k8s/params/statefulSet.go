@@ -31,4 +31,17 @@ type StatefulSetDeleteByNameParams struct {
 	Name        string `form:"name" json:"name" label:"名称"`
 }
 
+type StatefulSetScaleParams struct {
+	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	Name        string `form:"name" json:"name" label:"名称"`
+	Replicas    int32  `form:"replicas" json:"replicas" label:"副本数"`
+}
+
+type StatefulSetRestartParams struct {
+	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	Name        string `form:"name" json:"name" label:"名称"`
+}
+
 
