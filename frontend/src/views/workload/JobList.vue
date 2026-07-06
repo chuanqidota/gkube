@@ -58,7 +58,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <el-input
           :model-value="searchName"
           @input="onSearchInput"
-          placeholder="Search by name"
+          placeholder="搜索名称"
           style="width: 220px;"
           clearable
         >
@@ -66,7 +66,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         </el-input>
         <el-select
           v-model="selectedNamespace"
-          placeholder="All Namespaces"
+          placeholder="所有命名空间"
           clearable
           style="width: 180px;"
           @change="handleNamespaceChange"
@@ -89,7 +89,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
           <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
         </el-button>
-        <span class="total-count" v-if="totalCount">Total: {{ totalCount }}</span>
+        <span class="total-count" v-if="totalCount">总计: {{ totalCount }}</span>
       </div>
     </el-card>
 
@@ -101,30 +101,26 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="namespace" label="Namespace" width="140" />
-        <el-table-column prop="completions" label="Completions" width="120" />
+        <el-table-column prop="namespace" label="命名空间" width="140" />
+        <el-table-column prop="completions" label="完成数" width="120" />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="Actions" width="200" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
-        <template #empty>
-          <el-empty description="No Jobs found">
-            <el-button type="primary" @click="$router.push('/workloads/jobs/create')">创建 Job</el-button>
-          </el-empty>
-        </template>
       </el-table>
 
+      <!-- Load More Button -->
       <div v-if="hasMore" class="load-more">
         <el-button @click="fetchNextPage" :loading="loading" link type="primary">
-          Load More...
+          加载更多...
         </el-button>
       </div>
     </el-card>
@@ -146,10 +142,30 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.filter-card { margin-bottom: 16px; }
-.filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.table-card { border-radius: 8px; }
-.total-count { color: var(--el-text-color-secondary); font-size: 13px; margin-left: auto; }
-.load-more { display: flex; justify-content: center; padding: 12px 0; border-top: 1px solid var(--el-border-color-lighter); }
+.page-container {
+  padding: 20px;
+}
+.filter-card {
+  margin-bottom: 16px;
+}
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.table-card {
+  border-radius: 8px;
+}
+.total-count {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  margin-left: auto;
+}
+.load-more {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
 </style>
