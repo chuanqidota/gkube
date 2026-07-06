@@ -215,3 +215,31 @@ func (d *daemonSet) DaemonSetPodList(c *gin.Context) {
 	}
 	response.Success(c, "执行成功", podList)
 }
+
+// RestartDaemonSet
+//
+//	@Description: 重启daemonset
+//	@receiver d
+//	@param c
+func (d *daemonSet) RestartDaemonSet(c *gin.Context) {
+	var body params.DaemonSetRestartParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	ok, err := k8sDaemonSet.RestartDaemonSet(client, body.Namespace, body.Name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("重启daemonset失败:%v", err.Error()))
+		return
+	}
+	if !ok {
+		response.Fail(c, "重启daemonset失败")
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}

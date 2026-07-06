@@ -1003,6 +1003,9 @@ export function getDaemonSetEvents(params: { namespace: string; name: string }) 
 export function getDaemonSetPods(params: { namespace: string; name: string }) {
   return request.get('/k8s/daemonset/pods', { params })
 }
+export function restartDaemonSet(data: { namespace: string; name: string }) {
+  return request.post('/k8s/daemonset/restart', data)
+}
 
 // Job
 export interface Job {

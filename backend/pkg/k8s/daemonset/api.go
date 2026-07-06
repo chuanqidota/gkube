@@ -3,6 +3,8 @@ package daemonset
 import (
 	"context"
 	"fmt"
+	"time"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -225,4 +227,28 @@ func DaemonSetPodList(client *kubernetes.Clientset, namespace, name string) (*co
 		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
 	}
 	return podList, nil
+}
+
+// RestartDaemonSet
+//
+//	@Description: 重启daemonSet
+//	@param client
+//	@param namespace
+//	@param name
+//	@return bool
+//	@return error
+func RestartDaemonSet(client *kubernetes.Clientset, namespace, name string) (bool, error) {
+	daemonSet, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("获取daemonSet资源失败:%s", err.Error())
+	}
+	if daemonSet.Spec.Template.Annotations == nil {
+		daemonSet.Spec.Template.Annotations = make(map[string]string)
+	}
+	daemonSet.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.DateTime)
+	_, err = client.AppsV1().DaemonSets(namespace).Update(context.Background(), daemonSet, metav1.UpdateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("更新daemonSet资源失败:%s", err.Error())
+	}
+	return true, nil
 }
