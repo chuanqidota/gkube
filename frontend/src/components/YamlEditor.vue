@@ -1,6 +1,6 @@
 <template>
   <div class="yaml-editor">
-    <div class="yaml-editor-toolbar" v-if="saveable || title || editable">
+    <div class="yaml-editor-toolbar" v-if="showToolbar && (saveable || title || editable)">
       <!-- Left: Edit/Save/Cancel -->
       <div class="toolbar-left">
         <template v-if="saveable">
@@ -58,6 +58,7 @@ const props = withDefaults(defineProps<{
   autoFormat?: boolean
   title?: string
   saveable?: boolean
+  showToolbar?: boolean
 }>(), {
   height: '400px',
   editable: false,
@@ -65,6 +66,7 @@ const props = withDefaults(defineProps<{
   autoFormat: false,
   title: '',
   saveable: false,
+  showToolbar: true,
 })
 
 const emit = defineEmits(['update:modelValue', 'save'])
@@ -194,8 +196,8 @@ function resetSaving() {
   saving.value = false
 }
 
-// Expose saving state for parent to control
-defineExpose({ saving, resetSaving })
+// Expose saving state and utility functions for parent to control
+defineExpose({ saving, resetSaving, handleFormat, handleCopy })
 </script>
 
 <style scoped>

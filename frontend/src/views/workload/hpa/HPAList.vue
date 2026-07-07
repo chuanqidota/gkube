@@ -12,6 +12,7 @@ import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
+// @ts-ignore -- used as template ref for YamlEditor component
 const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
 
 const {

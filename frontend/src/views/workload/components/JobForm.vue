@@ -4,14 +4,12 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import YamlEditor from '@/components/YamlEditor.vue'
 import { getNamespaceList, extractNamespaceNames, createJob } from '@/api/resource'
 
 const router = useRouter()
 const submitting = ref(false)
 const namespaceLoading = ref(false)
 const namespaces = ref<string[]>([])
-const showYamlPreview = ref(false)
 
 interface Label { key: string; value: string }
 interface Port { name: string; containerPort: number | null; protocol: string }
@@ -223,42 +221,13 @@ function handleCancel() { router.push('/workloads/jobs') }
 
 <template>
   <div class="workload-form">
-    <!-- Page Header -->
-    <div class="form-header">
-      <div class="form-header-left">
-        <el-button text @click="handleCancel" class="back-btn">
-          <el-icon><ArrowLeft /></el-icon>
-        </el-button>
-        <div>
-          <h2>创建 Job</h2>
-          <p class="form-subtitle">填写以下信息来创建一个新的 Job 任务</p>
-        </div>
-      </div>
-      <el-button @click="showYamlPreview = !showYamlPreview" class="yaml-preview-btn">
-        <el-icon><Document /></el-icon>
-        {{ showYamlPreview ? '隐藏 YAML' : '查看 YAML' }}
-      </el-button>
-    </div>
-
-    <!-- YAML Preview Drawer -->
-    <el-drawer v-model="showYamlPreview" title="YAML 预览" size="560px" direction="rtl">
-      <YamlEditor :model-value="generatedYaml" height="calc(100vh - 120px)" read-only />
-    </el-drawer>
-
     <el-form ref="formRef" :model="form" :rules="formRules" label-position="top">
-      <div class="form-grid">
-
-        <!-- Section 1: Basic Info -->
-        <el-card shadow="never" class="form-section">
-          <template #header>
-            <div class="section-header">
-              <div class="section-icon basic"><el-icon size="16"><Box /></el-icon></div>
-              <div>
-                <h3>基本信息</h3>
-                <p>设置名称、命名空间和任务参数</p>
-              </div>
-            </div>
-          </template>
+      <!-- Section 1: Basic Info -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">基本信息</div>
+        </div>
+        <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="名称" prop="name">
               <el-input v-model="form.name" placeholder="my-job" />
@@ -272,7 +241,15 @@ function handleCancel() { router.push('/workloads/jobs') }
               <el-input v-model="form.serviceAccountName" placeholder="default" />
             </el-form-item>
           </div>
-          <el-divider />
+        </div>
+      </div>
+
+      <!-- Section: Labels & Annotations -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">标签与注解</div>
+        </div>
+        <div class="section-content">
           <el-form-item label="标签">
             <div style="width: 100%;">
               <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
@@ -301,19 +278,15 @@ function handleCancel() { router.push('/workloads/jobs') }
               </el-button>
             </div>
           </el-form-item>
-        </el-card>
+        </div>
+      </div>
 
-        <!-- Section 2: Job Config -->
-        <el-card shadow="never" class="form-section">
-          <template #header>
-            <div class="section-header">
-              <div class="section-icon scheduling"><el-icon size="16"><Setting /></el-icon></div>
-              <div>
-                <h3>任务配置</h3>
-                <p>设置完成数、并行度和重试策略</p>
-              </div>
-            </div>
-          </template>
+      <!-- Section 2: Job Config -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">任务配置</div>
+        </div>
+        <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="完成数 (Completions)">
               <el-input-number v-model="form.completions" :min="1" style="width: 100%;" />
@@ -328,19 +301,15 @@ function handleCancel() { router.push('/workloads/jobs') }
               <el-input-number v-model="form.activeDeadlineSeconds" :min="1" placeholder="无限制" style="width: 100%;" />
             </el-form-item>
           </div>
-        </el-card>
+        </div>
+      </div>
 
-        <!-- Section 3: Container Config -->
-        <el-card shadow="never" class="form-section">
-          <template #header>
-            <div class="section-header">
-              <div class="section-icon container"><el-icon size="16"><Cpu /></el-icon></div>
-              <div>
-                <h3>容器配置</h3>
-                <p>定义镜像、端口、环境变量和资源</p>
-              </div>
-            </div>
-          </template>
+      <!-- Section 3: Container Config -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">容器配置</div>
+        </div>
+        <div class="section-content">
           <div v-for="(container, ci) in form.containers" :key="ci" class="container-card">
             <div class="container-card-header">
               <div class="container-title">
@@ -418,19 +387,15 @@ function handleCancel() { router.push('/workloads/jobs') }
           <el-button text type="primary" @click="addContainer" class="add-container-btn">
             <el-icon><Plus /></el-icon> 添加容器
           </el-button>
-        </el-card>
+        </div>
+      </div>
 
-        <!-- Section 4: Storage -->
-        <el-card shadow="never" class="form-section">
-          <template #header>
-            <div class="section-header">
-              <div class="section-icon storage"><el-icon size="16"><Coin /></el-icon></div>
-              <div>
-                <h3>存储配置</h3>
-                <p>配置数据卷和挂载</p>
-              </div>
-            </div>
-          </template>
+      <!-- Section 4: Storage -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">存储配置</div>
+        </div>
+        <div class="section-content">
 
           <el-form-item label="数据卷">
             <div style="width: 100%;">
@@ -482,19 +447,15 @@ function handleCancel() { router.push('/workloads/jobs') }
               </div>
             </div>
           </el-form-item>
-        </el-card>
+        </div>
+      </div>
 
-        <!-- Section 5: Health Probes -->
-        <el-card shadow="never" class="form-section">
-          <template #header>
-            <div class="section-header">
-              <div class="section-icon probe"><el-icon size="16"><CircleCheck /></el-icon></div>
-              <div>
-                <h3>健康检查</h3>
-                <p>配置存活探针和就绪探针</p>
-              </div>
-            </div>
-          </template>
+      <!-- Section 5: Health Probes -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">健康检查</div>
+        </div>
+        <div class="section-content">
 
           <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: 24px;">
             <div class="mount-container-name">{{ container.name || `容器 ${ci + 1}` }}</div>
@@ -579,19 +540,15 @@ function handleCancel() { router.push('/workloads/jobs') }
               </template>
             </div>
           </div>
-        </el-card>
+        </div>
+      </div>
 
-        <!-- Section 6: Security -->
-        <el-card shadow="never" class="form-section">
-          <template #header>
-            <div class="section-header">
-              <div class="section-icon security"><el-icon size="16"><Lock /></el-icon></div>
-              <div>
-                <h3>安全设置</h3>
-                <p>配置安全上下文</p>
-              </div>
-            </div>
-          </template>
+      <!-- Section 6: Security -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">安全设置</div>
+        </div>
+        <div class="section-content">
 
           <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: 24px;">
             <div class="mount-container-name">{{ container.name || `容器 ${ci + 1}` }}</div>
@@ -614,19 +571,15 @@ function handleCancel() { router.push('/workloads/jobs') }
               </div>
             </div>
           </div>
-        </el-card>
+        </div>
+      </div>
 
-        <!-- Section 7: Scheduling -->
-        <el-card shadow="never" class="form-section">
-          <template #header>
-            <div class="section-header">
-              <div class="section-icon scheduling"><el-icon size="16"><Location /></el-icon></div>
-              <div>
-                <h3>调度配置</h3>
-                <p>节点选择器和容忍规则</p>
-              </div>
-            </div>
-          </template>
+      <!-- Section 7: Scheduling -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">调度配置</div>
+        </div>
+        <div class="section-content">
 
           <el-form-item label="节点选择器">
             <div style="width: 100%;">
@@ -665,20 +618,15 @@ function handleCancel() { router.push('/workloads/jobs') }
               </el-button>
             </div>
           </el-form-item>
-        </el-card>
+        </div>
+      </div>
 
-        <!-- Section 8: Advanced -->
-        <el-card shadow="never" class="form-section">
-          <template #header>
-            <div class="section-header">
-              <div class="section-icon advanced"><el-icon size="16"><Setting /></el-icon></div>
-              <div>
-                <h3>高级配置</h3>
-                <p>优雅终止时间、镜像密钥等</p>
-              </div>
-            </div>
-          </template>
-
+      <!-- Section 8: Advanced -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">高级配置</div>
+        </div>
+        <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="优雅终止时间(秒)">
               <el-input-number v-model="form.terminationGracePeriodSeconds" :min="0" :max="300" style="width: 100%;" />
@@ -698,154 +646,72 @@ function handleCancel() { router.push('/workloads/jobs') }
               </el-button>
             </div>
           </el-form-item>
-        </el-card>
+        </div>
+      </div>
 
+      <!-- Submit Button -->
+      <div class="form-section">
+        <div class="section-sidebar"></div>
+        <div class="section-content">
+          <div class="form-actions">
+            <el-button @click="handleCancel">取消</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
+          </div>
+        </div>
       </div>
     </el-form>
-
-    <!-- Bottom Action Bar -->
-    <div class="form-actions">
-      <el-button @click="handleCancel" size="large">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit" size="large">
-        创建 Job
-      </el-button>
-    </div>
   </div>
 </template>
 
 <style scoped>
 .workload-form {
+  padding: 0 40px;
   max-width: 1000px;
   margin: 0 auto;
-  padding: 24px 0 100px;
 }
 
-.form-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
-
-.form-header-left {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.back-btn {
-  margin-top: 2px;
-}
-
-.form-header h2 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-}
-
-.form-subtitle {
-  margin: 4px 0 0;
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-}
-
-.yaml-preview-btn {
-  flex-shrink: 0;
-}
-
-.form-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
+/* Section layout with sidebar titles */
 .form-section {
-  border-radius: 12px;
-  border: 1px solid var(--el-border-color-lighter);
-}
-
-.form-section :deep(.el-card__header) {
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--el-border-color-extra-light);
-  background: var(--el-fill-color-blank);
-  border-radius: 12px 12px 0 0;
-}
-
-.form-section :deep(.el-card__body) {
-  padding: 20px;
-}
-
-.section-header {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 24px;
+  margin-bottom: 32px;
+  align-items: flex-start;
 }
 
-.section-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.section-sidebar {
+  width: 120px;
   flex-shrink: 0;
+  position: sticky;
+  top: 20px;
 }
 
-.section-icon.basic {
-  background: #ecf5ff;
-  color: #409eff;
-}
-
-.section-icon.container {
-  background: #f0f9eb;
-  color: #67c23a;
-}
-
-.section-icon.storage {
-  background: #fdf6ec;
-  color: #e6a23c;
-}
-
-.section-icon.probe {
-  background: #f0f9eb;
-  color: #67c23a;
-}
-
-.section-icon.security {
-  background: #fef0f0;
-  color: #f56c6c;
-}
-
-.section-icon.scheduling {
-  background: #f4f4f5;
-  color: #909399;
-}
-
-.section-icon.advanced {
-  background: #f4ecff;
-  color: #9b59b6;
-}
-
-.section-header h3 {
-  margin: 0;
-  font-size: 14px;
+.section-title {
+  font-size: 15px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--el-color-primary);
+  padding: 12px 16px;
+  background: var(--el-fill-color-lighter);
+  border-left: 3px solid var(--el-color-primary);
+  border-radius: 0 4px 4px 0;
 }
 
-.section-header p {
-  margin: 1px 0 0;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+.section-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 24px;
+  border-top: 1px solid var(--el-border-color-light);
 }
 
 .fields-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0 24px;
+  gap: 0 32px;
 }
 
 .fields-grid :deep(.el-form-item) {
@@ -925,7 +791,7 @@ function handleCancel() { router.push('/workloads/jobs') }
 .resources-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 20px;
 }
 
 .resource-group {
@@ -947,7 +813,7 @@ function handleCancel() { router.push('/workloads/jobs') }
 .resource-fields {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 16px;
 }
 
 .resource-fields :deep(.el-form-item) {
@@ -1016,7 +882,7 @@ function handleCancel() { router.push('/workloads/jobs') }
 .security-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 20px;
 }
 
 .security-item {
@@ -1046,19 +912,4 @@ function handleCancel() { router.push('/workloads/jobs') }
   flex: 1;
 }
 
-/* Bottom action bar */
-.form-actions {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 32px;
-  background: var(--el-bg-color);
-  border-top: 1px solid var(--el-border-color-lighter);
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
-  z-index: 100;
-}
 </style>

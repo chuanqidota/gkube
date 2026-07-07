@@ -11,6 +11,7 @@ import { createDeployment } from '@/api/resource'
 const router = useRouter()
 const { t } = useI18n()
 const mode = ref<'form' | 'yaml'>('form')
+const yamlEditorRef = ref()
 const yamlContent = ref(`apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -58,6 +59,14 @@ async function handleYamlSubmit() {
 function handleCancel() {
   router.push('/workloads/deployments')
 }
+
+function handleFormat() {
+  yamlEditorRef.value?.handleFormat()
+}
+
+function handleCopy() {
+  yamlEditorRef.value?.handleCopy()
+}
 </script>
 
 <template>
@@ -69,11 +78,23 @@ function handleCancel() {
     <WorkloadForm v-if="mode === 'form'" kind="Deployment" />
 
     <div v-else class="yaml-mode">
-      <div class="form-header"><h2>创建 Deployment (YAML)</h2></div>
-      <YamlEditor v-model="yamlContent" height="calc(100vh - 230px)" :read-only="false" editable auto-format />
-      <div class="form-actions">
-        <el-button @click="handleCancel">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleYamlSubmit">创建 Deployment</el-button>
+      <div class="yaml-card">
+        <div class="yaml-card-header">
+          <div class="yaml-card-left">
+            <span class="yaml-card-title">YAML 配置</span>
+            <el-button-group>
+              <el-button size="small" @click="handleFormat">Format</el-button>
+              <el-button size="small" @click="handleCopy">复制</el-button>
+            </el-button-group>
+          </div>
+          <div class="yaml-card-actions">
+            <el-button size="small" @click="handleCancel">取消</el-button>
+            <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit">创建</el-button>
+          </div>
+        </div>
+        <div class="yaml-card-body">
+          <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="calc(100vh - 180px)" :read-only="false" editable auto-format :show-toolbar="false" />
+        </div>
       </div>
     </div>
   </div>
@@ -83,7 +104,42 @@ function handleCancel() {
 .deployment-create { max-width: 1100px; margin: 0 auto; padding: 20px 0; }
 .mode-switcher { display: flex; justify-content: center; margin-bottom: 12px; }
 .yaml-mode { padding: 0 16px; }
-.form-header { margin-bottom: 24px; }
-.form-header h2 { margin: 0; font-size: 20px; font-weight: 600; }
-.form-actions { display: flex; justify-content: flex-end; gap: 12px; padding-top: 24px; border-top: 1px solid var(--gk-color-border); margin-top: 24px; }
+
+.yaml-card {
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--el-bg-color);
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.yaml-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--el-fill-color-lighter);
+  border-bottom: 1px solid var(--el-border-color-light);
+}
+
+.yaml-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.yaml-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.yaml-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.yaml-card-body {
+  padding: 0;
+}
 </style>

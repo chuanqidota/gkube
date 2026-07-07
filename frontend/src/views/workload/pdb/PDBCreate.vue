@@ -76,7 +76,7 @@ onMounted(fetchNamespaces)
       <el-button @click="router.push('/workloads/pdb')">Back to List</el-button>
     </div>
     <el-card shadow="never">
-      <el-form label-width="160px" style="max-width: 600px;">
+      <el-form label-width="160px">
         <el-form-item label="Name" required><el-input v-model="form.name" placeholder="my-pdb" /></el-form-item>
         <el-form-item label="Namespace" required>
           <el-select v-model="form.namespace" placeholder="Select namespace" style="width: 100%;">
@@ -118,6 +118,15 @@ onMounted(fetchNamespaces)
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.page-container {
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
 </style>
