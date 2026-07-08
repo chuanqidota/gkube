@@ -121,12 +121,13 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
       </el-table>
     </el-card>
 
-    <!-- YAML Dialog -->
-    <el-dialog v-model="yamlDialogVisible" title="ReplicaSet YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading">
-        <YamlEditor v-model="yamlContent" height="500px" read-only auto-format />
+    <!-- YAML Drawer -->
+    <el-drawer v-model="yamlDialogVisible" title="ReplicaSet YAML" size="85%" direction="rtl" class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }">
+      <div v-loading="yamlLoading" style="height: 100%;">
+        <YamlEditor v-model="yamlContent" height="calc(100vh - 56px)" read-only auto-format />
       </div>
-    </el-dialog>
+    </el-drawer>
   </div>
 </template>
 
@@ -145,5 +146,13 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 }
 .table-card {
   border-radius: 8px;
+}
+</style>
+
+<style>
+.yaml-drawer .el-drawer__header {
+  padding: 6px 16px;
+  margin-bottom: 0;
+  min-height: auto;
 }
 </style>

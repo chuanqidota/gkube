@@ -2,7 +2,6 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useNamespaceStore } from '@/stores/namespace'
-import YamlEditor from '@/components/YamlEditor.vue'
 
 export interface ResourceListOptions {
   /** Resource display name (e.g. 'Deployment', 'Pod') */
@@ -53,12 +52,13 @@ export function useResourceList(options: ResourceListOptions) {
   const hasMore = ref(false)
   const totalCount = ref(0)
 
-  // YAML dialog state
+  // YAML drawer state
   const yamlDialogVisible = ref(false)
   const yamlContent = ref('')
   const yamlLoading = ref(false)
   const yamlTarget = ref<any>(null)
-  const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
+  const yamlEditing = ref(false)
+  const yamlSaving = ref(false)
 
   // Debounce search input
   let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -156,6 +156,7 @@ export function useResourceList(options: ResourceListOptions) {
   async function handleViewYaml(row: any) {
     yamlTarget.value = row
     yamlDialogVisible.value = true
+    yamlEditing.value = false
     yamlLoading.value = true
     yamlContent.value = ''
     try {
@@ -172,21 +173,48 @@ export function useResourceList(options: ResourceListOptions) {
     }
   }
 
-  async function handleSaveYaml(content: string) {
+  async function fetchYaml() {
+    if (!yamlTarget.value) return
+    yamlLoading.value = true
+    try {
+      const res: any = await options.getYaml({
+        namespace: yamlTarget.value.namespace,
+        name: yamlTarget.value.name,
+      })
+      yamlContent.value = res.data?.yaml || res.data || ''
+    } catch (e: any) {
+      ElMessage.error(e?.message || 'Failed to load YAML')
+    } finally {
+      yamlLoading.value = false
+    }
+  }
+
+  function handleEditYaml() {
+    yamlEditing.value = true
+  }
+
+  async function handleSaveYaml() {
     if (!yamlTarget.value || !options.updateYaml) return
+    yamlSaving.value = true
     try {
       await options.updateYaml({
         namespace: yamlTarget.value.namespace,
         name: yamlTarget.value.name,
-        yaml: content,
+        yaml: yamlContent.value,
       })
       ElMessage.success('YAML saved successfully')
-      yamlDialogVisible.value = false
+      yamlEditing.value = false
       fetchResources()
     } catch (e: any) {
       ElMessage.error(e?.message || 'Failed to save YAML')
-      yamlEditorRef.value?.resetSaving()
+    } finally {
+      yamlSaving.value = false
     }
+  }
+
+  function handleCancelYaml() {
+    yamlEditing.value = false
+    fetchYaml()
   }
 
   function handleDetail(row: any) {
@@ -295,18 +323,21 @@ export function useResourceList(options: ResourceListOptions) {
     fetchNextPage,
     // Namespace
     namespaceList: computed(() => namespaceStore.namespaces),
-    // YAML dialog
+    // YAML drawer
     yamlDialogVisible,
     yamlContent,
     yamlLoading,
     yamlTarget,
-    yamlEditorRef,
+    yamlEditing,
+    yamlSaving,
     // Methods
     fetchResources,
     handleNamespaceChange,
     handleSelectionChange,
     handleViewYaml,
+    handleEditYaml,
     handleSaveYaml,
+    handleCancelYaml,
     handleDetail,
     handleDelete,
     handleBatchDelete,

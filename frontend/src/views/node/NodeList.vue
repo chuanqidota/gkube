@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Search, Plus } from '@element-plus/icons-vue'
-import { getNodeList, getNodeYaml, cordonNode, updateNodeTaints, updateNodeLabels, drainNode, deleteNode, type NodeInfo } from '@/api/resource'
+import { getNodeList, getNodeYaml, updateNodeYaml, cordonNode, updateNodeTaints, updateNodeLabels, drainNode, deleteNode, type NodeInfo } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
@@ -15,6 +15,9 @@ const searchName = ref('')
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
+const yamlTarget = ref<any>(null)
+const yamlEditing = ref(false)
+const yamlSaving = ref(false)
 const taintDialogVisible = ref(false)
 const taintTarget = ref<any>(null)
 const taints = ref<any[]>([])
@@ -54,12 +57,36 @@ function statusType(node: any) {
 }
 
 async function handleViewYaml(row: any) {
-  yamlDialogVisible.value = true; yamlLoading.value = true; yamlContent.value = ''
+  yamlTarget.value = row
+  yamlDialogVisible.value = true; yamlEditing.value = false; yamlLoading.value = true; yamlContent.value = ''
   try {
     const res: any = await getNodeYaml({ name: row.name })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) { ElMessage.error(e?.message || 'Failed to load YAML'); yamlDialogVisible.value = false }
   finally { yamlLoading.value = false }
+}
+
+async function fetchYaml() {
+  if (!yamlTarget.value) return
+  yamlLoading.value = true
+  try {
+    const res: any = await getNodeYaml({ name: yamlTarget.value.name })
+    yamlContent.value = res.data?.yaml || res.data || ''
+  } catch (e: any) { ElMessage.error(e?.message || 'Failed to load YAML') }
+  finally { yamlLoading.value = false }
+}
+
+async function handleSaveYaml() {
+  if (!yamlTarget.value) return
+  yamlSaving.value = true
+  try {
+    await updateNodeYaml({ name: yamlTarget.value.name, yaml: yamlContent.value })
+    ElMessage.success('YAML 保存成功')
+    yamlEditing.value = false
+    fetchNodes()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '保存 YAML 失败')
+  } finally { yamlSaving.value = false }
 }
 
 function handleDetail(row: any) { router.push(`/nodes/${row.name}`) }
@@ -203,10 +230,20 @@ onMounted(fetchNodes)
       </el-table>
     </el-card>
 
-    <!-- YAML Dialog -->
-    <el-dialog v-model="yamlDialogVisible" title="节点 YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
-    </el-dialog>
+    <!-- YAML Drawer -->
+    <el-drawer v-model="yamlDialogVisible" title="节点 YAML" size="85%" direction="rtl" class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }">
+      <div style="padding: 6px 12px; display: flex; gap: 8px; border-bottom: 1px solid var(--el-border-color-lighter);">
+        <el-button v-if="!yamlEditing" size="small" type="primary" @click="yamlEditing = true">编辑</el-button>
+        <template v-else>
+          <el-button size="small" type="success" :loading="yamlSaving" @click="handleSaveYaml">保存</el-button>
+          <el-button size="small" @click="yamlEditing = false; fetchYaml()">取消</el-button>
+        </template>
+      </div>
+      <div v-loading="yamlLoading" style="height: calc(100vh - 90px);">
+        <YamlEditor v-model="yamlContent" height="100%" :read-only="!yamlEditing" auto-format show-toolbar />
+      </div>
+    </el-drawer>
 
     <!-- Taints Dialog -->
     <el-dialog v-model="taintDialogVisible" title="管理污点" width="600px">
@@ -277,4 +314,12 @@ onMounted(fetchNodes)
 .filter-card { margin-bottom: 16px; }
 .filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .table-card { border-radius: 8px; }
+</style>
+
+<style>
+.yaml-drawer .el-drawer__header {
+  padding: 6px 16px;
+  margin-bottom: 0;
+  min-height: auto;
+}
 </style>

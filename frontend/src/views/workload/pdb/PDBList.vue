@@ -129,9 +129,13 @@ onMounted(() => { fetchNamespaces(); fetchPdbs() })
         </el-table-column>
       </el-table>
     </el-card>
-    <el-dialog v-model="yamlDialogVisible" title="PDB YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
-    </el-dialog>
+    <!-- YAML Drawer -->
+    <el-drawer v-model="yamlDialogVisible" title="PDB YAML" size="85%" direction="rtl" class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }">
+      <div v-loading="yamlLoading" style="height: 100%;">
+        <YamlEditor v-model="yamlContent" height="calc(100vh - 56px)" read-only auto-format />
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -140,4 +144,12 @@ onMounted(() => { fetchNamespaces(); fetchPdbs() })
 .filter-card { margin-bottom: 16px; }
 .filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .table-card { border-radius: 8px; }
+</style>
+
+<style>
+.yaml-drawer .el-drawer__header {
+  padding: 6px 16px;
+  margin-bottom: 0;
+  min-height: auto;
+}
 </style>

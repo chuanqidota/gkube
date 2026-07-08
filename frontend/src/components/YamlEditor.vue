@@ -1,5 +1,5 @@
 <template>
-  <div class="yaml-editor">
+  <div class="yaml-editor" :style="{ height: height }">
     <div class="yaml-editor-toolbar" v-if="showToolbar && (saveable || title || editable)">
       <!-- Left: Edit/Save/Cancel -->
       <div class="toolbar-left">
@@ -36,7 +36,7 @@
       :value="displayValue"
       :options="editorOptions"
       language="yaml"
-      :style="{ height: height }"
+      style="flex: 1; min-height: 0;"
       @update:value="handleChange"
       @mount="handleEditorMount"
     />
@@ -114,7 +114,7 @@ const editorOptions = computed(() => ({
   lineNumbers: 'on',
   scrollBeyondLastLine: false,
   wordWrap: 'on',
-  readOnly: !isEditing.value && (props.readOnly || !props.editable),
+  readOnly: props.saveable ? (!isEditing.value) : props.readOnly,
   automaticLayout: true,
   tabSize: 2,
 }))
@@ -205,6 +205,8 @@ defineExpose({ saving, resetSaving, handleFormat, handleCopy })
   border: 1px solid var(--gk-color-border);
   border-radius: 4px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .yaml-editor-toolbar {
   padding: 6px 12px;

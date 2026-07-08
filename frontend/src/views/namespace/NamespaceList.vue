@@ -33,12 +33,13 @@ const createForm = ref({
   annotations: [] as Array<{ key: string; value: string }>,
 })
 
-// YAML dialog
+// YAML drawer
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
 const yamlTarget = ref<Namespace | null>(null)
-const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
+const yamlEditing = ref(false)
+const yamlSaving = ref(false)
 
 // Labels dialog
 const labelsDialogVisible = ref(false)
@@ -128,6 +129,7 @@ async function handleDelete(row: Namespace) {
 async function handleViewYaml(row: Namespace) {
   yamlTarget.value = row
   yamlDialogVisible.value = true
+  yamlEditing.value = false
   yamlLoading.value = true
   yamlContent.value = ''
   try {
@@ -141,17 +143,41 @@ async function handleViewYaml(row: Namespace) {
   }
 }
 
-async function handleSaveYaml(content: string) {
+async function fetchYaml() {
   if (!yamlTarget.value) return
+  yamlLoading.value = true
   try {
-    await updateNamespace({ yaml: content })
+    const res: any = await getNamespaceYaml({ name: yamlTarget.value.name })
+    yamlContent.value = res.data?.yaml || res.data || ''
+  } catch (e: any) {
+    ElMessage.error(e?.message || '加载 YAML 失败')
+  } finally {
+    yamlLoading.value = false
+  }
+}
+
+function handleEditYaml() {
+  yamlEditing.value = true
+}
+
+async function handleSaveYaml() {
+  if (!yamlTarget.value) return
+  yamlSaving.value = true
+  try {
+    await updateNamespace({ yaml: yamlContent.value })
     ElMessage.success('YAML 已保存')
-    yamlDialogVisible.value = false
+    yamlEditing.value = false
     fetchNamespaces()
   } catch (e: any) {
     ElMessage.error(e?.message || '保存 YAML 失败')
-    yamlEditorRef.value?.resetSaving()
+  } finally {
+    yamlSaving.value = false
   }
+}
+
+function handleCancelYaml() {
+  yamlEditing.value = false
+  fetchYaml()
 }
 
 // Labels
@@ -286,20 +312,20 @@ onMounted(fetchNamespaces)
       </template>
     </el-dialog>
 
-    <!-- YAML Dialog -->
-    <el-dialog v-model="yamlDialogVisible" :title="`命名空间 YAML: ${yamlTarget?.name}`" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading">
-        <YamlEditor
-          ref="yamlEditorRef"
-          v-model="yamlContent"
-          height="600px"
-          :read-only="false"
-          :saveable="true"
-          auto-format
-          @save="handleSaveYaml"
-        />
+    <!-- YAML Drawer -->
+    <el-drawer v-model="yamlDialogVisible" :title="`命名空间 YAML: ${yamlTarget?.name}`" size="85%" direction="rtl" class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }">
+      <div style="padding: 6px 12px; display: flex; gap: 8px; border-bottom: 1px solid var(--el-border-color-lighter);">
+        <el-button v-if="!yamlEditing" size="small" type="primary" @click="handleEditYaml">编辑</el-button>
+        <template v-else>
+          <el-button size="small" type="success" :loading="yamlSaving" @click="handleSaveYaml">保存</el-button>
+          <el-button size="small" @click="handleCancelYaml">取消</el-button>
+        </template>
       </div>
-    </el-dialog>
+      <div v-loading="yamlLoading" style="height: calc(100vh - 90px);">
+        <YamlEditor v-model="yamlContent" height="100%" :read-only="!yamlEditing" auto-format />
+      </div>
+    </el-drawer>
 
     <!-- Labels Dialog -->
     <el-dialog v-model="labelsDialogVisible" :title="`管理标签: ${labelsTarget?.name}`" width="600px" destroy-on-close>
@@ -327,4 +353,12 @@ onMounted(fetchNamespaces)
 .filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .table-card { border-radius: 8px; }
 .total-count { color: var(--el-text-color-secondary); font-size: 13px; margin-left: auto; }
+</style>
+
+<style>
+.yaml-drawer .el-drawer__header {
+  padding: 6px 16px;
+  margin-bottom: 0;
+  min-height: auto;
+}
 </style>

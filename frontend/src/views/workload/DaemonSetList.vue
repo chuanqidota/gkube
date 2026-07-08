@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { Plus, Delete, Search } from '@element-plus/icons-vue'
 import {
   getDaemonSetList,
@@ -13,9 +12,6 @@ import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
-// @ts-ignore -- used as template ref for YamlEditor component
-const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
-
 const {
   loading,
   filteredList,
@@ -27,6 +23,8 @@ const {
   yamlDialogVisible,
   yamlContent,
   yamlLoading,
+  yamlEditing,
+  yamlSaving,
   hasMore,
   totalCount,
   fetchResources,
@@ -34,7 +32,9 @@ const {
   handleNamespaceChange,
   handleSelectionChange,
   handleViewYaml,
+  handleEditYaml,
   handleSaveYaml,
+  handleCancelYaml,
   handleDetail,
   handleDelete,
   handleBatchDelete,
@@ -137,20 +137,20 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
       </div>
     </el-card>
 
-    <!-- YAML Dialog -->
-    <el-dialog v-model="yamlDialogVisible" title="DaemonSet YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading">
-        <YamlEditor
-          ref="yamlEditorRef"
-          v-model="yamlContent"
-          height="600px"
-          :read-only="false"
-          :saveable="true"
-          auto-format
-          @save="handleSaveYaml"
-        />
+    <!-- YAML Drawer -->
+    <el-drawer v-model="yamlDialogVisible" title="DaemonSet YAML" size="85%" direction="rtl" class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }">
+      <div style="padding: 6px 12px; display: flex; gap: 8px; border-bottom: 1px solid var(--el-border-color-lighter);">
+        <el-button v-if="!yamlEditing" size="small" type="primary" @click="handleEditYaml">编辑</el-button>
+        <template v-else>
+          <el-button size="small" type="success" :loading="yamlSaving" @click="handleSaveYaml">保存</el-button>
+          <el-button size="small" @click="handleCancelYaml">取消</el-button>
+        </template>
       </div>
-    </el-dialog>
+      <div v-loading="yamlLoading" style="height: calc(100vh - 90px);">
+        <YamlEditor v-model="yamlContent" height="100%" :read-only="!yamlEditing" auto-format />
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -180,5 +180,13 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
   justify-content: center;
   padding: 12px 0;
   border-top: 1px solid var(--el-border-color-lighter);
+}
+</style>
+
+<style>
+.yaml-drawer .el-drawer__header {
+  padding: 6px 16px;
+  margin-bottom: 0;
+  min-height: auto;
 }
 </style>

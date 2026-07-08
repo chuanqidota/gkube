@@ -150,12 +150,13 @@ function statusType(status: string) {
       </div>
     </el-card>
 
-    <!-- YAML Dialog -->
-    <el-dialog v-model="yamlDialogVisible" title="Pod YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading">
-        <YamlEditor v-model="yamlContent" height="500px" read-only auto-format />
+    <!-- YAML Drawer -->
+    <el-drawer v-model="yamlDialogVisible" title="Pod YAML" size="85%" direction="rtl" class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }">
+      <div v-loading="yamlLoading" style="height: 100%;">
+        <YamlEditor v-model="yamlContent" height="calc(100vh - 56px)" read-only auto-format />
       </div>
-    </el-dialog>
+    </el-drawer>
   </div>
 </template>
 
@@ -185,5 +186,13 @@ function statusType(status: string) {
   justify-content: center;
   padding: 12px 0;
   border-top: 1px solid var(--el-border-color-lighter);
+}
+</style>
+
+<style>
+.yaml-drawer .el-drawer__header {
+  padding: 6px 16px;
+  margin-bottom: 0;
+  min-height: auto;
 }
 </style>
