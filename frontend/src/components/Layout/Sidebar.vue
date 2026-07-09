@@ -90,11 +90,11 @@
           <el-icon><Share /></el-icon>
           <span>{{ t('sidebar.network') }}</span>
         </template>
-        <el-menu-item index="/services" @click="navigateTo('/services')">
+        <el-menu-item index="/network/services" @click="navigateTo('/network/services')">
           <el-icon><Connection /></el-icon>
           <template #title>{{ t('sidebar.services') }}</template>
         </el-menu-item>
-        <el-menu-item index="/ingresses" @click="navigateTo('/ingresses')">
+        <el-menu-item index="/network/ingresses" @click="navigateTo('/network/ingresses')">
           <el-icon><Link /></el-icon>
           <template #title>{{ t('sidebar.ingresses') }}</template>
         </el-menu-item>

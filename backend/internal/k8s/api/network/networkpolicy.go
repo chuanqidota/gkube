@@ -1,9 +1,11 @@
 package network
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"gkube/pkg/k8s"
 	k8sNp "gkube/pkg/k8s/networkpolicy"
 	"gkube/pkg/response"
@@ -168,4 +170,40 @@ func (np *networkPolicy) DeleteNetworkPolicy(c *gin.Context) {
 		return
 	}
 	response.Success(c, "删除NetworkPolicy成功", nil)
+}
+
+func (np *networkPolicy) GetNetworkPolicyEvents(c *gin.Context) {
+	namespace := c.Query("namespace")
+	name := c.Query("name")
+	clusterName := c.Query("clusterName")
+	if name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(clusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	events, err := client.CoreV1().Events(namespace).List(context.TODO(), metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=NetworkPolicy", name),
+	})
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取NetworkPolicy事件失败:%s", err.Error()))
+		return
+	}
+	var result []map[string]any
+	for _, event := range events.Items {
+		lastSeen := ""
+		if !event.LastTimestamp.IsZero() {
+			lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
+		}
+		result = append(result, map[string]any{
+			"type":      event.Type,
+			"reason":    event.Reason,
+			"message":   event.Message,
+			"last_seen": lastSeen,
+		})
+	}
+	response.Success(c, "执行成功", result)
 }

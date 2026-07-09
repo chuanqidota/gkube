@@ -248,6 +248,10 @@ export function updateService(data: { namespace: string; name: string; yaml: str
   return request.put('/k8s/service/update', data)
 }
 
+export function updateServiceYaml(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/service/update', data)
+}
+
 export function getServiceEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/service/events', { params })
 }
@@ -385,6 +389,10 @@ export function deleteIngress(data: { namespace: string; name: string }) {
 }
 
 export function updateIngress(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/ingress/update', data)
+}
+
+export function updateIngressYaml(data: { namespace: string; name: string; yaml: string }) {
   return request.put('/k8s/ingress/update', data)
 }
 
@@ -677,6 +685,22 @@ export function getNetworkPolicyList(params?: { namespace?: string }) {
   return request.get('/k8s/networkpolicy/list', { params })
 }
 
+/**
+ * Transform raw K8s NetworkPolicy objects into simplified display format.
+ */
+export function transformNetworkPolicies(items: any[]) {
+  if (!Array.isArray(items)) return []
+  return items.map((np: any) => ({
+    name: np.metadata?.name || '',
+    namespace: np.metadata?.namespace || '',
+    pod_selector: Object.entries(np.spec?.podSelector?.matchLabels || {}).map(([k, v]) => `${k}=${v}`).join(', ') || 'All',
+    policy_types: np.spec?.policyTypes || [],
+    ingress_rules: np.spec?.ingress?.length || 0,
+    egress_rules: np.spec?.egress?.length || 0,
+    age: calcAge(np.metadata?.creationTimestamp),
+  }))
+}
+
 export function getNetworkPolicyDetail(params: { namespace: string; name: string }) {
   return request.get('/k8s/networkpolicy/detail', { params })
 }
@@ -693,8 +717,16 @@ export function updateNetworkPolicy(data: { namespace: string; yaml: string }) {
   return request.put('/k8s/networkpolicy/update', data)
 }
 
+export function updateNetworkPolicyYaml(data: { namespace: string; name: string; yaml: string }) {
+  return request.put('/k8s/networkpolicy/update', data)
+}
+
 export function deleteNetworkPolicy(params: { namespace: string; name: string }) {
   return request.delete('/k8s/networkpolicy/delete', { params })
+}
+
+export function getNetworkPolicyEvents(params: { namespace: string; name: string }) {
+  return request.get('/k8s/networkpolicy/events', { params })
 }
 
 // RBAC - ServiceAccount

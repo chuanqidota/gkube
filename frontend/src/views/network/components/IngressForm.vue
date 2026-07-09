@@ -2,23 +2,19 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Delete, Plus } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import YamlEditor from '@/components/YamlEditor.vue'
 import { getNamespaceList, createIngress, extractNamespaceNames } from '@/api/resource'
 
 const router = useRouter()
-const currentStep = ref(0)
 const submitting = ref(false)
 const namespaceLoading = ref(false)
 const namespaces = ref<string[]>([])
 
 // ---- Form Data ----
 
-interface Label {
-  key: string
-  value: string
-}
+interface Label { key: string; value: string }
 
 interface IngressRule {
   host: string
@@ -55,25 +51,17 @@ const form = reactive<FormData>({
 
 // ---- Validation ----
 
-const step0FormRef = ref<FormInstance>()
+const formRef = ref<FormInstance>()
 
-const step0Rules: FormRules = {
+const formRules: FormRules = {
   name: [
-    { required: true, message: 'Name is required', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: 'Lowercase letters, numbers, hyphens only. Must start with letter, end with alphanumeric.', trigger: 'blur' },
-    { max: 253, message: 'Max 253 characters', trigger: 'blur' },
+    { required: true, message: '请输入名称', trigger: 'blur' },
+    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符，以字母开头', trigger: 'blur' },
+    { max: 253, message: '最长 253 个字符', trigger: 'blur' },
   ],
-  namespace: [{ required: true, message: 'Namespace is required', trigger: 'change' }],
-  ingressClassName: [{ required: true, message: 'Ingress class name is required', trigger: 'blur' }],
+  namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
+  ingressClassName: [{ required: true, message: '请输入 Ingress Class 名称', trigger: 'blur' }],
 }
-
-// ---- Steps ----
-
-const steps = [
-  { title: 'Basic Info', icon: 'Document' },
-  { title: 'Rules & TLS', icon: 'Connection' },
-  { title: 'YAML Preview', icon: 'View' },
-]
 
 // ---- Namespace Fetch ----
 
@@ -93,87 +81,25 @@ onMounted(fetchNamespaces)
 
 // ---- Label Management ----
 
-function addLabel() {
-  form.labels.push({ key: '', value: '' })
-}
-
-function removeLabel(index: number) {
-  form.labels.splice(index, 1)
-}
+function addLabel() { form.labels.push({ key: '', value: '' }) }
+function removeLabel(i: number) { form.labels.splice(i, 1) }
 
 // ---- Rule Management ----
 
 function addRule() {
   form.rules.push({ host: '', path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 })
 }
-
-function removeRule(index: number) {
-  if (form.rules.length <= 1) {
-    ElMessage.warning('At least one rule is required')
-    return
-  }
-  form.rules.splice(index, 1)
+function removeRule(i: number) {
+  if (form.rules.length <= 1) { ElMessage.warning('至少需要一条规则'); return }
+  form.rules.splice(i, 1)
 }
 
 // ---- TLS Management ----
 
-function addTls() {
-  form.tls.push({ hosts: '', secretName: '' })
-}
-
-function removeTls(index: number) {
-  if (form.tls.length <= 1) {
-    ElMessage.warning('At least one TLS entry is required')
-    return
-  }
-  form.tls.splice(index, 1)
-}
-
-// ---- Step Navigation ----
-
-async function handleNext() {
-  if (currentStep.value === 0) {
-    const valid = await step0FormRef.value?.validate().catch(() => false)
-    if (!valid) return
-  }
-  if (currentStep.value === 1) {
-    const valid = validateRules()
-    if (!valid) return
-  }
-  if (currentStep.value < 2) {
-    currentStep.value++
-  }
-}
-
-function handlePrev() {
-  if (currentStep.value > 0) {
-    currentStep.value--
-  }
-}
-
-function handleStepClick(step: number) {
-  if (step <= currentStep.value) {
-    currentStep.value = step
-  }
-}
-
-function validateRules(): boolean {
-  for (let i = 0; i < form.rules.length; i++) {
-    const r = form.rules[i]
-    if (!r.host.trim()) {
-      ElMessage.error(`Rule ${i + 1}: host is required`)
-      return false
-    }
-    if (!r.backendService.trim()) {
-      ElMessage.error(`Rule ${i + 1}: backend service name is required`)
-      return false
-    }
-    if (!r.backendPort) {
-      ElMessage.error(`Rule ${i + 1}: backend port is required`)
-      return false
-    }
-  }
-  return true
+function addTls() { form.tls.push({ hosts: '', secretName: '' }) }
+function removeTls(i: number) {
+  if (form.tls.length <= 1) { ElMessage.warning('至少需要一条 TLS 配置'); return }
+  form.tls.splice(i, 1)
 }
 
 // ---- YAML Generation ----
@@ -185,43 +111,30 @@ const generatedYaml = computed(() => {
 
 function buildK8sIngress(): Record<string, any> {
   const labels: Record<string, string> = {}
-  form.labels.forEach((l) => {
-    if (l.key.trim()) labels[l.key.trim()] = l.value
-  })
+  form.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
 
   const rules = form.rules
-    .filter((r) => r.host.trim())
-    .map((r) => ({
+    .filter(r => r.host.trim())
+    .map(r => ({
       host: r.host.trim(),
       http: {
-        paths: [
-          {
-            path: r.path,
-            pathType: r.pathType,
-            backend: {
-              service: {
-                name: r.backendService,
-                port: {
-                  number: r.backendPort,
-                },
-              },
+        paths: [{
+          path: r.path,
+          pathType: r.pathType,
+          backend: {
+            service: {
+              name: r.backendService,
+              port: { number: r.backendPort },
             },
           },
-        ],
+        }],
       },
     }))
 
   const resource: Record<string, any> = {
     apiVersion: 'networking.k8s.io/v1',
     kind: 'Ingress',
-    metadata: {
-      name: form.name,
-      namespace: form.namespace,
-      labels: { ...labels },
-      annotations: {
-        'kubernetes.io/ingress.class': form.ingressClassName,
-      },
-    },
+    metadata: { name: form.name, namespace: form.namespace, labels: { ...labels } },
     spec: {
       ingressClassName: form.ingressClassName,
       rules,
@@ -230,14 +143,12 @@ function buildK8sIngress(): Record<string, any> {
 
   if (form.tlsEnabled) {
     const tls = form.tls
-      .filter((t) => t.hosts.trim())
-      .map((t) => ({
-        hosts: t.hosts.split(',').map((h) => h.trim()).filter(Boolean),
+      .filter(t => t.hosts.trim())
+      .map(t => ({
+        hosts: t.hosts.split(',').map(h => h.trim()).filter(Boolean),
         secretName: t.secretName,
       }))
-    if (tls.length > 0) {
-      resource.spec.tls = tls
-    }
+    if (tls.length > 0) resource.spec.tls = tls
   }
 
   return resource
@@ -246,251 +157,193 @@ function buildK8sIngress(): Record<string, any> {
 // ---- Submit ----
 
 async function handleSubmit() {
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
+  for (let i = 0; i < form.rules.length; i++) {
+    const r = form.rules[i]
+    if (!r.host.trim()) { ElMessage.error(`规则 ${i + 1}: Host 不能为空`); return }
+    if (!r.backendService.trim()) { ElMessage.error(`规则 ${i + 1}: 后端 Service 名称不能为空`); return }
+    if (!r.backendPort) { ElMessage.error(`规则 ${i + 1}: 后端端口不能为空`); return }
+  }
+
   submitting.value = true
   try {
-    const yaml = generatedYaml.value
-    await createIngress({
-      namespace: form.namespace,
-      yaml,
-    })
-    ElMessage.success('Ingress created successfully')
-    router.push('/ingresses')
+    await createIngress({ namespace: form.namespace, yaml: generatedYaml.value })
+    ElMessage.success('Ingress 创建成功')
+    router.push('/network/ingresses')
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Create failed')
+    ElMessage.error(e?.message || '创建失败')
   } finally {
     submitting.value = false
   }
 }
 
-function handleCancel() {
-  router.push('/ingresses')
-}
+function handleCancel() { router.push('/network/ingresses') }
 </script>
 
 <template>
   <div class="ingress-form">
-    <!-- Header -->
-    <div class="form-header">
-      <h2>创建 Ingress</h2>
-    </div>
+    <el-form ref="formRef" :model="form" :rules="formRules" label-position="top">
 
-    <!-- Steps -->
-    <el-steps :active="currentStep" finish-status="success" align-center style="margin-bottom: 32px;">
-      <el-step
-        v-for="(step, index) in steps"
-        :key="index"
-        :title="step.title"
-        :icon="step.icon"
-        @click="handleStepClick(index)"
-        style="cursor: pointer;"
-      />
-    </el-steps>
+      <!-- Section 1: Basic Info -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">基本信息</div>
+        </div>
+        <div class="section-content">
+          <div class="fields-grid">
+            <el-form-item label="名称" prop="name">
+              <el-input v-model="form.name" placeholder="my-ingress" />
+            </el-form-item>
+            <el-form-item label="命名空间" prop="namespace">
+              <el-select v-model="form.namespace" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+                <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Ingress Class Name" prop="ingressClassName">
+              <el-input v-model="form.ingressClassName" placeholder="nginx" />
+            </el-form-item>
+          </div>
+        </div>
+      </div>
 
-    <!-- Step Content -->
-    <div class="step-content">
-
-      <!-- Step 0: Basic Info -->
-      <div v-show="currentStep === 0">
-        <el-form
-          ref="step0FormRef"
-          :model="form"
-          :rules="step0Rules"
-          label-width="180px"
-          style="max-width: 700px;"
-        >
-          <el-form-item label="Name" prop="name">
-            <el-input v-model="form.name" placeholder="e.g. my-ingress" />
-          </el-form-item>
-
-          <el-form-item label="Namespace" prop="namespace">
-            <el-select
-              v-model="form.namespace"
-              filterable
-              placeholder="Select namespace"
-              style="width: 100%;"
-              :loading="namespaceLoading"
-            >
-              <el-option
-                v-for="ns in namespaces"
-                :key="ns"
-                :label="ns"
-                :value="ns"
-              />
-            </el-select>
-          </el-form-item>
-
-          <el-form-item label="Ingress Class Name" prop="ingressClassName">
-            <el-input v-model="form.ingressClassName" placeholder="e.g. nginx" />
-          </el-form-item>
-
-          <el-form-item label="Labels">
+      <!-- Section 2: Labels -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">标签</div>
+        </div>
+        <div class="section-content">
+          <el-form-item label="标签">
             <div style="width: 100%;">
-              <div
-                v-for="(label, index) in form.labels"
-                :key="index"
-                style="display: flex; gap: 8px; margin-bottom: 8px;"
-              >
-                <el-input v-model="label.key" placeholder="Key" style="flex: 1;" />
-                <el-input v-model="label.value" placeholder="Value" style="flex: 1;" />
-                <el-button
-                  type="danger"
-                  circle
-                  :disabled="form.labels.length <= 1"
-                  @click="removeLabel(index)"
-                >
+              <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
+                <el-input v-model="label.key" placeholder="Key" />
+                <el-input v-model="label.value" placeholder="Value" />
+                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="removeLabel(i)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button @click="addLabel" size="small">
-                <el-icon><Plus /></el-icon> Add Label
+              <el-button text type="primary" @click="addLabel" size="small">
+                <el-icon><Plus /></el-icon> 添加标签
               </el-button>
             </div>
           </el-form-item>
-        </el-form>
+        </div>
       </div>
 
-      <!-- Step 1: Rules & TLS -->
-      <div v-show="currentStep === 1">
-        <el-form label-width="180px" style="max-width: 700px;">
-          <!-- Rules -->
-          <el-form-item label="Rules" required>
+      <!-- Section 3: Rules -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">路由规则</div>
+        </div>
+        <div class="section-content">
+          <el-form-item label="规则" required>
             <div style="width: 100%;">
-              <div
-                v-for="(rule, ri) in form.rules"
-                :key="ri"
-                class="rule-card"
-              >
-                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px;">
-                  <el-input v-model="rule.host" placeholder="Host (e.g. example.com)" style="flex: 1; min-width: 200px;" />
-                  <el-input v-model="rule.path" placeholder="Path" style="width: 150px;" />
-                  <el-select v-model="rule.pathType" style="width: 130px;">
+              <div v-for="(rule, ri) in form.rules" :key="ri" class="rule-card">
+                <div class="rule-row-top">
+                  <el-input v-model="rule.host" placeholder="Host (如 example.com)" style="flex: 2;" />
+                  <el-input v-model="rule.path" placeholder="Path" style="flex: 1;" />
+                  <el-select v-model="rule.pathType" style="width: 160px;">
                     <el-option label="Prefix" value="Prefix" />
                     <el-option label="Exact" value="Exact" />
                     <el-option label="ImplementationSpecific" value="ImplementationSpecific" />
                   </el-select>
-                  <el-button type="danger" circle size="small" @click="removeRule(ri)">
+                  <el-button type="danger" text circle @click="removeRule(ri)">
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                  <span style="font-size: 13px; color: var(--gk-color-text-primary); white-space: nowrap;">Backend:</span>
-                  <el-input v-model="rule.backendService" placeholder="Service name" style="flex: 1;" />
-                  <el-input-number v-model="rule.backendPort" :min="1" :max="65535" placeholder="Port" style="width: 140px;" />
+                <div class="rule-row-bottom">
+                  <span class="backend-label">后端:</span>
+                  <el-input v-model="rule.backendService" placeholder="Service 名称" style="flex: 1;" />
+                  <el-input-number v-model="rule.backendPort" :min="1" :max="65535" placeholder="端口" style="width: 140px;" />
                 </div>
               </div>
-              <el-button size="small" @click="addRule">
-                <el-icon><Plus /></el-icon> Add Rule
+              <el-button text type="primary" size="small" @click="addRule">
+                <el-icon><Plus /></el-icon> 添加规则
               </el-button>
             </div>
           </el-form-item>
+        </div>
+      </div>
 
-          <!-- TLS -->
-          <el-form-item label="Enable TLS">
+      <!-- Section 4: TLS -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">TLS 配置</div>
+        </div>
+        <div class="section-content">
+          <el-form-item label="启用 TLS">
             <el-switch v-model="form.tlsEnabled" />
           </el-form-item>
-
           <template v-if="form.tlsEnabled">
-            <el-form-item label="TLS Configuration">
+            <el-form-item label="TLS 配置">
               <div style="width: 100%;">
-                <div
-                  v-for="(t, ti) in form.tls"
-                  :key="ti"
-                  class="tls-card"
-                >
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                    <el-input v-model="t.hosts" placeholder="Hosts (comma-separated)" style="flex: 1;" />
-                    <el-input v-model="t.secretName" placeholder="Secret name" style="width: 200px;" />
-                    <el-button type="danger" circle size="small" @click="removeTls(ti)">
+                <div v-for="(t, ti) in form.tls" :key="ti" class="tls-card">
+                  <div class="tls-row">
+                    <el-input v-model="t.hosts" placeholder="Hosts (逗号分隔)" style="flex: 1;" />
+                    <el-input v-model="t.secretName" placeholder="Secret 名称" style="width: 200px;" />
+                    <el-button type="danger" text circle @click="removeTls(ti)">
                       <el-icon><Delete /></el-icon>
                     </el-button>
                   </div>
                 </div>
-                <el-button size="small" @click="addTls">
-                  <el-icon><Plus /></el-icon> Add TLS Entry
+                <el-button text type="primary" size="small" @click="addTls">
+                  <el-icon><Plus /></el-icon> 添加 TLS
                 </el-button>
               </div>
             </el-form-item>
           </template>
-        </el-form>
+        </div>
       </div>
 
-      <!-- Step 2: YAML Preview -->
-      <div v-show="currentStep === 2">
-        <el-alert
-          title="Generated Ingress YAML"
-          description="Review the generated YAML below before creating the resource."
-          type="info"
-          :closable="false"
-          show-icon
-          style="margin-bottom: 16px;"
-        />
-        <YamlEditor
-          :model-value="generatedYaml"
-          height="500px"
-          read-only
-        />
+      <!-- Submit Button -->
+      <div class="form-section">
+        <div class="section-sidebar"></div>
+        <div class="section-content">
+          <div class="form-actions">
+            <el-button @click="handleCancel">取消</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
+          </div>
+        </div>
       </div>
-    </div>
-
-    <!-- Navigation Buttons -->
-    <div class="form-actions">
-      <el-button @click="handleCancel">取消</el-button>
-      <el-button v-if="currentStep > 0" @click="handlePrev">Previous</el-button>
-      <el-button
-        v-if="currentStep < 2"
-        type="primary"
-        @click="handleNext"
-      >
-        Next
-      </el-button>
-      <el-button
-        v-if="currentStep === 2"
-        type="primary"
-        :loading="submitting"
-        @click="handleSubmit"
-      >
-        Create Ingress
-      </el-button>
-    </div>
+    </el-form>
   </div>
 </template>
 
 <style scoped>
 .ingress-form {
-  max-width: 900px;
+  padding: 0 40px;
+  max-width: 1000px;
   margin: 0 auto;
-  padding: 20px 0;
 }
 
-.form-header {
-  margin-bottom: 24px;
+/* Section layout with sidebar titles */
+.form-section {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 32px;
+  align-items: flex-start;
 }
 
-.form-header h2 {
-  margin: 0;
-  font-size: 20px;
+.section-sidebar {
+  width: 120px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 20px;
+}
+
+.section-title {
+  font-size: 15px;
   font-weight: 600;
+  color: var(--el-color-primary);
+  padding: 12px 16px;
+  background: var(--el-fill-color-lighter);
+  border-left: 3px solid var(--el-color-primary);
+  border-radius: 0 4px 4px 0;
 }
 
-.step-content {
-  min-height: 400px;
-  padding: 16px 0;
-}
-
-.rule-card {
-  border: 1px solid var(--gk-color-border);
-  border-radius: 6px;
-  padding: 12px;
-  margin-bottom: 8px;
-  background: var(--gk-neutral-50);
-}
-
-.tls-card {
-  border: 1px solid var(--gk-color-border);
-  border-radius: 6px;
-  padding: 12px;
-  margin-bottom: 8px;
-  background: var(--gk-neutral-50);
+.section-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .form-actions {
@@ -498,7 +351,76 @@ function handleCancel() {
   justify-content: flex-end;
   gap: 12px;
   padding-top: 24px;
-  border-top: 1px solid var(--gk-color-border);
-  margin-top: 24px;
+  border-top: 1px solid var(--el-border-color-light);
+}
+
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 32px;
+}
+
+.fields-grid :deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+
+.fields-grid :deep(.el-form-item:last-child) {
+  margin-bottom: 0;
+}
+
+/* Key-value rows */
+.kv-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.kv-row :deep(.el-input) {
+  flex: 1;
+}
+
+/* Rule cards */
+.rule-card {
+  border: 1px solid var(--el-border-color-extra-light);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 8px;
+  background: var(--el-fill-color-lighter);
+}
+
+.rule-row-top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.rule-row-bottom {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.backend-label {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  white-space: nowrap;
+}
+
+/* TLS cards */
+.tls-card {
+  border: 1px solid var(--el-border-color-extra-light);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 8px;
+  background: var(--el-fill-color-lighter);
+}
+
+.tls-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 </style>

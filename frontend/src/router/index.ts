@@ -406,19 +406,19 @@ const router = createRouter({
         },
         // Network - Service
         {
-          path: 'services',
+          path: 'network/services',
           name: 'ServiceList',
           component: () => import('@/views/network/ServiceList.vue'),
           meta: { title: 'Service', icon: 'Connection' },
         },
         {
-          path: 'services/create',
+          path: 'network/services/create',
           name: 'ServiceCreate',
           component: () => import('@/views/network/ServiceCreate.vue'),
           meta: { title: '创建Service', parent: 'ServiceList' },
         },
         {
-          path: 'services/:namespace/:name',
+          path: 'network/services/:namespace/:name',
           name: 'ServiceDetail',
           component: () => import('@/views/network/ServiceDetail.vue'),
           props: true,
@@ -426,19 +426,19 @@ const router = createRouter({
         },
         // Network - Ingress
         {
-          path: 'ingresses',
+          path: 'network/ingresses',
           name: 'IngressList',
           component: () => import('@/views/network/IngressList.vue'),
           meta: { title: 'Ingress', icon: 'Link' },
         },
         {
-          path: 'ingresses/create',
+          path: 'network/ingresses/create',
           name: 'IngressCreate',
           component: () => import('@/views/network/IngressCreate.vue'),
           meta: { title: '创建Ingress', parent: 'IngressList' },
         },
         {
-          path: 'ingresses/:namespace/:name',
+          path: 'network/ingresses/:namespace/:name',
           name: 'IngressDetail',
           component: () => import('@/views/network/IngressDetail.vue'),
           props: true,

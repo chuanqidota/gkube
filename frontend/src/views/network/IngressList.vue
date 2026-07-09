@@ -1,113 +1,74 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getIngressList, getIngressYaml, updateIngress, deleteIngress, getNamespaceList, extractNamespaceNames, transformIngresses } from '@/api/resource'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
-import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import {
+  getIngressList,
+  getIngressYaml,
+  updateIngressYaml,
+  deleteIngress,
+  transformIngresses,
+} from '@/api/resource'
+import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
+import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
-const router = useRouter()
-const loading = ref(false)
-const ingressList = ref<any[]>([])
-const namespaceList = ref<string[]>([])
-const selectedNamespace = ref('')
-const searchName = ref('')
-const selectedRows = ref<any[]>([])
-const yamlDialogVisible = ref(false)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
-const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
-const currentYamlRow = ref<any>(null)
-
-const filteredList = computed(() => {
-  if (!searchName.value) return ingressList.value
-  const keyword = searchName.value.toLowerCase()
-  return ingressList.value.filter((d) => d.name?.toLowerCase().includes(keyword))
+const {
+  loading,
+  filteredList,
+  selectedNamespace,
+  searchName,
+  onSearchInput,
+  selectedRows,
+  namespaceList,
+  yamlDialogVisible,
+  yamlContent,
+  yamlLoading,
+  yamlSaving,
+  totalCount,
+  fetchResources,
+  handleNamespaceChange,
+  handleSelectionChange,
+  handleViewYaml,
+  handleSaveYaml,
+  handleCancelYaml,
+  handleDetail,
+  handleDelete,
+  handleBatchDelete,
+} = useResourceList({
+  resourceName: 'Ingress',
+  fetchList: getIngressList,
+  transform: transformIngresses,
+  getYaml: getIngressYaml,
+  updateYaml: updateIngressYaml,
+  deleteResource: deleteIngress,
+  detailRoute: '/network/ingresses',
+  createRoute: '/network/ingresses/create',
+  autoRefreshInterval: 30000,
 })
 
-async function fetchNamespaces() {
-  try {
-    const res: any = await getNamespaceList()
-    namespaceList.value = extractNamespaceNames(res.data)
-  } catch { /* ignore */ }
-}
-
-async function fetchIngresses() {
-  loading.value = true
-  try {
-    const params: any = {}
-    if (selectedNamespace.value) params.namespace = selectedNamespace.value
-    const res: any = await getIngressList(params)
-    const items = res.data?.items || res.data || []
-    ingressList.value = transformIngresses(items)
-  } catch {
-    // Silently handle — resource may not exist in cluster
-  } finally { loading.value = false }
-}
-
-function handleNamespaceChange() { fetchIngresses() }
-function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
-
-async function handleViewYaml(row: any) {
-  currentYamlRow.value = row
-  yamlDialogVisible.value = true; yamlLoading.value = true; yamlContent.value = ''
-  try {
-    const res: any = await getIngressYaml({ name: row.name, namespace: row.namespace })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) { ElMessage.error(e?.message || 'Failed to load YAML'); yamlDialogVisible.value = false }
-  finally { yamlLoading.value = false }
-}
-
-async function handleSaveYaml(content: string) {
-  if (!currentYamlRow.value) return
-  try {
-    await updateIngress({ namespace: currentYamlRow.value.namespace, name: currentYamlRow.value.name, yaml: content })
-    ElMessage.success('YAML saved successfully')
-    yamlDialogVisible.value = false
-    fetchIngresses()
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to save YAML')
-    yamlEditorRef.value?.resetSaving()
-  }
-}
-
-function handleDetail(row: any) { router.push(`/ingresses/${row.namespace}/${row.name}`) }
-
-async function handleDelete(row: any) {
-  try {
-    await ElMessageBox.confirm(`Delete Ingress "${row.name}" in namespace "${row.namespace}"?`, 'Confirm', { type: 'warning' })
-    await deleteIngress({ name: row.name, namespace: row.namespace })
-    ElMessage.success('Deleted'); fetchIngresses()
-  } catch { /* cancelled */ }
-}
-
-async function handleBatchDelete() {
-  if (!selectedRows.value.length) return
-  try {
-    await ElMessageBox.confirm(`Delete ${selectedRows.value.length} selected Ingress(es)?`, 'Confirm', { type: 'warning' })
-    let count = 0
-    for (const row of selectedRows.value) {
-      try { await deleteIngress({ name: row.name, namespace: row.namespace }); count++ } catch { /* continue */ }
-    }
-    ElMessage.success(`Deleted ${count} Ingress(es)`); fetchIngresses()
-  } catch { /* cancelled */ }
-}
-
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh, setIntervalOption } = useAutoRefresh(fetchIngresses)
-
-onMounted(() => { fetchNamespaces(); fetchIngresses() })
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
 </script>
 
 <template>
   <div class="page-container">
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <el-input v-model="searchName" placeholder="Search by name" style="width: 220px;" clearable>
+        <el-input
+          :model-value="searchName"
+          @input="onSearchInput"
+          placeholder="搜索名称"
+          style="width: 220px;"
+          clearable
+        >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-select v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 180px;" @change="handleNamespaceChange">
+        <el-select
+          v-model="selectedNamespace"
+          placeholder="所有命名空间"
+          clearable
+          style="width: 180px;"
+          @change="handleNamespaceChange"
+        >
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
         <AutoRefreshToolbar
@@ -116,25 +77,38 @@ onMounted(() => { fetchNamespaces(); fetchIngresses() })
           :current-interval="currentInterval"
           :available-intervals="availableIntervals"
           :loading="loading"
-          @refresh="refresh"
-          @toggle="toggle"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="success" @click="router.push('/ingresses/create')"><el-icon><Plus /></el-icon> 创建</el-button>
-        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})</el-button>
+        <el-button type="success" @click="$router.push('/network/ingresses/create')">
+          <el-icon><Plus /></el-icon> 创建
+        </el-button>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+        </el-button>
+        <span class="total-count" v-if="totalCount">总计: {{ totalCount }}</span>
       </div>
     </el-card>
+
     <el-card shadow="never" class="table-card">
-      <el-table :data="filteredList" v-loading="loading" stripe @selection-change="handleSelectionChange">
+      <el-table
+        :data="filteredList"
+        v-loading="loading"
+        stripe
+        @selection-change="handleSelectionChange"
+      >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="Name" min-width="180" show-overflow-tooltip>
-          <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
+        <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
+          </template>
         </el-table-column>
-        <el-table-column prop="namespace" label="Namespace" width="140" />
-        <el-table-column prop="hosts" label="Hosts" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="address" label="Address" min-width="160" />
-        <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="Actions" width="200" fixed="right">
+        <el-table-column prop="namespace" label="命名空间" width="140" />
+        <el-table-column prop="hosts" label="域名" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="address" label="地址" min-width="160" />
+        <el-table-column prop="age" label="存活时间" width="120" />
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
@@ -142,15 +116,44 @@ onMounted(() => { fetchNamespaces(); fetchIngresses() })
         </el-table-column>
       </el-table>
     </el-card>
-    <el-dialog v-model="yamlDialogVisible" title="Ingress YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="500px" :read-only="true" :saveable="true" auto-format @save="handleSaveYaml" /></div>
-    </el-dialog>
+
+    <!-- YAML Drawer -->
+    <el-drawer v-model="yamlDialogVisible" title="Ingress YAML" size="85%" direction="rtl" class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }">
+      <div v-loading="yamlLoading" style="height: calc(100vh - 52px);">
+        <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.filter-card { margin-bottom: 16px; }
-.filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.table-card { border-radius: 8px; }
+.page-container {
+  padding: 20px;
+}
+.filter-card {
+  margin-bottom: 16px;
+}
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.table-card {
+  border-radius: 8px;
+}
+.total-count {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  margin-left: auto;
+}
+</style>
+
+<style>
+.yaml-drawer .el-drawer__header {
+  padding: 6px 16px;
+  margin-bottom: 0;
+  min-height: auto;
+}
 </style>

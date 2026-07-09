@@ -2,8 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Monitor, Cpu, Grid, Warning, PriceTag, Connection, Document } from '@element-plus/icons-vue'
-import { getPodDetail, getPodYaml, updatePodYaml, deletePod, getPodEvents, getPodLogs, calcAge } from '@/api/resource'
+import { Monitor, Cpu, Grid, Warning, PriceTag, Connection, Document } from '@element-plus/icons-vue'
+import { getPodDetail, getPodYaml, updatePodYaml, deletePod, getPodEvents, calcAge } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -79,12 +79,6 @@ const yamlLoading = ref(false)
 const yamlSaving = ref(false)
 const activeTab = ref('info')
 
-// Logs
-const logs = ref('')
-const logsLoading = ref(false)
-const selectedContainer = ref('')
-const tailLines = ref(100)
-
 const namespace = route.params.namespace as string
 const name = route.params.name as string
 
@@ -107,20 +101,6 @@ async function fetchEvents() {
   } catch { /* ignore */ }
 }
 
-async function fetchLogs() {
-  logsLoading.value = true
-  try {
-    const params: any = { namespace, podName: name, tailLines: tailLines.value }
-    if (selectedContainer.value) params.container = selectedContainer.value
-    const res: any = await getPodLogs(params)
-    logs.value = res.data?.logs || res.data || ''
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载日志失败')
-  } finally {
-    logsLoading.value = false
-  }
-}
-
 async function fetchYaml() {
   yamlLoading.value = true
   try {
@@ -136,7 +116,6 @@ async function fetchYaml() {
 function handleTabChange(tab: string) {
   if (tab === 'yaml' && !yamlContent.value) fetchYaml()
   if (tab === 'events' && events.value.length === 0) fetchEvents()
-  if (tab === 'logs' && !logs.value) fetchLogs()
 }
 
 async function handleSaveYaml() {
@@ -171,11 +150,6 @@ function handleLogs() {
 function handleExec() {
   const cluster = getClusterName()
   window.open(`/fullscreen/terminal?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
-}
-
-function handleFullLogViewer() {
-  const cluster = getClusterName()
-  window.open(`/fullscreen/logs?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 async function handleDelete() {
@@ -490,32 +464,6 @@ onMounted(fetchDetail)
           </el-card>
         </el-tab-pane>
 
-        <!-- 日志 -->
-        <el-tab-pane label="日志" name="logs">
-          <el-card shadow="never">
-            <div style="margin-bottom: 12px; display: flex; gap: 12px; align-items: center;">
-              <el-select v-if="pod.containers && pod.containers.length > 1" v-model="selectedContainer" placeholder="所有容器" clearable style="width: 200px;" @change="fetchLogs">
-                <el-option v-for="c in pod.containers" :key="c.name" :label="c.name" :value="c.name" />
-              </el-select>
-              <el-select v-model="tailLines" style="width: 140px;" @change="fetchLogs">
-                <el-option :value="50" label="最近 50 行" />
-                <el-option :value="100" label="最近 100 行" />
-                <el-option :value="200" label="最近 200 行" />
-                <el-option :value="500" label="最近 500 行" />
-                <el-option :value="1000" label="最近 1000 行" />
-              </el-select>
-              <el-button type="primary" @click="fetchLogs" :loading="logsLoading">
-                <el-icon><Refresh /></el-icon> 刷新
-              </el-button>
-              <el-button @click="handleFullLogViewer">全屏查看</el-button>
-            </div>
-            <div v-loading="logsLoading" class="log-container">
-              <pre v-if="logs" class="log-content">{{ logs }}</pre>
-              <el-empty v-else description="暂无日志" />
-            </div>
-          </el-card>
-        </el-tab-pane>
-
         <!-- YAML -->
         <el-tab-pane label="YAML" name="yaml">
           <el-card shadow="never">
@@ -696,25 +644,6 @@ onMounted(fetchDetail)
 
 .annotation-value {
   color: var(--el-text-color-secondary);
-  word-break: break-all;
-}
-
-/* 日志容器 */
-.log-container {
-  background: #1e1e1e;
-  border-radius: 8px;
-  padding: 16px;
-  max-height: 500px;
-  overflow-y: auto;
-}
-
-.log-content {
-  color: #d4d4d4;
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-  font-size: 12px;
-  line-height: 1.6;
-  margin: 0;
-  white-space: pre-wrap;
   word-break: break-all;
 }
 </style>

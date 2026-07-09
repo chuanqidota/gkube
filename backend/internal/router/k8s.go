@@ -188,6 +188,7 @@ func registerNetworkRoutes(k8s *gin.RouterGroup) {
 	k8s.GET("networkpolicy/detail", k8sNetwork.NetworkPolicy.GetNetworkPolicyDetail)
 	k8s.GET("networkpolicy/yaml", k8sNetwork.NetworkPolicy.GetNetworkPolicyYaml)
 	k8s.GET("networkpolicy/get-yaml", k8sNetwork.NetworkPolicy.GetNetworkPolicyYaml)
+	k8s.GET("networkpolicy/events", k8sNetwork.NetworkPolicy.GetNetworkPolicyEvents)
 	k8s.POST("networkpolicy/create", k8sNetwork.NetworkPolicy.CreateNetworkPolicy)
 	k8s.PUT("networkpolicy/update", k8sNetwork.NetworkPolicy.UpdateNetworkPolicy)
 	k8s.DELETE("networkpolicy/delete", k8sNetwork.NetworkPolicy.DeleteNetworkPolicy)
