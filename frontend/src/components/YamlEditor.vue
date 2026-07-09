@@ -1,7 +1,49 @@
 <template>
-  <div class="yaml-editor" :style="{ height: height }">
-    <div class="yaml-editor-toolbar" v-if="showToolbar && (saveable || title || editable)">
-      <!-- Left: Edit/Save/Cancel -->
+  <div class="yaml-editor" :class="{ 'is-fullscreen': isFullscreen }" :style="isFullscreen ? {} : { height: height }">
+    <!-- Fullscreen toolbar (shown when fullscreen, even if showToolbar is false) -->
+    <div class="yaml-editor-toolbar" v-if="isFullscreen">
+      <div class="toolbar-left">
+        <!-- saveable mode: Edit / Save+Cancel -->
+        <template v-if="saveable">
+          <el-button v-if="!isEditing" size="small" type="primary" @click="enterEdit">
+            <el-icon><Edit /></el-icon> Edit
+          </el-button>
+          <template v-else>
+            <el-button size="small" type="success" :loading="saving" @click="handleSave">
+              <el-icon><Check /></el-icon> Save
+            </el-button>
+            <el-button size="small" @click="handleCancel">取消</el-button>
+          </template>
+        </template>
+        <!-- showSaveButtons mode: Save + Cancel -->
+        <template v-if="showSaveButtons && !saveable">
+          <el-button size="small" type="success" :loading="saving" @click="emit('save')">保存</el-button>
+          <el-button size="small" @click="emit('cancel')">取消</el-button>
+        </template>
+        <!-- fullscreen-actions slot (for create pages) -->
+        <slot name="fullscreen-actions"></slot>
+        <span v-if="title" class="toolbar-title">{{ title }}</span>
+      </div>
+      <div class="toolbar-center">
+        <el-button-group>
+          <el-button size="small" @click="handleFormat">Format</el-button>
+          <el-button size="small" @click="handleCopy">复制</el-button>
+        </el-button-group>
+      </div>
+      <div class="toolbar-right">
+        <el-tag v-if="isEditing" type="success" size="small" effect="plain">Editing</el-tag>
+        <el-tag v-else-if="readOnly" type="info" size="small" effect="plain">Read-only</el-tag>
+        <el-tooltip content="还原" placement="top">
+          <el-icon class="toolbar-action" @click="toggleFullscreen">
+            <ScaleToOriginal />
+          </el-icon>
+        </el-tooltip>
+      </div>
+    </div>
+
+    <!-- Normal toolbar -->
+    <div class="yaml-editor-toolbar" v-else-if="showToolbar">
+      <!-- Left: Edit/Save/Cancel / SaveButtons -->
       <div class="toolbar-left">
         <template v-if="saveable">
           <el-button v-if="!isEditing" size="small" type="primary" @click="enterEdit">
@@ -14,21 +56,31 @@
             <el-button size="small" @click="handleCancel">取消</el-button>
           </template>
         </template>
+        <template v-if="showSaveButtons && !saveable">
+          <el-button size="small" type="success" :loading="saving" @click="emit('save')">保存</el-button>
+          <el-button size="small" @click="emit('cancel')">取消</el-button>
+        </template>
         <span v-if="title" class="toolbar-title">{{ title }}</span>
       </div>
 
-      <!-- Center: Format/Copy (edit mode only) -->
-      <div class="toolbar-center" v-if="isEditing || (editable && !saveable)">
+      <!-- Center: Format/Copy (when content is editable) -->
+      <div class="toolbar-center" v-if="!readOnly || isEditing">
         <el-button-group>
           <el-button size="small" @click="handleFormat">Format</el-button>
           <el-button size="small" @click="handleCopy">复制</el-button>
         </el-button-group>
       </div>
 
-      <!-- Right: Mode indicator -->
+      <!-- Right: Mode indicator + Fullscreen toggle -->
       <div class="toolbar-right">
         <el-tag v-if="isEditing" type="success" size="small" effect="plain">Editing</el-tag>
         <el-tag v-else-if="readOnly" type="info" size="small" effect="plain">Read-only</el-tag>
+        <el-tooltip :content="isFullscreen ? '还原' : '最大化'" placement="top">
+          <el-icon class="toolbar-action" @click="toggleFullscreen">
+            <ScaleToOriginal v-if="isFullscreen" />
+            <FullScreen v-else />
+          </el-icon>
+        </el-tooltip>
       </div>
     </div>
 
@@ -47,7 +99,7 @@
 import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { Editor as MonacoEditor } from '@guolao/vue-monaco-editor'
 import { ElMessage } from 'element-plus'
-import { Edit, Check } from '@element-plus/icons-vue'
+import { Edit, Check, FullScreen, ScaleToOriginal } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 
 const props = withDefaults(defineProps<{
@@ -59,6 +111,8 @@ const props = withDefaults(defineProps<{
   title?: string
   saveable?: boolean
   showToolbar?: boolean
+  showSaveButtons?: boolean
+  saving?: boolean
 }>(), {
   height: '400px',
   editable: false,
@@ -67,15 +121,18 @@ const props = withDefaults(defineProps<{
   title: '',
   saveable: false,
   showToolbar: true,
+  showSaveButtons: false,
+  saving: false,
 })
 
-const emit = defineEmits(['update:modelValue', 'save'])
+const emit = defineEmits(['update:modelValue', 'save', 'cancel'])
 
 // Internal editing state
 const isEditing = ref(!props.readOnly && props.saveable)
 const originalContent = ref('')
 const saving = ref(false)
 const displayValue = ref('')
+const isFullscreen = ref(false)
 
 // Track a local formatted version for display
 watch(() => props.modelValue, (val) => {
@@ -171,12 +228,30 @@ function handleCopy() {
   ElMessage.success('Copied to clipboard')
 }
 
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+  nextTick(() => {
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'))
+    }, 100)
+  })
+}
+
 // Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
-  if (!isEditing.value) return
+  if (e.key === 'Escape' && isFullscreen.value) {
+    e.preventDefault()
+    toggleFullscreen()
+    return
+  }
+  if (!isEditing.value && !props.showSaveButtons) return
   if ((e.ctrlKey || e.metaKey) && e.key === 's') {
     e.preventDefault()
-    handleSave()
+    if (props.showSaveButtons && !props.saveable) {
+      emit('save')
+    } else if (props.saveable) {
+      handleSave()
+    }
   }
   if (e.key === 'Escape') {
     e.preventDefault()
@@ -197,7 +272,7 @@ function resetSaving() {
 }
 
 // Expose saving state and utility functions for parent to control
-defineExpose({ saving, resetSaving, handleFormat, handleCopy })
+defineExpose({ saving, resetSaving, handleFormat, handleCopy, toggleFullscreen })
 </script>
 
 <style scoped>
@@ -207,6 +282,24 @@ defineExpose({ saving, resetSaving, handleFormat, handleCopy })
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+.yaml-editor.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  border-radius: 0;
+  border: none;
+  background: #fff;
+}
+.toolbar-action {
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--gk-color-text-secondary);
+  margin-left: 8px;
+  transition: color 0.2s;
+}
+.toolbar-action:hover {
+  color: var(--el-color-primary);
 }
 .yaml-editor-toolbar {
   padding: 6px 12px;

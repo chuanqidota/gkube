@@ -268,7 +268,14 @@ async function handleScaleConfirm() {
     await scaleDeployment({ namespace, name, replicas: scaleReplicas.value })
     ElMessage.success(`Deployment scaled to ${scaleReplicas.value} replicas`)
     scaleDialogVisible.value = false
-    fetchDetail()
+    await fetchDetail()
+    // Poll for pod list update (K8s needs time to create/delete pods)
+    const expectedPods = scaleReplicas.value
+    for (let i = 0; i < 10; i++) {
+      await new Promise(r => setTimeout(r, 1000))
+      await fetchReplicaSets()
+      if (allPods.value.length === expectedPods) break
+    }
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to scale deployment')
   } finally {

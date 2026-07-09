@@ -168,6 +168,13 @@ async function handleScaleConfirm() {
     ElMessage.success(`StatefulSet 已扩缩容至 ${scaleReplicas.value} 个副本`)
     scaleDialogVisible.value = false
     fetchDetail()
+    // Poll for pod list update (K8s needs time to create/delete pods)
+    const expectedPods = scaleReplicas.value
+    for (let i = 0; i < 10; i++) {
+      await new Promise(r => setTimeout(r, 1000))
+      await fetchPods()
+      if (pods.value.length === expectedPods) break
+    }
   } catch (e: any) {
     ElMessage.error(e?.message || '扩缩容失败')
   } finally {

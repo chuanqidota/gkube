@@ -23,7 +23,6 @@ const {
   yamlDialogVisible,
   yamlContent,
   yamlLoading,
-  yamlEditing,
   yamlSaving,
   hasMore,
   totalCount,
@@ -32,7 +31,6 @@ const {
   handleNamespaceChange,
   handleSelectionChange,
   handleViewYaml,
-  handleEditYaml,
   handleSaveYaml,
   handleCancelYaml,
   handleDetail,
@@ -132,15 +130,8 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     <!-- YAML Drawer -->
     <el-drawer v-model="yamlDialogVisible" title="Job YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
-      <div style="padding: 6px 12px; display: flex; gap: 8px; border-bottom: 1px solid var(--el-border-color-lighter);">
-        <el-button v-if="!yamlEditing" size="small" type="primary" @click="handleEditYaml">编辑</el-button>
-        <template v-else>
-          <el-button size="small" type="success" :loading="yamlSaving" @click="handleSaveYaml">保存</el-button>
-          <el-button size="small" @click="handleCancelYaml">取消</el-button>
-        </template>
-      </div>
-      <div v-loading="yamlLoading" style="height: calc(100vh - 90px);">
-        <YamlEditor v-model="yamlContent" height="100%" :read-only="!yamlEditing" auto-format />
+      <div v-loading="yamlLoading" style="height: calc(100vh - 60px);">
+        <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
       </div>
     </el-drawer>
   </div>

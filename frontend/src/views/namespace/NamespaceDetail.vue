@@ -24,7 +24,6 @@ const loading = ref(false)
 const namespace = ref<any>(null)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
-const yamlEditing = ref(false)
 const yamlSaving = ref(false)
 const activeTab = ref('info')
 const resourceQuotas = ref<any[]>([])
@@ -89,7 +88,6 @@ async function handleSaveYaml() {
   try {
     await updateNamespace({ yaml: yamlContent.value })
     ElMessage.success('YAML 保存成功')
-    yamlEditing.value = false
     fetchDetail()
   } catch (e: any) {
     ElMessage.error(e?.message || '保存 YAML 失败')
@@ -275,15 +273,8 @@ onMounted(fetchDetail)
         <!-- YAML Tab -->
         <el-tab-pane label="YAML" name="yaml">
           <el-card shadow="never">
-            <div style="margin-bottom: 12px; display: flex; gap: 8px;">
-              <el-button v-if="!yamlEditing" type="primary" @click="yamlEditing = true">编辑 YAML</el-button>
-              <template v-if="yamlEditing">
-                <el-button type="success" :loading="yamlSaving" @click="handleSaveYaml">保存</el-button>
-                <el-button @click="yamlEditing = false; fetchYaml()">取消</el-button>
-              </template>
-            </div>
             <div v-loading="yamlLoading">
-              <YamlEditor v-model="yamlContent" height="600px" :read-only="!yamlEditing" />
+              <YamlEditor v-model="yamlContent" height="600px" show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="fetchYaml" />
             </div>
           </el-card>
         </el-tab-pane>

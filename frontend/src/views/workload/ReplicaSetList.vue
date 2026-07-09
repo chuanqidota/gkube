@@ -102,20 +102,18 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="namespace" label="Namespace" width="140" />
-        <el-table-column prop="desired" label="Desired" width="90" align="center" />
-        <el-table-column prop="current" label="Current" width="90" align="center" />
-        <el-table-column prop="ready" label="Ready" width="90" align="center" />
-        <el-table-column prop="available" label="Available" width="100" align="center" />
-        <el-table-column prop="owner" label="Owner" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="namespace" label="命名空间" width="140" />
+        <el-table-column prop="desired" label="期望" width="90" align="center" />
+        <el-table-column prop="current" label="当前" width="90" align="center" />
+        <el-table-column prop="ready" label="就绪" width="90" align="center" />
+        <el-table-column prop="available" label="可用" width="100" align="center" />
+        <el-table-column prop="owner" label="拥有者" min-width="160" show-overflow-tooltip />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="Actions" width="160" fixed="right">
+        <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">
-              <el-icon><Delete /></el-icon>
-            </el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

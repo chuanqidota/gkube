@@ -16,7 +16,6 @@ const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
 const yamlTarget = ref<any>(null)
-const yamlEditing = ref(false)
 const yamlSaving = ref(false)
 const taintDialogVisible = ref(false)
 const taintTarget = ref<any>(null)
@@ -58,7 +57,7 @@ function statusType(node: any) {
 
 async function handleViewYaml(row: any) {
   yamlTarget.value = row
-  yamlDialogVisible.value = true; yamlEditing.value = false; yamlLoading.value = true; yamlContent.value = ''
+  yamlDialogVisible.value = true; yamlLoading.value = true; yamlContent.value = ''
   try {
     const res: any = await getNodeYaml({ name: row.name })
     yamlContent.value = res.data?.yaml || res.data || ''
@@ -82,7 +81,6 @@ async function handleSaveYaml() {
   try {
     await updateNodeYaml({ name: yamlTarget.value.name, yaml: yamlContent.value })
     ElMessage.success('YAML 保存成功')
-    yamlEditing.value = false
     fetchNodes()
   } catch (e: any) {
     ElMessage.error(e?.message || '保存 YAML 失败')
@@ -233,15 +231,8 @@ onMounted(fetchNodes)
     <!-- YAML Drawer -->
     <el-drawer v-model="yamlDialogVisible" title="节点 YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
-      <div style="padding: 6px 12px; display: flex; gap: 8px; border-bottom: 1px solid var(--el-border-color-lighter);">
-        <el-button v-if="!yamlEditing" size="small" type="primary" @click="yamlEditing = true">编辑</el-button>
-        <template v-else>
-          <el-button size="small" type="success" :loading="yamlSaving" @click="handleSaveYaml">保存</el-button>
-          <el-button size="small" @click="yamlEditing = false; fetchYaml()">取消</el-button>
-        </template>
-      </div>
-      <div v-loading="yamlLoading" style="height: calc(100vh - 90px);">
-        <YamlEditor v-model="yamlContent" height="100%" :read-only="!yamlEditing" auto-format show-toolbar />
+      <div v-loading="yamlLoading" style="height: calc(100vh - 56px);">
+        <YamlEditor v-model="yamlContent" height="100%" auto-format show-toolbar show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="fetchYaml" />
       </div>
     </el-drawer>
 

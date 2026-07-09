@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { FullScreen } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import HPAForm from './components/HPAForm.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
@@ -64,6 +65,10 @@ function handleFormat() {
 function handleCopy() {
   yamlEditorRef.value?.handleCopy()
 }
+
+function handleMaximize() {
+  yamlEditorRef.value?.toggleFullscreen()
+}
 </script>
 
 <template>
@@ -83,6 +88,9 @@ function handleCopy() {
               <el-button size="small" @click="handleFormat">Format</el-button>
               <el-button size="small" @click="handleCopy">复制</el-button>
             </el-button-group>
+            <el-tooltip content="最大化" placement="top">
+              <el-icon class="maximize-btn" @click="handleMaximize"><FullScreen /></el-icon>
+            </el-tooltip>
           </div>
           <div class="yaml-card-actions">
             <el-button size="small" @click="handleCancel">取消</el-button>
@@ -90,7 +98,12 @@ function handleCopy() {
           </div>
         </div>
         <div class="yaml-card-body">
-          <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="calc(100vh - 180px)" :read-only="false" editable auto-format :show-toolbar="false" />
+          <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="calc(100vh - 180px)" :read-only="false" editable auto-format :show-toolbar="false" title="YAML 配置">
+            <template #fullscreen-actions>
+              <el-button size="small" @click="handleCancel">取消</el-button>
+              <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit">创建</el-button>
+            </template>
+          </YamlEditor>
         </div>
       </div>
     </div>
@@ -138,5 +151,16 @@ function handleCopy() {
 
 .yaml-card-body {
   padding: 0;
+}
+
+.maximize-btn {
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--el-text-color-secondary);
+  margin-left: 4px;
+  transition: color 0.2s;
+}
+.maximize-btn:hover {
+  color: var(--el-color-primary);
 }
 </style>
