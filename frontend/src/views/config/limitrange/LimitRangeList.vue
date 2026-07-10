@@ -3,10 +3,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getLimitRangeList, getLimitRangeYaml, deleteLimitRange, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { getLimitRangeList, deleteLimitRange, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
-import YamlEditor from '@/components/YamlEditor.vue'
+import YamlDrawer from '@/components/YamlDrawer.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -16,8 +16,7 @@ const selectedNamespace = ref('')
 const searchName = ref('')
 const selectedRows = ref<any[]>([])
 const yamlDialogVisible = ref(false)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
+const yamlTarget = ref<{ namespace: string; name: string } | null>(null)
 
 const filteredList = computed(() => {
   if (!searchName.value) return lrList.value
@@ -48,13 +47,9 @@ function handleNamespaceChange() { fetchLimitRanges() }
 function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
 function handleDetail(row: any) { router.push(`/config/limitranges/${row.namespace}/${row.name}`) }
 
-async function handleViewYaml(row: any) {
-  yamlDialogVisible.value = true; yamlLoading.value = true; yamlContent.value = ''
-  try {
-    const res: any = await getLimitRangeYaml({ namespace: row.namespace, name: row.name })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) { ElMessage.error(e?.message || 'Failed to load YAML'); yamlDialogVisible.value = false }
-  finally { yamlLoading.value = false }
+function handleViewYaml(row: any) {
+  yamlTarget.value = { namespace: row.namespace, name: row.name }
+  yamlDialogVisible.value = true
 }
 
 async function handleDelete(row: any) {
@@ -131,9 +126,13 @@ onMounted(() => { fetchNamespaces(); fetchLimitRanges() })
         </el-table-column>
       </el-table>
     </el-card>
-    <el-dialog v-model="yamlDialogVisible" title="LimitRange YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
-    </el-dialog>
+    <YamlDrawer
+      v-model="yamlDialogVisible"
+      resource-type="limitrange"
+      :namespace="yamlTarget?.namespace || ''"
+      :name="yamlTarget?.name || ''"
+      @saved="fetchLimitRanges"
+    />
   </div>
 </template>
 

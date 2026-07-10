@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Delete, Plus } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import YamlEditor from '@/components/YamlEditor.vue'
 import { createPv } from '@/api/resource'
 
 const router = useRouter()
-const currentStep = ref(0)
+const formRef = ref<FormInstance>()
 const submitting = ref(false)
 
 // ---- Form Data ----
@@ -48,29 +48,22 @@ const form = reactive<FormData>({
 
 // ---- Validation ----
 
-const step0FormRef = ref<FormInstance>()
-
-const step0Rules: FormRules = {
+const rules: FormRules = {
   name: [
-    { required: true, message: 'Name is required', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: 'Lowercase letters, numbers, hyphens only. Must start with letter, end with alphanumeric.', trigger: 'blur' },
-    { max: 253, message: 'Max 253 characters', trigger: 'blur' },
+    { required: true, message: '请输入名称', trigger: 'blur' },
+    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '只能包含小写字母、数字和连字符，必须以字母开头，以字母或数字结尾', trigger: 'blur' },
+    { max: 253, message: '最大长度为253个字符', trigger: 'blur' },
   ],
   capacity: [
-    { required: true, message: 'Capacity is required', trigger: 'blur' },
+    { required: true, message: '请输入容量', trigger: 'blur' },
   ],
   accessModes: [
-    { type: 'array', required: true, message: 'At least one access mode is required', trigger: 'change' },
+    { type: 'array', required: true, message: '请至少选择一种访问模式', trigger: 'change' },
+  ],
+  storageType: [
+    { required: true, message: '请选择存储类型', trigger: 'change' },
   ],
 }
-
-// ---- Steps ----
-
-const steps = [
-  { title: 'Basic Info', icon: 'Document' },
-  { title: 'Storage Source', icon: 'FolderOpened' },
-  { title: 'YAML Preview', icon: 'View' },
-]
 
 // ---- Label Management ----
 
@@ -82,63 +75,7 @@ function removeLabel(index: number) {
   form.labels.splice(index, 1)
 }
 
-// ---- Step Navigation ----
-
-async function handleNext() {
-  if (currentStep.value === 0) {
-    const valid = await step0FormRef.value?.validate().catch(() => false)
-    if (!valid) return
-  }
-  if (currentStep.value === 1) {
-    if (!validateStorageSource()) return
-  }
-  if (currentStep.value < 2) {
-    currentStep.value++
-  }
-}
-
-function handlePrev() {
-  if (currentStep.value > 0) {
-    currentStep.value--
-  }
-}
-
-function handleStepClick(step: number) {
-  if (step <= currentStep.value) {
-    currentStep.value = step
-  }
-}
-
-function validateStorageSource(): boolean {
-  if (form.storageType === 'nfs') {
-    if (!form.nfsServer.trim()) {
-      ElMessage.error('NFS server is required')
-      return false
-    }
-    if (!form.nfsPath.trim()) {
-      ElMessage.error('NFS path is required')
-      return false
-    }
-  } else if (form.storageType === 'hostPath') {
-    if (!form.hostPath.trim()) {
-      ElMessage.error('Host path is required')
-      return false
-    }
-  } else if (form.storageType === 'local') {
-    if (!form.localPath.trim()) {
-      ElMessage.error('Local path is required')
-      return false
-    }
-  }
-  return true
-}
-
 // ---- YAML Generation ----
-
-const generatedYaml = computed(() => {
-  const resource = buildK8sPV()
-  return yaml.dump(resource, { indent: 2, lineWidth: -1, noRefs: true })
-})
 
 function buildK8sPV(): Record<string, any> {
   const labels: Record<string, string> = {}
@@ -146,7 +83,6 @@ function buildK8sPV(): Record<string, any> {
     if (l.key.trim()) labels[l.key.trim()] = l.value
   })
 
-  // Parse capacity - extract numeric value and unit
   const capacityStr = form.capacity.trim()
   const capacity: Record<string, string> = {}
   if (capacityStr) {
@@ -195,14 +131,40 @@ function buildK8sPV(): Record<string, any> {
 // ---- Submit ----
 
 async function handleSubmit() {
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  // Validate storage source
+  if (form.storageType === 'nfs') {
+    if (!form.nfsServer.trim()) {
+      ElMessage.error('请输入 NFS 服务器地址')
+      return
+    }
+    if (!form.nfsPath.trim()) {
+      ElMessage.error('请输入 NFS 路径')
+      return
+    }
+  } else if (form.storageType === 'hostPath') {
+    if (!form.hostPath.trim()) {
+      ElMessage.error('请输入主机路径')
+      return
+    }
+  } else if (form.storageType === 'local') {
+    if (!form.localPath.trim()) {
+      ElMessage.error('请输入本地路径')
+      return
+    }
+  }
+
   submitting.value = true
   try {
-    const yamlContent = generatedYaml.value
+    const resource = buildK8sPV()
+    const yamlContent = yaml.dump(resource, { indent: 2, lineWidth: -1, noRefs: true })
     await createPv({ yaml: yamlContent })
-    ElMessage.success('PersistentVolume created successfully')
+    ElMessage.success('持久卷创建成功')
     router.push('/storage/pvs')
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Create failed')
+    ElMessage.error(e?.message || '创建失败')
   } finally {
     submitting.value = false
   }
@@ -215,163 +177,111 @@ function handleCancel() {
 
 <template>
   <div class="pv-form">
-    <!-- Header -->
-    <div class="form-header">
-      <h2>创建 PersistentVolume</h2>
-    </div>
+    <!-- Form -->
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      label-width="140px"
+      style="max-width: 700px;"
+    >
+      <!-- 基本信息 -->
+      <div class="form-section">
+        <div class="section-title">基本信息</div>
+        <el-form-item label="名称" prop="name">
+          <el-input v-model="form.name" placeholder="例如: my-pv" />
+        </el-form-item>
 
-    <!-- Steps -->
-    <el-steps :active="currentStep" finish-status="success" align-center style="margin-bottom: 32px;">
-      <el-step
-        v-for="(step, index) in steps"
-        :key="index"
-        :title="step.title"
-        :icon="step.icon"
-        @click="handleStepClick(index)"
-        style="cursor: pointer;"
-      />
-    </el-steps>
+        <el-form-item label="容量" prop="capacity">
+          <el-input v-model="form.capacity" placeholder="例如: 10Gi" />
+        </el-form-item>
 
-    <!-- Step Content -->
-    <div class="step-content">
+        <el-form-item label="访问模式" prop="accessModes">
+          <el-checkbox-group v-model="form.accessModes">
+            <el-checkbox label="ReadWriteOnce" value="ReadWriteOnce" />
+            <el-checkbox label="ReadOnlyMany" value="ReadOnlyMany" />
+            <el-checkbox label="ReadWriteMany" value="ReadWriteMany" />
+          </el-checkbox-group>
+        </el-form-item>
 
-      <!-- Step 0: Basic Info -->
-      <div v-show="currentStep === 0">
-        <el-form
-          ref="step0FormRef"
-          :model="form"
-          :rules="step0Rules"
-          label-width="180px"
-          style="max-width: 700px;"
-        >
-          <el-form-item label="Name" prop="name">
-            <el-input v-model="form.name" placeholder="e.g. my-pv" />
-          </el-form-item>
+        <el-form-item label="存储类名称">
+          <el-input v-model="form.storageClassName" placeholder="留空表示不指定存储类" />
+        </el-form-item>
 
-          <el-form-item label="Capacity" prop="capacity">
-            <el-input v-model="form.capacity" placeholder="e.g. 10Gi" />
-          </el-form-item>
+        <el-form-item label="回收策略">
+          <el-select v-model="form.reclaimPolicy" style="width: 100%;">
+            <el-option label="Retain" value="Retain" />
+            <el-option label="Recycle" value="Recycle" />
+            <el-option label="Delete" value="Delete" />
+          </el-select>
+        </el-form-item>
 
-          <el-form-item label="Access Modes" prop="accessModes">
-            <el-checkbox-group v-model="form.accessModes">
-              <el-checkbox label="ReadWriteOnce" value="ReadWriteOnce" />
-              <el-checkbox label="ReadOnlyMany" value="ReadOnlyMany" />
-              <el-checkbox label="ReadWriteMany" value="ReadWriteMany" />
-            </el-checkbox-group>
-          </el-form-item>
-
-          <el-form-item label="Storage Class Name">
-            <el-input v-model="form.storageClassName" placeholder="Leave empty for no storage class" />
-          </el-form-item>
-
-          <el-form-item label="Reclaim Policy">
-            <el-select v-model="form.reclaimPolicy" style="width: 100%;">
-              <el-option label="Retain" value="Retain" />
-              <el-option label="Recycle" value="Recycle" />
-              <el-option label="Delete" value="Delete" />
-            </el-select>
-          </el-form-item>
-
-          <el-form-item label="Labels">
-            <div style="width: 100%;">
-              <div
-                v-for="(label, index) in form.labels"
-                :key="index"
-                style="display: flex; gap: 8px; margin-bottom: 8px;"
+        <el-form-item label="标签">
+          <div style="width: 100%;">
+            <div
+              v-for="(label, index) in form.labels"
+              :key="index"
+              style="display: flex; gap: 8px; margin-bottom: 8px;"
+            >
+              <el-input v-model="label.key" placeholder="键" style="flex: 1;" />
+              <el-input v-model="label.value" placeholder="值" style="flex: 1;" />
+              <el-button
+                type="danger"
+                circle
+                :disabled="form.labels.length <= 1"
+                @click="removeLabel(index)"
               >
-                <el-input v-model="label.key" placeholder="Key" style="flex: 1;" />
-                <el-input v-model="label.value" placeholder="Value" style="flex: 1;" />
-                <el-button
-                  type="danger"
-                  circle
-                  :disabled="form.labels.length <= 1"
-                  @click="removeLabel(index)"
-                >
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </div>
-              <el-button @click="addLabel" size="small">
-                <el-icon><Plus /></el-icon> Add Label
+                <el-icon><Delete /></el-icon>
               </el-button>
             </div>
+            <el-button @click="addLabel" size="small">
+              <el-icon><Plus /></el-icon> 添加标签
+            </el-button>
+          </div>
+        </el-form-item>
+      </div>
+
+      <!-- 存储源 -->
+      <div class="form-section">
+        <div class="section-title">存储源</div>
+        <el-form-item label="存储类型" prop="storageType" required>
+          <el-select v-model="form.storageType" style="width: 100%;">
+            <el-option label="NFS" value="nfs" />
+            <el-option label="Host Path" value="hostPath" />
+            <el-option label="Local" value="local" />
+          </el-select>
+        </el-form-item>
+
+        <!-- NFS -->
+        <template v-if="form.storageType === 'nfs'">
+          <el-form-item label="NFS 服务器" required>
+            <el-input v-model="form.nfsServer" placeholder="例如: 10.0.0.1" />
           </el-form-item>
-        </el-form>
-      </div>
-
-      <!-- Step 1: Storage Source -->
-      <div v-show="currentStep === 1">
-        <el-form label-width="180px" style="max-width: 700px;">
-          <el-form-item label="Storage Type" required>
-            <el-select v-model="form.storageType" style="width: 100%;">
-              <el-option label="NFS" value="nfs" />
-              <el-option label="Host Path" value="hostPath" />
-              <el-option label="Local" value="local" />
-            </el-select>
+          <el-form-item label="NFS 路径" required>
+            <el-input v-model="form.nfsPath" placeholder="例如: /exports/data" />
           </el-form-item>
+        </template>
 
-          <!-- NFS -->
-          <template v-if="form.storageType === 'nfs'">
-            <el-form-item label="NFS Server" required>
-              <el-input v-model="form.nfsServer" placeholder="e.g. 10.0.0.1" />
-            </el-form-item>
-            <el-form-item label="NFS Path" required>
-              <el-input v-model="form.nfsPath" placeholder="e.g. /exports/data" />
-            </el-form-item>
-          </template>
+        <!-- Host Path -->
+        <template v-if="form.storageType === 'hostPath'">
+          <el-form-item label="主机路径" required>
+            <el-input v-model="form.hostPath" placeholder="例如: /mnt/data" />
+          </el-form-item>
+        </template>
 
-          <!-- Host Path -->
-          <template v-if="form.storageType === 'hostPath'">
-            <el-form-item label="Host Path" required>
-              <el-input v-model="form.hostPath" placeholder="e.g. /mnt/data" />
-            </el-form-item>
-          </template>
-
-          <!-- Local -->
-          <template v-if="form.storageType === 'local'">
-            <el-form-item label="Local Path" required>
-              <el-input v-model="form.localPath" placeholder="e.g. /mnt/disks/ssd1" />
-            </el-form-item>
-          </template>
-        </el-form>
+        <!-- Local -->
+        <template v-if="form.storageType === 'local'">
+          <el-form-item label="本地路径" required>
+            <el-input v-model="form.localPath" placeholder="例如: /mnt/disks/ssd1" />
+          </el-form-item>
+        </template>
       </div>
+    </el-form>
 
-      <!-- Step 2: YAML Preview -->
-      <div v-show="currentStep === 2">
-        <el-alert
-          title="Generated PersistentVolume YAML"
-          description="Review the generated YAML below before creating the resource."
-          type="info"
-          :closable="false"
-          show-icon
-          style="margin-bottom: 16px;"
-        />
-        <YamlEditor
-          :model-value="generatedYaml"
-          height="500px"
-          read-only
-        />
-      </div>
-    </div>
-
-    <!-- Navigation Buttons -->
+    <!-- Actions -->
     <div class="form-actions">
       <el-button @click="handleCancel">取消</el-button>
-      <el-button v-if="currentStep > 0" @click="handlePrev">Previous</el-button>
-      <el-button
-        v-if="currentStep < 2"
-        type="primary"
-        @click="handleNext"
-      >
-        Next
-      </el-button>
-      <el-button
-        v-if="currentStep === 2"
-        type="primary"
-        :loading="submitting"
-        @click="handleSubmit"
-      >
-        Create PersistentVolume
-      </el-button>
+      <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
     </div>
   </div>
 </template>
@@ -383,19 +293,19 @@ function handleCancel() {
   padding: 20px 0;
 }
 
-.form-header {
-  margin-bottom: 24px;
+.form-section {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
 }
 
-.form-header h2 {
-  margin: 0;
-  font-size: 20px;
+.section-title {
+  font-size: 16px;
   font-weight: 600;
-}
-
-.step-content {
-  min-height: 400px;
-  padding: 16px 0;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .form-actions {
@@ -403,7 +313,7 @@ function handleCancel() {
   justify-content: flex-end;
   gap: 12px;
   padding-top: 24px;
-  border-top: 1px solid var(--gk-color-border);
+  border-top: 1px solid var(--el-border-color-lighter);
   margin-top: 24px;
 }
 </style>

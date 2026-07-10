@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { Delete, Search } from '@element-plus/icons-vue'
-import { getClusterRoleBindingList, getClusterRoleBindingYaml, deleteClusterRoleBinding } from '@/api/resource'
+import { getClusterRoleBindingList, deleteClusterRoleBinding } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
-import YamlEditor from '@/components/YamlEditor.vue'
+import YamlDrawer from '@/components/YamlDrawer.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
@@ -16,8 +16,7 @@ const {
   onSearchInput,
   selectedRows,
   yamlDialogVisible,
-  yamlContent,
-  yamlLoading,
+  yamlTarget,
   fetchResources,
   handleSelectionChange,
   handleViewYaml,
@@ -100,11 +99,12 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     </el-card>
 
     <!-- YAML Dialog -->
-    <el-dialog v-model="yamlDialogVisible" title="ClusterRoleBinding YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading">
-        <YamlEditor v-model="yamlContent" height="500px" read-only auto-format />
-      </div>
-    </el-dialog>
+    <YamlDrawer
+      v-model="yamlDialogVisible"
+      resource-type="clusterrolebinding"
+      :name="yamlTarget?.name || ''"
+      @saved="fetchResources"
+    />
   </div>
 </template>
 

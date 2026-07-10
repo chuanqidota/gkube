@@ -172,6 +172,27 @@ func (np *networkPolicy) DeleteNetworkPolicy(c *gin.Context) {
 	response.Success(c, "删除NetworkPolicy成功", nil)
 }
 
+func (np *networkPolicy) GetNetworkPolicyPods(c *gin.Context) {
+	namespace := c.Query("namespace")
+	name := c.Query("name")
+	clusterName := c.Query("clusterName")
+	if name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(clusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	podList, err := k8sNp.GetNetworkPolicyPods(client, namespace, name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取NetworkPolicy关联Pod列表失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", podList)
+}
+
 func (np *networkPolicy) GetNetworkPolicyEvents(c *gin.Context) {
 	namespace := c.Query("namespace")
 	name := c.Query("name")

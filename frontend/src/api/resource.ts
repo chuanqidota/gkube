@@ -46,6 +46,18 @@ export interface Ingress {
   age: string
 }
 
+export interface Pv {
+  name: string
+  capacity: string
+  access_modes: string
+  status: string
+  claim: string
+  storage_class: string
+  reclaim_policy: string
+  volume_mode: string
+  age: string
+}
+
 export function getPodList(params?: { namespace?: string; cluster_id?: number; labelSelector?: string }) {
   return request.get<Pod[]>('/k8s/pod/list', { params })
 }
@@ -213,6 +225,34 @@ export function transformNamespaces(items: any[]): Namespace[] {
     annotations: ns.annotations || {},
     age: ns.age || '',
   }))
+}
+
+/**
+ * Transform raw K8s PersistentVolume objects into simplified display format.
+ */
+export function transformPvs(items: any[]): Pv[] {
+  if (!Array.isArray(items)) return []
+  return items.map((pv: any) => {
+    const capacity = pv.spec?.capacity?.storage || '-'
+    const accessModes = (pv.spec?.accessModes || []).join(', ')
+    const status = pv.status?.phase || 'Unknown'
+    const claimRef = pv.spec?.claimRef
+    const claim = claimRef ? `${claimRef.namespace}/${claimRef.name}` : '-'
+    const storageClass = pv.spec?.storageClassName || '-'
+    const reclaimPolicy = pv.spec?.persistentVolumeReclaimPolicy || '-'
+    const volumeMode = pv.spec?.volumeMode || '-'
+    return {
+      name: pv.metadata?.name || '',
+      capacity,
+      access_modes: accessModes,
+      status,
+      claim,
+      storage_class: storageClass,
+      reclaim_policy: reclaimPolicy,
+      volume_mode: volumeMode,
+      age: calcAge(pv.metadata?.creationTimestamp),
+    }
+  })
 }
 
 export function getNamespaceDetail(params: { name: string }) {
@@ -563,6 +603,27 @@ export function createPv(data: { yaml: string }) {
   return request.post('/k8s/pv/create', data)
 }
 
+export function updatePvYaml(data: { name: string; yaml: string }) {
+  return request.put('/k8s/pv/update', data)
+}
+
+/**
+ * Transform raw K8s PersistentVolumeClaim objects into simplified display format.
+ */
+export function transformPvcs(items: any[]) {
+  if (!Array.isArray(items)) return []
+  return items.map((pvc: any) => ({
+    name: pvc.metadata?.name || '',
+    namespace: pvc.metadata?.namespace || '',
+    status: pvc.status?.phase || 'Unknown',
+    volume: pvc.spec?.volumeName || '-',
+    capacity: pvc.status?.capacity?.storage || '-',
+    storage_class: pvc.spec?.storageClassName || '-',
+    access_modes: (pvc.spec?.accessModes || []).join(', '),
+    age: calcAge(pvc.metadata?.creationTimestamp),
+  }))
+}
+
 // PVC
 export function getPvcDetail(params: { namespace: string; name: string }) {
   return request.get('/k8s/pvc/detail', { params })
@@ -601,8 +662,16 @@ export function createStorageClass(data: any) {
   return request.post('/k8s/storageclass/create', data)
 }
 
-export function deleteStorageClass(params: { name: string }) {
-  return request.delete('/k8s/storageclass/delete', { params })
+export function updateStorageClass(data: { name: string; yaml: string }) {
+  return request.put('/k8s/storageclass/update', data)
+}
+
+export function deleteStorageClass(data: { name: string }) {
+  return request.delete('/k8s/storageclass/delete', { data })
+}
+
+export function getStorageClassEvents(params: { name: string }) {
+  return request.get('/k8s/storageclass/events', { params })
 }
 
 // VolumeSnapshot
@@ -727,6 +796,10 @@ export function deleteNetworkPolicy(params: { namespace: string; name: string })
 
 export function getNetworkPolicyEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/networkpolicy/events', { params })
+}
+
+export function getNetworkPolicyPods(params: { namespace: string; name: string }) {
+  return request.get('/k8s/networkpolicy/pods', { params })
 }
 
 // RBAC - ServiceAccount

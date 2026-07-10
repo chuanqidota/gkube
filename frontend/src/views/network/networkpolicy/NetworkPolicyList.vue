@@ -103,7 +103,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
           </template>
         </el-table-column>
         <el-table-column prop="namespace" label="命名空间" width="140" />
-        <el-table-column prop="pod_selector" label="Pod Selector" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="pod_selector" label="Pod 选择器" min-width="200" show-overflow-tooltip />
         <el-table-column label="策略类型" width="160">
           <template #default="{ row }">
             <el-tag v-for="pt in (row.policy_types || [])" :key="pt" size="small" style="margin-right: 4px;">{{ pt }}</el-tag>
@@ -112,7 +112,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <el-table-column label="规则" width="120">
           <template #default="{ row }">Ingress: {{ row.ingress_rules }}, Egress: {{ row.egress_rules }}</template>
         </el-table-column>
-        <el-table-column prop="age" label="Age" width="120" />
+        <el-table-column prop="age" label="存活时间" width="120" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>

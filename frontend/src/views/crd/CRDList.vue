@@ -4,8 +4,8 @@ import { useRouter } from 'vue-router'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
-import { getCrdList, getCrdYaml, deleteCrd } from '@/api/resource'
-import YamlEditor from '@/components/YamlEditor.vue'
+import { getCrdList, deleteCrd } from '@/api/resource'
+import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
@@ -14,8 +14,7 @@ const loading = ref(false)
 const crdList = ref<any[]>([])
 const searchName = ref('')
 const yamlDialogVisible = ref(false)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
+const yamlTarget = ref<{ name: string } | null>(null)
 
 const filteredList = computed(() => {
   if (!searchName.value) return crdList.value
@@ -33,13 +32,9 @@ async function fetchCrds() {
   } finally { loading.value = false }
 }
 
-async function handleViewYaml(row: any) {
-  yamlDialogVisible.value = true; yamlLoading.value = true; yamlContent.value = ''
-  try {
-    const res: any = await getCrdYaml({ name: row.name })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) { ElMessage.error(e?.message || 'Failed to load YAML'); yamlDialogVisible.value = false }
-  finally { yamlLoading.value = false }
+function handleViewYaml(row: any) {
+  yamlTarget.value = { name: row.name }
+  yamlDialogVisible.value = true
 }
 
 function handleBrowse(row: any) {
@@ -105,9 +100,12 @@ onMounted(fetchCrds)
         </el-table-column>
       </el-table>
     </el-card>
-    <el-dialog v-model="yamlDialogVisible" title="CRD YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
-    </el-dialog>
+    <YamlDrawer
+      v-model="yamlDialogVisible"
+      resource-type="crd"
+      :name="yamlTarget?.name || ''"
+      @saved="fetchCrds"
+    />
   </div>
 </template>
 

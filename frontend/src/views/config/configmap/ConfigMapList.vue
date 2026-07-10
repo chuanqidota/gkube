@@ -3,10 +3,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getConfigMapList, getConfigMapYaml, getConfigMapDetail, deleteConfigMap, getNamespaceList, extractNamespaceNames, transformConfigMaps } from '@/api/resource'
+import { getConfigMapList, getConfigMapDetail, deleteConfigMap, getNamespaceList, extractNamespaceNames, transformConfigMaps } from '@/api/resource'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
-import YamlEditor from '@/components/YamlEditor.vue'
+import YamlDrawer from '@/components/YamlDrawer.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -16,8 +16,7 @@ const selectedNamespace = ref('')
 const searchName = ref('')
 const selectedRows = ref<any[]>([])
 const yamlDialogVisible = ref(false)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
+const yamlTarget = ref<{ namespace: string; name: string } | null>(null)
 const dataDialogVisible = ref(false)
 const dataDialogTitle = ref('')
 const dataEntries = ref<{ key: string; value: string }[]>([])
@@ -52,13 +51,9 @@ async function fetchConfigMaps() {
 function handleNamespaceChange() { fetchConfigMaps() }
 function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
 
-async function handleViewYaml(row: any) {
-  yamlDialogVisible.value = true; yamlLoading.value = true; yamlContent.value = ''
-  try {
-    const res: any = await getConfigMapYaml({ name: row.name, namespace: row.namespace })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) { ElMessage.error(e?.message || 'Failed to load YAML'); yamlDialogVisible.value = false }
-  finally { yamlLoading.value = false }
+function handleViewYaml(row: any) {
+  yamlTarget.value = { namespace: row.namespace, name: row.name }
+  yamlDialogVisible.value = true
 }
 
 async function handleViewData(row: any) {
@@ -142,9 +137,13 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
         </el-table-column>
       </el-table>
     </el-card>
-    <el-dialog v-model="yamlDialogVisible" title="ConfigMap YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
-    </el-dialog>
+    <YamlDrawer
+      v-model="yamlDialogVisible"
+      resource-type="configmap"
+      :namespace="yamlTarget?.namespace || ''"
+      :name="yamlTarget?.name || ''"
+      @saved="fetchConfigMaps"
+    />
     <el-dialog v-model="dataDialogVisible" :title="dataDialogTitle" width="60%" top="8vh">
       <div v-loading="dataLoading">
         <el-table :data="dataEntries" stripe style="width: 100%" max-height="400">

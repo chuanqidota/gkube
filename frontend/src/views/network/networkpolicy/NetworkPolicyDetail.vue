@@ -2,8 +2,17 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getNetworkPolicyDetail, getNetworkPolicyYaml, updateNetworkPolicy, deleteNetworkPolicy, getNetworkPolicyEvents } from '@/api/resource'
+import {
+  getNetworkPolicyDetail,
+  getNetworkPolicyYaml,
+  updateNetworkPolicy,
+  deleteNetworkPolicy,
+  getNetworkPolicyEvents,
+  getNetworkPolicyPods,
+  deletePod,
+} from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import PodListPanel from '@/components/PodListPanel.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
@@ -15,22 +24,64 @@ const yamlContent = ref('')
 const yamlLoading = ref(false)
 const yamlDialogVisible = ref(false)
 const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
-const activeTab = ref('info')
 
 // Events
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
 
+// Related Pods
+const pods = ref<any[]>([])
+const podsLoading = ref(false)
+
 const namespace = route.params.namespace as string
 const name = route.params.name as string
+
+function transformNp(raw: any) {
+  const spec = raw.spec || {}
+  const meta = raw.metadata || {}
+
+  // Pod selector display
+  const podSelector = spec.podSelector?.matchLabels || {}
+  const podSelectorStr = Object.keys(podSelector).length > 0
+    ? Object.entries(podSelector).map(([k, v]) => `${k}=${v}`).join(', ')
+    : 'All pods'
+
+  // Policy types
+  const policyTypes = (spec.policyTypes || []).map((t: string) => t)
+
+  // Age
+  let age = ''
+  if (meta.creationTimestamp) {
+    const created = new Date(meta.creationTimestamp).getTime()
+    const diff = Date.now() - created
+    const seconds = Math.floor(diff / 1000)
+    if (seconds < 60) age = `${seconds}s`
+    else if (seconds < 3600) age = `${Math.floor(seconds / 60)}m`
+    else if (seconds < 86400) age = `${Math.floor(seconds / 3600)}h`
+    else age = `${Math.floor(seconds / 86400)}d`
+  }
+
+  return {
+    name: meta.name || '',
+    namespace: meta.namespace || '',
+    podSelector,
+    podSelectorStr,
+    policyTypes,
+    ingress: spec.ingress || [],
+    egress: spec.egress || [],
+    labels: meta.labels || {},
+    age,
+    raw,
+  }
+}
 
 async function fetchDetail() {
   loading.value = true
   try {
     const res: any = await getNetworkPolicyDetail({ namespace, name })
-    np.value = res.data
+    np.value = transformNp(res.data)
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load NetworkPolicy detail')
+    ElMessage.error(e?.message || '加载详情失败')
   } finally {
     loading.value = false
   }
@@ -42,7 +93,7 @@ async function fetchYaml() {
     const res: any = await getNetworkPolicyYaml({ namespace, name })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load YAML')
+    ElMessage.error(e?.message || '加载 YAML 失败')
   } finally {
     yamlLoading.value = false
   }
@@ -60,11 +111,53 @@ async function fetchEvents() {
   }
 }
 
-function handleTabChange(tab: string | number) {
-  if (tab === 'yaml' && !yamlContent.value) {
-    fetchYaml()
-  } else if (tab === 'events' && events.value.length === 0) {
-    fetchEvents()
+async function fetchPods() {
+  podsLoading.value = true
+  try {
+    const res: any = await getNetworkPolicyPods({ namespace, name })
+    pods.value = res.data?.items || res.data || []
+  } catch (e) {
+    console.error('Failed to fetch pods:', e)
+  } finally {
+    podsLoading.value = false
+  }
+}
+
+function getClusterName(): string {
+  try {
+    const saved = localStorage.getItem('gkube_cluster')
+    if (saved) {
+      const c = JSON.parse(saved)
+      return c?.clusterName || c?.cluster_name || c?.name || ''
+    }
+  } catch { /* ignore */ }
+  return ''
+}
+
+function handlePodLogs(pod: any) {
+  const cluster = getClusterName()
+  window.open(`/fullscreen/logs?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+}
+
+function handlePodExec(pod: any) {
+  const cluster = getClusterName()
+  window.open(`/fullscreen/terminal?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+}
+
+async function handlePodDelete(pod: any) {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除 Pod "${pod.metadata.name}"？`,
+      '确认删除',
+      { type: 'warning' }
+    )
+    await deletePod({ namespace, name: pod.metadata.name })
+    ElMessage.success('Pod 已删除')
+    fetchPods()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
   }
 }
 
@@ -76,43 +169,103 @@ function handleOpenYaml() {
 async function handleSaveYaml(content: string) {
   try {
     await updateNetworkPolicy({ namespace, yaml: content })
-    ElMessage.success('YAML saved successfully')
+    ElMessage.success('YAML 已保存')
     yamlDialogVisible.value = false
     fetchDetail()
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to save YAML')
+    ElMessage.error(e?.message || '保存 YAML 失败')
     yamlEditorRef.value?.resetSaving()
   }
 }
 
 async function handleDelete() {
   try {
-    await ElMessageBox.confirm(`Delete NetworkPolicy "${name}" in namespace "${namespace}"?`, 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(
+      `确认删除 NetworkPolicy "${name}"（命名空间: ${namespace}）？`,
+      '确认删除',
+      { type: 'warning' }
+    )
     await deleteNetworkPolicy({ namespace, name })
-    ElMessage.success('NetworkPolicy deleted')
+    ElMessage.success('NetworkPolicy 已删除')
     router.push('/network/networkpolicies')
-  } catch {
-    // cancelled
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e?.message || '删除失败')
+    }
   }
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+// ---- Resize: left-right ----
+const leftWidth = ref(300)
+const resizingH = ref(false)
+let startX = 0, startW = 0
+function onHResizeStart(e: MouseEvent) {
+  e.preventDefault()
+  resizingH.value = true
+  startX = e.clientX
+  startW = leftWidth.value
+  const onMove = (ev: MouseEvent) => {
+    leftWidth.value = Math.min(Math.max(startW + ev.clientX - startX, 220), 500)
+  }
+  const onUp = () => {
+    resizingH.value = false
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
 
-onMounted(fetchDetail)
+// ---- Resize: top-bottom (Pods / Events) ----
+const rightTopHeight = ref<number | null>(null)
+const resizingV = ref(false)
+let startY = 0, startH = 0
+function onVResizeStart(e: MouseEvent) {
+  e.preventDefault()
+  resizingV.value = true
+  startY = e.clientY
+  const rightPanel = (e.target as HTMLElement).closest('.right-panel')
+  if (!rightPanel) return
+  startH = rightPanel.getBoundingClientRect().height
+  const onMove = (ev: MouseEvent) => {
+    const delta = ev.clientY - startY
+    rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
+  }
+  const onUp = () => {
+    resizingV.value = false
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
+
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
+  fetchDetail()
+  fetchPods()
+  fetchEvents()
+}, { autoStart: false })
+
+onMounted(() => {
+  fetchDetail()
+  fetchPods()
+  fetchEvents()
+})
 </script>
 
 <template>
-  <div v-loading="loading">
-    <!-- Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <el-button link @click="router.push('/network/networkpolicies')">
-          <el-icon><ArrowLeft /></el-icon>
-        </el-button>
-        <h2 style="margin: 0;">{{ name }}</h2>
-        <el-tag v-if="np?.namespace" type="info" size="small">{{ np.namespace }}</el-tag>
+  <div class="detail-page" v-loading="loading">
+
+    <!-- 顶部标题栏 -->
+    <div class="page-header">
+      <div class="header-left">
+        <div class="title-line">
+          <h2 class="res-name">{{ name }}</h2>
+          <span class="ns-tag">ns/{{ namespace }}</span>
+          <el-tag v-for="pt in (np?.policyTypes || [])" :key="pt" size="small">{{ pt }}</el-tag>
+        </div>
       </div>
-      <div>
+      <div class="header-actions">
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -123,110 +276,146 @@ onMounted(fetchDetail)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button @click="handleOpenYaml">Edit YAML</el-button>
+        <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" @click="handleDelete">删除</el-button>
+        <el-button @click="router.push('/network/networkpolicies')">返回列表</el-button>
       </div>
     </div>
 
     <template v-if="np">
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <!-- Info Tab -->
-        <el-tab-pane label="Info" name="info">
-          <el-descriptions :column="2" border style="margin-top: 8px;">
-            <el-descriptions-item label="Name">{{ np.metadata?.name || np.name }}</el-descriptions-item>
-            <el-descriptions-item label="Namespace">{{ np.metadata?.namespace || np.namespace }}</el-descriptions-item>
-            <el-descriptions-item label="Pod Selector" :span="2">
-              <el-tag v-for="(v, k) in (np.spec?.podSelector?.matchLabels || {})" :key="k" style="margin-right: 4px;">{{ k }}={{ v }}</el-tag>
-              <span v-if="!np.spec?.podSelector?.matchLabels || Object.keys(np.spec.podSelector.matchLabels).length === 0">All pods</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="Policy Types">
-              <el-tag v-for="pt in (np.spec?.policyTypes || [])" :key="pt" style="margin-right: 4px;">{{ pt }}</el-tag>
-            </el-descriptions-item>
-          </el-descriptions>
+      <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
 
-          <!-- Labels -->
-          <div v-if="np.metadata?.labels && Object.keys(np.metadata.labels).length > 0" style="margin-top: 16px;">
-            <h4 style="margin: 0 0 8px;">Labels</h4>
-            <el-tag
-              v-for="(val, key) in np.metadata.labels"
-              :key="key"
-              style="margin-right: 8px; margin-bottom: 8px;"
-            >
-              {{ key }}={{ val }}
-            </el-tag>
-          </div>
+        <!-- 左侧：基本信息 -->
+        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
+          <div class="panel-title">基本信息</div>
+          <div class="info-body">
+            <el-descriptions :column="1" border size="small">
+              <el-descriptions-item label="名称">{{ np.name }}</el-descriptions-item>
+              <el-descriptions-item label="命名空间">{{ np.namespace }}</el-descriptions-item>
+              <el-descriptions-item label="Pod Selector">{{ np.podSelectorStr }}</el-descriptions-item>
+              <el-descriptions-item label="策略类型">
+                <el-tag v-for="pt in np.policyTypes" :key="pt" size="small" style="margin-right: 4px;">{{ pt }}</el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="Age">{{ np.age || '-' }}</el-descriptions-item>
+            </el-descriptions>
 
-          <!-- Ingress Rules -->
-          <div v-if="np.spec?.ingress && np.spec.ingress.length > 0" style="margin-top: 24px;">
-            <h4>Ingress Rules</h4>
-            <div v-for="(rule, i) in np.spec.ingress" :key="i" style="margin-bottom: 16px;">
-              <el-card shadow="never">
+            <!-- Labels -->
+            <div v-if="np.labels && Object.keys(np.labels).length > 0" style="margin-top: 16px;">
+              <h4 style="margin: 0 0 8px; font-size: 13px;">Labels</h4>
+              <el-tag
+                v-for="(val, key) in np.labels"
+                :key="key"
+                style="margin-right: 8px; margin-bottom: 8px;"
+                size="small"
+              >
+                {{ key }}={{ val }}
+              </el-tag>
+            </div>
+
+            <!-- Ingress Rules -->
+            <div v-if="np.ingress && np.ingress.length > 0" style="margin-top: 16px;">
+              <h4 style="margin: 0 0 8px; font-size: 13px;">Ingress 规则</h4>
+              <div v-for="(rule, i) in np.ingress" :key="i" class="rule-summary">
                 <div v-if="rule.from && rule.from.length > 0">
-                  <h5>From:</h5>
-                  <div v-for="(from, j) in rule.from" :key="j" style="margin-bottom: 8px;">
-                    <el-tag v-if="from.podSelector" type="info" size="small">Pod: {{ Object.entries(from.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}</el-tag>
-                    <el-tag v-if="from.namespaceSelector" type="warning" size="small">NS: {{ Object.entries(from.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}</el-tag>
-                    <el-tag v-if="from.ipBlock" type="success" size="small">IP: {{ from.ipBlock.cidr }}</el-tag>
+                  <div v-for="(from, j) in rule.from" :key="j" style="margin-bottom: 4px;">
+                    <el-tag v-if="from.podSelector" type="info" size="small" style="margin-right: 4px;">
+                      Pod: {{ Object.entries(from.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
+                    </el-tag>
+                    <el-tag v-if="from.namespaceSelector" type="warning" size="small" style="margin-right: 4px;">
+                      NS: {{ Object.entries(from.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
+                    </el-tag>
+                    <el-tag v-if="from.ipBlock" type="success" size="small" style="margin-right: 4px;">
+                      IP: {{ from.ipBlock.cidr }}
+                    </el-tag>
                   </div>
                 </div>
-                <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 8px;">
-                  <h5>Ports:</h5>
+                <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 4px;">
                   <el-tag v-for="(port, j) in rule.ports" :key="j" size="small" style="margin-right: 4px;">{{ port.protocol }}/{{ port.port }}</el-tag>
                 </div>
-              </el-card>
+              </div>
             </div>
-          </div>
 
-          <!-- Egress Rules -->
-          <div v-if="np.spec?.egress && np.spec.egress.length > 0" style="margin-top: 24px;">
-            <h4>Egress Rules</h4>
-            <div v-for="(rule, i) in np.spec.egress" :key="i" style="margin-bottom: 16px;">
-              <el-card shadow="never">
+            <!-- Egress Rules -->
+            <div v-if="np.egress && np.egress.length > 0" style="margin-top: 16px;">
+              <h4 style="margin: 0 0 8px; font-size: 13px;">Egress 规则</h4>
+              <div v-for="(rule, i) in np.egress" :key="i" class="rule-summary">
                 <div v-if="rule.to && rule.to.length > 0">
-                  <h5>To:</h5>
-                  <div v-for="(to, j) in rule.to" :key="j" style="margin-bottom: 8px;">
-                    <el-tag v-if="to.podSelector" type="info" size="small">Pod: {{ Object.entries(to.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}</el-tag>
-                    <el-tag v-if="to.namespaceSelector" type="warning" size="small">NS: {{ Object.entries(to.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}</el-tag>
-                    <el-tag v-if="to.ipBlock" type="success" size="small">IP: {{ to.ipBlock.cidr }}</el-tag>
+                  <div v-for="(to, j) in rule.to" :key="j" style="margin-bottom: 4px;">
+                    <el-tag v-if="to.podSelector" type="info" size="small" style="margin-right: 4px;">
+                      Pod: {{ Object.entries(to.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
+                    </el-tag>
+                    <el-tag v-if="to.namespaceSelector" type="warning" size="small" style="margin-right: 4px;">
+                      NS: {{ Object.entries(to.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
+                    </el-tag>
+                    <el-tag v-if="to.ipBlock" type="success" size="small" style="margin-right: 4px;">
+                      IP: {{ to.ipBlock.cidr }}
+                    </el-tag>
                   </div>
                 </div>
-                <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 8px;">
-                  <h5>Ports:</h5>
+                <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 4px;">
                   <el-tag v-for="(port, j) in rule.ports" :key="j" size="small" style="margin-right: 4px;">{{ port.protocol }}/{{ port.port }}</el-tag>
                 </div>
-              </el-card>
+              </div>
             </div>
           </div>
-        </el-tab-pane>
+        </div>
 
-        <!-- YAML Tab -->
-        <el-tab-pane label="YAML" name="yaml">
-          <div v-loading="yamlLoading">
-            <YamlEditor v-model="yamlContent" height="600px" read-only />
-          </div>
-        </el-tab-pane>
+        <!-- 右侧：Pods + Events -->
+        <div class="right-panel">
 
-        <!-- Events Tab -->
-        <el-tab-pane label="Events" name="events">
-          <div v-loading="eventsLoading">
-            <el-table v-if="events.length > 0" :data="events" size="small" stripe>
-              <el-table-column prop="type" label="Type" width="100">
-                <template #default="{ row }">
-                  <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="reason" label="Reason" width="150" />
-              <el-table-column prop="message" label="Message" min-width="300" show-overflow-tooltip />
-              <el-table-column prop="last_seen" label="Last Seen" width="180" />
-            </el-table>
-            <el-empty v-else description="No events" />
+          <!-- Pod 列表 -->
+          <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
+            <div class="panel-title">
+              影响的 Pod
+              <span class="count-badge">{{ pods.length }} 个</span>
+            </div>
+            <PodListPanel
+              :pods="pods"
+              :loading="podsLoading"
+              @logs="handlePodLogs"
+              @exec="handlePodExec"
+              @delete="handlePodDelete"
+            />
           </div>
-        </el-tab-pane>
-      </el-tabs>
+
+          <!-- 垂直拖拽条 -->
+          <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
+
+          <!-- Events -->
+          <div class="right-section events-section">
+            <div class="panel-title">
+              事件
+              <span class="count-badge">{{ events.length }} 条</span>
+            </div>
+            <div v-loading="eventsLoading" class="events-body">
+              <el-table v-if="events.length > 0" :data="events" size="small" stripe max-height="260">
+                <el-table-column prop="type" label="类型" width="80">
+                  <template #default="{ row }">
+                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="reason" label="原因" width="130" />
+                <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="last_seen" label="最后发生" width="150" />
+              </el-table>
+              <div v-else class="empty-hint">暂无事件</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 水平拖拽条（绝对定位，覆盖在左右面板交界） -->
+        <div
+          class="resize-handle-h"
+          :class="{ active: resizingH }"
+          :style="{ left: (leftWidth - 3) + 'px' }"
+          @mousedown="onHResizeStart"
+        />
+      </div>
     </template>
 
-    <!-- YAML Edit Dialog -->
-    <el-drawer v-model="yamlDialogVisible" title="Edit YAML" size="85%" direction="rtl" class="yaml-drawer"
+    <!-- YAML Edit Drawer -->
+    <el-drawer v-model="yamlDialogVisible" title="YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
       <div v-loading="yamlLoading" style="height: calc(100vh - 52px);">
         <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="100%" auto-format show-save-buttons @save="handleSaveYaml" @cancel="fetchYaml" />
@@ -234,6 +423,204 @@ onMounted(fetchDetail)
     </el-drawer>
   </div>
 </template>
+
+<style scoped>
+.detail-page {
+  padding: 16px 20px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.res-name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.ns-tag {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-lighter);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Main Layout */
+.main-layout {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Left Panel - Info */
+.left-panel {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--el-bg-color);
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 14px;
+  background: var(--el-fill-color-lighter);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.count-badge {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.info-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+/* Right Panel */
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.right-section {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--el-bg-color);
+}
+
+.right-section:first-child {
+  flex: 1;
+  min-height: 0;
+}
+
+.right-section.events-section {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Resize handles */
+.resize-handle-h {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resize-handle-h:hover,
+.resize-handle-h.active {
+  background: var(--el-color-primary-light-7);
+}
+
+.resize-handle-v {
+  height: 4px;
+  cursor: row-resize;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+  margin: -2px 0;
+}
+
+.resize-handle-v:hover,
+.resize-handle-v.active {
+  background: var(--el-color-primary-light-7);
+}
+
+.is-resizing {
+  user-select: none;
+}
+
+.is-resizing * {
+  pointer-events: none;
+}
+
+.events-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.empty-hint {
+  padding: 24px;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.rule-summary {
+  padding: 8px;
+  border: 1px solid var(--el-border-color-extra-light);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: var(--el-fill-color-lighter);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main-layout {
+    flex-direction: column;
+    overflow: auto;
+  }
+  .left-panel {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-height: 300px;
+  }
+  .resize-handle-h {
+    display: none;
+  }
+}
+</style>
 
 <style>
 .yaml-drawer .el-drawer__header {

@@ -189,6 +189,7 @@ func registerNetworkRoutes(k8s *gin.RouterGroup) {
 	k8s.GET("networkpolicy/yaml", k8sNetwork.NetworkPolicy.GetNetworkPolicyYaml)
 	k8s.GET("networkpolicy/get-yaml", k8sNetwork.NetworkPolicy.GetNetworkPolicyYaml)
 	k8s.GET("networkpolicy/events", k8sNetwork.NetworkPolicy.GetNetworkPolicyEvents)
+	k8s.GET("networkpolicy/pods", k8sNetwork.NetworkPolicy.GetNetworkPolicyPods)
 	k8s.POST("networkpolicy/create", k8sNetwork.NetworkPolicy.CreateNetworkPolicy)
 	k8s.PUT("networkpolicy/update", k8sNetwork.NetworkPolicy.UpdateNetworkPolicy)
 	k8s.DELETE("networkpolicy/delete", k8sNetwork.NetworkPolicy.DeleteNetworkPolicy)
@@ -217,6 +218,7 @@ func registerStorageRoutes(k8s *gin.RouterGroup) {
 	k8s.POST("storageclass/create", k8sStorage.StorageClass.CreateStorageClass)
 	k8s.PUT("storageclass/update", k8sStorage.StorageClass.UpdateStorageClass)
 	k8s.DELETE("storageclass/delete", k8sStorage.StorageClass.DeleteStorageClassByName)
+	k8s.GET("storageclass/events", k8sStorage.StorageClass.GetStorageClassEvents)
 
 	// VolumeSnapshot
 	k8s.GET("volumesnapshot/list", k8sStorage.VolumeSnapshot.GetVolumeSnapshotList)

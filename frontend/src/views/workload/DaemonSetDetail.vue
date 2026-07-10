@@ -4,15 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getDaemonSetDetail,
-  getDaemonSetYaml,
-  updateDaemonSetYaml,
   deleteDaemonSet,
   restartDaemonSet,
   getDaemonSetEvents,
   getDaemonSetPods,
   deletePod,
 } from '@/api/resource'
-import YamlEditor from '@/components/YamlEditor.vue'
+import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -21,10 +19,7 @@ const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const daemonSet = ref<any>(null)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
 const yamlDialogVisible = ref(false)
-const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
 const pods = ref<any[]>([])
@@ -58,18 +53,6 @@ async function fetchDetail() {
     ElMessage.error(e?.message || '加载 DaemonSet 详情失败')
   } finally {
     loading.value = false
-  }
-}
-
-async function fetchYaml() {
-  yamlLoading.value = true
-  try {
-    const res: any = await getDaemonSetYaml({ namespace, name })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 YAML 失败')
-  } finally {
-    yamlLoading.value = false
   }
 }
 
@@ -112,20 +95,11 @@ async function fetchPods() {
 }
 
 function handleOpenYaml() {
-  fetchYaml()
   yamlDialogVisible.value = true
 }
 
-async function handleSaveYaml(content: string) {
-  try {
-    await updateDaemonSetYaml({ namespace, name, yaml: content })
-    ElMessage.success('YAML 保存成功')
-    yamlDialogVisible.value = false
-    fetchDetail()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '保存 YAML 失败')
-    yamlEditorRef.value?.resetSaving()
-  }
+function handleYamlSaved() {
+  fetchDetail()
 }
 
 async function handleDelete() {
@@ -339,11 +313,13 @@ onMounted(() => {
     </template>
 
     <!-- ===== Dialogs ===== -->
-    <el-dialog v-model="yamlDialogVisible" title="YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading">
-        <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="600px" :read-only="false" :saveable="true" @save="handleSaveYaml" />
-      </div>
-    </el-dialog>
+    <YamlDrawer
+      v-model="yamlDialogVisible"
+      resource-type="daemonset"
+      :namespace="namespace"
+      :name="name"
+      @saved="handleYamlSaved"
+    />
   </div>
 </template>
 

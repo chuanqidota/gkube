@@ -1,23 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { createNetworkPolicy, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { FullScreen } from '@element-plus/icons-vue'
+import yaml from 'js-yaml'
+import NetworkPolicyForm from '@/views/network/networkpolicy/components/NetworkPolicyForm.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
+import { createNetworkPolicy } from '@/api/resource'
 
 const router = useRouter()
-const loading = ref(false)
-const namespaceList = ref<string[]>([])
-
-const form = ref({
-  name: '',
-  namespace: '',
-  policyTypes: ['Ingress', 'Egress'],
-  podSelectorLabels: [{ key: 'app', value: '' }],
-})
-
-const defaultYaml = `apiVersion: networking.k8s.io/v1
+const { t } = useI18n()
+const mode = ref<'form' | 'yaml'>('form')
+const yamlEditorRef = ref()
+const yamlContent = ref(`apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: my-network-policy
@@ -44,99 +40,135 @@ spec:
       ports:
         - protocol: TCP
           port: 443
-`
+`)
+const submitting = ref(false)
 
-const yamlContent = ref(defaultYaml)
-
-async function fetchNamespaces() {
-  try {
-    const res: any = await getNamespaceList()
-    namespaceList.value = extractNamespaceNames(res.data)
-  } catch { /* ignore */ }
-}
-
-function buildYaml() {
-  const labels: Record<string, string> = {}
-  form.value.podSelectorLabels.forEach(l => { if (l.key) labels[l.key] = l.value })
-  const np = {
-    apiVersion: 'networking.k8s.io/v1',
-    kind: 'NetworkPolicy',
-    metadata: { name: form.value.name, namespace: form.value.namespace },
-    spec: {
-      podSelector: { matchLabels: labels },
-      policyTypes: form.value.policyTypes,
-      ingress: [{ from: [{ podSelector: { matchLabels: {} } }] }],
-      egress: [{ to: [{ ipBlock: { cidr: '0.0.0.0/0' } }] }],
-    },
-  }
-  yamlContent.value = JSON.stringify(np, null, 2)
-}
-
-async function handleCreate() {
-  if (!form.value.name || !form.value.namespace) {
-    ElMessage.warning('Please fill in name and namespace')
+async function handleYamlSubmit() {
+  if (!yamlContent.value.trim()) {
+    ElMessage.error('YAML 内容不能为空')
     return
   }
-  loading.value = true
+  submitting.value = true
   try {
-    buildYaml()
-    await createNetworkPolicy({ namespace: form.value.namespace, yaml: yamlContent.value })
-    ElMessage.success('NetworkPolicy created successfully')
+    const parsed = yaml.load(yamlContent.value) as any
+    const ns = parsed?.metadata?.namespace || 'default'
+    await createNetworkPolicy({ namespace: ns, yaml: yamlContent.value })
+    ElMessage.success('NetworkPolicy 创建成功')
     router.push('/network/networkpolicies')
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to create NetworkPolicy')
-  } finally { loading.value = false }
+    ElMessage.error(e?.message || '创建失败')
+  } finally {
+    submitting.value = false
+  }
 }
 
-function addLabel() { form.value.podSelectorLabels.push({ key: '', value: '' }) }
-function removeLabel(i: number) { form.value.podSelectorLabels.splice(i, 1) }
+function handleCancel() {
+  router.push('/network/networkpolicies')
+}
 
-onMounted(fetchNamespaces)
+function handleFormat() {
+  yamlEditorRef.value?.handleFormat()
+}
+
+function handleCopy() {
+  yamlEditorRef.value?.handleCopy()
+}
+
+function handleMaximize() {
+  yamlEditorRef.value?.toggleFullscreen()
+}
 </script>
 
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <h2 style="margin: 0;">创建 NetworkPolicy</h2>
-      <el-button @click="router.push('/network/networkpolicies')">Back to List</el-button>
+  <div class="np-create">
+    <div class="mode-switcher">
+      <el-segmented v-model="mode" :options="[{ label: t('common.formCreate'), value: 'form' }, { label: t('common.yamlCreate'), value: 'yaml' }]" size="small" />
     </div>
-    <el-card shadow="never">
-      <el-form label-width="140px" style="max-width: 600px;">
-        <el-form-item label="Name" required>
-          <el-input v-model="form.name" placeholder="my-network-policy" />
-        </el-form-item>
-        <el-form-item label="Namespace" required>
-          <el-select v-model="form.namespace" placeholder="Select namespace" style="width: 100%;">
-            <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Policy Types">
-          <el-checkbox-group v-model="form.policyTypes">
-            <el-checkbox label="Ingress" value="Ingress" />
-            <el-checkbox label="Egress" value="Egress" />
-          </el-checkbox-group>
-        </el-form-item>
-        <el-form-item label="Pod Selector">
-          <div v-for="(label, i) in form.podSelectorLabels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-            <el-input v-model="label.key" placeholder="Key" style="flex: 1;" />
-            <el-input v-model="label.value" placeholder="Value" style="flex: 1;" />
-            <el-button type="danger" circle size="small" @click="removeLabel(i)">X</el-button>
+
+    <NetworkPolicyForm v-if="mode === 'form'" />
+
+    <div v-else class="yaml-mode">
+      <div class="yaml-card">
+        <div class="yaml-card-header">
+          <div class="yaml-card-left">
+            <span class="yaml-card-title">YAML 配置</span>
+            <el-button-group>
+              <el-button size="small" @click="handleFormat">Format</el-button>
+              <el-button size="small" @click="handleCopy">复制</el-button>
+            </el-button-group>
+            <el-tooltip content="最大化" placement="top">
+              <el-icon class="maximize-btn" @click="handleMaximize"><FullScreen /></el-icon>
+            </el-tooltip>
           </div>
-          <el-button size="small" @click="addLabel">Add Label</el-button>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleCreate">创建 NetworkPolicy</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-    <el-card shadow="never" style="margin-top: 16px;">
-      <template #header><span>YAML Preview</span></template>
-      <YamlEditor v-model="yamlContent" height="400px" read-only />
-    </el-card>
+          <div class="yaml-card-actions">
+            <el-button size="small" @click="handleCancel">取消</el-button>
+            <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit">创建</el-button>
+          </div>
+        </div>
+        <div class="yaml-card-body">
+          <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="calc(100vh - 180px)" :read-only="false" editable auto-format :show-toolbar="false" title="YAML 配置">
+            <template #fullscreen-actions>
+              <el-button size="small" @click="handleCancel">取消</el-button>
+              <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit">创建</el-button>
+            </template>
+          </YamlEditor>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.np-create { max-width: 1100px; margin: 0 auto; padding: 20px 0; }
+.mode-switcher { display: flex; justify-content: center; margin-bottom: 12px; }
+.yaml-mode { padding: 0 16px; }
+
+.yaml-card {
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--el-bg-color);
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.yaml-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--el-fill-color-lighter);
+  border-bottom: 1px solid var(--el-border-color-light);
+}
+
+.yaml-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.yaml-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.yaml-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.yaml-card-body {
+  padding: 0;
+}
+
+.maximize-btn {
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--el-text-color-secondary);
+  margin-left: 4px;
+  transition: color 0.2s;
+}
+.maximize-btn:hover {
+  color: var(--el-color-primary);
+}
 </style>

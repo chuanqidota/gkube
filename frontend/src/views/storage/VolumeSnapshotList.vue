@@ -3,9 +3,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getVolumeSnapshotList, getVolumeSnapshotYaml, deleteVolumeSnapshot, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { getVolumeSnapshotList, deleteVolumeSnapshot, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import { useI18n } from 'vue-i18n'
-import YamlEditor from '@/components/YamlEditor.vue'
+import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
@@ -18,8 +18,7 @@ const selectedNamespace = ref('')
 const searchName = ref('')
 const selectedRows = ref<any[]>([])
 const yamlDialogVisible = ref(false)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
+const yamlTarget = ref<{ namespace: string; name: string } | null>(null)
 
 const filteredList = computed(() => {
   if (!searchName.value) return snapshotList.value
@@ -80,13 +79,9 @@ function getSource(row: any): string {
   return '-'
 }
 
-async function handleViewYaml(row: any) {
-  yamlDialogVisible.value = true; yamlLoading.value = true; yamlContent.value = ''
-  try {
-    const res: any = await getVolumeSnapshotYaml({ name: row.name, namespace: row.namespace })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) { ElMessage.error(e?.message || 'Failed to load YAML'); yamlDialogVisible.value = false }
-  finally { yamlLoading.value = false }
+function handleViewYaml(row: any) {
+  yamlTarget.value = { namespace: row.namespace, name: row.name }
+  yamlDialogVisible.value = true
 }
 
 function handleDetail(row: any) { router.push(`/storage/volumesnapshots/${row.namespace}/${row.name}`) }
@@ -178,9 +173,13 @@ onMounted(() => { fetchNamespaces(); fetchSnapshots() })
         </el-table-column>
       </el-table>
     </el-card>
-    <el-dialog v-model="yamlDialogVisible" :title="t('storage.volumeSnapshot') + ' YAML'" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
-    </el-dialog>
+    <YamlDrawer
+      v-model="yamlDialogVisible"
+      resource-type="volumesnapshot"
+      :namespace="yamlTarget?.namespace || ''"
+      :name="yamlTarget?.name || ''"
+      @saved="fetchSnapshots"
+    />
   </div>
 </template>
 
