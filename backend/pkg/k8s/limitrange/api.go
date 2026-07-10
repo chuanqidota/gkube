@@ -1,6 +1,7 @@
 package limitrange
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 
@@ -24,7 +25,7 @@ func GetLimitRangeYaml(client *kubernetes.Clientset, namespace, name string) (st
 		return "", err
 	}
 	lr.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "LimitRange"}
-	out, err := yaml.Marshal(lr)
+	out, err := yamlutil.MarshalWithoutManagedFields(lr)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal LimitRange to YAML: %w", err)
 	}

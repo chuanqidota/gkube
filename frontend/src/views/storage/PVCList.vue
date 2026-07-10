@@ -3,6 +3,7 @@ import { Plus, Delete, Search } from '@element-plus/icons-vue'
 import {
   getPvcList,
   getPvcYaml,
+  updatePvcYaml,
   deletePvc,
   transformPvcs,
 } from '@/api/resource'
@@ -22,11 +23,14 @@ const {
   yamlDialogVisible,
   yamlContent,
   yamlLoading,
+  yamlSaving,
   totalCount,
   fetchResources,
   handleNamespaceChange,
   handleSelectionChange,
   handleViewYaml,
+  handleSaveYaml,
+  handleCancelYaml,
   handleDetail,
   handleDelete,
   handleBatchDelete,
@@ -35,6 +39,7 @@ const {
   fetchList: getPvcList,
   transform: transformPvcs,
   getYaml: getPvcYaml,
+  updateYaml: updatePvcYaml,
   deleteResource: deletePvc,
   detailRoute: '/storage/pvcs',
   createRoute: '/storage/pvcs/create',
@@ -129,7 +134,15 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     <el-drawer v-model="yamlDialogVisible" title="PVC YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
       <div v-loading="yamlLoading" style="height: calc(100vh - 52px);">
-        <YamlEditor v-model="yamlContent" height="100%" auto-format read-only />
+        <YamlEditor
+          v-model="yamlContent"
+          height="100%"
+          auto-format
+          show-save-buttons
+          :saving="yamlSaving"
+          @save="handleSaveYaml"
+          @cancel="handleCancelYaml"
+        />
       </div>
     </el-drawer>
   </div>

@@ -645,6 +645,10 @@ export function createPvc(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/pvc/create', data)
 }
 
+export function updatePvcYaml(data: { namespace: string; yaml: string }) {
+  return request.put('/k8s/pvc/update', data)
+}
+
 // StorageClass
 export function getStorageClassDetail(params: { name: string }) {
   return request.get('/k8s/storageclass/detail', { params })

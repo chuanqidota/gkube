@@ -1,6 +1,7 @@
 package daemonset
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 	"time"
@@ -70,11 +71,11 @@ func GetDaemonSetYaml(client *kubernetes.Clientset, namespace, name string) (str
 	if err != nil {
 		return "", err
 	}
-	yamlBytes, err := yaml.Marshal(daemonSet)
+	yamlStr, err := yamlutil.MarshalWithoutManagedFields(daemonSet)
 	if err != nil {
 		return "", err
 	}
-	return string(yamlBytes), nil
+	return yamlStr, nil
 }
 
 // GetDaemonSetByField

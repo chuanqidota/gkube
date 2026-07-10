@@ -1,6 +1,7 @@
 package hpa
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 
@@ -27,7 +28,7 @@ func GetHPAYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 		APIVersion: "autoscaling/v2",
 		Kind:       "HorizontalPodAutoscaler",
 	}
-	out, err := yaml.Marshal(hpa)
+	out, err := yamlutil.MarshalWithoutManagedFields(hpa)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal HPA to YAML: %w", err)
 	}

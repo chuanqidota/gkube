@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 	"sort"
@@ -94,11 +95,11 @@ func GetDeploymentYaml(client *kubernetes.Clientset, namespace, name string) (st
 	if err != nil {
 		return "", err
 	}
-	yamlBytes, err := yaml.Marshal(deployment)
+	yamlStr, err := yamlutil.MarshalWithoutManagedFields(deployment)
 	if err != nil {
 		return "", err
 	}
-	return string(yamlBytes), nil
+	return yamlStr, nil
 }
 
 // CreateDeployment

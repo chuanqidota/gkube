@@ -1,6 +1,7 @@
 package networkpolicy
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 
@@ -29,7 +30,7 @@ func GetNetworkPolicyYaml(client *kubernetes.Clientset, namespace, name string) 
 		APIVersion: "networking.k8s.io/v1",
 		Kind:       "NetworkPolicy",
 	}
-	out, err := yaml.Marshal(np)
+	out, err := yamlutil.MarshalWithoutManagedFields(np)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal NetworkPolicy to YAML: %w", err)
 	}

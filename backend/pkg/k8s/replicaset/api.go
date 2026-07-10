@@ -1,13 +1,13 @@
 package replicaset
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/yaml"
 )
 
 func GetReplicaSetList(client *kubernetes.Clientset, namespace string) ([]appsv1.ReplicaSet, error) {
@@ -24,7 +24,7 @@ func GetReplicaSetYaml(client *kubernetes.Clientset, namespace, name string) (st
 		return "", err
 	}
 	rs.TypeMeta = metav1.TypeMeta{APIVersion: "apps/v1", Kind: "ReplicaSet"}
-	out, err := yaml.Marshal(rs)
+	out, err := yamlutil.MarshalWithoutManagedFields(rs)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal ReplicaSet to YAML: %w", err)
 	}

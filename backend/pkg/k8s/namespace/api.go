@@ -1,6 +1,7 @@
 package namespace
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 
@@ -87,7 +88,7 @@ func GetNamespaceYaml(client *kubernetes.Clientset, name string) (string, error)
 		return "", err
 	}
 	ns.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "Namespace"}
-	out, err := yaml.Marshal(ns)
+	out, err := yamlutil.MarshalWithoutManagedFields(ns)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal Namespace to YAML: %w", err)
 	}

@@ -1,6 +1,7 @@
 package storageclass
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,11 +51,11 @@ func GetStorageClassYaml(client *kubernetes.Clientset, name string) (string, err
 	if err != nil {
 		return "", err
 	}
-	yamlBytes, err := yaml.Marshal(sc)
+	yamlStr, err := yamlutil.MarshalWithoutManagedFields(sc)
 	if err != nil {
 		return "", err
 	}
-	return string(yamlBytes), nil
+	return yamlStr, nil
 }
 
 // GetStorageClassByField

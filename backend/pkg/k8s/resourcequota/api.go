@@ -1,6 +1,7 @@
 package resourcequota
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 
@@ -24,7 +25,7 @@ func GetResourceQuotaYaml(client *kubernetes.Clientset, namespace, name string) 
 		return "", err
 	}
 	rq.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "ResourceQuota"}
-	out, err := yaml.Marshal(rq)
+	out, err := yamlutil.MarshalWithoutManagedFields(rq)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal ResourceQuota to YAML: %w", err)
 	}

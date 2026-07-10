@@ -209,6 +209,7 @@ func registerStorageRoutes(k8s *gin.RouterGroup) {
 	k8s.GET("pvc/detail", k8sStorage.Pvc.GetPVCByName)
 	k8s.GET("pvc/get-yaml", k8sStorage.Pvc.GetPVCYaml)
 	k8s.POST("pvc/create", k8sStorage.Pvc.CreatePVC)
+	k8s.PUT("pvc/update", k8sStorage.Pvc.UpdatePVC)
 	k8s.DELETE("pvc/delete", k8sStorage.Pvc.DeletePVCByName)
 
 	// StorageClass

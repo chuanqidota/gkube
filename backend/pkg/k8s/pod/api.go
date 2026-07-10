@@ -1,6 +1,7 @@
 package pod
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
@@ -67,11 +68,11 @@ func GetPodYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 	if err != nil {
 		return "", err
 	}
-	yamlBytes, err := yaml.Marshal(pod)
+	yamlStr, err := yamlutil.MarshalWithoutManagedFields(pod)
 	if err != nil {
 		return "", err
 	}
-	return string(yamlBytes), nil
+	return yamlStr, nil
 }
 
 // GetPodByField

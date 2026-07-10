@@ -109,6 +109,29 @@ func (p *pvc) CreatePVC(c *gin.Context) {
 	response.Success(c, "执行成功", nil)
 }
 
+// UpdatePVC
+//
+//	@Description: 更新pvc
+//	@receiver p
+//	@param c
+func (p *pvc) UpdatePVC(c *gin.Context) {
+	var body params.PvcUpdateParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	if err := k8sPvc.UpdatePVC(client, body.Namespace, body.Yaml); err != nil {
+		response.Fail(c, fmt.Sprintf("更新pvc失败:%v", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}
+
 // DeletePVCByName
 //
 //	@Description: 根据名称删除pvc

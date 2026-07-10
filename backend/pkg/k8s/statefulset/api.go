@@ -1,6 +1,7 @@
 package statefulset
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 	appsv1 "k8s.io/api/apps/v1"
@@ -69,11 +70,11 @@ func GetStatefulSetYaml(client *kubernetes.Clientset, namespace, name string) (s
 	if err != nil {
 		return "", err
 	}
-	yamlBytes, err := yaml.Marshal(statefulSet)
+	yamlStr, err := yamlutil.MarshalWithoutManagedFields(statefulSet)
 	if err != nil {
 		return "", err
 	}
-	return string(yamlBytes), nil
+	return yamlStr, nil
 }
 
 // GetStatefulSetByField

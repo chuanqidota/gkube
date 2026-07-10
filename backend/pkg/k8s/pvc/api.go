@@ -1,6 +1,7 @@
 package pvc
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
@@ -92,11 +93,11 @@ func GetPVCYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 	if err != nil {
 		return "", err
 	}
-	yamlBytes, err := yaml.Marshal(pvc)
+	yamlStr, err := yamlutil.MarshalWithoutManagedFields(pvc)
 	if err != nil {
 		return "", err
 	}
-	return string(yamlBytes), nil
+	return yamlStr, nil
 }
 
 // CreatePVC
@@ -115,6 +116,25 @@ func CreatePVC(client *kubernetes.Clientset, namespace, pvcYaml string) error {
 	_, err := client.CoreV1().PersistentVolumeClaims(namespace).Create(context.Background(), &pvc, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("创建pvc资源失败:%s", err.Error())
+	}
+	return nil
+}
+
+// UpdatePVC
+//
+//	@Description: 更新PVC
+//	@param client
+//	@param namespace
+//	@param pvcYaml
+//	@return error
+func UpdatePVC(client *kubernetes.Clientset, namespace, pvcYaml string) error {
+	var pvc corev1.PersistentVolumeClaim
+	if err := yaml.Unmarshal([]byte(pvcYaml), &pvc); err != nil {
+		return fmt.Errorf("yaml文件错误:%s", err.Error())
+	}
+	_, err := client.CoreV1().PersistentVolumeClaims(namespace).Update(context.Background(), &pvc, metav1.UpdateOptions{})
+	if err != nil {
+		return err
 	}
 	return nil
 }

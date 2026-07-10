@@ -1,13 +1,13 @@
 package rolebinding
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/yaml"
 )
 
 func GetRoleBindingList(client *kubernetes.Clientset, namespace string) ([]rbacv1.RoleBinding, error) {
@@ -24,7 +24,7 @@ func GetRoleBindingYaml(client *kubernetes.Clientset, namespace, name string) (s
 		return "", err
 	}
 	rb.TypeMeta = metav1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "RoleBinding"}
-	out, err := yaml.Marshal(rb)
+	out, err := yamlutil.MarshalWithoutManagedFields(rb)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal RoleBinding to YAML: %w", err)
 	}

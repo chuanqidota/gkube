@@ -1,13 +1,13 @@
 package clusterrolebinding
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/yaml"
 )
 
 func GetClusterRoleBindingList(client *kubernetes.Clientset) ([]rbacv1.ClusterRoleBinding, error) {
@@ -24,7 +24,7 @@ func GetClusterRoleBindingYaml(client *kubernetes.Clientset, name string) (strin
 		return "", err
 	}
 	crb.TypeMeta = metav1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRoleBinding"}
-	out, err := yaml.Marshal(crb)
+	out, err := yamlutil.MarshalWithoutManagedFields(crb)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal ClusterRoleBinding to YAML: %w", err)
 	}

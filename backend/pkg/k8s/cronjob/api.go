@@ -1,6 +1,7 @@
 package cronjob
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 	batchv1 "k8s.io/api/batch/v1"
@@ -97,11 +98,11 @@ func GetCronJobYaml(client *kubernetes.Clientset, namespace, name string) (strin
 	if err != nil {
 		return "", err
 	}
-	yamlBytes, err := yaml.Marshal(cronJob)
+	yamlStr, err := yamlutil.MarshalWithoutManagedFields(cronJob)
 	if err != nil {
 		return "", err
 	}
-	return string(yamlBytes), nil
+	return yamlStr, nil
 }
 
 // GetCronJobByLabel

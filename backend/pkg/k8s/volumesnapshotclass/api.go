@@ -1,6 +1,7 @@
 package volumesnapshotclass
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 
@@ -58,7 +59,7 @@ func GetVolumeSnapshotClassYaml(client dynamic.Interface, name string) (string, 
 	if err != nil {
 		return "", err
 	}
-	out, err := yaml.Marshal(obj.Object)
+	out, err := yamlutil.MarshalWithoutManagedFields(obj.Object)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal VolumeSnapshotClass to YAML: %w", err)
 	}

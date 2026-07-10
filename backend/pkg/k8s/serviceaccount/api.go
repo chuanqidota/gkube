@@ -1,13 +1,13 @@
 package serviceaccount
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/yaml"
 )
 
 func GetServiceAccountList(client *kubernetes.Clientset, namespace string) ([]corev1.ServiceAccount, error) {
@@ -24,7 +24,7 @@ func GetServiceAccountYaml(client *kubernetes.Clientset, namespace, name string)
 		return "", err
 	}
 	sa.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "ServiceAccount"}
-	out, err := yaml.Marshal(sa)
+	out, err := yamlutil.MarshalWithoutManagedFields(sa)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal ServiceAccount to YAML: %w", err)
 	}

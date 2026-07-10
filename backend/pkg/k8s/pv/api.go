@@ -1,6 +1,7 @@
 package pv
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
@@ -88,11 +89,11 @@ func GetPVYaml(client *kubernetes.Clientset, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	yamlBytes, err := yaml.Marshal(pv)
+	yamlStr, err := yamlutil.MarshalWithoutManagedFields(pv)
 	if err != nil {
 		return "", err
 	}
-	return string(yamlBytes), nil
+	return yamlStr, nil
 }
 
 // CreatePV

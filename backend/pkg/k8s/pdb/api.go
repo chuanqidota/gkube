@@ -1,6 +1,7 @@
 package pdb
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 
@@ -24,7 +25,7 @@ func GetPDBYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 		return "", err
 	}
 	pdb.TypeMeta = metav1.TypeMeta{APIVersion: "policy/v1", Kind: "PodDisruptionBudget"}
-	out, err := yaml.Marshal(pdb)
+	out, err := yamlutil.MarshalWithoutManagedFields(pdb)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal PDB to YAML: %w", err)
 	}

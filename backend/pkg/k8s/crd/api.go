@@ -1,6 +1,7 @@
 package crd
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 
@@ -32,7 +33,7 @@ func GetCRDYaml(client *apiextensionsclientset.Clientset, name string) (string, 
 		return "", err
 	}
 	crd.TypeMeta = metav1.TypeMeta{APIVersion: "apiextensions.k8s.io/v1", Kind: "CustomResourceDefinition"}
-	out, err := yaml.Marshal(crd)
+	out, err := yamlutil.MarshalWithoutManagedFields(crd)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal CRD to YAML: %w", err)
 	}
@@ -70,7 +71,7 @@ func GetCustomResourceYaml(config *rest.Config, gvr schema.GroupVersionResource,
 	if err != nil {
 		return "", err
 	}
-	out, err := yaml.Marshal(obj.Object)
+	out, err := yamlutil.MarshalWithoutManagedFields(obj.Object)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal custom resource to YAML: %w", err)
 	}

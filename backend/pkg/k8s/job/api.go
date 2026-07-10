@@ -1,6 +1,7 @@
 package job
 
 import (
+	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
 	batchv1 "k8s.io/api/batch/v1"
@@ -106,11 +107,11 @@ func GetJobYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 	if err != nil {
 		return "", err
 	}
-	yamlBytes, err := yaml.Marshal(job)
+	yamlStr, err := yamlutil.MarshalWithoutManagedFields(job)
 	if err != nil {
 		return "", err
 	}
-	return string(yamlBytes), nil
+	return yamlStr, nil
 }
 
 // CreateJob
