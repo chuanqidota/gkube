@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Delete, Search } from '@element-plus/icons-vue'
+import { Plus, Delete } from '@element-plus/icons-vue'
 import {
   getJobList,
   getJobYaml,
@@ -10,6 +10,7 @@ import {
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const {
@@ -55,26 +56,24 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 
 <template>
   <div class="page-container">
-    <el-card shadow="never" class="filter-card">
-      <div class="filter-bar">
-        <el-input
-          :model-value="searchName"
-          @input="onSearchInput"
-          placeholder="搜索名称"
-          style="width: 220px;"
-          clearable
-        >
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
-        <el-select
-          v-model="selectedNamespace"
-          placeholder="所有命名空间"
-          clearable
-          style="width: 180px;"
-          @change="handleNamespaceChange"
-        >
-          <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
-        </el-select>
+    <ResourceListToolbar
+      :search-value="searchName"
+      v-model:namespace-value="selectedNamespace"
+      :namespace-list="namespaceList"
+      :total-count="totalCount"
+      :selected-count="selectedRows.length"
+      @search-input="onSearchInput"
+      @namespace-change="handleNamespaceChange"
+    >
+      <template #actions>
+        <el-button type="success" @click="$router.push('/workloads/jobs/create')">
+          <el-icon><Plus /></el-icon> 创建
+        </el-button>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+        </el-button>
+      </template>
+      <template #extra>
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -85,15 +84,8 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="success" @click="$router.push('/workloads/jobs/create')">
-          <el-icon><Plus /></el-icon> 创建
-        </el-button>
-        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
-        </el-button>
-        <span class="total-count" v-if="totalCount">总计: {{ totalCount }}</span>
-      </div>
-    </el-card>
+      </template>
+    </ResourceListToolbar>
 
     <el-card shadow="never" class="table-card">
       <el-table
@@ -130,7 +122,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     <!-- YAML Drawer -->
     <el-drawer v-model="yamlDialogVisible" title="Job YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100vh - 60px);">
+      <div v-loading="yamlLoading" style="height: calc(100vh - 52px);">
         <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
       </div>
     </el-drawer>
@@ -141,22 +133,8 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 .page-container {
   padding: 20px;
 }
-.filter-card {
-  margin-bottom: 16px;
-}
-.filter-bar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
 .table-card {
   border-radius: 8px;
-}
-.total-count {
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
-  margin-left: auto;
 }
 .load-more {
   display: flex;
