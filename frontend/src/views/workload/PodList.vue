@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import { Delete, Search } from '@element-plus/icons-vue'
+import { Delete } from '@element-plus/icons-vue'
 import { getPodList, getPodYaml, deletePod, transformPods } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import { useClusterStore } from '@/stores/cluster'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
-const { t } = useI18n()
 const clusterStore = useClusterStore()
 
 const {
@@ -72,26 +71,22 @@ function statusType(status: string) {
 
 <template>
   <div class="page-container">
-    <el-card shadow="never" class="filter-card">
-      <div class="filter-bar">
-        <el-input
-          :model-value="searchName"
-          @input="onSearchInput"
-          :placeholder="t('common.searchByName')"
-          style="width: 220px;"
-          clearable
-        >
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
-        <el-select
-          v-model="selectedNamespace"
-          :placeholder="t('common.allNamespaces')"
-          clearable
-          style="width: 180px;"
-          @change="handleNamespaceChange"
-        >
-          <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
-        </el-select>
+    <ResourceListToolbar
+      :search-value="searchName"
+      v-model:namespace-value="selectedNamespace"
+      :namespace-list="namespaceList"
+      :total-count="totalCount"
+      :selected-count="selectedRows.length"
+      :show-create="false"
+      @search-input="onSearchInput"
+      @namespace-change="handleNamespaceChange"
+    >
+      <template #actions>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+        </el-button>
+      </template>
+      <template #extra>
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -102,12 +97,8 @@ function statusType(status: string) {
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
-        </el-button>
-        <span class="total-count" v-if="totalCount">Total: {{ totalCount }}</span>
-      </div>
-    </el-card>
+      </template>
+    </ResourceListToolbar>
 
     <el-card shadow="never" class="table-card">
       <el-table
@@ -164,22 +155,8 @@ function statusType(status: string) {
 .page-container {
   padding: 20px;
 }
-.filter-card {
-  margin-bottom: 16px;
-}
-.filter-bar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
 .table-card {
   border-radius: 8px;
-}
-.total-count {
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
-  margin-left: auto;
 }
 .load-more {
   display: flex;

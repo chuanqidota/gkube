@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import { Delete, Search } from '@element-plus/icons-vue'
+import { Delete } from '@element-plus/icons-vue'
 import { getReplicaSetList, getReplicaSetYaml, deleteReplicaSet, calcAge } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
-
-const { t } = useI18n()
 
 function transformReplicaSets(items: any[]) {
   if (!Array.isArray(items)) return []
@@ -58,26 +56,22 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 
 <template>
   <div class="page-container">
-    <el-card shadow="never" class="filter-card">
-      <div class="filter-bar">
-        <el-input
-          :model-value="searchName"
-          @input="onSearchInput"
-          :placeholder="t('common.searchByName')"
-          style="width: 220px;"
-          clearable
-        >
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
-        <el-select
-          v-model="selectedNamespace"
-          :placeholder="t('common.allNamespaces')"
-          clearable
-          style="width: 180px;"
-          @change="handleNamespaceChange"
-        >
-          <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
-        </el-select>
+    <ResourceListToolbar
+      :search-value="searchName"
+      v-model:namespace-value="selectedNamespace"
+      :namespace-list="namespaceList"
+      :show-create="false"
+      :show-total-count="false"
+      :selected-count="selectedRows.length"
+      @search-input="onSearchInput"
+      @namespace-change="handleNamespaceChange"
+    >
+      <template #actions>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+        </el-button>
+      </template>
+      <template #extra>
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -88,11 +82,8 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
-        </el-button>
-      </div>
-    </el-card>
+      </template>
+    </ResourceListToolbar>
 
     <el-card shadow="never" class="table-card">
       <el-table
@@ -132,15 +123,6 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 <style scoped>
 .page-container {
   padding: 20px;
-}
-.filter-card {
-  margin-bottom: 16px;
-}
-.filter-bar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
 }
 .table-card {
   border-radius: 8px;
