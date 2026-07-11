@@ -11,9 +11,10 @@ import {
   getStatefulSetPods,
   deletePod,
 } from '@/api/resource'
+import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
-import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import WorkloadForm from '@/views/workload/components/WorkloadForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const route = useRoute()
@@ -35,6 +36,10 @@ const scaleDialogVisible = ref(false)
 const scaleReplicas = ref<number>(1)
 const scaleLoading = ref(false)
 
+// Edit dialog
+const editDialogVisible = ref(false)
+const editFullscreen = ref(false)
+
 const namespace = route.params.namespace as string
 const name = route.params.name as string
 
@@ -52,19 +57,6 @@ const statusText = computed(() => {
   if (ready === desired && desired > 0) return 'Ready'
   if (ready > 0) return 'Partial'
   return 'Not Ready'
-})
-
-// Age calculation
-const age = computed(() => {
-  const ts = statefulSet.value?.metadata?.creationTimestamp
-  if (!ts) return ''
-  const created = new Date(ts).getTime()
-  const diff = Date.now() - created
-  const seconds = Math.floor(diff / 1000)
-  if (seconds < 60) return `${seconds}s`
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
-  return `${Math.floor(seconds / 86400)}d`
 })
 
 async function fetchDetail() {
@@ -170,6 +162,20 @@ async function handleScaleConfirm() {
   }
 }
 
+function handleEdit() {
+  editDialogVisible.value = true
+}
+
+function handleEditSuccess() {
+  editDialogVisible.value = false
+  fetchDetail()
+  fetchPods()
+}
+
+function handleEditCancel() {
+  editDialogVisible.value = false
+}
+
 function getClusterName(): string {
   try {
     const saved = localStorage.getItem('gkube_cluster')
@@ -273,8 +279,8 @@ onMounted(() => {
     <!-- 顶部标题栏 -->
     <div class="page-header">
       <div class="header-left">
-        <div class="title-line">
-          <h2 class="res-name">{{ name }}</h2>
+        <h2 class="res-name">{{ name }}</h2>
+        <div class="meta-line">
           <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
           <span class="ns-tag">ns/{{ namespace }}</span>
           <span class="replicas-info" v-if="statefulSet">
@@ -283,21 +289,45 @@ onMounted(() => {
         </div>
       </div>
       <div class="header-actions">
-        <AutoRefreshToolbar
-          :is-running="isRunning"
-          :countdown="countdown"
-          :current-interval="currentInterval"
-          :available-intervals="availableIntervals"
-          :loading="loading"
-          @refresh="manualRefresh()"
-          @toggle="toggle()"
-          @interval-change="setIntervalOption"
-        />
         <el-button type="primary" @click="handleScale">扩缩容</el-button>
         <el-button type="warning" @click="handleRestart">重启</el-button>
+        <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" plain @click="handleDelete">删除</el-button>
-        <el-button @click="router.push('/workloads/statefulsets')">返回列表</el-button>
+        <div class="action-divider" />
+        <el-popover placement="bottom" :width="200" trigger="hover">
+          <template #reference>
+            <el-button
+              :type="isRunning ? 'success' : 'default'"
+              :icon="Timer"
+              @click="toggle()"
+            />
+          </template>
+          <div class="auto-refresh-popover">
+            <div class="popover-title">
+              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
+            </div>
+            <el-select
+              :model-value="currentInterval / 1000"
+              @update:model-value="setIntervalOption"
+              size="small"
+              style="width: 100%;"
+            >
+              <el-option
+                v-for="sec in availableIntervals"
+                :key="sec"
+                :value="sec"
+                :label="`每 ${sec} 秒刷新`"
+              />
+            </el-select>
+          </div>
+        </el-popover>
+        <el-tooltip content="刷新" placement="top">
+          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+        </el-tooltip>
+        <el-tooltip content="返回列表" placement="top">
+          <el-button :icon="ArrowLeft" @click="router.push('/workloads/statefulsets')" />
+        </el-tooltip>
       </div>
     </div>
 
@@ -317,7 +347,6 @@ onMounted(() => {
               <el-descriptions-item label="当前副本">{{ statefulSet.status?.currentReplicas ?? '-' }}</el-descriptions-item>
               <el-descriptions-item label="服务名称">{{ statefulSet.spec?.serviceName || '-' }}</el-descriptions-item>
               <el-descriptions-item label="更新策略">{{ statefulSet.spec?.updateStrategy?.type || 'RollingUpdate' }}</el-descriptions-item>
-              <el-descriptions-item label="Age">{{ age || '-' }}</el-descriptions-item>
             </el-descriptions>
 
             <!-- Labels -->
@@ -453,6 +482,37 @@ onMounted(() => {
         <el-button type="primary" :loading="scaleLoading" @click="handleScaleConfirm">确认</el-button>
       </template>
     </el-dialog>
+
+    <el-drawer
+      v-model="editDialogVisible"
+      title="编辑 StatefulSet"
+      :size="editFullscreen ? '100%' : '85%'"
+      direction="rtl"
+      :destroy-on-close="true"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <template #header>
+        <div class="drawer-header">
+          <span class="drawer-title">编辑 StatefulSet</span>
+          <el-tooltip :content="editFullscreen ? '退出全屏' : '全屏'" placement="top">
+            <el-icon class="fullscreen-btn" @click="editFullscreen = !editFullscreen">
+              <FullScreen v-if="!editFullscreen" />
+              <Aim v-else />
+            </el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <div style="height: calc(100vh - 52px); overflow-y: auto;">
+        <WorkloadForm
+          v-if="editDialogVisible && statefulSet"
+          kind="StatefulSet"
+          :is-edit="true"
+          :initial-data="statefulSet"
+          @success="handleEditSuccess"
+          @cancel="handleEditCancel"
+        />
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -477,38 +537,72 @@ onMounted(() => {
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-.title-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 4px;
 }
 
 .res-name {
   margin: 0;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
+  line-height: 1.3;
+}
+
+.meta-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .ns-tag {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--el-text-color-secondary);
   background: var(--el-fill-color-lighter);
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 4px;
 }
 
 .replicas-info {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--el-text-color-regular);
 }
 
 .header-actions {
   display: flex;
-  gap: 6px;
   flex-shrink: 0;
+  align-items: center;
+}
+
+.header-actions .el-button {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.header-actions .el-button:first-child {
+  border-radius: 4px 0 0 4px;
+  margin-left: 0;
+}
+
+.header-actions .el-button:last-of-type {
+  border-radius: 0 4px 4px 0;
+}
+
+.action-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--el-border-color-lighter);
+  margin: 0 4px;
+}
+
+.auto-refresh-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popover-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
 }
 
 /* Main Layout */
@@ -648,5 +742,29 @@ onMounted(() => {
   .resize-handle-h {
     display: none;
   }
+}
+
+/* Edit Drawer */
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.fullscreen-btn {
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--el-text-color-regular);
+  transition: color 0.2s;
+}
+
+.fullscreen-btn:hover {
+  color: var(--el-color-primary);
 }
 </style>

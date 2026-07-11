@@ -92,6 +92,7 @@ func registerWorkloadRoutes(k8s *gin.RouterGroup) {
 	k8s.PUT("deployment/scale", k8sWorkload.Deployment.ScaleDeployment)
 	k8s.POST("deployment/restart", k8sWorkload.Deployment.RestartDeployment)
 	k8s.POST("deployment/rollback", k8sWorkload.Deployment.RollbackDeployment)
+	k8s.PUT("deployment/update-image", k8sWorkload.Deployment.UpdateDeploymentImage)
 	k8s.GET("deployment/pods", k8sWorkload.Deployment.DeploymentPodList)
 	k8s.GET("deployment/replicasets", k8sWorkload.Deployment.GetDeploymentReplicaSets)
 

@@ -1,112 +1,78 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Delete, Edit } from '@element-plus/icons-vue'
-import { getConfigMapDetail, getConfigMapYaml, updateConfigMap, deleteConfigMap } from '@/api/resource'
-import YamlEditor from '@/components/YamlEditor.vue'
-import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
+import { getConfigMapDetail, deleteConfigMap } from '@/api/resource'
+import YamlDrawer from '@/components/YamlDrawer.vue'
+import ConfigMapForm from '@/views/config/components/ConfigMapForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const configMap = ref<any>(null)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
-const activeTab = ref('info')
-const editing = ref(false)
-const editYaml = ref('')
-const saving = ref(false)
+const yamlDialogVisible = ref(false)
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
 
-const dataEntries = ref<{ key: string; value: string }[]>([])
+// Edit dialog
+const editDialogVisible = ref(false)
+const editFullscreen = ref(false)
+
+const dataEntries = computed(() => {
+  const data = configMap.value?.data || {}
+  return Object.entries(data).map(([key, value]) => ({
+    key,
+    value: String(value ?? ''),
+  }))
+})
+
+const dataCount = computed(() => dataEntries.value.length)
 
 async function fetchDetail() {
   loading.value = true
   try {
     const res: any = await getConfigMapDetail({ namespace, name })
     configMap.value = res.data
-    const data = res.data?.data || {}
-    dataEntries.value = Object.entries(data).map(([key, value]) => ({
-      key,
-      value: String(value ?? ''),
-    }))
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load configmap detail')
+    ElMessage.error(e?.message || '加载ConfigMap详情失败')
   } finally {
     loading.value = false
   }
 }
 
-async function fetchYaml() {
-  yamlLoading.value = true
-  try {
-    const res: any = await getConfigMapYaml({ namespace, name })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load YAML')
-  } finally {
-    yamlLoading.value = false
-  }
+function handleOpenYaml() {
+  yamlDialogVisible.value = true
 }
 
-function handleTabChange(tab: string) {
-  if (tab === 'yaml' && !yamlContent.value) {
-    fetchYaml()
-  }
+function handleYamlSaved() {
+  fetchDetail()
 }
 
 function handleEdit() {
-  editYaml.value = yamlContent.value || ''
-  editing.value = true
-  if (!yamlContent.value) {
-    // Fetch YAML first
-    yamlLoading.value = true
-    getConfigMapYaml({ namespace, name }).then((res: any) => {
-      editYaml.value = res.data?.yaml || res.data || ''
-      yamlContent.value = editYaml.value
-    }).catch((e: any) => {
-      ElMessage.error(e?.message || 'Failed to load YAML')
-    }).finally(() => {
-      yamlLoading.value = false
-    })
-  }
+  editDialogVisible.value = true
 }
 
-function handleCancelEdit() {
-  editing.value = false
+function handleEditSuccess() {
+  editDialogVisible.value = false
+  fetchDetail()
 }
 
-async function handleSave() {
-  saving.value = true
-  try {
-    await updateConfigMap({ namespace, name, yaml: editYaml.value })
-    ElMessage.success('ConfigMap updated successfully')
-    editing.value = false
-    fetchDetail()
-    yamlContent.value = editYaml.value
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to update ConfigMap')
-  } finally {
-    saving.value = false
-  }
+function handleEditCancel() {
+  editDialogVisible.value = false
 }
 
 async function handleDelete() {
   try {
-    await ElMessageBox.confirm(`Delete ConfigMap "${name}" in namespace "${namespace}"?`, 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(`删除配置字典 "${name}"?`, '确认', { type: 'warning' })
     await deleteConfigMap({ namespace, name })
-    ElMessage.success('ConfigMap deleted')
+    ElMessage.success('删除成功')
     router.push('/config/configmaps')
-  } catch { /* cancelled */ }
-}
-
-function handleRefresh() {
-  fetchDetail()
-  if (yamlContent.value) fetchYaml()
+  } catch {
+    /* cancelled */
+  }
 }
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
@@ -115,107 +81,427 @@ onMounted(fetchDetail)
 </script>
 
 <template>
-  <div class="page-container" v-loading="loading">
+  <div class="detail-page" v-loading="loading">
+
+    <!-- ===== 顶部标题栏 ===== -->
     <div class="page-header">
-      <h2 style="margin: 0;">ConfigMap: {{ name }}</h2>
-      <div style="display: flex; gap: 8px;">
-        <AutoRefreshToolbar
-          :is-running="isRunning"
-          :countdown="countdown"
-          :current-interval="currentInterval"
-          :available-intervals="availableIntervals"
-          :loading="loading"
-          @refresh="manualRefresh()"
-          @toggle="toggle()"
-          @interval-change="setIntervalOption"
-        />
-        <el-button @click="handleRefresh"><el-icon><Refresh /></el-icon> Refresh</el-button>
-        <el-button type="primary" @click="handleEdit"><el-icon><Edit /></el-icon> Edit</el-button>
-        <el-button type="danger" @click="handleDelete"><el-icon><Delete /></el-icon> 删除</el-button>
-        <el-button @click="router.push('/config/configmaps')">Back to List</el-button>
+      <div class="header-left">
+        <h2 class="res-name">{{ name }}</h2>
+        <div class="meta-line">
+          <span class="ns-tag">ns/{{ namespace }}</span>
+          <span class="info-text">{{ dataCount }} 个数据项</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <el-button type="info" @click="handleEdit">编辑</el-button>
+        <el-button @click="handleOpenYaml">YAML</el-button>
+        <el-button type="danger" plain @click="handleDelete">删除</el-button>
+        <div class="action-divider" />
+        <el-popover placement="bottom" :width="200" trigger="hover">
+          <template #reference>
+            <el-button
+              :type="isRunning ? 'success' : 'default'"
+              :icon="Timer"
+              @click="toggle()"
+            />
+          </template>
+          <div class="auto-refresh-popover">
+            <div class="popover-title">
+              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
+            </div>
+            <el-select
+              :model-value="currentInterval / 1000"
+              @update:model-value="setIntervalOption"
+              size="small"
+              style="width: 100%;"
+            >
+              <el-option
+                v-for="sec in availableIntervals"
+                :key="sec"
+                :value="sec"
+                :label="`每 ${sec} 秒刷新`"
+              />
+            </el-select>
+          </div>
+        </el-popover>
+        <el-tooltip content="刷新" placement="top">
+          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+        </el-tooltip>
+        <el-tooltip content="返回列表" placement="top">
+          <el-button :icon="ArrowLeft" @click="router.push('/config/configmaps')" />
+        </el-tooltip>
       </div>
     </div>
 
     <template v-if="configMap">
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="Info" name="info">
-          <el-card shadow="never">
-            <el-descriptions :column="2" border>
-              <el-descriptions-item label="Name">{{ configMap.name || configMap.metadata?.name }}</el-descriptions-item>
-              <el-descriptions-item label="Namespace">{{ configMap.namespace || configMap.metadata?.namespace }}</el-descriptions-item>
-              <el-descriptions-item label="Age">{{ configMap.age || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="UID">{{ configMap.metadata?.uid || '-' }}</el-descriptions-item>
-            </el-descriptions>
-          </el-card>
+      <div class="main-layout">
 
-          <!-- Labels -->
-          <el-card shadow="never" style="margin-top: 16px;">
-            <template #header><h4 style="margin: 0;">Labels</h4></template>
-            <div v-if="configMap.labels && Object.keys(configMap.labels).length > 0">
-              <el-tag
-                v-for="(val, key) in configMap.labels"
-                :key="key"
-                style="margin-right: 8px; margin-bottom: 8px;"
-              >
-                {{ key }}={{ val }}
-              </el-tag>
+        <!-- 左侧：基本信息 -->
+        <div class="left-panel">
+          <div class="panel-title">基本信息</div>
+          <div class="info-body">
+            <div class="info-row">
+              <span class="info-label">名称</span>
+              <span class="info-value">{{ configMap.metadata?.name || configMap.name || '-' }}</span>
             </div>
-            <span v-else style="color: var(--gk-color-text-secondary);">No labels</span>
-          </el-card>
+            <div class="info-row">
+              <span class="info-label">命名空间</span>
+              <span class="info-value">{{ configMap.metadata?.namespace || configMap.namespace || '-' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">UID</span>
+              <span class="info-value mono">{{ configMap.metadata?.uid || '-' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">创建时间</span>
+              <span class="info-value">{{ configMap.metadata?.creationTimestamp || '-' }}</span>
+            </div>
 
-          <!-- Annotations -->
-          <el-card shadow="never" style="margin-top: 16px;">
-            <template #header><h4 style="margin: 0;">Annotations</h4></template>
-            <div v-if="configMap.annotations && Object.keys(configMap.annotations).length > 0">
-              <div v-for="(val, key) in configMap.annotations" :key="key" class="annotation-item">
-                <span class="annotation-key">{{ key }}</span>
-                <span class="annotation-value">{{ val }}</span>
+            <!-- Labels -->
+            <template v-if="configMap.metadata?.labels && Object.keys(configMap.metadata.labels).length > 0">
+              <div class="info-row">
+                <span class="info-label">标签</span>
+                <span class="info-value">
+                  <el-tag v-for="(val, key) in configMap.metadata.labels" :key="key" size="small" class="label-tag">{{ key }}={{ val }}</el-tag>
+                </span>
               </div>
-            </div>
-            <span v-else style="color: var(--gk-color-text-secondary);">No annotations</span>
-          </el-card>
+            </template>
 
-          <!-- Data -->
-          <el-card shadow="never" style="margin-top: 16px;">
-            <template #header><h4 style="margin: 0;">Data</h4></template>
-            <el-table :data="dataEntries" border stripe>
-              <el-table-column prop="key" label="Key" min-width="200" show-overflow-tooltip />
-              <el-table-column prop="value" label="Value" min-width="400">
-                <template #default="{ row }">
-                  <div style="white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto;">{{ row.value }}</div>
-                </template>
-              </el-table-column>
-            </el-table>
-            <el-empty v-if="dataEntries.length === 0" description="No data" />
-          </el-card>
-        </el-tab-pane>
+            <!-- Annotations -->
+            <template v-if="configMap.metadata?.annotations && Object.keys(configMap.metadata.annotations).length > 0">
+              <div class="info-row" style="flex-direction: column;">
+                <span class="info-label" style="margin-bottom: 4px;">注解</span>
+                <div v-for="(val, key) in configMap.metadata.annotations" :key="key" class="annotation-row">
+                  <span class="annotation-key mono">{{ key }}</span>
+                  <span class="annotation-value mono">{{ val }}</span>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
 
-        <el-tab-pane label="YAML" name="yaml">
-          <el-card shadow="never">
-            <div v-if="editing">
-              <div style="margin-bottom: 12px; display: flex; gap: 8px;">
-                <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
-                <el-button @click="handleCancelEdit">取消</el-button>
-              </div>
-              <YamlEditor v-model="editYaml" height="600px" />
+        <!-- 右侧：Data -->
+        <div class="right-panel">
+          <div class="right-section">
+            <div class="panel-title">
+              数据
+              <span class="count-badge">{{ dataCount }} 项</span>
             </div>
-            <div v-else v-loading="yamlLoading">
-              <div style="margin-bottom: 12px;">
-                <el-button type="primary" @click="handleEdit"><el-icon><Edit /></el-icon> Edit YAML</el-button>
-              </div>
-              <YamlEditor v-model="yamlContent" height="600px" read-only />
+            <div class="data-body">
+              <el-table v-if="dataEntries.length > 0" :data="dataEntries" size="small" border stripe>
+                <el-table-column prop="key" label="Key" width="220" show-overflow-tooltip />
+                <el-table-column prop="value" label="Value" min-width="300">
+                  <template #default="{ row }">
+                    <div class="value-cell">{{ row.value }}</div>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <div v-else class="empty-hint">暂无数据</div>
             </div>
-          </el-card>
-        </el-tab-pane>
-      </el-tabs>
+          </div>
+        </div>
+      </div>
     </template>
+
+    <!-- YAML Drawer -->
+    <YamlDrawer
+      v-model="yamlDialogVisible"
+      resource-type="configmap"
+      :namespace="namespace"
+      :name="name"
+      @saved="handleYamlSaved"
+    />
+
+    <!-- Edit Drawer -->
+    <el-drawer
+      v-model="editDialogVisible"
+      title="编辑 ConfigMap"
+      :size="editFullscreen ? '100%' : '85%'"
+      direction="rtl"
+      :destroy-on-close="true"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <template #header>
+        <div class="drawer-header">
+          <span class="drawer-title">编辑 ConfigMap</span>
+          <el-tooltip :content="editFullscreen ? '退出全屏' : '全屏'" placement="top">
+            <el-icon class="fullscreen-btn" @click="editFullscreen = !editFullscreen">
+              <FullScreen v-if="!editFullscreen" />
+              <Aim v-else />
+            </el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <div style="height: calc(100vh - 52px); overflow-y: auto;">
+        <ConfigMapForm
+          v-if="editDialogVisible && configMap"
+          :is-edit="true"
+          :initial-data="configMap"
+          @success="handleEditSuccess"
+          @cancel="handleEditCancel"
+        />
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.annotation-item { display: flex; gap: 12px; margin-bottom: 8px; padding: 4px 0; border-bottom: 1px solid var(--gk-color-border-light); }
-.annotation-key { font-weight: 500; min-width: 200px; word-break: break-all; }
-.annotation-value { color: var(--gk-color-text-secondary); word-break: break-all; flex: 1; }
+.detail-page {
+  padding: 16px 20px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.res-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.meta-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ns-tag {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-lighter);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.info-text {
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+}
+
+.header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.header-actions .el-button {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.header-actions .el-button:first-child {
+  border-radius: 4px 0 0 4px;
+  margin-left: 0;
+}
+
+.header-actions .el-button:last-of-type {
+  border-radius: 0 4px 4px 0;
+}
+
+.action-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--el-border-color-lighter);
+  margin: 0 4px;
+}
+
+.auto-refresh-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popover-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+}
+
+/* Main Layout */
+.main-layout {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Left Panel */
+.left-panel {
+  width: 320px;
+  min-width: 320px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--el-bg-color);
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 14px;
+  background: var(--el-fill-color-lighter);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.count-badge {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.info-body {
+  padding: 8px 14px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.info-row {
+  display: flex;
+  align-items: flex-start;
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: var(--el-text-color-secondary);
+  min-width: 72px;
+  flex-shrink: 0;
+}
+
+.info-value {
+  color: var(--el-text-color-primary);
+  word-break: break-all;
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mono {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.label-tag {
+  margin: 0;
+}
+
+.annotation-row {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 12px;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+  width: 100%;
+}
+
+.annotation-row:last-child {
+  border-bottom: none;
+}
+
+.annotation-key {
+  color: var(--el-text-color-secondary);
+  min-width: 80px;
+  word-break: break-all;
+}
+
+.annotation-value {
+  color: var(--el-text-color-primary);
+  word-break: break-all;
+  flex: 1;
+}
+
+/* Right Panel */
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.right-section {
+  flex: 1;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--el-bg-color);
+}
+
+.data-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.value-cell {
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 120px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.empty-hint {
+  padding: 24px;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+/* Edit Drawer */
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.fullscreen-btn {
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--el-text-color-regular);
+  transition: color 0.2s;
+}
+
+.fullscreen-btn:hover {
+  color: var(--el-color-primary);
+}
 </style>

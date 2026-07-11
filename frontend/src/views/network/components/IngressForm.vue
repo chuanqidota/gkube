@@ -5,7 +5,20 @@ import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import { getNamespaceList, createIngress, extractNamespaceNames } from '@/api/resource'
+import { getNamespaceList, createIngress, updateIngress, extractNamespaceNames } from '@/api/resource'
+
+const props = withDefaults(defineProps<{
+  isEdit?: boolean
+  initialData?: any
+}>(), {
+  isEdit: false,
+  initialData: undefined,
+})
+
+const emit = defineEmits<{
+  success: []
+  cancel: []
+}>()
 
 const router = useRouter()
 const submitting = ref(false)
@@ -77,7 +90,12 @@ async function fetchNamespaces() {
   }
 }
 
-onMounted(fetchNamespaces)
+onMounted(() => {
+  fetchNamespaces()
+  if (props.isEdit && props.initialData) {
+    parseInitialData(props.initialData)
+  }
+})
 
 // ---- Label Management ----
 
@@ -154,6 +172,47 @@ function buildK8sIngress(): Record<string, any> {
   return resource
 }
 
+// ---- Parse Initial Data (Edit Mode) ----
+
+function parseInitialData(data: any) {
+  const meta = data.metadata || {}
+  const spec = data.spec || {}
+
+  form.name = meta.name || ''
+  form.namespace = meta.namespace || 'default'
+  form.ingressClassName = spec.ingressClassName || 'nginx'
+
+  // Labels
+  const labels = meta.labels || {}
+  form.labels = Object.keys(labels).length > 0
+    ? Object.entries(labels).map(([k, v]) => ({ key: k, value: v as string }))
+    : [{ key: 'app', value: '' }]
+
+  // Rules
+  const rules = spec.rules || []
+  form.rules = rules.length > 0
+    ? rules.flatMap((rule: any) =>
+        (rule.http?.paths || []).map((p: any) => ({
+          host: rule.host || '',
+          path: p.path || '/',
+          pathType: p.pathType || 'Prefix',
+          backendService: p.backend?.service?.name || '',
+          backendPort: p.backend?.service?.port?.number ?? null,
+        }))
+      )
+    : [{ host: '', path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }]
+
+  // TLS
+  const tls = spec.tls || []
+  form.tlsEnabled = tls.length > 0
+  form.tls = tls.length > 0
+    ? tls.map((t: any) => ({
+        hosts: (t.hosts || []).join(', '),
+        secretName: t.secretName || '',
+      }))
+    : [{ hosts: '', secretName: '' }]
+}
+
 // ---- Submit ----
 
 async function handleSubmit() {
@@ -168,17 +227,29 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    await createIngress({ namespace: form.namespace, yaml: generatedYaml.value })
-    ElMessage.success('Ingress 创建成功')
-    router.push('/network/ingresses')
+    if (props.isEdit) {
+      await updateIngress({ namespace: form.namespace, name: form.name, yaml: generatedYaml.value })
+      ElMessage.success('Ingress 更新成功')
+      emit('success')
+    } else {
+      await createIngress({ namespace: form.namespace, yaml: generatedYaml.value })
+      ElMessage.success('Ingress 创建成功')
+      router.push('/network/ingresses')
+    }
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
   } finally {
     submitting.value = false
   }
 }
 
-function handleCancel() { router.push('/network/ingresses') }
+function handleCancel() {
+  if (props.isEdit) {
+    emit('cancel')
+  } else {
+    router.push('/network/ingresses')
+  }
+}
 </script>
 
 <template>
@@ -301,7 +372,7 @@ function handleCancel() { router.push('/network/ingresses') }
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
           </div>
         </div>
       </div>

@@ -4,7 +4,17 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
-import { createPvc, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { createPvc, updatePvcYaml, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+
+const props = defineProps<{
+  isEdit?: boolean
+  initialData?: any
+}>()
+
+const emit = defineEmits<{
+  success: []
+  cancel: []
+}>()
 
 const router = useRouter()
 const submitting = ref(false)
@@ -37,6 +47,42 @@ const form = reactive<FormData>({
   storageRequestSize: '10',
   storageRequestUnit: 'Gi',
 })
+
+// ---- Parse initial data for edit mode ----
+
+function parseInitialData(data: any) {
+  if (!data) return
+  const spec = data.spec || {}
+  const meta = data.metadata || {}
+
+  form.name = meta.name || ''
+  form.namespace = meta.namespace || 'default'
+  form.storageClassName = spec.storageClassName || ''
+  form.accessModes = spec.accessModes || ['ReadWriteOnce']
+
+  // Storage size
+  const storage = spec.resources?.requests?.storage || ''
+  if (storage) {
+    const match = storage.match(/^(\d+(?:\.\d+)?)\s*(Mi|Gi|Ti|M|G|T)?$/i)
+    if (match) {
+      form.storageRequestSize = match[1]
+      form.storageRequestUnit = (match[2] || 'Gi').charAt(0).toUpperCase() + (match[2] || 'Gi').slice(1).toLowerCase()
+      // Normalize units
+      if (form.storageRequestUnit === 'M') form.storageRequestUnit = 'Mi'
+      if (form.storageRequestUnit === 'G') form.storageRequestUnit = 'Gi'
+      if (form.storageRequestUnit === 'T') form.storageRequestUnit = 'Ti'
+    }
+  }
+
+  // Labels
+  const labels = meta.labels || {}
+  form.labels = Object.entries(labels).map(([k, v]) => ({ key: k, value: String(v) }))
+  if (form.labels.length === 0) form.labels = [{ key: '', value: '' }]
+}
+
+if (props.isEdit && props.initialData) {
+  parseInitialData(props.initialData)
+}
 
 // ---- Validation ----
 
@@ -126,19 +172,29 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    const yaml = (await import('js-yaml')).default.dump(buildK8sPVC(), { indent: 2, lineWidth: -1, noRefs: true })
-    await createPvc({ namespace: form.namespace, yaml })
-    ElMessage.success('PVC创建成功')
-    router.push('/storage/pvcs')
+    const yamlStr = (await import('js-yaml')).default.dump(buildK8sPVC(), { indent: 2, lineWidth: -1, noRefs: true })
+    if (props.isEdit) {
+      await updatePvcYaml({ namespace: form.namespace, yaml: yamlStr })
+      ElMessage.success('PVC更新成功')
+      emit('success')
+    } else {
+      await createPvc({ namespace: form.namespace, yaml: yamlStr })
+      ElMessage.success('PVC创建成功')
+      router.push('/storage/pvcs')
+    }
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
   } finally {
     submitting.value = false
   }
 }
 
 function handleCancel() {
-  router.push('/storage/pvcs')
+  if (props.isEdit) {
+    emit('cancel')
+  } else {
+    router.push('/storage/pvcs')
+  }
 }
 </script>
 
@@ -153,10 +209,10 @@ function handleCancel() {
         <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="名称" prop="name">
-              <el-input v-model="form.name" placeholder="例如: my-pvc" />
+              <el-input v-model="form.name" :disabled="isEdit" placeholder="例如: my-pvc" />
             </el-form-item>
             <el-form-item label="命名空间" prop="namespace">
-              <el-select v-model="form.namespace" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+              <el-select v-model="form.namespace" :disabled="isEdit" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
                 <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
               </el-select>
             </el-form-item>
@@ -224,7 +280,7 @@ function handleCancel() {
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
           </div>
         </div>
       </div>

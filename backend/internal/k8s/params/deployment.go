@@ -59,3 +59,12 @@ type DeploymentReplicaSetParams struct {
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
 	Name        string `form:"name" json:"name" label:"Deployment名称"`
 }
+
+// DeploymentImageUpdateParams 更新 Deployment 容器镜像
+type DeploymentImageUpdateParams struct {
+	ClusterName   string `form:"clusterName" json:"clusterName" label:"集群名称"`
+	Namespace     string `form:"namespace" json:"namespace" label:"命名空间"`
+	Name          string `form:"name" json:"name" label:"Deployment名称"`
+	ContainerName string `form:"containerName" json:"containerName" label:"容器名称"`
+	Image         string `form:"image" json:"image" label:"镜像"`
+}

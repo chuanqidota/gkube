@@ -1,33 +1,36 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getIngressDetail, getIngressYaml, updateIngress, deleteIngress, getIngressEvents } from '@/api/resource'
-import YamlEditor from '@/components/YamlEditor.vue'
-import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { getIngressDetail, deleteIngress, getIngressEvents } from '@/api/resource'
+import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
+import YamlDrawer from '@/components/YamlDrawer.vue'
+import IngressForm from './components/IngressForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
-const ingress = ref<any>(null)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
+const ingressRaw = ref<any>(null)
 const yamlDialogVisible = ref(false)
-const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
 
 // Events
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
 
+// Edit dialog
+const editDialogVisible = ref(false)
+const editFullscreen = ref(false)
+
 const namespace = route.params.namespace as string
 const name = route.params.name as string
 
-function transformIngressDetail(raw: any) {
+const ingress = computed(() => {
+  const raw = ingressRaw.value
+  if (!raw) return null
   const meta = raw.metadata || {}
   const spec = raw.spec || {}
 
-  // Transform rules
   const rules = (spec.rules || []).map((rule: any) => ({
     host: rule.host || '*',
     paths: (rule.http?.paths || []).map((p: any) => ({
@@ -40,23 +43,10 @@ function transformIngressDetail(raw: any) {
     })),
   }))
 
-  // Transform TLS
   const tls = (spec.tls || []).map((t: any) => ({
     hosts: t.hosts || [],
     secretName: t.secretName || '',
   }))
-
-  // Age
-  let age = ''
-  if (meta.creationTimestamp) {
-    const created = new Date(meta.creationTimestamp).getTime()
-    const diff = Date.now() - created
-    const seconds = Math.floor(diff / 1000)
-    if (seconds < 60) age = `${seconds}s`
-    else if (seconds < 3600) age = `${Math.floor(seconds / 60)}m`
-    else if (seconds < 86400) age = `${Math.floor(seconds / 3600)}h`
-    else age = `${Math.floor(seconds / 86400)}d`
-  }
 
   return {
     name: meta.name || '',
@@ -65,31 +55,18 @@ function transformIngressDetail(raw: any) {
     labels: meta.labels || {},
     rules,
     tls,
-    age,
   }
-}
+})
 
 async function fetchDetail() {
   loading.value = true
   try {
     const res: any = await getIngressDetail({ namespace, name })
-    ingress.value = transformIngressDetail(res.data)
+    ingressRaw.value = res.data
   } catch (e: any) {
     ElMessage.error(e?.message || '加载 Ingress 详情失败')
   } finally {
     loading.value = false
-  }
-}
-
-async function fetchYaml() {
-  yamlLoading.value = true
-  try {
-    const res: any = await getIngressYaml({ namespace, name })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 YAML 失败')
-  } finally {
-    yamlLoading.value = false
   }
 }
 
@@ -99,35 +76,26 @@ async function fetchEvents() {
     const res: any = await getIngressEvents({ namespace, name })
     events.value = res.data || []
   } catch (e) {
-    console.error('Failed to fetch events:', e)
+    events.value = []
   } finally {
     eventsLoading.value = false
   }
 }
 
 function handleOpenYaml() {
-  fetchYaml()
   yamlDialogVisible.value = true
 }
 
-async function handleSaveYaml(content: string) {
-  try {
-    await updateIngress({ namespace, name, yaml: content })
-    ElMessage.success('YAML 已保存')
-    yamlDialogVisible.value = false
-    fetchDetail()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '保存 YAML 失败')
-    yamlEditorRef.value?.resetSaving()
-  }
+function handleYamlSaved() {
+  fetchDetail()
 }
 
 async function handleDelete() {
   try {
     await ElMessageBox.confirm(
-      `确认删除 Ingress "${name}"（命名空间: ${namespace}）？`,
+      `确定要删除 Ingress "${name}" 吗？此操作不可恢复。`,
       '确认删除',
-      { type: 'warning' }
+      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
     await deleteIngress({ namespace, name })
     ElMessage.success('Ingress 已删除')
@@ -137,6 +105,19 @@ async function handleDelete() {
       ElMessage.error(e?.message || '删除失败')
     }
   }
+}
+
+function handleEdit() {
+  editDialogVisible.value = true
+}
+
+function handleEditSuccess() {
+  editDialogVisible.value = false
+  fetchDetail()
+}
+
+function handleEditCancel() {
+  editDialogVisible.value = false
 }
 
 // ---- Resize: left-right ----
@@ -201,26 +182,53 @@ onMounted(() => {
     <!-- 顶部标题栏 -->
     <div class="page-header">
       <div class="header-left">
-        <div class="title-line">
-          <h2 class="res-name">{{ name }}</h2>
-          <el-tag v-if="ingress?.ingressClassName" size="small">{{ ingress.ingressClassName }}</el-tag>
+        <h2 class="res-name">{{ name }}</h2>
+        <div class="meta-line">
+          <el-tag v-if="ingress?.ingressClassName" effect="dark" size="small">{{ ingress.ingressClassName }}</el-tag>
           <span class="ns-tag">ns/{{ namespace }}</span>
+          <span class="replicas-info" v-if="ingress?.rules?.length">
+            {{ ingress.rules.length }} 条规则
+          </span>
         </div>
       </div>
       <div class="header-actions">
-        <AutoRefreshToolbar
-          :is-running="isRunning"
-          :countdown="countdown"
-          :current-interval="currentInterval"
-          :available-intervals="availableIntervals"
-          :loading="loading"
-          @refresh="manualRefresh()"
-          @toggle="toggle()"
-          @interval-change="setIntervalOption"
-        />
+        <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" @click="handleDelete">删除</el-button>
-        <el-button @click="router.push('/network/ingresses')">返回列表</el-button>
+        <el-button type="danger" plain @click="handleDelete">删除</el-button>
+        <div class="action-divider" />
+        <el-popover placement="bottom" :width="200" trigger="hover">
+          <template #reference>
+            <el-button
+              :type="isRunning ? 'success' : 'default'"
+              :icon="Timer"
+              @click="toggle()"
+            />
+          </template>
+          <div class="auto-refresh-popover">
+            <div class="popover-title">
+              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
+            </div>
+            <el-select
+              :model-value="currentInterval / 1000"
+              @update:model-value="setIntervalOption"
+              size="small"
+              style="width: 100%;"
+            >
+              <el-option
+                v-for="sec in availableIntervals"
+                :key="sec"
+                :value="sec"
+                :label="`每 ${sec} 秒刷新`"
+              />
+            </el-select>
+          </div>
+        </el-popover>
+        <el-tooltip content="刷新" placement="top">
+          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+        </el-tooltip>
+        <el-tooltip content="返回列表" placement="top">
+          <el-button :icon="ArrowLeft" @click="router.push('/network/ingresses')" />
+        </el-tooltip>
       </div>
     </div>
 
@@ -235,7 +243,6 @@ onMounted(() => {
               <el-descriptions-item label="名称">{{ ingress.name }}</el-descriptions-item>
               <el-descriptions-item label="命名空间">{{ ingress.namespace }}</el-descriptions-item>
               <el-descriptions-item label="Ingress Class">{{ ingress.ingressClassName || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="Age">{{ ingress.age || '-' }}</el-descriptions-item>
             </el-descriptions>
 
             <!-- Labels -->
@@ -332,7 +339,7 @@ onMounted(() => {
 
         </div>
 
-        <!-- 水平拖拽条（绝对定位，覆盖在左右面板交界） -->
+        <!-- 水平拖拽条 -->
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
@@ -342,11 +349,43 @@ onMounted(() => {
       </div>
     </template>
 
-    <!-- YAML Edit Drawer -->
-    <el-drawer v-model="yamlDialogVisible" title="YAML" size="85%" direction="rtl" class="yaml-drawer"
-      :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100vh - 52px);">
-        <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="100%" auto-format show-save-buttons @save="handleSaveYaml" @cancel="fetchYaml" />
+    <!-- YAML Drawer -->
+    <YamlDrawer
+      v-model="yamlDialogVisible"
+      resource-type="ingress"
+      :namespace="namespace"
+      :name="name"
+      @saved="handleYamlSaved"
+    />
+
+    <!-- Edit Drawer -->
+    <el-drawer
+      v-model="editDialogVisible"
+      title="编辑 Ingress"
+      :size="editFullscreen ? '100%' : '85%'"
+      direction="rtl"
+      :destroy-on-close="true"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <template #header>
+        <div class="drawer-header">
+          <span class="drawer-title">编辑 Ingress</span>
+          <el-tooltip :content="editFullscreen ? '退出全屏' : '全屏'" placement="top">
+            <el-icon class="fullscreen-btn" @click="editFullscreen = !editFullscreen">
+              <FullScreen v-if="!editFullscreen" />
+              <Aim v-else />
+            </el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <div style="height: calc(100vh - 52px); overflow-y: auto;">
+        <IngressForm
+          v-if="editDialogVisible && ingressRaw"
+          :is-edit="true"
+          :initial-data="ingressRaw"
+          @success="handleEditSuccess"
+          @cancel="handleEditCancel"
+        />
       </div>
     </el-drawer>
   </div>
@@ -373,33 +412,72 @@ onMounted(() => {
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-.title-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 4px;
 }
 
 .res-name {
   margin: 0;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
+  line-height: 1.3;
+}
+
+.meta-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .ns-tag {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--el-text-color-secondary);
   background: var(--el-fill-color-lighter);
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 4px;
+}
+
+.replicas-info {
+  font-size: 12px;
+  color: var(--el-text-color-regular);
 }
 
 .header-actions {
   display: flex;
-  gap: 6px;
   flex-shrink: 0;
+  align-items: center;
+}
+
+.header-actions .el-button {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.header-actions .el-button:first-child {
+  border-radius: 4px 0 0 4px;
+  margin-left: 0;
+}
+
+.header-actions .el-button:last-of-type {
+  border-radius: 0 4px 4px 0;
+}
+
+.action-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--el-border-color-lighter);
+  margin: 0 4px;
+}
+
+.auto-refresh-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popover-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
 }
 
 /* Main Layout */
@@ -541,12 +619,28 @@ onMounted(() => {
     display: none;
   }
 }
-</style>
 
-<style>
-.yaml-drawer .el-drawer__header {
-  padding: 6px 16px;
-  margin-bottom: 0;
-  min-height: auto;
+/* Edit Drawer */
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.fullscreen-btn {
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--el-text-color-regular);
+  transition: color 0.2s;
+}
+
+.fullscreen-btn:hover {
+  color: var(--el-color-primary);
 }
 </style>

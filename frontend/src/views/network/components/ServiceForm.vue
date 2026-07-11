@@ -4,7 +4,20 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import { getNamespaceList, createService, extractNamespaceNames } from '@/api/resource'
+import { getNamespaceList, createService, updateService, extractNamespaceNames } from '@/api/resource'
+
+const props = withDefaults(defineProps<{
+  isEdit?: boolean
+  initialData?: any
+}>(), {
+  isEdit: false,
+  initialData: undefined,
+})
+
+const emit = defineEmits<{
+  success: []
+  cancel: []
+}>()
 
 const router = useRouter()
 const submitting = ref(false)
@@ -67,7 +80,12 @@ async function fetchNamespaces() {
   }
 }
 
-onMounted(fetchNamespaces)
+onMounted(() => {
+  fetchNamespaces()
+  if (props.isEdit && props.initialData) {
+    parseInitialData(props.initialData)
+  }
+})
 
 // ---- Label Management ----
 
@@ -125,6 +143,43 @@ function buildK8sService(): Record<string, any> {
   return resource
 }
 
+// ---- Parse Initial Data (Edit Mode) ----
+
+function parseInitialData(data: any) {
+  const spec = data.spec || {}
+  const meta = data.metadata || {}
+
+  form.name = meta.name || ''
+  form.namespace = meta.namespace || 'default'
+  form.type = spec.type || 'ClusterIP'
+  form.sessionAffinity = spec.sessionAffinity || 'None'
+  form.externalTrafficPolicy = spec.externalTrafficPolicy || 'Cluster'
+
+  // Labels
+  const labels = meta.labels || {}
+  form.labels = Object.keys(labels).length > 0
+    ? Object.entries(labels).map(([k, v]) => ({ key: k, value: v as string }))
+    : [{ key: 'app', value: '' }]
+
+  // Selector
+  const selector = spec.selector || {}
+  form.selectors = Object.keys(selector).length > 0
+    ? Object.entries(selector).map(([k, v]) => ({ key: k, value: v as string }))
+    : [{ key: 'app', value: '' }]
+
+  // Ports
+  const ports = spec.ports || []
+  form.ports = ports.length > 0
+    ? ports.map((p: any) => ({
+        name: p.name || '',
+        port: p.port ?? null,
+        targetPort: p.targetPort ?? null,
+        protocol: p.protocol || 'TCP',
+        nodePort: p.nodePort ?? null,
+      }))
+    : [{ name: 'http', port: 80, targetPort: 80, protocol: 'TCP', nodePort: null }]
+}
+
 // ---- Submit ----
 
 async function handleSubmit() {
@@ -137,17 +192,29 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    await createService({ namespace: form.namespace, yaml: generatedYaml.value })
-    ElMessage.success('Service 创建成功')
-    router.push('/network/services')
+    if (props.isEdit) {
+      await updateService({ namespace: form.namespace, name: form.name, yaml: generatedYaml.value })
+      ElMessage.success('Service 更新成功')
+      emit('success')
+    } else {
+      await createService({ namespace: form.namespace, yaml: generatedYaml.value })
+      ElMessage.success('Service 创建成功')
+      router.push('/network/services')
+    }
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
   } finally {
     submitting.value = false
   }
 }
 
-function handleCancel() { router.push('/network/services') }
+function handleCancel() {
+  if (props.isEdit) {
+    emit('cancel')
+  } else {
+    router.push('/network/services')
+  }
+}
 </script>
 
 <template>
@@ -274,7 +341,7 @@ function handleCancel() { router.push('/network/services') }
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
           </div>
         </div>
       </div>

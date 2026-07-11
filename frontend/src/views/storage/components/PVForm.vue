@@ -5,7 +5,17 @@ import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import { createPv } from '@/api/resource'
+import { createPv, updatePvYaml } from '@/api/resource'
+
+const props = defineProps<{
+  isEdit?: boolean
+  initialData?: any
+}>()
+
+const emit = defineEmits<{
+  success: []
+  cancel: []
+}>()
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
@@ -45,6 +55,44 @@ const form = reactive<FormData>({
   localPath: '',
   labels: [{ key: '', value: '' }],
 })
+
+// ---- Parse initial data for edit mode ----
+
+function parseInitialData(data: any) {
+  if (!data) return
+  const spec = data.spec || {}
+  const meta = data.metadata || {}
+
+  form.name = meta.name || ''
+  form.capacity = spec.capacity?.storage || '10Gi'
+  form.accessModes = spec.accessModes || ['ReadWriteOnce']
+  form.storageClassName = spec.storageClassName || ''
+  form.reclaimPolicy = spec.persistentVolumeReclaimPolicy || 'Retain'
+
+  // Storage source
+  if (spec.nfs) {
+    form.storageType = 'nfs'
+    form.nfsServer = spec.nfs.server || ''
+    form.nfsPath = spec.nfs.path || ''
+  } else if (spec.hostPath) {
+    form.storageType = 'hostPath'
+    form.hostPath = spec.hostPath.path || ''
+  } else if (spec.local) {
+    form.storageType = 'local'
+    form.localPath = spec.local.path || ''
+  } else {
+    form.storageType = 'nfs'
+  }
+
+  // Labels
+  const labels = meta.labels || {}
+  form.labels = Object.entries(labels).map(([k, v]) => ({ key: k, value: String(v) }))
+  if (form.labels.length === 0) form.labels = [{ key: '', value: '' }]
+}
+
+if (props.isEdit && props.initialData) {
+  parseInitialData(props.initialData)
+}
 
 // ---- Validation ----
 
@@ -160,18 +208,28 @@ async function handleSubmit() {
   try {
     const resource = buildK8sPV()
     const yamlContent = yaml.dump(resource, { indent: 2, lineWidth: -1, noRefs: true })
-    await createPv({ yaml: yamlContent })
-    ElMessage.success('持久卷创建成功')
-    router.push('/storage/pvs')
+    if (props.isEdit) {
+      await updatePvYaml({ name: form.name, yaml: yamlContent })
+      ElMessage.success('持久卷更新成功')
+      emit('success')
+    } else {
+      await createPv({ yaml: yamlContent })
+      ElMessage.success('持久卷创建成功')
+      router.push('/storage/pvs')
+    }
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
   } finally {
     submitting.value = false
   }
 }
 
 function handleCancel() {
-  router.push('/storage/pvs')
+  if (props.isEdit) {
+    emit('cancel')
+  } else {
+    router.push('/storage/pvs')
+  }
 }
 </script>
 
@@ -189,7 +247,7 @@ function handleCancel() {
       <div class="form-section">
         <div class="section-title">基本信息</div>
         <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" placeholder="例如: my-pv" />
+          <el-input v-model="form.name" :disabled="isEdit" placeholder="例如: my-pv" />
         </el-form-item>
 
         <el-form-item label="容量" prop="capacity">
@@ -281,7 +339,7 @@ function handleCancel() {
     <!-- Actions -->
     <div class="form-actions">
       <el-button @click="handleCancel">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
+      <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
     </div>
   </div>
 </template>

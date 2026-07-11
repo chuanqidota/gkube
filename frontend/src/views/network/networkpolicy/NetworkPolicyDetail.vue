@@ -1,29 +1,25 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getNetworkPolicyDetail,
-  getNetworkPolicyYaml,
-  updateNetworkPolicy,
   deleteNetworkPolicy,
   getNetworkPolicyEvents,
   getNetworkPolicyPods,
   deletePod,
 } from '@/api/resource'
-import YamlEditor from '@/components/YamlEditor.vue'
+import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
+import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
-import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import NetworkPolicyForm from './components/NetworkPolicyForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
-const np = ref<any>(null)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
+const npRaw = ref<any>(null)
 const yamlDialogVisible = ref(false)
-const yamlEditorRef = ref<InstanceType<typeof YamlEditor>>()
 
 // Events
 const events = ref<any[]>([])
@@ -33,69 +29,45 @@ const eventsLoading = ref(false)
 const pods = ref<any[]>([])
 const podsLoading = ref(false)
 
+// Edit dialog
+const editDialogVisible = ref(false)
+const editFullscreen = ref(false)
+
 const namespace = route.params.namespace as string
 const name = route.params.name as string
 
-function transformNp(raw: any) {
+const np = computed(() => {
+  const raw = npRaw.value
+  if (!raw) return null
   const spec = raw.spec || {}
   const meta = raw.metadata || {}
 
-  // Pod selector display
   const podSelector = spec.podSelector?.matchLabels || {}
   const podSelectorStr = Object.keys(podSelector).length > 0
     ? Object.entries(podSelector).map(([k, v]) => `${k}=${v}`).join(', ')
     : 'All pods'
-
-  // Policy types
-  const policyTypes = (spec.policyTypes || []).map((t: string) => t)
-
-  // Age
-  let age = ''
-  if (meta.creationTimestamp) {
-    const created = new Date(meta.creationTimestamp).getTime()
-    const diff = Date.now() - created
-    const seconds = Math.floor(diff / 1000)
-    if (seconds < 60) age = `${seconds}s`
-    else if (seconds < 3600) age = `${Math.floor(seconds / 60)}m`
-    else if (seconds < 86400) age = `${Math.floor(seconds / 3600)}h`
-    else age = `${Math.floor(seconds / 86400)}d`
-  }
 
   return {
     name: meta.name || '',
     namespace: meta.namespace || '',
     podSelector,
     podSelectorStr,
-    policyTypes,
+    policyTypes: spec.policyTypes || [],
     ingress: spec.ingress || [],
     egress: spec.egress || [],
     labels: meta.labels || {},
-    age,
-    raw,
   }
-}
+})
 
 async function fetchDetail() {
   loading.value = true
   try {
     const res: any = await getNetworkPolicyDetail({ namespace, name })
-    np.value = transformNp(res.data)
+    npRaw.value = res.data
   } catch (e: any) {
     ElMessage.error(e?.message || '加载详情失败')
   } finally {
     loading.value = false
-  }
-}
-
-async function fetchYaml() {
-  yamlLoading.value = true
-  try {
-    const res: any = await getNetworkPolicyYaml({ namespace, name })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 YAML 失败')
-  } finally {
-    yamlLoading.value = false
   }
 }
 
@@ -105,7 +77,7 @@ async function fetchEvents() {
     const res: any = await getNetworkPolicyEvents({ namespace, name })
     events.value = res.data || []
   } catch (e) {
-    console.error('Failed to fetch events:', e)
+    events.value = []
   } finally {
     eventsLoading.value = false
   }
@@ -117,7 +89,7 @@ async function fetchPods() {
     const res: any = await getNetworkPolicyPods({ namespace, name })
     pods.value = res.data?.items || res.data || []
   } catch (e) {
-    console.error('Failed to fetch pods:', e)
+    pods.value = []
   } finally {
     podsLoading.value = false
   }
@@ -136,54 +108,45 @@ function getClusterName(): string {
 
 function handlePodLogs(pod: any) {
   const cluster = getClusterName()
-  window.open(`/fullscreen/logs?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(`/fullscreen/logs?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function handlePodExec(pod: any) {
   const cluster = getClusterName()
-  window.open(`/fullscreen/terminal?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(`/fullscreen/terminal?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 async function handlePodDelete(pod: any) {
   try {
     await ElMessageBox.confirm(
-      `确认删除 Pod "${pod.metadata.name}"？`,
+      `确定要删除 Pod "${pod.metadata?.name}" 吗？`,
       '确认删除',
-      { type: 'warning' }
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
     await deletePod({ namespace, name: pod.metadata.name })
     ElMessage.success('Pod 已删除')
     fetchPods()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败')
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e?.message || '删除失败')
     }
   }
 }
 
 function handleOpenYaml() {
-  fetchYaml()
   yamlDialogVisible.value = true
 }
 
-async function handleSaveYaml(content: string) {
-  try {
-    await updateNetworkPolicy({ namespace, yaml: content })
-    ElMessage.success('YAML 已保存')
-    yamlDialogVisible.value = false
-    fetchDetail()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '保存 YAML 失败')
-    yamlEditorRef.value?.resetSaving()
-  }
+function handleYamlSaved() {
+  fetchDetail()
 }
 
 async function handleDelete() {
   try {
     await ElMessageBox.confirm(
-      `确认删除 NetworkPolicy "${name}"（命名空间: ${namespace}）？`,
+      `确定要删除 NetworkPolicy "${name}" 吗？此操作不可恢复。`,
       '确认删除',
-      { type: 'warning' }
+      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
     await deleteNetworkPolicy({ namespace, name })
     ElMessage.success('NetworkPolicy 已删除')
@@ -193,6 +156,20 @@ async function handleDelete() {
       ElMessage.error(e?.message || '删除失败')
     }
   }
+}
+
+function handleEdit() {
+  editDialogVisible.value = true
+}
+
+function handleEditSuccess() {
+  editDialogVisible.value = false
+  fetchDetail()
+  fetchPods()
+}
+
+function handleEditCancel() {
+  editDialogVisible.value = false
 }
 
 // ---- Resize: left-right ----
@@ -259,26 +236,50 @@ onMounted(() => {
     <!-- 顶部标题栏 -->
     <div class="page-header">
       <div class="header-left">
-        <div class="title-line">
-          <h2 class="res-name">{{ name }}</h2>
+        <h2 class="res-name">{{ name }}</h2>
+        <div class="meta-line">
+          <el-tag v-for="pt in (np?.policyTypes || [])" :key="pt" :type="pt === 'Ingress' ? 'success' : 'warning'" effect="dark" size="small">{{ pt }}</el-tag>
           <span class="ns-tag">ns/{{ namespace }}</span>
-          <el-tag v-for="pt in (np?.policyTypes || [])" :key="pt" size="small">{{ pt }}</el-tag>
         </div>
       </div>
       <div class="header-actions">
-        <AutoRefreshToolbar
-          :is-running="isRunning"
-          :countdown="countdown"
-          :current-interval="currentInterval"
-          :available-intervals="availableIntervals"
-          :loading="loading"
-          @refresh="manualRefresh()"
-          @toggle="toggle()"
-          @interval-change="setIntervalOption"
-        />
+        <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" @click="handleDelete">删除</el-button>
-        <el-button @click="router.push('/network/networkpolicies')">返回列表</el-button>
+        <el-button type="danger" plain @click="handleDelete">删除</el-button>
+        <div class="action-divider" />
+        <el-popover placement="bottom" :width="200" trigger="hover">
+          <template #reference>
+            <el-button
+              :type="isRunning ? 'success' : 'default'"
+              :icon="Timer"
+              @click="toggle()"
+            />
+          </template>
+          <div class="auto-refresh-popover">
+            <div class="popover-title">
+              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
+            </div>
+            <el-select
+              :model-value="currentInterval / 1000"
+              @update:model-value="setIntervalOption"
+              size="small"
+              style="width: 100%;"
+            >
+              <el-option
+                v-for="sec in availableIntervals"
+                :key="sec"
+                :value="sec"
+                :label="`每 ${sec} 秒刷新`"
+              />
+            </el-select>
+          </div>
+        </el-popover>
+        <el-tooltip content="刷新" placement="top">
+          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+        </el-tooltip>
+        <el-tooltip content="返回列表" placement="top">
+          <el-button :icon="ArrowLeft" @click="router.push('/network/networkpolicies')" />
+        </el-tooltip>
       </div>
     </div>
 
@@ -296,7 +297,6 @@ onMounted(() => {
               <el-descriptions-item label="策略类型">
                 <el-tag v-for="pt in np.policyTypes" :key="pt" size="small" style="margin-right: 4px;">{{ pt }}</el-tag>
               </el-descriptions-item>
-              <el-descriptions-item label="Age">{{ np.age || '-' }}</el-descriptions-item>
             </el-descriptions>
 
             <!-- Labels -->
@@ -404,7 +404,7 @@ onMounted(() => {
 
         </div>
 
-        <!-- 水平拖拽条（绝对定位，覆盖在左右面板交界） -->
+        <!-- 水平拖拽条 -->
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
@@ -414,11 +414,43 @@ onMounted(() => {
       </div>
     </template>
 
-    <!-- YAML Edit Drawer -->
-    <el-drawer v-model="yamlDialogVisible" title="YAML" size="85%" direction="rtl" class="yaml-drawer"
-      :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100vh - 52px);">
-        <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="100%" auto-format show-save-buttons @save="handleSaveYaml" @cancel="fetchYaml" />
+    <!-- YAML Drawer -->
+    <YamlDrawer
+      v-model="yamlDialogVisible"
+      resource-type="networkpolicy"
+      :namespace="namespace"
+      :name="name"
+      @saved="handleYamlSaved"
+    />
+
+    <!-- Edit Drawer -->
+    <el-drawer
+      v-model="editDialogVisible"
+      title="编辑 NetworkPolicy"
+      :size="editFullscreen ? '100%' : '85%'"
+      direction="rtl"
+      :destroy-on-close="true"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <template #header>
+        <div class="drawer-header">
+          <span class="drawer-title">编辑 NetworkPolicy</span>
+          <el-tooltip :content="editFullscreen ? '退出全屏' : '全屏'" placement="top">
+            <el-icon class="fullscreen-btn" @click="editFullscreen = !editFullscreen">
+              <FullScreen v-if="!editFullscreen" />
+              <Aim v-else />
+            </el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <div style="height: calc(100vh - 52px); overflow-y: auto;">
+        <NetworkPolicyForm
+          v-if="editDialogVisible && npRaw"
+          :is-edit="true"
+          :initial-data="npRaw"
+          @success="handleEditSuccess"
+          @cancel="handleEditCancel"
+        />
       </div>
     </el-drawer>
   </div>
@@ -445,33 +477,67 @@ onMounted(() => {
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-.title-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 4px;
 }
 
 .res-name {
   margin: 0;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
+  line-height: 1.3;
+}
+
+.meta-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .ns-tag {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--el-text-color-secondary);
   background: var(--el-fill-color-lighter);
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 4px;
 }
 
 .header-actions {
   display: flex;
-  gap: 6px;
   flex-shrink: 0;
+  align-items: center;
+}
+
+.header-actions .el-button {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.header-actions .el-button:first-child {
+  border-radius: 4px 0 0 4px;
+  margin-left: 0;
+}
+
+.header-actions .el-button:last-of-type {
+  border-radius: 0 4px 4px 0;
+}
+
+.action-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--el-border-color-lighter);
+  margin: 0 4px;
+}
+
+.auto-refresh-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popover-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
 }
 
 /* Main Layout */
@@ -484,7 +550,7 @@ onMounted(() => {
   position: relative;
 }
 
-/* Left Panel - Info */
+/* Left Panel */
 .left-panel {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 6px;
@@ -620,12 +686,28 @@ onMounted(() => {
     display: none;
   }
 }
-</style>
 
-<style>
-.yaml-drawer .el-drawer__header {
-  padding: 6px 16px;
-  margin-bottom: 0;
-  min-height: auto;
+/* Edit Drawer */
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.fullscreen-btn {
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--el-text-color-regular);
+  transition: color 0.2s;
+}
+
+.fullscreen-btn:hover {
+  color: var(--el-color-primary);
 }
 </style>

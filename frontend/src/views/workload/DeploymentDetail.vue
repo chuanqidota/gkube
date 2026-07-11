@@ -2,12 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Timer, Back } from '@element-plus/icons-vue'
+import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import {
   getDeploymentDetail,
   restartDeployment,
   rollbackDeployment,
   scaleDeployment,
+  updateDeploymentImage,
   getDeploymentPodList,
   getDeploymentEvents,
   deletePod,
@@ -16,6 +17,7 @@ import {
 } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
+import WorkloadForm from '@/views/workload/components/WorkloadForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { formatAge } from '@/utils/time'
 
@@ -84,6 +86,18 @@ function onVResizeStart(e: MouseEvent) {
 const scaleDialogVisible = ref(false)
 const scaleReplicas = ref<number>(1)
 const scaleLoading = ref(false)
+
+// Image update dialog
+const imageDialogVisible = ref(false)
+const imageForm = ref({
+  containerName: '',
+  image: '',
+})
+const imageLoading = ref(false)
+
+// Edit dialog
+const editDialogVisible = ref(false)
+const editFullscreen = ref(false)
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
@@ -270,12 +284,12 @@ async function handleDelete() {
 async function handleRestart() {
   try {
     await ElMessageBox.confirm(
-      `Restart deployment "${name}"? This will trigger a rolling update.`,
-      'Confirm Restart',
+      `确定要重启 Deployment "${name}" 吗？这将触发滚动更新。`,
+      '确认重启',
       { type: 'warning' }
     )
     await restartDeployment({ namespace, name })
-    ElMessage.success('Deployment restarted')
+    ElMessage.success('重启成功')
     fetchDetail()
     fetchReplicaSets()
   } catch {
@@ -309,6 +323,55 @@ async function handleScaleConfirm() {
   }
 }
 
+function handleUpdateImage() {
+  const containers = deployment.value?.spec?.template?.spec?.containers || []
+  if (containers.length > 0) {
+    imageForm.value = {
+      containerName: containers[0].name,
+      image: containers[0].image || '',
+    }
+  }
+  imageDialogVisible.value = true
+}
+
+async function handleUpdateImageConfirm() {
+  if (!imageForm.value.containerName || !imageForm.value.image) {
+    ElMessage.warning('请填写容器名称和镜像')
+    return
+  }
+  imageLoading.value = true
+  try {
+    await updateDeploymentImage({
+      namespace,
+      name,
+      containerName: imageForm.value.containerName,
+      image: imageForm.value.image,
+    })
+    ElMessage.success('镜像更新成功')
+    imageDialogVisible.value = false
+    fetchDetail()
+    fetchReplicaSets()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '镜像更新失败')
+  } finally {
+    imageLoading.value = false
+  }
+}
+
+function handleEdit() {
+  editDialogVisible.value = true
+}
+
+function handleEditSuccess() {
+  editDialogVisible.value = false
+  fetchDetail()
+  fetchReplicaSets()
+}
+
+function handleEditCancel() {
+  editDialogVisible.value = false
+}
+
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
   fetchDetail()
   fetchReplicaSets()
@@ -339,32 +402,45 @@ onMounted(() => {
         </div>
       </div>
       <div class="header-actions">
-        <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh">刷新</el-button>
-        <el-button
-          :type="isRunning ? 'success' : 'default'"
-          @click="toggle()"
-        >
-          <el-icon><Timer /></el-icon>
-          {{ isRunning ? `自动刷新 ${countdown}s` : '自动刷新' }}
-        </el-button>
-        <el-select
-          :model-value="currentInterval / 1000"
-          @update:model-value="setIntervalOption"
-          style="width: 90px;"
-        >
-          <el-option
-            v-for="sec in availableIntervals"
-            :key="sec"
-            :value="sec"
-            :label="`${sec}s`"
-          />
-        </el-select>
         <el-button type="primary" @click="handleScale">扩缩容</el-button>
         <el-button type="warning" @click="handleRestart">重启</el-button>
+        <el-button type="success" @click="handleUpdateImage">更新镜像</el-button>
+        <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" plain @click="handleDelete">删除</el-button>
+        <div class="action-divider" />
+        <el-popover placement="bottom" :width="200" trigger="hover">
+          <template #reference>
+            <el-button
+              :type="isRunning ? 'success' : 'default'"
+              :icon="Timer"
+              @click="toggle()"
+            />
+          </template>
+          <div class="auto-refresh-popover">
+            <div class="popover-title">
+              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
+            </div>
+            <el-select
+              :model-value="currentInterval / 1000"
+              @update:model-value="setIntervalOption"
+              size="small"
+              style="width: 100%;"
+            >
+              <el-option
+                v-for="sec in availableIntervals"
+                :key="sec"
+                :value="sec"
+                :label="`每 ${sec} 秒刷新`"
+              />
+            </el-select>
+          </div>
+        </el-popover>
+        <el-tooltip content="刷新" placement="top">
+          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+        </el-tooltip>
         <el-tooltip content="返回列表" placement="top">
-          <el-button :icon="Back" @click="router.push('/workloads/deployments')" />
+          <el-button :icon="ArrowLeft" @click="router.push('/workloads/deployments')" />
         </el-tooltip>
       </div>
     </div>
@@ -487,6 +563,69 @@ onMounted(() => {
         <el-button type="primary" :loading="scaleLoading" @click="handleScaleConfirm">确认</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="imageDialogVisible" title="更新镜像" width="520px" destroy-on-close>
+      <div>
+        <p style="margin-bottom: 16px;">更新 <strong>{{ name }}</strong> 的容器镜像</p>
+        <el-form label-width="80px">
+          <el-form-item label="容器">
+            <el-select v-model="imageForm.containerName" style="width: 100%;">
+              <el-option
+                v-for="container in deployment?.spec?.template?.spec?.containers || []"
+                :key="container.name"
+                :label="container.name"
+                :value="container.name"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="镜像">
+            <el-input v-model="imageForm.image" placeholder="例如: nginx:1.25" />
+          </el-form-item>
+        </el-form>
+        <el-alert
+          v-if="imageForm.containerName"
+          :title="`当前镜像: ${deployment?.spec?.template?.spec?.containers?.find((c: any) => c.name === imageForm.containerName)?.image || '-'}`"
+          type="info"
+          :closable="false"
+          style="margin-top: 8px;"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="imageDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="imageLoading" @click="handleUpdateImageConfirm">确认更新</el-button>
+      </template>
+    </el-dialog>
+
+    <el-drawer
+      v-model="editDialogVisible"
+      title="编辑 Deployment"
+      :size="editFullscreen ? '100%' : '85%'"
+      direction="rtl"
+      :destroy-on-close="true"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <template #header>
+        <div class="drawer-header">
+          <span class="drawer-title">编辑 Deployment</span>
+          <el-tooltip :content="editFullscreen ? '退出全屏' : '全屏'" placement="top">
+            <el-icon class="fullscreen-btn" @click="editFullscreen = !editFullscreen">
+              <FullScreen v-if="!editFullscreen" />
+              <Aim v-else />
+            </el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <div style="height: calc(100vh - 52px); overflow-y: auto;">
+        <WorkloadForm
+          v-if="editDialogVisible && deployment"
+          kind="Deployment"
+          :is-edit="true"
+          :initial-data="deployment"
+          @success="handleEditSuccess"
+          @cancel="handleEditCancel"
+        />
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -542,9 +681,41 @@ onMounted(() => {
 
 .header-actions {
   display: flex;
-  gap: 6px;
   flex-shrink: 0;
   align-items: center;
+}
+
+.header-actions .el-button {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.header-actions .el-button:first-child {
+  border-radius: 4px 0 0 4px;
+  margin-left: 0;
+}
+
+.header-actions .el-button:last-of-type {
+  border-radius: 0 4px 4px 0;
+}
+
+.action-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--el-border-color-lighter);
+  margin: 0 4px;
+}
+
+.auto-refresh-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popover-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
 }
 
 /* Main Layout */
@@ -753,5 +924,29 @@ onMounted(() => {
   .resize-handle-h {
     display: none;
   }
+}
+
+/* Edit Drawer */
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.fullscreen-btn {
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--el-text-color-regular);
+  transition: color 0.2s;
+}
+
+.fullscreen-btn:hover {
+  color: var(--el-color-primary);
 }
 </style>

@@ -1,14 +1,26 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getNamespaceList, extractNamespaceNames } from '@/api/resource'
-import { createDeployment, createStatefulSet, createDaemonSet } from '@/api/resource'
+import { createDeployment, createStatefulSet, createDaemonSet, updateDeploymentYaml } from '@/api/resource'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   kind: 'Deployment' | 'StatefulSet' | 'DaemonSet'
+  isEdit?: boolean
+  initialData?: any
+  onSubmit?: (yaml: string) => Promise<void>
+}>(), {
+  isEdit: false,
+  initialData: undefined,
+  onSubmit: undefined,
+})
+
+const emit = defineEmits<{
+  success: []
+  cancel: []
 }>()
 
 const router = useRouter()
@@ -91,7 +103,161 @@ async function fetchNamespaces() {
   finally { namespaceLoading.value = false }
 }
 
-onMounted(fetchNamespaces)
+function parseInitialData(data: any) {
+  if (!data) return
+
+  const metadata = data.metadata || {}
+  const spec = data.spec || {}
+  const template = spec.template || {}
+  const podSpec = template.spec || {}
+
+  // Basic info
+  form.name = metadata.name || ''
+  form.namespace = metadata.namespace || 'default'
+  form.replicas = spec.replicas || 1
+
+  // Labels
+  const labels = metadata.labels || {}
+  form.labels = Object.entries(labels).map(([key, value]) => ({ key, value: value as string }))
+  if (form.labels.length === 0) form.labels.push({ key: 'app', value: '' })
+
+  // Annotations
+  const annotations = template.metadata?.annotations || {}
+  form.annotations = Object.entries(annotations).map(([key, value]) => ({ key, value: value as string }))
+
+  // Containers
+  const containers = podSpec.containers || []
+  form.containers = containers.map((c: any) => ({
+    name: c.name || '',
+    image: c.image || '',
+    imagePullPolicy: c.imagePullPolicy || 'IfNotPresent',
+    ports: (c.ports || []).map((p: any) => ({
+      name: p.name || '',
+      containerPort: p.containerPort || null,
+      protocol: p.protocol || 'TCP',
+    })),
+    env: (c.env || []).map((e: any) => ({
+      name: e.name || '',
+      value: e.value || '',
+    })),
+    resources: {
+      requests: {
+        cpu: c.resources?.requests?.cpu || '',
+        memory: c.resources?.requests?.memory || '',
+      },
+      limits: {
+        cpu: c.resources?.limits?.cpu || '',
+        memory: c.resources?.limits?.memory || '',
+      },
+    },
+    volumeMounts: (c.volumeMounts || []).map((m: any) => ({
+      name: m.name || '',
+      mountPath: m.mountPath || '',
+      subPath: m.subPath || '',
+      readOnly: m.readOnly || false,
+    })),
+    livenessProbe: c.livenessProbe ? {
+      type: c.livenessProbe.httpGet ? 'httpGet' : c.livenessProbe.tcpSocket ? 'tcpSocket' : 'exec',
+      httpGetPath: c.livenessProbe.httpGet?.path || '/',
+      httpGetPort: c.livenessProbe.httpGet?.port || 80,
+      tcpSocketPort: c.livenessProbe.tcpSocket?.port || null,
+      execCommand: c.livenessProbe.exec?.command?.join(' ') || '',
+      initialDelaySeconds: c.livenessProbe.initialDelaySeconds || 15,
+      periodSeconds: c.livenessProbe.periodSeconds || 10,
+      timeoutSeconds: c.livenessProbe.timeoutSeconds || 5,
+      failureThreshold: c.livenessProbe.failureThreshold || 3,
+    } : null,
+    readinessProbe: c.readinessProbe ? {
+      type: c.readinessProbe.httpGet ? 'httpGet' : c.readinessProbe.tcpSocket ? 'tcpSocket' : 'exec',
+      httpGetPath: c.readinessProbe.httpGet?.path || '/',
+      httpGetPort: c.readinessProbe.httpGet?.port || 80,
+      tcpSocketPort: c.readinessProbe.tcpSocket?.port || null,
+      execCommand: c.readinessProbe.exec?.command?.join(' ') || '',
+      initialDelaySeconds: c.readinessProbe.initialDelaySeconds || 15,
+      periodSeconds: c.readinessProbe.periodSeconds || 10,
+      timeoutSeconds: c.readinessProbe.timeoutSeconds || 5,
+      failureThreshold: c.readinessProbe.failureThreshold || 3,
+    } : null,
+    securityContext: {
+      runAsUser: c.securityContext?.runAsUser ?? null,
+      runAsNonRoot: c.securityContext?.runAsNonRoot || false,
+      readOnlyRootFilesystem: c.securityContext?.readOnlyRootFilesystem || false,
+      privileged: c.securityContext?.privileged || false,
+    },
+  }))
+  if (form.containers.length === 0) form.containers.push(createEmptyContainer())
+
+  // Volumes
+  const volumes = podSpec.volumes || []
+  form.volumes = volumes.map((v: any) => ({
+    name: v.name || '',
+    type: v.emptyDir ? 'emptyDir' : v.hostPath ? 'hostPath' : v.configMap ? 'configMap' : v.secret ? 'secret' : v.persistentVolumeClaim ? 'pvc' : 'emptyDir',
+    hostPath: v.hostPath?.path || '',
+    configMapName: v.configMap?.name || '',
+    secretName: v.secret?.secretName || '',
+    pvcName: v.persistentVolumeClaim?.claimName || '',
+  }))
+
+  // Node selector
+  const nodeSelector = podSpec.nodeSelector || {}
+  form.nodeSelector = Object.entries(nodeSelector).map(([key, value]) => ({ key, value: value as string }))
+
+  // Tolerations
+  const tolerations = podSpec.tolerations || []
+  form.tolerations = tolerations.map((t: any) => ({
+    key: t.key || '',
+    operator: t.operator || 'Equal',
+    value: t.value || '',
+    effect: t.effect || 'NoSchedule',
+    tolerationSeconds: t.tolerationSeconds || null,
+  }))
+
+  // Service account
+  form.serviceAccountName = podSpec.serviceAccountName || ''
+
+  // Termination grace period
+  form.terminationGracePeriodSeconds = podSpec.terminationGracePeriodSeconds || null
+
+  // Image pull secrets
+  const imagePullSecrets = podSpec.imagePullSecrets || []
+  form.imagePullSecrets = imagePullSecrets.map((s: any) => s.name || '')
+
+  // Strategy (Deployment)
+  if (props.kind === 'Deployment') {
+    form.strategyType = spec.strategy?.type || 'RollingUpdate'
+    form.maxSurge = spec.strategy?.rollingUpdate?.maxSurge?.toString() || '25%'
+    form.maxUnavailable = spec.strategy?.rollingUpdate?.maxUnavailable?.toString() || '25%'
+  }
+
+  // Service name (StatefulSet)
+  if (props.kind === 'StatefulSet') {
+    form.serviceName = spec.serviceName || ''
+    form.updateStrategy = spec.updateStrategy?.type || 'RollingUpdate'
+  }
+
+  // Update strategy (DaemonSet)
+  if (props.kind === 'DaemonSet') {
+    form.dsUpdateStrategy = spec.updateStrategy?.type || 'RollingUpdate'
+  }
+
+  // Volume claim templates (StatefulSet)
+  if (props.kind === 'StatefulSet') {
+    const vcts = spec.volumeClaimTemplates || []
+    form.volumeClaimTemplates = vcts.map((v: any) => ({
+      name: v.metadata?.name || '',
+      storageSize: v.spec?.resources?.requests?.storage || '1Gi',
+      storageClassName: v.spec?.storageClassName || '',
+      accessModes: v.spec?.accessModes || ['ReadWriteOnce'],
+    }))
+  }
+}
+
+onMounted(() => {
+  fetchNamespaces()
+  if (props.isEdit && props.initialData) {
+    parseInitialData(props.initialData)
+  }
+})
 
 function addLabel() { form.labels.push({ key: '', value: '' }) }
 function removeLabel(i: number) { form.labels.splice(i, 1) }
@@ -232,10 +398,23 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    await (props.kind === 'Deployment' ? createDeployment : props.kind === 'StatefulSet' ? createStatefulSet : createDaemonSet)({ namespace: form.namespace, yaml: generatedYaml.value })
-    ElMessage.success(`${props.kind} 创建成功`)
-    router.push(getListRoute())
-  } catch (e: any) { ElMessage.error(e?.message || '创建失败') }
+    if (props.onSubmit) {
+      // Custom submit handler (for edit mode)
+      await props.onSubmit(generatedYaml.value)
+    } else if (props.isEdit) {
+      // Edit mode - call update API
+      if (props.kind === 'Deployment') {
+        await updateDeploymentYaml({ namespace: form.namespace, name: form.name, yaml: generatedYaml.value })
+      }
+      ElMessage.success(`${props.kind} 更新成功`)
+      emit('success')
+    } else {
+      // Create mode
+      await (props.kind === 'Deployment' ? createDeployment : props.kind === 'StatefulSet' ? createStatefulSet : createDaemonSet)({ namespace: form.namespace, yaml: generatedYaml.value })
+      ElMessage.success(`${props.kind} 创建成功`)
+      router.push(getListRoute())
+    }
+  } catch (e: any) { ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败')) }
   finally { submitting.value = false }
 }
 
@@ -243,7 +422,13 @@ function getListRoute(): string {
   return props.kind === 'Deployment' ? '/workloads/deployments' : props.kind === 'StatefulSet' ? '/workloads/statefulsets' : '/workloads/daemonsets'
 }
 
-function handleCancel() { router.push(getListRoute()) }
+function handleCancel() {
+  if (props.isEdit) {
+    emit('cancel')
+  } else {
+    router.push(getListRoute())
+  }
+}
 </script>
 
 <template>
@@ -740,7 +925,7 @@ function handleCancel() { router.push(getListRoute()) }
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
           </div>
         </div>
       </div>

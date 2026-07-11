@@ -275,6 +275,34 @@ func (dp *deployment) RestartDeployment(c *gin.Context) {
 	response.Success(c, "执行成功", nil)
 }
 
+// UpdateDeploymentImage
+//
+//	@Description: 更新deployment容器镜像
+//	@receiver dp
+//	@param c
+func (dp *deployment) UpdateDeploymentImage(c *gin.Context) {
+	var body params.DeploymentImageUpdateParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	ok, err := k8sDeployment.UpdateDeploymentImage(client, body.Namespace, body.Name, body.ContainerName, body.Image)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("更新deployment镜像失败:%s", err.Error()))
+		return
+	}
+	if !ok {
+		response.Fail(c, fmt.Sprintf("更新deployment镜像失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}
+
 // DeploymentPodList
 //
 //	@Description: 获取deployment pod列表

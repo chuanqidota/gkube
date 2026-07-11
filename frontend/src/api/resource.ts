@@ -529,6 +529,10 @@ export function rollbackDeployment(data: { namespace: string; name: string; revi
   return request.post('/k8s/deployment/rollback', data)
 }
 
+export function updateDeploymentImage(data: { namespace: string; name: string; containerName: string; image: string }) {
+  return request.put('/k8s/deployment/update-image', data)
+}
+
 export function deleteDeployment(data: { namespace: string; name: string }) {
   return request.delete('/k8s/deployment/delete', { data })
 }

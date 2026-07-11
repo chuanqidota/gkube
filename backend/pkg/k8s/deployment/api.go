@@ -241,6 +241,39 @@ func RestartDeployment(client *kubernetes.Clientset, namespace, name string) (bo
 	return true, nil
 }
 
+// UpdateDeploymentImage
+//
+//	@Description: 更新deployment的容器镜像
+//	@param client
+//	@param namespace
+//	@param name
+//	@param containerName
+//	@param image
+//	@return bool
+//	@return error
+func UpdateDeploymentImage(client *kubernetes.Clientset, namespace, name, containerName, image string) (bool, error) {
+	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("获取deployment资源失败:%s", err.Error())
+	}
+	found := false
+	for i, container := range deployment.Spec.Template.Spec.Containers {
+		if container.Name == containerName {
+			deployment.Spec.Template.Spec.Containers[i].Image = image
+			found = true
+			break
+		}
+	}
+	if !found {
+		return false, fmt.Errorf("容器 %s 不存在", containerName)
+	}
+	_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("更新deployment镜像失败:%s", err.Error())
+	}
+	return true, nil
+}
+
 // GetDeploymentDetail
 //
 //	@Description: 获取deployment详情

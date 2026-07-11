@@ -3,7 +3,20 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
-import { createHpa, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { createHpa, updateHpa, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+
+const props = withDefaults(defineProps<{
+  isEdit?: boolean
+  initialData?: any
+}>(), {
+  isEdit: false,
+  initialData: undefined,
+})
+
+const emit = defineEmits<{
+  success: []
+  cancel: []
+}>()
 
 const router = useRouter()
 const loading = ref(false)
@@ -20,6 +33,30 @@ const form = ref({
   memoryUtilization: 0,
   customMetrics: [] as Array<{ type: string; name: string; target: number }>,
 })
+
+function parseInitialData(data: any) {
+  form.value.name = data.metadata?.name || ''
+  form.value.namespace = data.metadata?.namespace || 'default'
+  form.value.targetKind = data.spec?.scaleTargetRef?.kind || 'Deployment'
+  form.value.targetName = data.spec?.scaleTargetRef?.name || ''
+  form.value.minReplicas = data.spec?.minReplicas ?? 1
+  form.value.maxReplicas = data.spec?.maxReplicas ?? 10
+
+  const metrics = data.spec?.metrics || []
+  for (const m of metrics) {
+    if (m.type === 'Resource' && m.resource?.name === 'cpu') {
+      form.value.cpuUtilization = m.resource?.target?.averageUtilization ?? 0
+    } else if (m.type === 'Resource' && m.resource?.name === 'memory') {
+      form.value.memoryUtilization = m.resource?.target?.averageUtilization ?? 0
+    } else if (m.type !== 'Resource') {
+      form.value.customMetrics.push({
+        type: m.type || 'Resource',
+        name: m.resource?.name || m.pods?.metric?.name || m.object?.metric?.name || '',
+        target: m.resource?.target?.averageUtilization || m.pods?.target?.averageUtilization || 0,
+      })
+    }
+  }
+}
 
 const rules = {
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
@@ -116,18 +153,31 @@ async function handleSubmit() {
   loading.value = true
   try {
     const yaml = buildYaml()
-    await createHpa({ namespace: form.value.namespace, yaml })
-    ElMessage.success('弹性伸缩创建成功')
-    router.push('/workloads/hpa')
+    if (props.isEdit) {
+      await updateHpa({ namespace: form.value.namespace, yaml })
+      ElMessage.success('弹性伸缩更新成功')
+    } else {
+      await createHpa({ namespace: form.value.namespace, yaml })
+      ElMessage.success('弹性伸缩创建成功')
+    }
+    if (props.isEdit) {
+      emit('success')
+    } else {
+      router.push('/workloads/hpa')
+    }
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
   } finally {
     loading.value = false
   }
 }
 
 function handleCancel() {
-  router.push('/workloads/hpa')
+  if (props.isEdit) {
+    emit('cancel')
+  } else {
+    router.push('/workloads/hpa')
+  }
 }
 
 async function fetchNamespaces() {
@@ -137,7 +187,12 @@ async function fetchNamespaces() {
   } catch { /* ignore */ }
 }
 
-onMounted(fetchNamespaces)
+onMounted(() => {
+  fetchNamespaces()
+  if (props.isEdit && props.initialData) {
+    parseInitialData(props.initialData)
+  }
+})
 </script>
 
 <template>
@@ -245,7 +300,7 @@ onMounted(fetchNamespaces)
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="loading" @click="handleSubmit">创建</el-button>
+            <el-button type="primary" :loading="loading" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
           </div>
         </div>
       </div>

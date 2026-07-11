@@ -5,7 +5,20 @@ import { ElMessage } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import { getNamespaceList, createNetworkPolicy, extractNamespaceNames } from '@/api/resource'
+import { getNamespaceList, createNetworkPolicy, updateNetworkPolicyYaml, extractNamespaceNames } from '@/api/resource'
+
+const props = withDefaults(defineProps<{
+  isEdit?: boolean
+  initialData?: any
+}>(), {
+  isEdit: false,
+  initialData: undefined,
+})
+
+const emit = defineEmits<{
+  success: []
+  cancel: []
+}>()
 
 const router = useRouter()
 const submitting = ref(false)
@@ -75,7 +88,12 @@ async function fetchNamespaces() {
   }
 }
 
-onMounted(fetchNamespaces)
+onMounted(() => {
+  fetchNamespaces()
+  if (props.isEdit && props.initialData) {
+    parseInitialData(props.initialData)
+  }
+})
 
 // ---- Pod Selector Management ----
 
@@ -222,6 +240,49 @@ function buildNetworkPolicy(): Record<string, any> {
   return resource
 }
 
+// ---- Parse Initial Data (Edit Mode) ----
+
+function parseInitialData(data: any) {
+  const spec = data.spec || {}
+  const meta = data.metadata || {}
+
+  form.name = meta.name || ''
+  form.namespace = meta.namespace || 'default'
+  form.policyTypes = spec.policyTypes || ['Ingress', 'Egress']
+
+  // Pod Selector
+  const matchLabels = spec.podSelector?.matchLabels || {}
+  form.podSelectorLabels = Object.keys(matchLabels).length > 0
+    ? Object.entries(matchLabels).map(([k, v]) => ({ key: k, value: v as string }))
+    : [{ key: 'app', value: '' }]
+
+  // Ingress rules
+  const ingress = spec.ingress || []
+  form.ingressRules = ingress.length > 0
+    ? ingress.map((rule: any) => ({
+        fromTo: (rule.from || []).map((f: any) => {
+          if (f.ipBlock) return { type: 'ipBlock' as const, labels: [], cidr: f.ipBlock.cidr || '', except: f.ipBlock.except || [] }
+          if (f.namespaceSelector) return { type: 'namespaceSelector' as const, labels: Object.entries(f.namespaceSelector.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), cidr: '', except: [] }
+          return { type: 'podSelector' as const, labels: Object.entries(f.podSelector?.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), cidr: '', except: [] }
+        }),
+        ports: (rule.ports || []).map((p: any) => ({ protocol: p.protocol || 'TCP', port: p.port ?? null })),
+      }))
+    : [{ fromTo: [{ type: 'podSelector' as const, labels: [{ key: 'app', value: '' }], cidr: '', except: [] }], ports: [{ protocol: 'TCP', port: 80 }] }]
+
+  // Egress rules
+  const egress = spec.egress || []
+  form.egressRules = egress.length > 0
+    ? egress.map((rule: any) => ({
+        fromTo: (rule.to || []).map((t: any) => {
+          if (t.ipBlock) return { type: 'ipBlock' as const, labels: [], cidr: t.ipBlock.cidr || '', except: t.ipBlock.except || [] }
+          if (t.namespaceSelector) return { type: 'namespaceSelector' as const, labels: Object.entries(t.namespaceSelector.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), cidr: '', except: [] }
+          return { type: 'podSelector' as const, labels: Object.entries(t.podSelector?.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), cidr: '', except: [] }
+        }),
+        ports: (rule.ports || []).map((p: any) => ({ protocol: p.protocol || 'TCP', port: p.port ?? null })),
+      }))
+    : [{ fromTo: [{ type: 'ipBlock' as const, labels: [], cidr: '0.0.0.0/0', except: [] }], ports: [{ protocol: 'TCP', port: 443 }] }]
+}
+
 // ---- Submit ----
 
 async function handleSubmit() {
@@ -232,17 +293,29 @@ async function handleSubmit() {
   try {
     const resource = buildNetworkPolicy()
     const yamlContent = yaml.dump(resource, { indent: 2, lineWidth: -1, noRefs: true })
-    await createNetworkPolicy({ namespace: form.namespace, yaml: yamlContent })
-    ElMessage.success('NetworkPolicy 创建成功')
-    router.push('/network/networkpolicies')
+    if (props.isEdit) {
+      await updateNetworkPolicyYaml({ namespace: form.namespace, name: form.name, yaml: yamlContent })
+      ElMessage.success('NetworkPolicy 更新成功')
+      emit('success')
+    } else {
+      await createNetworkPolicy({ namespace: form.namespace, yaml: yamlContent })
+      ElMessage.success('NetworkPolicy 创建成功')
+      router.push('/network/networkpolicies')
+    }
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
   } finally {
     submitting.value = false
   }
 }
 
-function handleCancel() { router.push('/network/networkpolicies') }
+function handleCancel() {
+  if (props.isEdit) {
+    emit('cancel')
+  } else {
+    router.push('/network/networkpolicies')
+  }
+}
 </script>
 
 <template>
@@ -498,7 +571,7 @@ function handleCancel() { router.push('/network/networkpolicies') }
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
           </div>
         </div>
       </div>
