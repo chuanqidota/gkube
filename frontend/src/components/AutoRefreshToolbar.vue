@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
 import { Refresh, Timer } from '@element-plus/icons-vue'
-
-const { t } = useI18n()
 
 interface Props {
   isRunning: boolean
@@ -30,30 +27,38 @@ function handleIntervalChange(seconds: number) {
 
 <template>
   <div class="auto-refresh-toolbar">
-    <el-button @click="emit('refresh')" :loading="loading" :icon="Refresh" size="small">
-      {{ t('common.refresh') }}
-    </el-button>
-    <el-button
-      :type="isRunning ? 'success' : 'default'"
-      @click="emit('toggle')"
-      size="small"
-    >
-      <el-icon><Timer /></el-icon>
-      {{ isRunning ? t('common.autoRefreshOn', { n: countdown }) : t('common.autoRefreshOff') }}
-    </el-button>
-    <el-select
-      :model-value="currentInterval / 1000"
-      @update:model-value="handleIntervalChange"
-      style="width: 90px;"
-      size="small"
-    >
-      <el-option
-        v-for="sec in availableIntervals"
-        :key="sec"
-        :value="sec"
-        :label="`${sec}s`"
-      />
-    </el-select>
+    <!-- 自动刷新按钮（图标 + popover） -->
+    <el-popover placement="bottom" :width="200" trigger="hover">
+      <template #reference>
+        <el-button
+          :type="isRunning ? 'success' : 'default'"
+          :icon="Timer"
+          @click="emit('toggle')"
+        />
+      </template>
+      <div class="auto-refresh-popover">
+        <div class="popover-title">
+          {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
+        </div>
+        <el-select
+          :model-value="currentInterval / 1000"
+          @update:model-value="handleIntervalChange"
+          size="small"
+          style="width: 100%;"
+        >
+          <el-option
+            v-for="sec in availableIntervals"
+            :key="sec"
+            :value="sec"
+            :label="`每 ${sec} 秒刷新`"
+          />
+        </el-select>
+      </div>
+    </el-popover>
+    <!-- 手动刷新按钮（图标 + tooltip） -->
+    <el-tooltip content="刷新" placement="top">
+      <el-button @click="emit('refresh')" :loading="loading" :icon="Refresh" />
+    </el-tooltip>
   </div>
 </template>
 
@@ -61,6 +66,16 @@ function handleIntervalChange(seconds: number) {
 .auto-refresh-toolbar {
   display: flex;
   align-items: center;
+  gap: 4px;
+}
+.auto-refresh-popover {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+}
+.popover-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
 }
 </style>

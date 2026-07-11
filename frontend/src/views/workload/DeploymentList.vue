@@ -58,14 +58,12 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
   <div class="page-container">
     <ResourceListToolbar
       :search-value="searchName"
-      :namespace-value="selectedNamespace"
+      v-model:namespace-value="selectedNamespace"
       :namespace-list="namespaceList"
       :total-count="totalCount"
       :selected-count="selectedRows.length"
       @search-input="onSearchInput"
       @namespace-change="handleNamespaceChange"
-      @create="$router.push('/workloads/deployments/create')"
-      @batch-delete="handleBatchDelete"
     >
       <template #actions>
         <el-button type="success" @click="$router.push('/workloads/deployments/create')">

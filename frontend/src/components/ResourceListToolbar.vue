@@ -59,6 +59,7 @@ const emit = defineEmits<{
       >
         <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
       </el-select>
+      <!-- 总计数（推到右侧） -->
       <span class="total-count" v-if="showTotalCount && totalCount">总计: {{ totalCount }}</span>
 
       <!-- 竖线分隔符 -->
@@ -91,6 +92,7 @@ const emit = defineEmits<{
 .total-count {
   color: var(--el-text-color-secondary);
   font-size: 13px;
+  margin-left: auto;
 }
 .action-divider {
   width: 1px;
