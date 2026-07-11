@@ -2,12 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Search } from '@element-plus/icons-vue'
+import { Plus, Delete } from '@element-plus/icons-vue'
 import { getVolumeSnapshotList, deleteVolumeSnapshot, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import { useI18n } from 'vue-i18n'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -25,6 +26,8 @@ const filteredList = computed(() => {
   const keyword = searchName.value.toLowerCase()
   return snapshotList.value.filter((d) => d.name?.toLowerCase().includes(keyword))
 })
+
+function onSearchInput(val: string) { searchName.value = val }
 
 async function fetchNamespaces() {
   try {
@@ -123,14 +126,20 @@ onMounted(() => { fetchNamespaces(); fetchSnapshots() })
 
 <template>
   <div class="page-container">
-    <el-card shadow="never" class="filter-card">
-      <div class="filter-bar">
-        <el-input v-model="searchName" :placeholder="t('common.search') + '...'" style="width: 220px;" clearable>
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
-        <el-select v-model="selectedNamespace" :placeholder="t('common.namespace_label')" clearable style="width: 180px;" @change="handleNamespaceChange">
-          <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
-        </el-select>
+    <ResourceListToolbar
+      :search-value="searchName"
+      v-model:namespace-value="selectedNamespace"
+      :namespace-list="namespaceList"
+      :show-total-count="false"
+      :selected-count="selectedRows.length"
+      @search-input="onSearchInput"
+      @namespace-change="handleNamespaceChange"
+    >
+      <template #actions>
+        <el-button type="success" @click="router.push('/storage/volumesnapshots/create')"><el-icon><Plus /></el-icon> {{ t('common.create') }}</el-button>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})</el-button>
+      </template>
+      <template #extra>
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -141,10 +150,8 @@ onMounted(() => { fetchNamespaces(); fetchSnapshots() })
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="success" @click="router.push('/storage/volumesnapshots/create')"><el-icon><Plus /></el-icon> {{ t('common.create') }}</el-button>
-        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})</el-button>
-      </div>
-    </el-card>
+      </template>
+    </ResourceListToolbar>
     <el-card shadow="never" class="table-card">
       <el-table :data="filteredList" v-loading="loading" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="45" />
@@ -185,7 +192,5 @@ onMounted(() => { fetchNamespaces(); fetchSnapshots() })
 
 <style scoped>
 .page-container { padding: 20px; }
-.filter-card { margin-bottom: 16px; }
-.filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .table-card { border-radius: 8px; }
 </style>

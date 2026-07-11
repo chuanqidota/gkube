@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Delete, Search } from '@element-plus/icons-vue'
+import { Plus, Delete } from '@element-plus/icons-vue'
 import {
   getStorageClassList,
   getStorageClassYaml,
@@ -9,6 +9,7 @@ import {
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const {
@@ -42,17 +43,22 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 
 <template>
   <div class="page-container">
-    <el-card shadow="never" class="filter-card">
-      <div class="filter-bar">
-        <el-input
-          :model-value="searchName"
-          @input="onSearchInput"
-          placeholder="搜索名称"
-          style="width: 220px;"
-          clearable
-        >
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
+    <ResourceListToolbar
+      :search-value="searchName"
+      :show-namespace="false"
+      :show-total-count="false"
+      :selected-count="selectedRows.length"
+      @search-input="onSearchInput"
+    >
+      <template #actions>
+        <el-button type="success" @click="$router.push('/storage/storageclasses/create')">
+          <el-icon><Plus /></el-icon> 创建
+        </el-button>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+        </el-button>
+      </template>
+      <template #extra>
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -63,14 +69,8 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="success" @click="$router.push('/storage/storageclasses/create')">
-          <el-icon><Plus /></el-icon> 创建
-        </el-button>
-        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
-        </el-button>
-      </div>
-    </el-card>
+      </template>
+    </ResourceListToolbar>
 
     <el-card shadow="never" class="table-card">
       <el-table
@@ -117,15 +117,6 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 <style scoped>
 .page-container {
   padding: 20px;
-}
-.filter-card {
-  margin-bottom: 16px;
-}
-.filter-bar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
 }
 .table-card {
   border-radius: 8px;

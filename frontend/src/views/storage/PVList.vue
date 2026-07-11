@@ -2,10 +2,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Search } from '@element-plus/icons-vue'
+import { Plus, Delete } from '@element-plus/icons-vue'
 import { getPvList, getPvYaml, updatePvYaml, deletePv, transformPvs, type Pv } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const router = useRouter()
@@ -26,6 +27,8 @@ const filteredList = computed(() => {
   const keyword = searchName.value.toLowerCase()
   return pvList.value.filter((d) => d.name?.toLowerCase().includes(keyword))
 })
+
+function onSearchInput(val: string) { searchName.value = val }
 
 async function fetchPvs() {
   loading.value = true
@@ -130,16 +133,22 @@ onMounted(fetchPvs)
 
 <template>
   <div class="page-container">
-    <el-card shadow="never" class="filter-card">
-      <div class="filter-bar">
-        <el-input
-          v-model="searchName"
-          placeholder="搜索名称"
-          style="width: 220px;"
-          clearable
-        >
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
+    <ResourceListToolbar
+      :search-value="searchName"
+      :show-namespace="false"
+      :total-count="pvList.length"
+      :selected-count="selectedRows.length"
+      @search-input="onSearchInput"
+    >
+      <template #actions>
+        <el-button type="success" @click="router.push('/storage/pvs/create')">
+          <el-icon><Plus /></el-icon> 创建
+        </el-button>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+        </el-button>
+      </template>
+      <template #extra>
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -150,15 +159,8 @@ onMounted(fetchPvs)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="success" @click="router.push('/storage/pvs/create')">
-          <el-icon><Plus /></el-icon> 创建
-        </el-button>
-        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
-        </el-button>
-        <span class="total-count" v-if="pvList.length">总计: {{ pvList.length }}</span>
-      </div>
-    </el-card>
+      </template>
+    </ResourceListToolbar>
 
     <el-card shadow="never" class="table-card">
       <el-table
@@ -221,22 +223,8 @@ onMounted(fetchPvs)
 .page-container {
   padding: 20px;
 }
-.filter-card {
-  margin-bottom: 16px;
-}
-.filter-bar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
 .table-card {
   border-radius: 8px;
-}
-.total-count {
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
-  margin-left: auto;
 }
 </style>
 
