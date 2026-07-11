@@ -242,7 +242,9 @@ async function fetchYaml() {
     const api = resourceApis[props.resourceType]
     const params = buildGetYamlParams()
     const res = await api.getYaml(params)
-    yamlContent.value = res.data || res
+    // 兼容两种后端返回格式：直接返回字符串 或 包装在 { yaml: "..." } 中
+    const raw = res.data ?? res
+    yamlContent.value = typeof raw === 'object' && raw?.yaml ? raw.yaml : raw
   } catch (error: any) {
     ElMessage.error('获取 YAML 失败: ' + (error.message || '未知错误'))
   } finally {

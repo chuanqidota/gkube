@@ -670,6 +670,8 @@ export function updateStorageClass(data: { name: string; yaml: string }) {
   return request.put('/k8s/storageclass/update', data)
 }
 
+export const updateStorageClassYaml = updateStorageClass
+
 export function deleteStorageClass(data: { name: string }) {
   return request.delete('/k8s/storageclass/delete', { data })
 }

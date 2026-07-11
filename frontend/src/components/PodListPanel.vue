@@ -68,7 +68,8 @@ const getRestarts = (pod: Pod): number => {
     <div v-if="pods.length === 0 && !loading" class="empty-state">
       暂无 Pod
     </div>
-    <el-table v-else :data="pods" style="width: 100%" row-key="metadata.name" size="small">
+    <div v-else class="table-wrapper">
+      <el-table :data="pods" style="width: 100%" row-key="metadata.name" size="small" height="100%">
       <el-table-column label="名称" min-width="260">
         <template #default="{ row }">
           <el-button link type="primary" @click="router.push(`/workloads/pods/${row.metadata.namespace}/${row.metadata.name}`)">{{ row.metadata.name }}</el-button>
@@ -109,12 +110,23 @@ const getRestarts = (pod: Pod): number => {
         </template>
       </el-table-column>
     </el-table>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .pod-list-panel {
   width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.table-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .empty-state {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, PriceTag, Notebook } from '@element-plus/icons-vue'
@@ -11,6 +11,8 @@ import {
   updateNamespaceLabels,
   getResourceQuotaList,
   getLimitRangeList,
+  createResourceQuota,
+  createLimitRange,
 } from '@/api/resource'
 import { useNamespaceStore } from '@/stores/namespace'
 import YamlEditor from '@/components/YamlEditor.vue'
@@ -36,6 +38,38 @@ const labelsArray = ref<Array<{ key: string; value: string }>>([])
 // Annotations dialog
 const annotationsDialogVisible = ref(false)
 const annotationsArray = ref<Array<{ key: string; value: string }>>([])
+
+// Create ResourceQuota dialog
+const rqDialogVisible = ref(false)
+const rqCreating = ref(false)
+const rqForm = reactive({
+  name: '',
+  requestsCpu: '',
+  requestsMemory: '',
+  limitsCpu: '',
+  limitsMemory: '',
+  pods: '',
+  services: '',
+  pvcs: '',
+})
+
+// Create LimitRange dialog
+const lrDialogVisible = ref(false)
+const lrCreating = ref(false)
+const lrForm = reactive({
+  name: '',
+  limits: [{
+    type: 'Container' as string,
+    maxCpu: '',
+    maxMemory: '',
+    minCpu: '',
+    minMemory: '',
+    defaultCpu: '',
+    defaultMemory: '',
+    defaultRequestCpu: '',
+    defaultRequestMemory: '',
+  }],
+})
 
 const name = route.params.name as string
 
@@ -75,6 +109,127 @@ async function fetchLimitRanges() {
     const res: any = await getLimitRangeList({ namespace: name })
     limitRanges.value = res.data || []
   } catch { /* ignore */ }
+}
+
+// Create ResourceQuota
+function showCreateRqDialog() {
+  rqForm.name = ''
+  rqForm.requestsCpu = ''
+  rqForm.requestsMemory = ''
+  rqForm.limitsCpu = ''
+  rqForm.limitsMemory = ''
+  rqForm.pods = ''
+  rqForm.services = ''
+  rqForm.pvcs = ''
+  rqDialogVisible.value = true
+}
+
+async function handleCreateRq() {
+  if (!rqForm.name) {
+    ElMessage.warning('请输入名称')
+    return
+  }
+  const hard: Record<string, string> = {}
+  if (rqForm.requestsCpu) hard['requests.cpu'] = rqForm.requestsCpu
+  if (rqForm.requestsMemory) hard['requests.memory'] = rqForm.requestsMemory
+  if (rqForm.limitsCpu) hard['limits.cpu'] = rqForm.limitsCpu
+  if (rqForm.limitsMemory) hard['limits.memory'] = rqForm.limitsMemory
+  if (rqForm.pods) hard['pods'] = rqForm.pods
+  if (rqForm.services) hard['services'] = rqForm.services
+  if (rqForm.pvcs) hard['persistentvolumeclaims'] = rqForm.pvcs
+
+  if (Object.keys(hard).length === 0) {
+    ElMessage.warning('请至少填写一项资源限制')
+    return
+  }
+
+  rqCreating.value = true
+  try {
+    const yaml = JSON.stringify({
+      apiVersion: 'v1',
+      kind: 'ResourceQuota',
+      metadata: { name: rqForm.name, namespace: name },
+      spec: { hard },
+    }, null, 2)
+    await createResourceQuota({ namespace: name, yaml })
+    ElMessage.success('ResourceQuota 创建成功')
+    rqDialogVisible.value = false
+    fetchResourceQuotas()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '创建失败')
+  } finally {
+    rqCreating.value = false
+  }
+}
+
+// Create LimitRange
+function showCreateLrDialog() {
+  lrForm.name = ''
+  lrForm.limits = [{
+    type: 'Container',
+    maxCpu: '', maxMemory: '',
+    minCpu: '', minMemory: '',
+    defaultCpu: '', defaultMemory: '',
+    defaultRequestCpu: '', defaultRequestMemory: '',
+  }]
+  lrDialogVisible.value = true
+}
+
+function addLrLimit() {
+  lrForm.limits.push({
+    type: 'Container',
+    maxCpu: '', maxMemory: '',
+    minCpu: '', minMemory: '',
+    defaultCpu: '', defaultMemory: '',
+    defaultRequestCpu: '', defaultRequestMemory: '',
+  })
+}
+
+function removeLrLimit(i: number) {
+  lrForm.limits.splice(i, 1)
+}
+
+async function handleCreateLr() {
+  if (!lrForm.name) {
+    ElMessage.warning('请输入名称')
+    return
+  }
+
+  const limits = lrForm.limits.map(l => {
+    const limit: any = { type: l.type }
+    const max: any = {}; const min: any = {}; const def: any = {}; const defReq: any = {}
+    if (l.maxCpu) max.cpu = l.maxCpu
+    if (l.maxMemory) max.memory = l.maxMemory
+    if (l.minCpu) min.cpu = l.minCpu
+    if (l.minMemory) min.memory = l.minMemory
+    if (l.defaultCpu) def.cpu = l.defaultCpu
+    if (l.defaultMemory) def.memory = l.defaultMemory
+    if (l.defaultRequestCpu) defReq.cpu = l.defaultRequestCpu
+    if (l.defaultRequestMemory) defReq.memory = l.defaultRequestMemory
+    if (Object.keys(max).length) limit.max = max
+    if (Object.keys(min).length) limit.min = min
+    if (Object.keys(def).length) limit.default = def
+    if (Object.keys(defReq).length) limit.defaultRequest = defReq
+    return limit
+  })
+
+  lrCreating.value = true
+  try {
+    const yaml = JSON.stringify({
+      apiVersion: 'v1',
+      kind: 'LimitRange',
+      metadata: { name: lrForm.name, namespace: name },
+      spec: { limits },
+    }, null, 2)
+    await createLimitRange({ namespace: name, yaml })
+    ElMessage.success('LimitRange 创建成功')
+    lrDialogVisible.value = false
+    fetchLimitRanges()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '创建失败')
+  } finally {
+    lrCreating.value = false
+  }
 }
 
 function handleTabChange(tab: string) {
@@ -232,6 +387,14 @@ onMounted(fetchDetail)
         <!-- Resource Quotas Tab -->
         <el-tab-pane label="资源配额" name="quotas">
           <el-card shadow="never">
+            <template #header>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>资源配额</span>
+                <el-button type="primary" size="small" @click="showCreateRqDialog">
+                  <el-icon><Plus /></el-icon> 创建资源配额
+                </el-button>
+              </div>
+            </template>
             <el-table :data="resourceQuotas" stripe>
               <el-table-column prop="name" label="名称" min-width="200" />
               <el-table-column label="硬限制" min-width="250">
@@ -246,13 +409,23 @@ onMounted(fetchDetail)
               </el-table-column>
               <el-table-column prop="age" label="创建时间" width="180" />
             </el-table>
-            <el-empty v-if="resourceQuotas.length === 0" description="该命名空间下暂无资源配额" />
+            <el-empty v-if="resourceQuotas.length === 0" description="该命名空间下暂无资源配额">
+              <el-button type="primary" @click="showCreateRqDialog">创建资源配额</el-button>
+            </el-empty>
           </el-card>
         </el-tab-pane>
 
         <!-- Limit Ranges Tab -->
         <el-tab-pane label="资源限制" name="limits">
           <el-card shadow="never">
+            <template #header>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>资源限制</span>
+                <el-button type="primary" size="small" @click="showCreateLrDialog">
+                  <el-icon><Plus /></el-icon> 创建资源限制
+                </el-button>
+              </div>
+            </template>
             <el-table :data="limitRanges" stripe>
               <el-table-column prop="name" label="名称" min-width="200" />
               <el-table-column label="限制" min-width="300">
@@ -266,7 +439,9 @@ onMounted(fetchDetail)
               </el-table-column>
               <el-table-column prop="age" label="创建时间" width="180" />
             </el-table>
-            <el-empty v-if="limitRanges.length === 0" description="该命名空间下暂无资源限制" />
+            <el-empty v-if="limitRanges.length === 0" description="该命名空间下暂无资源限制">
+              <el-button type="primary" @click="showCreateLrDialog">创建资源限制</el-button>
+            </el-empty>
           </el-card>
         </el-tab-pane>
 
@@ -314,6 +489,76 @@ onMounted(fetchDetail)
       <template #footer>
         <el-button @click="annotationsDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSaveAnnotations">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Create ResourceQuota Dialog -->
+    <el-dialog v-model="rqDialogVisible" title="创建资源配额" width="600px" destroy-on-close>
+      <el-form label-width="160px">
+        <el-form-item label="名称" required>
+          <el-input v-model="rqForm.name" placeholder="my-resource-quota" />
+        </el-form-item>
+        <el-divider>资源限制</el-divider>
+        <el-form-item label="requests.cpu">
+          <el-input v-model="rqForm.requestsCpu" placeholder="例如: 4" />
+        </el-form-item>
+        <el-form-item label="requests.memory">
+          <el-input v-model="rqForm.requestsMemory" placeholder="例如: 8Gi" />
+        </el-form-item>
+        <el-form-item label="limits.cpu">
+          <el-input v-model="rqForm.limitsCpu" placeholder="例如: 8" />
+        </el-form-item>
+        <el-form-item label="limits.memory">
+          <el-input v-model="rqForm.limitsMemory" placeholder="例如: 16Gi" />
+        </el-form-item>
+        <el-form-item label="pods">
+          <el-input v-model="rqForm.pods" placeholder="例如: 20" />
+        </el-form-item>
+        <el-form-item label="services">
+          <el-input v-model="rqForm.services" placeholder="例如: 10" />
+        </el-form-item>
+        <el-form-item label="persistentvolumeclaims">
+          <el-input v-model="rqForm.pvcs" placeholder="例如: 5" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="rqDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="rqCreating" @click="handleCreateRq">创建</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Create LimitRange Dialog -->
+    <el-dialog v-model="lrDialogVisible" title="创建资源限制" width="700px" destroy-on-close>
+      <el-form label-width="140px">
+        <el-form-item label="名称" required>
+          <el-input v-model="lrForm.name" placeholder="my-limit-range" />
+        </el-form-item>
+
+        <div v-for="(limit, i) in lrForm.limits" :key="i" style="border: 1px solid var(--el-border-color); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+            <el-select v-model="limit.type" style="width: 200px;">
+              <el-option label="Container" value="Container" />
+              <el-option label="Pod" value="Pod" />
+              <el-option label="PersistentVolumeClaim" value="PersistentVolumeClaim" />
+            </el-select>
+            <el-button v-if="lrForm.limits.length > 1" type="danger" size="small" @click="removeLrLimit(i)">移除</el-button>
+          </div>
+          <el-form-item label="Max CPU"><el-input v-model="limit.maxCpu" placeholder="例如: 4" /></el-form-item>
+          <el-form-item label="Max Memory"><el-input v-model="limit.maxMemory" placeholder="例如: 8Gi" /></el-form-item>
+          <el-form-item label="Min CPU"><el-input v-model="limit.minCpu" placeholder="例如: 100m" /></el-form-item>
+          <el-form-item label="Min Memory"><el-input v-model="limit.minMemory" placeholder="例如: 128Mi" /></el-form-item>
+          <el-form-item label="Default CPU"><el-input v-model="limit.defaultCpu" placeholder="例如: 500m" /></el-form-item>
+          <el-form-item label="Default Memory"><el-input v-model="limit.defaultMemory" placeholder="例如: 512Mi" /></el-form-item>
+          <el-form-item label="Default Req CPU"><el-input v-model="limit.defaultRequestCpu" placeholder="例如: 100m" /></el-form-item>
+          <el-form-item label="Default Req Memory"><el-input v-model="limit.defaultRequestMemory" placeholder="例如: 128Mi" /></el-form-item>
+        </div>
+        <el-button @click="addLrLimit" style="margin-bottom: 16px;">
+          <el-icon><Plus /></el-icon> 添加限制
+        </el-button>
+      </el-form>
+      <template #footer>
+        <el-button @click="lrDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="lrCreating" @click="handleCreateLr">创建</el-button>
       </template>
     </el-dialog>
   </div>

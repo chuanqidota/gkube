@@ -21,11 +21,14 @@ const router = useRouter()
 const loading = ref(false)
 const statefulSet = ref<any>(null)
 const yamlDialogVisible = ref(false)
+
+// Events
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
+
+// Pods
 const pods = ref<any[]>([])
 const podsLoading = ref(false)
-const activeTab = ref('info')
 
 // Scale dialog
 const scaleDialogVisible = ref(false)
@@ -51,6 +54,19 @@ const statusText = computed(() => {
   return 'Not Ready'
 })
 
+// Age calculation
+const age = computed(() => {
+  const ts = statefulSet.value?.metadata?.creationTimestamp
+  if (!ts) return ''
+  const created = new Date(ts).getTime()
+  const diff = Date.now() - created
+  const seconds = Math.floor(diff / 1000)
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
+  return `${Math.floor(seconds / 86400)}d`
+})
+
 async function fetchDetail() {
   loading.value = true
   try {
@@ -70,7 +86,6 @@ async function fetchEvents() {
     events.value = res.data || []
   } catch (e: any) {
     events.value = []
-    ElMessage.error(e?.message || '加载事件失败')
   } finally {
     eventsLoading.value = false
   }
@@ -83,7 +98,6 @@ async function fetchPods() {
     pods.value = res.data?.items || res.data || []
   } catch (e: any) {
     pods.value = []
-    ElMessage.error(e?.message || '加载 Pod 列表失败')
   } finally {
     podsLoading.value = false
   }
@@ -142,7 +156,7 @@ async function handleScaleConfirm() {
     ElMessage.success(`StatefulSet 已扩缩容至 ${scaleReplicas.value} 个副本`)
     scaleDialogVisible.value = false
     fetchDetail()
-    // Poll for pod list update (K8s needs time to create/delete pods)
+    // Poll for pod list update
     const expectedPods = scaleReplicas.value
     for (let i = 0; i < 10; i++) {
       await new Promise(r => setTimeout(r, 1000))
@@ -154,12 +168,6 @@ async function handleScaleConfirm() {
   } finally {
     scaleLoading.value = false
   }
-}
-
-function handleTabChange(tab: string) {
-  if (tab === 'yaml' && !yamlContent.value) fetchYaml()
-  if (tab === 'events' && events.value.length === 0) fetchEvents()
-  if (tab === 'pods' && pods.value.length === 0) fetchPods()
 }
 
 function getClusterName(): string {
@@ -200,6 +208,51 @@ async function handleDeletePod(pod: any) {
   }
 }
 
+// ---- Resize: left-right ----
+const leftWidth = ref(300)
+const resizingH = ref(false)
+let startX = 0, startW = 0
+function onHResizeStart(e: MouseEvent) {
+  e.preventDefault()
+  resizingH.value = true
+  startX = e.clientX
+  startW = leftWidth.value
+  const onMove = (ev: MouseEvent) => {
+    leftWidth.value = Math.min(Math.max(startW + ev.clientX - startX, 220), 500)
+  }
+  const onUp = () => {
+    resizingH.value = false
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
+
+// ---- Resize: top-bottom (Pods / Events) ----
+const rightTopHeight = ref<number | null>(null)
+const resizingV = ref(false)
+let startY = 0, startH = 0
+function onVResizeStart(e: MouseEvent) {
+  e.preventDefault()
+  resizingV.value = true
+  startY = e.clientY
+  const rightPanel = (e.target as HTMLElement).closest('.right-panel')
+  if (!rightPanel) return
+  startH = rightPanel.getBoundingClientRect().height
+  const onMove = (ev: MouseEvent) => {
+    const delta = ev.clientY - startY
+    rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
+  }
+  const onUp = () => {
+    resizingV.value = false
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
+
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
   fetchDetail()
   fetchPods()
@@ -216,7 +269,8 @@ onMounted(() => {
 
 <template>
   <div class="detail-page" v-loading="loading">
-    <!-- Header -->
+
+    <!-- 顶部标题栏 -->
     <div class="page-header">
       <div class="header-left">
         <div class="title-line">
@@ -248,11 +302,13 @@ onMounted(() => {
     </div>
 
     <template v-if="statefulSet">
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <!-- 概览 Tab -->
-        <el-tab-pane label="概览" name="info">
-          <el-card shadow="never">
-            <el-descriptions :column="2" border>
+      <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
+
+        <!-- 左侧：基本信息 -->
+        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
+          <div class="panel-title">基本信息</div>
+          <div class="info-body">
+            <el-descriptions :column="1" border size="small">
               <el-descriptions-item label="名称">{{ statefulSet.metadata?.name }}</el-descriptions-item>
               <el-descriptions-item label="命名空间">{{ statefulSet.metadata?.namespace }}</el-descriptions-item>
               <el-descriptions-item label="副本数">{{ statefulSet.spec?.replicas ?? '-' }}</el-descriptions-item>
@@ -261,16 +317,17 @@ onMounted(() => {
               <el-descriptions-item label="当前副本">{{ statefulSet.status?.currentReplicas ?? '-' }}</el-descriptions-item>
               <el-descriptions-item label="服务名称">{{ statefulSet.spec?.serviceName || '-' }}</el-descriptions-item>
               <el-descriptions-item label="更新策略">{{ statefulSet.spec?.updateStrategy?.type || 'RollingUpdate' }}</el-descriptions-item>
-              <el-descriptions-item label="创建时间">{{ statefulSet.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="Age">{{ age || '-' }}</el-descriptions-item>
             </el-descriptions>
 
             <!-- Labels -->
             <div v-if="statefulSet.metadata?.labels && Object.keys(statefulSet.metadata.labels).length > 0" style="margin-top: 16px;">
-              <h4>标签</h4>
+              <h4 style="margin: 0 0 8px; font-size: 13px;">Labels</h4>
               <el-tag
                 v-for="(val, key) in statefulSet.metadata.labels"
                 :key="key"
                 style="margin-right: 8px; margin-bottom: 8px;"
+                size="small"
               >
                 {{ key }}={{ val }}
               </el-tag>
@@ -278,12 +335,13 @@ onMounted(() => {
 
             <!-- Selector -->
             <div v-if="statefulSet.spec?.selector?.matchLabels && Object.keys(statefulSet.spec.selector.matchLabels).length > 0" style="margin-top: 16px;">
-              <h4>选择器</h4>
+              <h4 style="margin: 0 0 8px; font-size: 13px;">Selector</h4>
               <el-tag
                 v-for="(val, key) in statefulSet.spec.selector.matchLabels"
                 :key="key"
                 style="margin-right: 8px; margin-bottom: 8px;"
                 type="info"
+                size="small"
               >
                 {{ key }}={{ val }}
               </el-tag>
@@ -291,9 +349,9 @@ onMounted(() => {
 
             <!-- Volume Claim Templates -->
             <div v-if="statefulSet.spec?.volumeClaimTemplates?.length" style="margin-top: 16px;">
-              <h4>持久卷声明模板</h4>
+              <h4 style="margin: 0 0 8px; font-size: 13px;">持久卷声明模板</h4>
               <el-table :data="statefulSet.spec.volumeClaimTemplates" border size="small">
-                <el-table-column label="名称" prop="metadata.name" width="200" />
+                <el-table-column label="名称" prop="metadata.name" width="150" />
                 <el-table-column label="访问模式">
                   <template #default="{ row }">
                     {{ row.spec?.accessModes?.join(', ') || '-' }}
@@ -311,12 +369,18 @@ onMounted(() => {
                 </el-table-column>
               </el-table>
             </div>
-          </el-card>
-        </el-tab-pane>
+          </div>
+        </div>
 
-        <!-- Pods Tab -->
-        <el-tab-pane label="Pods" name="pods">
-          <el-card shadow="never">
+        <!-- 右侧：Pods + Events -->
+        <div class="right-panel">
+
+          <!-- Pod 列表 -->
+          <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
+            <div class="panel-title">
+              关联 Pod
+              <span class="count-badge">{{ pods.length }} 个</span>
+            </div>
             <PodListPanel
               :pods="pods"
               :loading="podsLoading"
@@ -324,47 +388,45 @@ onMounted(() => {
               @exec="handlePodExec"
               @delete="handleDeletePod"
             />
-            <el-empty v-if="!podsLoading && pods.length === 0" description="暂无 Pod" />
-          </el-card>
-        </el-tab-pane>
+          </div>
 
-        <!-- Events Tab -->
-        <el-tab-pane label="事件" name="events">
-          <el-card shadow="never">
-            <el-table :data="events" v-loading="eventsLoading" stripe>
-              <el-table-column prop="type" label="类型" width="100">
-                <template #default="{ row }">
-                  <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="reason" label="原因" width="150" />
-              <el-table-column prop="message" label="消息" min-width="300" show-overflow-tooltip />
-              <el-table-column prop="last_seen" label="最后发生" width="180" />
-            </el-table>
-            <el-empty v-if="!eventsLoading && events.length === 0" description="暂无事件" />
-          </el-card>
-        </el-tab-pane>
+          <!-- 垂直拖拽条 -->
+          <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
 
-        <!-- YAML Tab -->
-        <el-tab-pane label="YAML" name="yaml">
-          <el-card shadow="never">
-            <div v-loading="yamlLoading">
-              <YamlEditor
-                ref="yamlEditorRef"
-                v-model="yamlContent"
-                height="600px"
-                :read-only="false"
-                :saveable="true"
-                auto-format
-                @save="handleSaveYaml"
-              />
+          <!-- Events -->
+          <div class="right-section events-section">
+            <div class="panel-title">
+              事件
+              <span class="count-badge">{{ events.length }} 条</span>
             </div>
-          </el-card>
-        </el-tab-pane>
-      </el-tabs>
+            <div v-loading="eventsLoading" class="events-body">
+              <el-table v-if="events.length > 0" :data="events" size="small" stripe max-height="260">
+                <el-table-column prop="type" label="类型" width="80">
+                  <template #default="{ row }">
+                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="reason" label="原因" width="130" />
+                <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="last_seen" label="最后发生" width="150" />
+              </el-table>
+              <div v-else class="empty-hint">暂无事件</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 水平拖拽条（绝对定位，覆盖在左右面板交界） -->
+        <div
+          class="resize-handle-h"
+          :class="{ active: resizingH }"
+          :style="{ left: (leftWidth - 3) + 'px' }"
+          @mousedown="onHResizeStart"
+        />
+      </div>
     </template>
 
-    <!-- YAML Dialog -->
+    <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
       resource-type="statefulset"
@@ -447,5 +509,144 @@ onMounted(() => {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+}
+
+/* Main Layout */
+.main-layout {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Left Panel */
+.left-panel {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--el-bg-color);
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 14px;
+  background: var(--el-fill-color-lighter);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.count-badge {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.info-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+/* Right Panel */
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.right-section {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--el-bg-color);
+}
+
+.right-section:first-child {
+  flex: 1;
+  min-height: 0;
+}
+
+.right-section.events-section {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Resize handles */
+.resize-handle-h {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resize-handle-h:hover,
+.resize-handle-h.active {
+  background: var(--el-color-primary-light-7);
+}
+
+.resize-handle-v {
+  height: 4px;
+  cursor: row-resize;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+  margin: -2px 0;
+}
+
+.resize-handle-v:hover,
+.resize-handle-v.active {
+  background: var(--el-color-primary-light-7);
+}
+
+.is-resizing {
+  user-select: none;
+}
+
+.is-resizing * {
+  pointer-events: none;
+}
+
+.events-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.empty-hint {
+  padding: 24px;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main-layout {
+    flex-direction: column;
+    overflow: auto;
+  }
+  .left-panel {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-height: 300px;
+  }
+  .resize-handle-h {
+    display: none;
+  }
 }
 </style>

@@ -10,6 +10,7 @@ import {
   getDeploymentPodList,
   getDeploymentEvents,
   deletePod,
+  deleteDeployment,
   getDeploymentReplicaSets,
 } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
@@ -33,7 +34,51 @@ const selectedReplicaset = ref<any>(null)
 const rsPods = ref<any[]>([])
 const allPods = ref<any[]>([])
 const rsPodsLoading = ref(false)
-const leftPanelCollapsed = ref(false)
+
+// ---- Resize: left-right ----
+const leftWidth = ref(320)
+const resizingH = ref(false)
+let startX = 0, startW = 0
+function onHResizeStart(e: MouseEvent) {
+  e.preventDefault()
+  resizingH.value = true
+  startX = e.clientX
+  startW = leftWidth.value
+  const onMove = (ev: MouseEvent) => {
+    leftWidth.value = Math.min(Math.max(startW + ev.clientX - startX, 220), 500)
+  }
+  const onUp = () => {
+    resizingH.value = false
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
+
+// ---- Resize: top-bottom (Pods / Events) ----
+const rightTopHeight = ref<number | null>(null)
+const resizingV = ref(false)
+let startY = 0, startH = 0
+function onVResizeStart(e: MouseEvent) {
+  e.preventDefault()
+  resizingV.value = true
+  startY = e.clientY
+  const rightPanel = (e.target as HTMLElement).closest('.right-panel')
+  if (!rightPanel) return
+  startH = rightPanel.getBoundingClientRect().height
+  const onMove = (ev: MouseEvent) => {
+    const delta = ev.clientY - startY
+    rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
+  }
+  const onUp = () => {
+    resizingV.value = false
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
 
 // Rollback dialog
 const rollbackDialogVisible = ref(false)
@@ -96,23 +141,25 @@ async function fetchReplicaSets() {
   try {
     const res: any = await getDeploymentReplicaSets({ namespace, name })
     replicasets.value = res.data?.items || res.data || []
-    if (replicasets.value.length > 0) {
-      const currentRevision = deployment.value?.metadata?.annotations?.['deployment.kubernetes.io/revision']
-      const currentRS = replicasets.value.find(
-        (rs: any) => rs.metadata.annotations?.['deployment.kubernetes.io/revision'] === currentRevision
-      )
-      await fetchAllPods()
-      if (currentRS) {
-        handleReplicasetSelect(currentRS)
-      } else {
-        rsPods.value = allPods.value
-      }
-    }
   } catch (e) {
     console.error('Failed to fetch replicasets:', e)
     ElMessage.error('Failed to load ReplicaSets')
   } finally {
     replicasetsLoading.value = false
+  }
+
+  // Always fetch pods, regardless of replicasets count
+  await fetchAllPods()
+
+  // If replicasets exist, try to select the current one
+  if (replicasets.value.length > 0) {
+    const currentRevision = deployment.value?.metadata?.annotations?.['deployment.kubernetes.io/revision']
+    const currentRS = replicasets.value.find(
+      (rs: any) => rs.metadata.annotations?.['deployment.kubernetes.io/revision'] === currentRevision
+    )
+    if (currentRS) {
+      handleReplicasetSelect(currentRS)
+    }
   }
 }
 
@@ -206,6 +253,23 @@ function handleOpenYaml() {
 function handleYamlSaved() {
   fetchDetail()
   fetchReplicaSets()
+}
+
+async function handleDelete() {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除 Deployment "${name}" 吗？此操作不可恢复。`,
+      '确认删除',
+      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+    await deleteDeployment({ namespace, name })
+    ElMessage.success('Deployment 已删除')
+    router.push('/workloads/deployments')
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e?.message || '删除失败')
+    }
+  }
 }
 
 async function handleRestart() {
@@ -320,24 +384,21 @@ onMounted(() => {
         <el-button type="warning" @click="handleRestart">重启</el-button>
         <el-button type="danger" @click="handleRollback">回滚</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
+        <el-button type="danger" plain @click="handleDelete">删除</el-button>
         <el-button @click="router.push('/workloads/deployments')">返回列表</el-button>
       </div>
     </div>
 
     <template v-if="deployment">
-      <!-- ===== 主体：左侧 RS + 右侧 Pods / Events ===== -->
-      <div class="main-layout">
+      <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
 
         <!-- 左侧：ReplicaSet 列表 -->
-        <div class="left-panel" :class="{ collapsed: leftPanelCollapsed }">
-          <div class="panel-title" @click="leftPanelCollapsed = !leftPanelCollapsed">
-            <span v-if="!leftPanelCollapsed">ReplicaSet ({{ replicasets.length }})</span>
-            <span v-else class="collapsed-label">RS</span>
-            <el-icon class="collapse-icon" :class="{ rotated: leftPanelCollapsed }">
-              <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="12" height="12"><path fill="currentColor" d="M618.666667 512L388 281.333333l60.373333-60.373333L739.413333 512l-291.04 291.04L388 742.666667z"/></svg>
-            </el-icon>
+        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
+          <div class="panel-title">
+            ReplicaSet
+            <span class="count-badge">{{ replicasets.length }} 个</span>
           </div>
-          <div v-if="!leftPanelCollapsed" class="rs-list" v-loading="replicasetsLoading">
+          <div class="rs-list" v-loading="replicasetsLoading">
             <div v-if="replicasets.length === 0" class="empty-hint">暂无 ReplicaSet</div>
             <div
               v-for="rs in replicasets"
@@ -368,7 +429,7 @@ onMounted(() => {
         <div class="right-panel">
 
           <!-- Pod 列表 -->
-          <div class="right-section">
+          <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
             <div class="panel-title">
               Pod 列表
               <span class="count-badge">{{ rsPods.length }} 个</span>
@@ -384,8 +445,11 @@ onMounted(() => {
             />
           </div>
 
+          <!-- 垂直拖拽条 -->
+          <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
+
           <!-- Events -->
-          <div class="right-section">
+          <div class="right-section events-section">
             <div class="panel-title">
               事件
               <span class="count-badge">{{ events.length }} 条</span>
@@ -406,6 +470,14 @@ onMounted(() => {
           </div>
 
         </div>
+
+        <!-- 水平拖拽条 -->
+        <div
+          class="resize-handle-h"
+          :class="{ active: resizingH }"
+          :style="{ left: (leftWidth - 3) + 'px' }"
+          @mousedown="onHResizeStart"
+        />
       </div>
     </template>
 
@@ -508,31 +580,24 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-/* Main Layout: left RS + right Pods/Events */
+/* Main Layout */
 .main-layout {
   display: flex;
-  gap: 12px;
+  gap: 2px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative;
 }
 
-/* Left Panel - RS List */
+/* Left Panel */
 .left-panel {
-  width: 320px;
-  min-width: 320px;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--el-bg-color);
-  transition: width 0.2s ease, min-width 0.2s ease;
-}
-
-.left-panel.collapsed {
-  width: 48px;
-  min-width: 48px;
 }
 
 .panel-title {
@@ -545,27 +610,6 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
-  cursor: pointer;
-  user-select: none;
-}
-
-.left-panel .panel-title {
-  justify-content: space-between;
-}
-
-.collapsed-label {
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.collapse-icon {
-  transition: transform 0.2s ease;
-  color: var(--el-text-color-secondary);
-  transform: rotate(180deg);
-}
-
-.collapse-icon.rotated {
-  transform: rotate(0deg);
 }
 
 .count-badge {
@@ -654,7 +698,7 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 2px;
   min-width: 0;
   overflow: hidden;
 }
@@ -673,9 +717,46 @@ onMounted(() => {
   min-height: 0;
 }
 
-.right-section:last-child {
-  max-height: 300px;
+.right-section.events-section {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Resize handles */
+.resize-handle-h {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resize-handle-h:hover,
+.resize-handle-h.active {
+  background: var(--el-color-primary-light-7);
+}
+
+.resize-handle-v {
+  height: 4px;
+  cursor: row-resize;
   flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+  margin: -2px 0;
+}
+
+.resize-handle-v:hover,
+.resize-handle-v.active {
+  background: var(--el-color-primary-light-7);
+}
+
+.is-resizing {
+  user-select: none;
+}
+
+.is-resizing * {
+  pointer-events: none;
 }
 
 .events-body {
@@ -684,7 +765,6 @@ onMounted(() => {
   padding: 0;
 }
 
-/* Empty hints */
 .empty-hint {
   padding: 24px;
   text-align: center;
@@ -693,22 +773,18 @@ onMounted(() => {
 }
 
 /* Responsive */
-@media (max-width: 1199px) {
-  .left-panel:not(.collapsed) {
-    width: 260px;
-    min-width: 260px;
-  }
-}
-
 @media (max-width: 768px) {
   .main-layout {
     flex-direction: column;
     overflow: auto;
   }
   .left-panel {
-    width: 100%;
-    min-width: 100%;
-    max-height: 260px;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-height: 300px;
+  }
+  .resize-handle-h {
+    display: none;
   }
 }
 </style>
