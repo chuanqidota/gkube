@@ -2,11 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Search, Plus } from '@element-plus/icons-vue'
+import { Delete, Plus } from '@element-plus/icons-vue'
 import { getNodeList, getNodeYaml, updateNodeYaml, cordonNode, updateNodeTaints, updateNodeLabels, drainNode, deleteNode, type NodeInfo } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -185,11 +186,14 @@ onMounted(fetchNodes)
 
 <template>
   <div class="page-container">
-    <el-card shadow="never" class="filter-card">
-      <div class="filter-bar">
-        <el-input v-model="searchName" placeholder="搜索节点名称" style="width: 220px;" clearable>
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
+    <ResourceListToolbar
+      :search-value="searchName"
+      :total-count="nodeList.length"
+      :show-namespace="false"
+      search-placeholder="搜索节点名称"
+      @search-input="searchName = $event"
+    >
+      <template #extra>
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -200,8 +204,8 @@ onMounted(fetchNodes)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-      </div>
-    </el-card>
+      </template>
+    </ResourceListToolbar>
     <el-card shadow="never" class="table-card">
       <el-table :data="filteredList" v-loading="loading" stripe>
         <el-table-column label="状态" width="90" align="center">
@@ -302,8 +306,6 @@ onMounted(fetchNodes)
 
 <style scoped>
 .page-container { padding: 20px; }
-.filter-card { margin-bottom: 16px; }
-.filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .table-card { border-radius: 8px; }
 </style>
 

@@ -59,22 +59,25 @@ const emit = defineEmits<{
       >
         <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
       </el-select>
-      <!-- 总计数（推到右侧） -->
+      <!-- 总计数 -->
       <span class="total-count" v-if="showTotalCount && totalCount">总计: {{ totalCount }}</span>
 
-      <!-- 竖线分隔符 -->
-      <div class="action-divider" />
+      <!-- 右侧操作区（推到最右） -->
+      <div class="right-actions">
+        <!-- 竖线分隔符 -->
+        <div class="action-divider" />
 
-      <!-- 主要操作组（连接式按钮组） -->
-      <div class="action-group">
-        <slot name="actions" />
+        <!-- 主要操作组（连接式按钮组） -->
+        <div class="action-group">
+          <slot name="actions" />
+        </div>
+
+        <!-- 竖线分隔符 -->
+        <div class="action-divider" />
+
+        <!-- 辅助工具区 -->
+        <slot name="extra" />
       </div>
-
-      <!-- 竖线分隔符 -->
-      <div class="action-divider" />
-
-      <!-- 辅助工具区 -->
-      <slot name="extra" />
     </div>
   </el-card>
 </template>
@@ -92,6 +95,11 @@ const emit = defineEmits<{
 .total-count {
   color: var(--el-text-color-secondary);
   font-size: 13px;
+}
+.right-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-left: auto;
 }
 .action-divider {

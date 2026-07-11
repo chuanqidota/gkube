@@ -34,6 +34,7 @@ const {
   selectedRows,
   namespaceList,
   yamlDialogVisible,
+  totalCount,
   yamlContent,
   yamlLoading,
   fetchResources,
@@ -61,7 +62,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
       v-model:namespace-value="selectedNamespace"
       :namespace-list="namespaceList"
       :show-create="false"
-      :show-total-count="false"
+      :total-count="totalCount"
       :selected-count="selectedRows.length"
       @search-input="onSearchInput"
       @namespace-change="handleNamespaceChange"

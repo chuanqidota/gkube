@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -7,10 +7,12 @@ import { Plus, Delete, Edit, CircleCheck } from '@element-plus/icons-vue'
 import { getClusterList, deleteCluster, checkCluster, updateCluster } from '@/api/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 const { t } = useI18n()
 const router = useRouter()
 const loading = ref(false)
 const clusterList = ref<any[]>([])
+const searchName = ref('')
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
@@ -23,6 +25,14 @@ const editForm = reactive({
   displayName: '',
   description: '',
   labels: [] as Array<{ key: string; value: string }>,
+})
+
+const filteredList = computed(() => {
+  if (!searchName.value) return clusterList.value
+  const keyword = searchName.value.toLowerCase()
+  return clusterList.value.filter((c: any) =>
+    (c.displayName || c.clusterName || '').toLowerCase().includes(keyword)
+  )
 })
 
 async function fetchClusters() {
@@ -152,27 +162,34 @@ onMounted(fetchClusters)
 
 <template>
   <div class="page-container">
-    <el-card shadow="never" class="filter-card">
-      <div class="filter-bar">
-        <h3 style="margin: 0;">{{ t('cluster.clusterManagement') }}</h3>
-        <div class="filter-right">
-          <AutoRefreshToolbar
-            :is-running="isRunning"
-            :countdown="countdown"
-            :current-interval="currentInterval"
-            :available-intervals="availableIntervals"
-            :loading="loading"
-            @refresh="manualRefresh()"
-            @toggle="toggle()"
-            @interval-change="setIntervalOption"
-          />
-          <el-button type="primary" @click="router.push('/clusters/create')"><el-icon><Plus /></el-icon> {{ t('cluster.add') }}</el-button>
-        </div>
-      </div>
-    </el-card>
+    <ResourceListToolbar
+      :search-value="searchName"
+      :total-count="total"
+      :show-namespace="false"
+      search-placeholder="搜索集群名称"
+      @search-input="searchName = $event"
+    >
+      <template #actions>
+        <el-button type="success" @click="router.push('/clusters/create')">
+          <el-icon><Plus /></el-icon> {{ t('cluster.add') }}
+        </el-button>
+      </template>
+      <template #extra>
+        <AutoRefreshToolbar
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
+        />
+      </template>
+    </ResourceListToolbar>
 
-    <el-row :gutter="16" v-if="clusterList.length > 0">
-      <el-col :span="8" v-for="cluster in clusterList" :key="cluster.id" style="margin-bottom: 16px;">
+    <el-row :gutter="16" v-if="filteredList.length > 0">
+      <el-col :span="8" v-for="cluster in filteredList" :key="cluster.id" style="margin-bottom: 16px;">
         <el-card shadow="hover" class="cluster-card">
           <template #header>
             <div class="cluster-header">
@@ -209,7 +226,7 @@ onMounted(fetchClusters)
       </el-col>
     </el-row>
 
-    <el-empty v-if="!loading && clusterList.length === 0" :description="t('cluster.noClusters')">
+    <el-empty v-if="!loading && filteredList.length === 0" :description="t('cluster.noClusters')">
       <el-button type="primary" @click="router.push('/clusters/create')"><el-icon><Plus /></el-icon> {{ t('cluster.add') }}</el-button>
     </el-empty>
 
@@ -258,9 +275,6 @@ onMounted(fetchClusters)
 
 <style scoped>
 .page-container { padding: 20px; }
-.filter-card { margin-bottom: 16px; }
-.filter-bar { display: flex; justify-content: space-between; align-items: center; }
-.filter-right { display: flex; align-items: center; gap: 8px; }
 .cluster-card { height: 100%; }
 .cluster-header { display: flex; justify-content: space-between; align-items: center; }
 .cluster-info { display: flex; align-items: center; gap: 8px; }

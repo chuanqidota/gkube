@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Search } from '@element-plus/icons-vue'
+import { Plus, Delete } from '@element-plus/icons-vue'
 import {
   getNamespaceList,
   createNamespace,
@@ -17,6 +17,7 @@ import { useNamespaceStore } from '@/stores/namespace'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 
 const router = useRouter()
 const namespaceStore = useNamespaceStore()
@@ -206,16 +207,19 @@ onMounted(fetchNamespaces)
 
 <template>
   <div class="page-container">
-    <el-card shadow="never" class="filter-card">
-      <div class="filter-bar">
-        <el-input
-          v-model="searchName"
-          placeholder="搜索命名空间名称"
-          style="width: 220px;"
-          clearable
-        >
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
+    <ResourceListToolbar
+      :search-value="searchName"
+      :total-count="namespaceList.length"
+      :show-namespace="false"
+      search-placeholder="搜索命名空间名称"
+      @search-input="searchName = $event"
+    >
+      <template #actions>
+        <el-button type="success" @click="createDialogVisible = true">
+          <el-icon><Plus /></el-icon> 创建
+        </el-button>
+      </template>
+      <template #extra>
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -226,12 +230,8 @@ onMounted(fetchNamespaces)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="success" @click="createDialogVisible = true">
-          <el-icon><Plus /></el-icon> 创建
-        </el-button>
-        <span class="total-count" v-if="namespaceList.length">共 {{ namespaceList.length }} 个</span>
-      </div>
-    </el-card>
+      </template>
+    </ResourceListToolbar>
 
     <el-card shadow="never" class="table-card">
       <el-table :data="filteredList" v-loading="loading" stripe>
@@ -330,10 +330,7 @@ onMounted(fetchNamespaces)
 
 <style scoped>
 .page-container { padding: 20px; }
-.filter-card { margin-bottom: 16px; }
-.filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .table-card { border-radius: 8px; }
-.total-count { color: var(--el-text-color-secondary); font-size: 13px; margin-left: auto; }
 </style>
 
 <style>
