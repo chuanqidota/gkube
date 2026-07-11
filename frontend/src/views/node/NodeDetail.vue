@@ -2,10 +2,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Plus, Monitor, Cpu, Coin, Grid, Files, Warning, PriceTag, CircleClose, Search } from '@element-plus/icons-vue'
+import { Delete, Plus, Monitor, Cpu, Coin, Grid, Files, Warning, PriceTag, CircleClose, Search, Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
 import { getNodeDetail, getNodeYaml, getNodePods, getNodeEvents, cordonNode, updateNodeTaints, updateNodeLabels, updateNodeYaml, drainNode, deleteNode, type NodeDetail as NodeDetailType } from '@/api/resource'
-import YamlEditor from '@/components/YamlEditor.vue'
-import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const route = useRoute()
@@ -28,9 +27,7 @@ const filteredPods = computed(() => {
 })
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
-const yamlSaving = ref(false)
+const yamlDialogVisible = ref(false)
 const activeTab = ref('info')
 const taintDialogVisible = ref(false)
 const taints = ref<any[]>([])
@@ -45,6 +42,23 @@ const drainOptions = ref({
 })
 
 const nodeName = route.params.name as string
+
+const statusTagType = computed(() => {
+  if (node.value?.status === 'Ready') return 'success'
+  if (node.value?.status === 'NotReady') return 'danger'
+  return 'warning'
+})
+
+const statusText = computed(() => {
+  return node.value?.status || 'Unknown'
+})
+
+const metaInfo = computed(() => {
+  const parts = []
+  if (node.value?.roles) parts.push(node.value.roles)
+  if (node.value?.unschedulable) parts.push('不可调度')
+  return parts.join(' · ')
+})
 
 async function fetchDetail() {
   loading.value = true
@@ -94,36 +108,26 @@ async function fetchEvents() {
   finally { eventsLoading.value = false }
 }
 
-async function fetchYaml() {
-  yamlLoading.value = true
-  try {
-    const res: any = await getNodeYaml({ name: nodeName })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 YAML 失败')
-  } finally { yamlLoading.value = false }
+function handleOpenYaml() {
+  yamlDialogVisible.value = true
+}
+
+function handleYamlSaved() {
+  fetchDetail()
 }
 
 function handleTabChange(tab: string) {
-  if (tab === 'yaml' && !yamlContent.value) fetchYaml()
   if (tab === 'events' && events.value.length === 0) fetchEvents()
 }
 
 async function handleSaveYaml() {
-  yamlSaving.value = true
   try {
-    await updateNodeYaml({ name: nodeName, yaml: yamlContent.value })
+    await updateNodeYaml({ name: nodeName, yaml: '' })
     ElMessage.success('YAML 保存成功')
     fetchDetail()
   } catch (e: any) {
     ElMessage.error(e?.message || '保存 YAML 失败')
-  } finally { yamlSaving.value = false }
-}
-
-function statusType(status: string) {
-  if (status === 'Ready') return 'success'
-  if (status === 'NotReady') return 'danger'
-  return 'warning'
+  }
 }
 
 async function handleCordon() {
@@ -234,108 +238,169 @@ function podStatusType(status: string) {
 function formatCPU(val: any): string {
   if (!val) return '-'
   const s = String(val)
-  // 如果是毫核格式 (如 "500m")
-  if (s.endsWith('m')) {
-    return s
-  }
-  // 纯数字表示核数
+  if (s.endsWith('m')) return s
   const num = parseFloat(s)
-  if (!isNaN(num)) {
-    return `${num} Core`
-  }
+  if (!isNaN(num)) return `${num} Core`
   return s
 }
 
-// 格式化内存/存储值 (Ki -> Gi/Mi)
+// 格式化内存/存储值
 function formatMemory(val: any): string {
   if (!val) return '-'
   const s = String(val)
-  // 处理 Ki 单位
   if (s.endsWith('Ki')) {
     const ki = parseInt(s)
-    if (ki >= 1048576) { // >= 1Gi
-      return `${(ki / 1048576).toFixed(1)} Gi`
-    } else if (ki >= 1024) { // >= 1Mi
-      return `${(ki / 1024).toFixed(0)} Mi`
-    }
+    if (ki >= 1048576) return `${(ki / 1048576).toFixed(1)} Gi`
+    else if (ki >= 1024) return `${(ki / 1024).toFixed(0)} Mi`
     return `${ki} KiB`
   }
-  // 处理 Mi 单位
   if (s.endsWith('Mi')) {
     const mi = parseInt(s)
-    if (mi >= 1024) {
-      return `${(mi / 1024).toFixed(1)} Gi`
-    }
+    if (mi >= 1024) return `${(mi / 1024).toFixed(1)} Gi`
     return `${mi} Mi`
   }
-  // 处理 Gi 单位
-  if (s.endsWith('Gi')) {
-    return s
-  }
-  // 处理 Ti 单位
-  if (s.endsWith('Ti')) {
-    return s
-  }
-  // 处理纯数字（字节）
+  if (s.endsWith('Gi')) return s
+  if (s.endsWith('Ti')) return s
   const num = parseInt(s)
   if (!isNaN(num)) {
-    if (num >= 1073741824) { // >= 1Gi
-      return `${(num / 1073741824).toFixed(1)} Gi`
-    } else if (num >= 1048576) { // >= 1Mi
-      return `${(num / 1048576).toFixed(0)} Mi`
-    } else if (num >= 1024) { // >= 1Ki
-      return `${(num / 1024).toFixed(0)} KiB`
-    }
+    if (num >= 1073741824) return `${(num / 1073741824).toFixed(1)} Gi`
+    else if (num >= 1048576) return `${(num / 1048576).toFixed(0)} Mi`
+    else if (num >= 1024) return `${(num / 1024).toFixed(0)} KiB`
     return `${num} B`
   }
   return s
 }
 
-// 通用格式化
 function formatCapacity(val: any): string {
   if (!val) return '-'
   return String(val)
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+// ---- Resize: left-right ----
+const leftWidth = ref(300)
+const resizingH = ref(false)
+let startX = 0, startW = 0
+function onHResizeStart(e: MouseEvent) {
+  e.preventDefault()
+  resizingH.value = true
+  startX = e.clientX
+  startW = leftWidth.value
+  const onMove = (ev: MouseEvent) => {
+    leftWidth.value = Math.min(Math.max(startW + ev.clientX - startX, 220), 500)
+  }
+  const onUp = () => {
+    resizingH.value = false
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
+
+// ---- Resize: top-bottom (Pods / Events) ----
+const rightTopHeight = ref<number | null>(null)
+const resizingV = ref(false)
+let startY = 0, startH = 0
+function onVResizeStart(e: MouseEvent) {
+  e.preventDefault()
+  resizingV.value = true
+  startY = e.clientY
+  const rightPanel = (e.target as HTMLElement).closest('.right-panel')
+  if (!rightPanel) return
+  startH = rightPanel.getBoundingClientRect().height
+  const onMove = (ev: MouseEvent) => {
+    const delta = ev.clientY - startY
+    rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
+  }
+  const onUp = () => {
+    resizingV.value = false
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
+
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
+  fetchDetail()
+  fetchEvents()
+}, { autoStart: false })
 
 onMounted(fetchDetail)
 </script>
 
 <template>
-  <div class="page-container" v-loading="loading">
+  <div class="detail-page" v-loading="loading">
+
+    <!-- 顶部标题栏 -->
     <div class="page-header">
-      <h2 style="margin: 0;">节点: {{ nodeName }}</h2>
-      <div style="display: flex; gap: 8px;">
-        <AutoRefreshToolbar
-          :is-running="isRunning"
-          :countdown="countdown"
-          :current-interval="currentInterval"
-          :available-intervals="availableIntervals"
-          :loading="loading"
-          @refresh="manualRefresh()"
-          @toggle="toggle()"
-          @interval-change="setIntervalOption"
-        />
+      <div class="header-left">
+        <h2 class="res-name">{{ nodeName }}</h2>
+        <div class="meta-line">
+          <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
+          <span v-if="node?.roles" class="role-tag">{{ node.roles }}</span>
+          <el-tag v-if="node?.unschedulable" type="warning" size="small" effect="plain">不可调度</el-tag>
+          <span v-if="node?.internal_ip" class="info-text">{{ node.internal_ip }}</span>
+        </div>
+      </div>
+      <div class="header-actions">
         <el-button :type="node?.unschedulable ? 'success' : 'warning'" @click="handleCordon">
           {{ node?.unschedulable ? '解除封锁' : '封锁' }}
         </el-button>
         <el-button type="primary" @click="handleTaints">污点</el-button>
         <el-button type="info" @click="handleLabels">标签</el-button>
+        <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" @click="handleDrain">驱逐</el-button>
         <el-button type="danger" plain @click="handleDelete">删除</el-button>
-        <el-button @click="router.push('/nodes')">返回列表</el-button>
+        <div class="action-divider" />
+        <el-popover placement="bottom" :width="200" trigger="hover">
+          <template #reference>
+            <el-button
+              :type="isRunning ? 'success' : 'default'"
+              :icon="Timer"
+              @click="toggle()"
+            />
+          </template>
+          <div class="auto-refresh-popover">
+            <div class="popover-title">
+              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
+            </div>
+            <el-select
+              :model-value="currentInterval / 1000"
+              @update:model-value="setIntervalOption"
+              size="small"
+              style="width: 100%;"
+            >
+              <el-option
+                v-for="sec in availableIntervals"
+                :key="sec"
+                :value="sec"
+                :label="`每 ${sec} 秒刷新`"
+              />
+            </el-select>
+          </div>
+        </el-popover>
+        <el-tooltip content="刷新" placement="top">
+          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+        </el-tooltip>
+        <el-tooltip content="返回列表" placement="top">
+          <el-button :icon="ArrowLeft" @click="router.push('/nodes')" />
+        </el-tooltip>
       </div>
     </div>
 
     <template v-if="node">
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <!-- Info Tab -->
-        <el-tab-pane label="概览" name="info">
-          <el-card shadow="never">
-            <el-descriptions :column="2" border>
+      <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
+
+        <!-- 左侧：基本信息 -->
+        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
+          <div class="panel-title">基本信息</div>
+          <div class="info-body">
+            <el-descriptions :column="1" border size="small">
               <el-descriptions-item label="名称">{{ node.name }}</el-descriptions-item>
-              <el-descriptions-item label="状态"><el-tag :type="statusType(node.status)" size="small">{{ node.status || 'Unknown' }}</el-tag></el-descriptions-item>
+              <el-descriptions-item label="状态">
+                <el-tag :type="statusTagType" size="small">{{ node.status || 'Unknown' }}</el-tag>
+              </el-descriptions-item>
               <el-descriptions-item label="角色">{{ node.roles || '-' }}</el-descriptions-item>
               <el-descriptions-item label="Kubelet 版本">{{ node.version || '-' }}</el-descriptions-item>
               <el-descriptions-item label="操作系统">{{ node.os || '-' }}</el-descriptions-item>
@@ -351,17 +416,42 @@ onMounted(fetchDetail)
               </el-descriptions-item>
             </el-descriptions>
 
-            <!-- Resource Capacity -->
-            <div v-if="node.capacity || node.allocatable" class="resource-section">
-              <div class="section-header">
-                <el-icon class="section-icon"><Monitor /></el-icon>
-                <span class="section-title">资源容量</span>
+            <!-- Labels -->
+            <div v-if="node.labels && Object.keys(node.labels).length > 0" style="margin-top: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h4 style="margin: 0; font-size: 13px;">Labels</h4>
+                <el-button size="small" @click="handleLabels">编辑</el-button>
               </div>
+              <el-tag
+                v-for="(val, key) in node.labels"
+                :key="key"
+                style="margin-right: 8px; margin-bottom: 8px;"
+                size="small"
+              >
+                {{ key }}={{ val }}
+              </el-tag>
+            </div>
+
+            <!-- Taints -->
+            <div style="margin-top: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h4 style="margin: 0; font-size: 13px;">Taints</h4>
+                <el-button size="small" @click="handleTaints">编辑</el-button>
+              </div>
+              <el-table v-if="node.taints && node.taints.length > 0" :data="node.taints" size="small" border>
+                <el-table-column prop="key" label="Key" min-width="150" />
+                <el-table-column prop="value" label="Value" min-width="100" />
+                <el-table-column prop="effect" label="Effect" min-width="120" />
+              </el-table>
+              <span v-else style="color: #909399; font-size: 12px;">无污点</span>
+            </div>
+
+            <!-- Resource Capacity -->
+            <div v-if="node.capacity || node.allocatable" style="margin-top: 16px;">
+              <h4 style="margin: 0 0 12px; font-size: 13px;">资源容量</h4>
               <div class="resource-cards">
                 <div class="resource-card">
-                  <div class="resource-icon cpu-icon">
-                    <el-icon><Cpu /></el-icon>
-                  </div>
+                  <div class="resource-icon cpu-icon"><el-icon><Cpu /></el-icon></div>
                   <div class="resource-info">
                     <div class="resource-label">CPU</div>
                     <div class="resource-values">
@@ -378,9 +468,7 @@ onMounted(fetchDetail)
                 </div>
 
                 <div class="resource-card">
-                  <div class="resource-icon memory-icon">
-                    <el-icon><Coin /></el-icon>
-                  </div>
+                  <div class="resource-icon memory-icon"><el-icon><Coin /></el-icon></div>
                   <div class="resource-info">
                     <div class="resource-label">内存</div>
                     <div class="resource-values">
@@ -397,9 +485,7 @@ onMounted(fetchDetail)
                 </div>
 
                 <div class="resource-card">
-                  <div class="resource-icon pods-icon">
-                    <el-icon><Grid /></el-icon>
-                  </div>
+                  <div class="resource-icon pods-icon"><el-icon><Grid /></el-icon></div>
                   <div class="resource-info">
                     <div class="resource-label">Pod 数量</div>
                     <div class="resource-values">
@@ -416,9 +502,7 @@ onMounted(fetchDetail)
                 </div>
 
                 <div class="resource-card">
-                  <div class="resource-icon storage-icon">
-                    <el-icon><Files /></el-icon>
-                  </div>
+                  <div class="resource-icon storage-icon"><el-icon><Files /></el-icon></div>
                   <div class="resource-info">
                     <div class="resource-label">临时存储</div>
                     <div class="resource-values">
@@ -437,100 +521,91 @@ onMounted(fetchDetail)
             </div>
 
             <!-- Conditions -->
-            <div v-if="node.conditions && node.conditions.length > 0" style="margin-top: 24px;">
-              <div class="section-header">
-                <el-icon class="section-icon"><Warning /></el-icon>
-                <span class="section-title">节点状态</span>
-              </div>
-              <el-table :data="node.conditions" border stripe>
-                <el-table-column prop="type" label="类型" width="180" />
-                <el-table-column label="状态" width="100">
+            <div v-if="node.conditions && node.conditions.length > 0" style="margin-top: 16px;">
+              <h4 style="margin: 0 0 8px; font-size: 13px;">节点状态</h4>
+              <el-table :data="node.conditions" size="small" border>
+                <el-table-column prop="type" label="类型" width="120" />
+                <el-table-column label="状态" width="80">
                   <template #default="{ row }"><el-tag :type="row.status === 'True' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag></template>
                 </el-table-column>
-                <el-table-column prop="reason" label="原因" width="180" />
-                <el-table-column prop="message" label="消息" min-width="250" show-overflow-tooltip />
-                <el-table-column prop="lastTransitionTime" label="最后变更" width="180" />
+                <el-table-column prop="reason" label="原因" width="150" />
+                <el-table-column prop="message" label="消息" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="lastTransitionTime" label="最后变更" width="150" />
               </el-table>
             </div>
+          </div>
+        </div>
 
-            <!-- Labels -->
-            <div style="margin-top: 24px;">
-              <div class="section-header">
-                <el-icon class="section-icon"><PriceTag /></el-icon>
-                <span class="section-title">标签</span>
-                <el-button size="small" @click="handleLabels" style="margin-left: auto;">编辑</el-button>
-              </div>
-              <div v-if="node.labels && Object.keys(node.labels).length > 0">
-                <el-tag v-for="(val, key) in node.labels" :key="key" style="margin-right: 8px; margin-bottom: 8px;">{{ key }}={{ val }}</el-tag>
-              </div>
-              <span v-else style="color: #909399;">无标签</span>
-            </div>
+        <!-- 右侧：Pods + Events -->
+        <div class="right-panel">
 
-            <!-- Taints -->
-            <div style="margin-top: 24px;">
-              <div class="section-header">
-                <el-icon class="section-icon"><CircleClose /></el-icon>
-                <span class="section-title">污点</span>
-                <el-button size="small" @click="handleTaints" style="margin-left: auto;">编辑</el-button>
-              </div>
-              <el-table v-if="node.taints && node.taints.length > 0" :data="node.taints" stripe border>
-                <el-table-column prop="key" label="Key" min-width="200" />
-                <el-table-column prop="value" label="Value" min-width="120" />
-                <el-table-column prop="effect" label="Effect" min-width="150" />
-              </el-table>
-              <span v-else style="color: #909399;">无污点</span>
-            </div>
-          </el-card>
-        </el-tab-pane>
-
-        <!-- Pods Tab -->
-        <el-tab-pane label="Pods" name="pods">
-          <el-card shadow="never">
-            <div style="margin-bottom: 16px;">
-              <el-input v-model="podSearch" placeholder="搜索 Pod 名称、命名空间或 IP" style="width: 300px;" clearable>
+          <!-- Pod 列表 -->
+          <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
+            <div class="panel-title">
+              Pods
+              <span class="count-badge">{{ pods.length }} 个</span>
+              <el-input v-model="podSearch" placeholder="搜索" size="small" style="width: 200px; margin-left: auto;" clearable>
                 <template #prefix><el-icon><Search /></el-icon></template>
               </el-input>
-              <span style="margin-left: 12px; color: #909399; font-size: 13px;">
-                共 {{ pods.length }} 个 Pod{{ podSearch ? `，筛选出 ${filteredPods.length} 个` : '' }}
-              </span>
             </div>
-            <el-table :data="filteredPods" v-loading="podsLoading" stripe>
-              <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
-                <template #default="{ row }"><el-button link type="primary" @click="handlePodDetail(row)">{{ row.name }}</el-button></template>
-              </el-table-column>
-              <el-table-column prop="namespace" label="命名空间" width="140" />
-              <el-table-column prop="status" label="状态" width="120"><template #default="{ row }"><el-tag :type="podStatusType(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
-              <el-table-column prop="ip" label="IP" width="140" />
-              <el-table-column prop="restarts" label="重启次数" width="100" />
-              <el-table-column prop="age" label="年龄" width="120" />
-            </el-table>
-            <el-empty v-if="!podsLoading && pods.length === 0" description="该节点上暂无 Pod" />
-          </el-card>
-        </el-tab-pane>
-
-        <!-- Events Tab -->
-        <el-tab-pane label="事件" name="events">
-          <el-card shadow="never">
-            <el-table :data="events" v-loading="eventsLoading" stripe>
-              <el-table-column prop="type" label="类型" width="100"><template #default="{ row }"><el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag></template></el-table-column>
-              <el-table-column prop="reason" label="原因" width="150" />
-              <el-table-column prop="message" label="消息" min-width="300" show-overflow-tooltip />
-              <el-table-column prop="last_seen" label="最后发生" width="180" />
-            </el-table>
-            <el-empty v-if="!eventsLoading && events.length === 0" description="暂无事件" />
-          </el-card>
-        </el-tab-pane>
-
-        <!-- YAML Tab -->
-        <el-tab-pane label="YAML" name="yaml">
-          <el-card shadow="never">
-            <div v-loading="yamlLoading">
-              <YamlEditor v-model="yamlContent" height="600px" show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="fetchYaml" />
+            <div v-loading="podsLoading" class="pods-body">
+              <el-table v-if="filteredPods.length > 0" :data="filteredPods" size="small" stripe>
+                <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+                  <template #default="{ row }"><el-button link type="primary" @click="handlePodDetail(row)">{{ row.name }}</el-button></template>
+                </el-table-column>
+                <el-table-column prop="namespace" label="命名空间" width="140" />
+                <el-table-column prop="status" label="状态" width="120"><template #default="{ row }"><el-tag :type="podStatusType(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
+                <el-table-column prop="ip" label="IP" width="140" />
+                <el-table-column prop="restarts" label="重启次数" width="100" />
+                <el-table-column prop="age" label="年龄" width="120" />
+              </el-table>
+              <div v-else class="empty-hint">该节点上暂无 Pod</div>
             </div>
-          </el-card>
-        </el-tab-pane>
-      </el-tabs>
+          </div>
+
+          <!-- 垂直拖拽条 -->
+          <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
+
+          <!-- Events -->
+          <div class="right-section events-section">
+            <div class="panel-title">
+              事件
+              <span class="count-badge">{{ events.length }} 条</span>
+            </div>
+            <div v-loading="eventsLoading" class="events-body">
+              <el-table v-if="events.length > 0" :data="events" size="small" stripe max-height="260">
+                <el-table-column prop="type" label="类型" width="80">
+                  <template #default="{ row }">
+                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="reason" label="原因" width="130" />
+                <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="last_seen" label="最后发生" width="150" />
+              </el-table>
+              <div v-else class="empty-hint">暂无事件</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 水平拖拽条 -->
+        <div
+          class="resize-handle-h"
+          :class="{ active: resizingH }"
+          :style="{ left: (leftWidth - 3) + 'px' }"
+          @mousedown="onHResizeStart"
+        />
+      </div>
     </template>
+
+    <!-- YAML Drawer -->
+    <YamlDrawer
+      v-model="yamlDialogVisible"
+      resource-type="node"
+      :name="nodeName"
+      @saved="handleYamlSaved"
+    />
 
     <!-- Taints Dialog -->
     <el-dialog v-model="taintDialogVisible" title="管理污点" width="600px">
@@ -597,99 +672,267 @@ onMounted(fetchDetail)
 </template>
 
 <style scoped>
-.page-container { padding: 20px; position: relative; min-height: 100%; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-
-/* 资源容量区域样式 */
-.resource-section {
-  margin-top: 24px;
+.detail-page {
+  padding: 16px 20px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
-.section-header {
+/* Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.res-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.meta-line {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid var(--el-color-primary);
 }
 
-.section-icon {
-  font-size: 20px;
-  color: var(--el-color-primary);
+.role-tag {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-lighter);
+  padding: 1px 6px;
+  border-radius: 4px;
 }
 
-.section-title {
-  font-size: 18px;
-  font-weight: 600;
+.info-text {
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+}
+
+.header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.header-actions .el-button {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.header-actions .el-button:first-child {
+  border-radius: 4px 0 0 4px;
+  margin-left: 0;
+}
+
+.header-actions .el-button:last-of-type {
+  border-radius: 0 4px 4px 0;
+}
+
+.action-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--el-border-color-lighter);
+  margin: 0 4px;
+}
+
+.auto-refresh-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popover-title {
+  font-size: 13px;
+  font-weight: 500;
   color: var(--el-text-color-primary);
-  letter-spacing: 1px;
 }
 
-/* 资源卡片布局 */
+/* Main Layout */
+.main-layout {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Left Panel */
+.left-panel {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--el-bg-color);
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 14px;
+  background: var(--el-fill-color-lighter);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.count-badge {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.info-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+/* Right Panel */
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.right-section {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--el-bg-color);
+}
+
+.right-section:first-child {
+  flex: 1;
+  min-height: 0;
+}
+
+.right-section.events-section {
+  flex: 1;
+  min-height: 0;
+}
+
+.pods-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.events-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.empty-hint {
+  padding: 24px;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+/* Resize handles */
+.resize-handle-h {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resize-handle-h:hover,
+.resize-handle-h.active {
+  background: var(--el-color-primary-light-7);
+}
+
+.resize-handle-v {
+  height: 4px;
+  cursor: row-resize;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+  margin: -2px 0;
+}
+
+.resize-handle-v:hover,
+.resize-handle-v.active {
+  background: var(--el-color-primary-light-7);
+}
+
+.is-resizing {
+  user-select: none;
+}
+
+.is-resizing * {
+  pointer-events: none;
+}
+
+/* Resource Capacity Cards */
 .resource-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .resource-card {
   display: flex;
   align-items: center;
-  padding: 20px;
-  background: linear-gradient(135deg, var(--el-fill-color-lighter) 0%, var(--el-fill-color-light) 100%);
-  border-radius: 12px;
+  padding: 14px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 8px;
   border: 1px solid var(--el-border-color-lighter);
-  transition: all 0.3s ease;
 }
 
-.resource-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--el-box-shadow-light);
-  border-color: var(--el-color-primary-light-5);
-}
-
-/* 资源图标 */
 .resource-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 16px;
-  font-size: 24px;
+  margin-right: 12px;
+  font-size: 20px;
   color: #fff;
   flex-shrink: 0;
 }
 
-.cpu-icon {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
+.cpu-icon { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.memory-icon { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.pods-icon { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.storage-icon { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
 
-.memory-icon {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.pods-icon {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
-
-.storage-icon {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-}
-
-/* 资源信息 */
 .resource-info {
   flex: 1;
   min-width: 0;
 }
 
 .resource-label {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--el-text-color-regular);
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -697,7 +940,7 @@ onMounted(fetchDetail)
 .resource-values {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .value-item {
@@ -707,12 +950,12 @@ onMounted(fetchDetail)
 }
 
 .value-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--el-text-color-secondary);
 }
 
 .value-number {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--el-text-color-primary);
   font-variant-numeric: tabular-nums;
@@ -720,6 +963,22 @@ onMounted(fetchDetail)
 
 .value-number.highlight {
   color: var(--el-color-primary);
-  font-size: 18px;
+  font-size: 15px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main-layout {
+    flex-direction: column;
+    overflow: auto;
+  }
+  .left-panel {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-height: 300px;
+  }
+  .resize-handle-h {
+    display: none;
+  }
 }
 </style>
