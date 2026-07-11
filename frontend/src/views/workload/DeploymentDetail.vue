@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Refresh, Timer, Back } from '@element-plus/icons-vue'
 import {
   getDeploymentDetail,
   restartDeployment,
@@ -15,7 +16,6 @@ import {
 } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
-import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { formatAge } from '@/utils/time'
 
@@ -79,11 +79,6 @@ function onVResizeStart(e: MouseEvent) {
   document.addEventListener('mousemove', onMove)
   document.addEventListener('mouseup', onUp)
 }
-
-// Rollback dialog
-const rollbackDialogVisible = ref(false)
-const rollbackRevision = ref<number>(1)
-const rollbackLoading = ref(false)
 
 // Scale dialog
 const scaleDialogVisible = ref(false)
@@ -288,13 +283,6 @@ async function handleRestart() {
   }
 }
 
-function handleRollback() {
-  const annotations = deployment.value?.metadata?.annotations || {}
-  const currentRevision = parseInt(annotations['deployment.kubernetes.io/revision'] || '0', 10)
-  rollbackRevision.value = Math.max(1, currentRevision - 1)
-  rollbackDialogVisible.value = true
-}
-
 function handleScale() {
   scaleReplicas.value = deployment.value?.spec?.replicas ?? 1
   scaleDialogVisible.value = true
@@ -321,25 +309,6 @@ async function handleScaleConfirm() {
   }
 }
 
-async function handleRollbackConfirm() {
-  if (!rollbackRevision.value || rollbackRevision.value < 1) {
-    ElMessage.warning('Please enter a valid revision number')
-    return
-  }
-  rollbackLoading.value = true
-  try {
-    await rollbackDeployment({ namespace, name, revision: rollbackRevision.value })
-    ElMessage.success(`Deployment rolled back to revision ${rollbackRevision.value}`)
-    rollbackDialogVisible.value = false
-    fetchDetail()
-    fetchReplicaSets()
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to rollback deployment')
-  } finally {
-    rollbackLoading.value = false
-  }
-}
-
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
   fetchDetail()
   fetchReplicaSets()
@@ -360,8 +329,8 @@ onMounted(() => {
     <!-- ===== 顶部标题栏 ===== -->
     <div class="page-header">
       <div class="header-left">
-        <div class="title-line">
-          <h2 class="res-name">{{ name }}</h2>
+        <h2 class="res-name">{{ name }}</h2>
+        <div class="meta-line">
           <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
           <span class="ns-tag">ns/{{ namespace }}</span>
           <span class="replicas-info" v-if="deployment">
@@ -370,22 +339,33 @@ onMounted(() => {
         </div>
       </div>
       <div class="header-actions">
-        <AutoRefreshToolbar
-          :is-running="isRunning"
-          :countdown="countdown"
-          :current-interval="currentInterval"
-          :available-intervals="availableIntervals"
-          :loading="loading"
-          @refresh="manualRefresh()"
-          @toggle="toggle()"
-          @interval-change="setIntervalOption"
-        />
+        <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh">刷新</el-button>
+        <el-button
+          :type="isRunning ? 'success' : 'default'"
+          @click="toggle()"
+        >
+          <el-icon><Timer /></el-icon>
+          {{ isRunning ? `自动刷新 ${countdown}s` : '自动刷新' }}
+        </el-button>
+        <el-select
+          :model-value="currentInterval / 1000"
+          @update:model-value="setIntervalOption"
+          style="width: 90px;"
+        >
+          <el-option
+            v-for="sec in availableIntervals"
+            :key="sec"
+            :value="sec"
+            :label="`${sec}s`"
+          />
+        </el-select>
         <el-button type="primary" @click="handleScale">扩缩容</el-button>
         <el-button type="warning" @click="handleRestart">重启</el-button>
-        <el-button type="danger" @click="handleRollback">回滚</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" plain @click="handleDelete">删除</el-button>
-        <el-button @click="router.push('/workloads/deployments')">返回列表</el-button>
+        <el-tooltip content="返回列表" placement="top">
+          <el-button :icon="Back" @click="router.push('/workloads/deployments')" />
+        </el-tooltip>
       </div>
     </div>
 
@@ -490,21 +470,6 @@ onMounted(() => {
       @saved="handleYamlSaved"
     />
 
-    <el-dialog v-model="rollbackDialogVisible" title="回滚" width="480px" destroy-on-close>
-      <div>
-        <p style="margin-bottom: 16px;">回滚 <strong>{{ name }}</strong>（{{ namespace }}）</p>
-        <el-alert v-if="deployment?.metadata?.annotations?.['deployment.kubernetes.io/revision']" :title="`当前版本: ${deployment.metadata.annotations['deployment.kubernetes.io/revision']}`" type="info" :closable="false" style="margin-bottom: 16px;" />
-        <el-form-item label="目标版本">
-          <el-input-number v-model="rollbackRevision" :min="1" style="width: 200px;" />
-        </el-form-item>
-        <el-alert title="回滚将用指定版本的 Pod 模板替换当前模板。" type="warning" :closable="false" show-icon />
-      </div>
-      <template #footer>
-        <el-button @click="rollbackDialogVisible = false">取消</el-button>
-        <el-button type="danger" :loading="rollbackLoading" @click="handleRollbackConfirm">确认回滚</el-button>
-      </template>
-    </el-dialog>
-
     <el-dialog v-model="scaleDialogVisible" title="扩缩容" width="480px" destroy-on-close>
       <div>
         <p style="margin-bottom: 16px;">调整 <strong>{{ name }}</strong> 副本数</p>
@@ -546,31 +511,32 @@ onMounted(() => {
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-.title-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 4px;
 }
 
 .res-name {
   margin: 0;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
+  line-height: 1.3;
+}
+
+.meta-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .ns-tag {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--el-text-color-secondary);
   background: var(--el-fill-color-lighter);
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 4px;
 }
 
 .replicas-info {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--el-text-color-regular);
 }
 
@@ -578,6 +544,7 @@ onMounted(() => {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+  align-items: center;
 }
 
 /* Main Layout */
