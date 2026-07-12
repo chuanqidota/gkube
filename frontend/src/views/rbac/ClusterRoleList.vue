@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { Delete, Search } from '@element-plus/icons-vue'
-import { getClusterRoleList, deleteClusterRole } from '@/api/resource'
+import { getClusterRoleList, getClusterRoleYaml, deleteClusterRole } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
@@ -31,6 +31,33 @@ const {
 })
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+
+function verbTagType(verb: string): string {
+  switch (verb) {
+    case 'get':
+    case 'list':
+    case 'watch':
+      return 'success'
+    case 'create':
+      return ''
+    case 'update':
+    case 'patch':
+      return 'warning'
+    case 'delete':
+    case 'deletecollection':
+      return 'danger'
+    case '*':
+      return 'danger'
+    default:
+      return 'info'
+  }
+}
+
+function formatApiGroups(groups: string[]): string {
+  if (!groups || groups.length === 0) return '""'
+  if (groups.length === 1 && groups[0] === '') return '"" (core)'
+  return groups.join(', ')
+}
 </script>
 
 <template>
@@ -76,12 +103,37 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
             <el-tag v-if="row.isSystem" size="small" type="info" style="margin-left: 8px;">System</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="labels" label="Labels" min-width="200" show-overflow-tooltip>
+        <el-table-column label="Rules" min-width="360">
           <template #default="{ row }">
-            <el-tag v-for="(v, k) in (row.labels || {})" :key="k" size="small" style="margin: 2px;">
-              {{ k }}={{ v }}
-            </el-tag>
-            <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: #999;">-</span>
+            <div v-if="row.rules && row.rules.length > 0" class="rules-cell">
+              <div v-for="(rule, idx) in row.rules.slice(0, 3)" :key="idx" class="rule-line">
+                <span class="rule-api">{{ formatApiGroups(rule.apiGroups) }}</span>
+                <span style="color: #909399;">/</span>
+                <span class="rule-resources">{{ (rule.resources || []).join(', ') }}</span>
+                <span style="color: #909399;">:</span>
+                <el-tag
+                  v-for="verb in (rule.verbs || []).slice(0, 4)"
+                  :key="verb"
+                  :type="verbTagType(verb)"
+                  size="small"
+                  style="margin: 1px 2px;"
+                >
+                  {{ verb }}
+                </el-tag>
+                <el-tag
+                  v-if="(rule.verbs || []).length > 4"
+                  size="small"
+                  type="info"
+                  style="margin: 1px 2px;"
+                >
+                  +{{ rule.verbs.length - 4 }}
+                </el-tag>
+              </div>
+              <div v-if="row.rules.length > 3" class="rule-line" style="color: #909399;">
+                +{{ row.rules.length - 3 }} more rules...
+              </div>
+            </div>
+            <span v-else style="color: #909399;">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="age" label="Age" width="120" />
@@ -121,5 +173,24 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 }
 .table-card {
   border-radius: 8px;
+}
+.rules-cell {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.rule-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rule-api {
+  color: #b37feb;
+  font-family: monospace;
+  font-size: 11px;
+}
+.rule-resources {
+  color: #409eff;
+  font-family: monospace;
+  font-size: 11px;
 }
 </style>

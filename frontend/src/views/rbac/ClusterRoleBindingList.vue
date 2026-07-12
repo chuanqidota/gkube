@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { Delete, Search } from '@element-plus/icons-vue'
-import { getClusterRoleBindingList, deleteClusterRoleBinding } from '@/api/resource'
+import { getClusterRoleBindingList, getClusterRoleBindingYaml, deleteClusterRoleBinding } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'

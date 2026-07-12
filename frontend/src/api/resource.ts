@@ -834,6 +834,10 @@ export function getClusterRoleYaml(params: { name: string }) {
   return request.get('/k8s/clusterrole/yaml', { params })
 }
 
+export function createClusterRole(data: { yaml: string }) {
+  return request.post('/k8s/clusterrole/create', data)
+}
+
 export function deleteClusterRole(params: { name: string }) {
   return request.delete('/k8s/clusterrole/delete', { params })
 }
@@ -845,6 +849,10 @@ export function getRoleList(params?: { namespace?: string }) {
 
 export function getRoleYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/role/yaml', { params })
+}
+
+export function createRole(data: { namespace: string; yaml: string }) {
+  return request.post('/k8s/role/create', data)
 }
 
 export function deleteRole(params: { namespace: string; name: string }) {
@@ -860,6 +868,10 @@ export function getClusterRoleBindingYaml(params: { name: string }) {
   return request.get('/k8s/clusterrolebinding/yaml', { params })
 }
 
+export function createClusterRoleBinding(data: { yaml: string }) {
+  return request.post('/k8s/clusterrolebinding/create', data)
+}
+
 export function deleteClusterRoleBinding(params: { name: string }) {
   return request.delete('/k8s/clusterrolebinding/delete', { params })
 }
@@ -871,6 +883,10 @@ export function getRoleBindingList(params?: { namespace?: string }) {
 
 export function getRoleBindingYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/rolebinding/yaml', { params })
+}
+
+export function createRoleBinding(data: { namespace: string; yaml: string }) {
+  return request.post('/k8s/rolebinding/create', data)
 }
 
 export function deleteRoleBinding(params: { namespace: string; name: string }) {

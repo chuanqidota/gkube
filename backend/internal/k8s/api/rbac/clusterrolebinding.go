@@ -32,18 +32,27 @@ func (crb *clusterrolebinding) GetClusterRoleBindingList(c *gin.Context) {
 		if item.RoleRef.Kind != "" {
 			roleRef = fmt.Sprintf("%s/%s", item.RoleRef.Kind, item.RoleRef.Name)
 		}
-		var subjects []string
+		var subjectStrs []string
+		var subjectObjs []map[string]string
 		for _, s := range item.Subjects {
-			subjects = append(subjects, fmt.Sprintf("%s/%s", s.Kind, s.Name))
+			subjectStrs = append(subjectStrs, fmt.Sprintf("%s/%s", s.Kind, s.Name))
+			subjectObjs = append(subjectObjs, map[string]string{
+				"kind":      string(s.Kind),
+				"name":      s.Name,
+				"namespace": s.Namespace,
+			})
 		}
 		isSystem := strings.HasPrefix(item.Name, "system:")
 		result = append(result, map[string]any{
-			"name":      item.Name,
-			"roleRef":   roleRef,
-			"subjects":  strings.Join(subjects, ", "),
-			"isSystem":  isSystem,
-			"labels":    item.Labels,
-			"age":       item.CreationTimestamp.Time.Format("2006-01-02 15:04:05"),
+			"name":          item.Name,
+			"roleRef":       roleRef,
+			"roleRefName":   item.RoleRef.Name,
+			"roleRefKind":   string(item.RoleRef.Kind),
+			"subjects":      strings.Join(subjectStrs, ", "),
+			"subjectList":   subjectObjs,
+			"isSystem":      isSystem,
+			"labels":        item.Labels,
+			"age":           item.CreationTimestamp.Time.Format("2006-01-02 15:04:05"),
 		})
 	}
 	response.Success(c, "执行成功", result)
@@ -86,4 +95,29 @@ func (crb *clusterrolebinding) DeleteClusterRoleBinding(c *gin.Context) {
 		return
 	}
 	response.Success(c, "删除ClusterRoleBinding成功", nil)
+}
+
+func (crb *clusterrolebinding) CreateClusterRoleBinding(c *gin.Context) {
+	var req struct {
+		ClusterName string `json:"clusterName"`
+		Yaml        string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, "参数错误:"+err.Error())
+		return
+	}
+	if req.Yaml == "" {
+		response.Fail(c, "yaml参数不能为空")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	if _, err := k8sClusterRoleBinding.CreateClusterRoleBinding(client, req.Yaml); err != nil {
+		response.Fail(c, fmt.Sprintf("创建ClusterRoleBinding失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "创建ClusterRoleBinding成功", nil)
 }

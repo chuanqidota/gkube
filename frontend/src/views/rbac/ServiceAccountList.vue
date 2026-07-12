@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { Delete, Search } from '@element-plus/icons-vue'
-import { getServiceAccountList, deleteServiceAccount } from '@/api/resource'
+import { getServiceAccountList, getServiceAccountYaml, deleteServiceAccount } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'

@@ -8,6 +8,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/yaml"
 )
 
 func GetClusterRoleBindingList(client *kubernetes.Clientset) ([]rbacv1.ClusterRoleBinding, error) {
@@ -33,4 +34,16 @@ func GetClusterRoleBindingYaml(client *kubernetes.Clientset, name string) (strin
 
 func DeleteClusterRoleBinding(client *kubernetes.Clientset, name string) error {
 	return client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+func CreateClusterRoleBinding(client *kubernetes.Clientset, crbYaml string) (bool, error) {
+	var crb *rbacv1.ClusterRoleBinding
+	if err := yaml.Unmarshal([]byte(crbYaml), &crb); err != nil {
+		return false, fmt.Errorf("YAML解析失败:%s", err.Error())
+	}
+	_, err := client.RbacV1().ClusterRoleBindings().Create(context.TODO(), crb, metav1.CreateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("创建ClusterRoleBinding失败:%s", err.Error())
+	}
+	return true, nil
 }

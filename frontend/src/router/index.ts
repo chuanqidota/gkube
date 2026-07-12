@@ -553,6 +553,20 @@ const router = createRouter({
           component: () => import('@/views/rbac/ClusterRoleBindingList.vue'),
           meta: { title: 'ClusterRoleBinding', icon: 'CircleCheck' },
         },
+        // RBAC - Permission Check
+        {
+          path: 'rbac/permission-check',
+          name: 'PermissionCheck',
+          component: () => import('@/views/rbac/PermissionCheck.vue'),
+          meta: { title: '权限查询', icon: 'Search' },
+        },
+        // RBAC - Templates
+        {
+          path: 'rbac/templates',
+          name: 'RBACTemplates',
+          component: () => import('@/views/rbac/RBACTemplates.vue'),
+          meta: { title: 'RBAC 模板', icon: 'DocumentCopy' },
+        },
         // System - Users
         {
           path: 'users',

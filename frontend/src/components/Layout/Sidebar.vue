@@ -143,26 +143,55 @@
           <el-icon><Lock /></el-icon>
           <span>{{ t('sidebar.accessControl') }}</span>
         </template>
-        <el-menu-item index="/rbac/serviceaccounts" @click="navigateTo('/rbac/serviceaccounts')">
-          <el-icon><User /></el-icon>
-          <template #title>{{ t('sidebar.serviceaccounts') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/rbac/roles" @click="navigateTo('/rbac/roles')">
-          <el-icon><UserFilled /></el-icon>
-          <template #title>{{ t('sidebar.roles') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/rbac/clusterroles" @click="navigateTo('/rbac/clusterroles')">
-          <el-icon><Stamp /></el-icon>
-          <template #title>{{ t('sidebar.clusterroles') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/rbac/rolebindings" @click="navigateTo('/rbac/rolebindings')">
-          <el-icon><Link /></el-icon>
-          <template #title>{{ t('sidebar.rolebindings') }}</template>
-        </el-menu-item>
-        <el-menu-item index="/rbac/clusterrolebindings" @click="navigateTo('/rbac/clusterrolebindings')">
-          <el-icon><CircleCheck /></el-icon>
-          <template #title>{{ t('sidebar.clusterrolebindings') }}</template>
-        </el-menu-item>
+        <!-- Namespace-scoped -->
+        <el-sub-menu index="rbac-namespace-scoped">
+          <template #title>
+            <el-icon><FolderOpened /></el-icon>
+            <span>{{ t('sidebar.rbacNamespaceScoped') }}</span>
+          </template>
+          <el-menu-item index="/rbac/roles" @click="navigateTo('/rbac/roles')">
+            <el-icon><UserFilled /></el-icon>
+            <template #title>{{ t('sidebar.roles') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/rbac/rolebindings" @click="navigateTo('/rbac/rolebindings')">
+            <el-icon><Link /></el-icon>
+            <template #title>{{ t('sidebar.rolebindings') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/rbac/serviceaccounts" @click="navigateTo('/rbac/serviceaccounts')">
+            <el-icon><User /></el-icon>
+            <template #title>{{ t('sidebar.serviceaccounts') }}</template>
+          </el-menu-item>
+        </el-sub-menu>
+        <!-- Cluster-scoped -->
+        <el-sub-menu index="rbac-cluster-scoped">
+          <template #title>
+            <el-icon><Connection /></el-icon>
+            <span>{{ t('sidebar.rbacClusterScoped') }}</span>
+          </template>
+          <el-menu-item index="/rbac/clusterroles" @click="navigateTo('/rbac/clusterroles')">
+            <el-icon><Stamp /></el-icon>
+            <template #title>{{ t('sidebar.clusterroles') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/rbac/clusterrolebindings" @click="navigateTo('/rbac/clusterrolebindings')">
+            <el-icon><CircleCheck /></el-icon>
+            <template #title>{{ t('sidebar.clusterrolebindings') }}</template>
+          </el-menu-item>
+        </el-sub-menu>
+        <!-- Tools -->
+        <el-sub-menu index="rbac-tools">
+          <template #title>
+            <el-icon><SetUp /></el-icon>
+            <span>{{ t('sidebar.rbacTools') }}</span>
+          </template>
+          <el-menu-item index="/rbac/permission-check" @click="navigateTo('/rbac/permission-check')">
+            <el-icon><Search /></el-icon>
+            <template #title>{{ t('sidebar.permissionCheck') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/rbac/templates" @click="navigateTo('/rbac/templates')">
+            <el-icon><DocumentCopy /></el-icon>
+            <template #title>{{ t('sidebar.rbacTemplates') }}</template>
+          </el-menu-item>
+        </el-sub-menu>
       </el-sub-menu>
       <!-- Events -->
       <el-menu-item index="/events" @click="navigateTo('/events')">
@@ -233,6 +262,7 @@ import {
   CopyDocument,
   Stamp,
   CircleCheck,
+  Search,
 } from '@element-plus/icons-vue'
 
 defineProps<{

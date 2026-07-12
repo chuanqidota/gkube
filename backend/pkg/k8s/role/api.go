@@ -8,6 +8,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/yaml"
 )
 
 func GetRoleList(client *kubernetes.Clientset, namespace string) ([]rbacv1.Role, error) {
@@ -33,4 +34,19 @@ func GetRoleYaml(client *kubernetes.Clientset, namespace, name string) (string, 
 
 func DeleteRole(client *kubernetes.Clientset, namespace, name string) error {
 	return client.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+func CreateRole(client *kubernetes.Clientset, namespace string, roleYaml string) (bool, error) {
+	var role *rbacv1.Role
+	if err := yaml.Unmarshal([]byte(roleYaml), &role); err != nil {
+		return false, fmt.Errorf("YAML解析失败:%s", err.Error())
+	}
+	if namespace != "" {
+		role.Namespace = namespace
+	}
+	_, err := client.RbacV1().Roles(role.Namespace).Create(context.TODO(), role, metav1.CreateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("创建Role失败:%s", err.Error())
+	}
+	return true, nil
 }

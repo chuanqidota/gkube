@@ -28,10 +28,19 @@ func (r *role) GetRoleList(c *gin.Context) {
 	}
 	var result []map[string]any
 	for _, item := range roleList {
+		var rules []map[string]any
+		for _, rule := range item.Rules {
+			rules = append(rules, map[string]any{
+				"apiGroups": rule.APIGroups,
+				"resources": rule.Resources,
+				"verbs":     rule.Verbs,
+			})
+		}
 		result = append(result, map[string]any{
 			"name":      item.Name,
 			"namespace": item.Namespace,
 			"labels":    item.Labels,
+			"rules":     rules,
 			"age":       item.CreationTimestamp.Time.Format("2006-01-02 15:04:05"),
 		})
 	}
@@ -77,4 +86,30 @@ func (r *role) DeleteRole(c *gin.Context) {
 		return
 	}
 	response.Success(c, "删除Role成功", nil)
+}
+
+func (r *role) CreateRole(c *gin.Context) {
+	var req struct {
+		Namespace string `json:"namespace"`
+		ClusterName string `json:"clusterName"`
+		Yaml      string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, "参数错误:"+err.Error())
+		return
+	}
+	if req.Yaml == "" {
+		response.Fail(c, "yaml参数不能为空")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	if _, err := k8sRole.CreateRole(client, req.Namespace, req.Yaml); err != nil {
+		response.Fail(c, fmt.Sprintf("创建Role失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "创建Role成功", nil)
 }
