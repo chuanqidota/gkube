@@ -592,7 +592,6 @@ export default {
     crd: 'CRD',
     system: 'System Management',
     users: 'Users',
-    platformRoles: 'Platform Roles',
     authSettings: 'Auth Settings',
     audit: 'Audit Logs',
   },

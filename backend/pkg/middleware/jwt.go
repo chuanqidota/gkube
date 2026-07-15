@@ -39,7 +39,6 @@ func JWTAuth() gin.HandlerFunc {
 		}
 		c.Set("userID", claims.UserID)
 		c.Set("username", claims.Username)
-		c.Set("isSuperAdmin", claims.IsSuperAdmin)
 		c.Next()
 	}
 }

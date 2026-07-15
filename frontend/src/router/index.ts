@@ -574,13 +574,6 @@ const router = createRouter({
           component: () => import('@/views/system/UserList.vue'),
           meta: { title: '用户管理', icon: 'User' },
         },
-        // System - Roles
-        {
-          path: 'roles',
-          name: 'RoleList',
-          component: () => import('@/views/system/RoleList.vue'),
-          meta: { title: '角色管理', icon: 'UserFilled' },
-        },
         // System - Auth Settings
         {
           path: 'settings/auth',

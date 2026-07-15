@@ -49,8 +49,7 @@ func (u *userHandler) List(c *gin.Context) {
 	}
 
 	var users []model.User
-	if err := db.Preload("Roles").
-		Offset((query.Page - 1) * query.Size).
+	if err := db.Offset((query.Page - 1) * query.Size).
 		Limit(query.Size).
 		Order("id DESC").
 		Find(&users).Error; err != nil {
@@ -102,16 +101,6 @@ func (u *userHandler) Create(c *gin.Context) {
 		Status:       1,
 	}
 
-	// 关联角色
-	if len(p.RoleIDs) > 0 {
-		var roles []model.Role
-		if err := database.DB.Find(&roles, p.RoleIDs).Error; err != nil {
-			response.Fail(c, fmt.Sprintf("查询角色失败:%s", err.Error()))
-			return
-		}
-		user.Roles = roles
-	}
-
 	if err := database.DB.Create(&user).Error; err != nil {
 		response.Fail(c, fmt.Sprintf("创建用户失败:%s", err.Error()))
 		return
@@ -157,21 +146,7 @@ func (u *userHandler) Update(c *gin.Context) {
 		}
 	}
 
-	// 替换角色
-	if p.RoleIDs != nil {
-		var roles []model.Role
-		if err := database.DB.Find(&roles, p.RoleIDs).Error; err != nil {
-			response.Fail(c, fmt.Sprintf("查询角色失败:%s", err.Error()))
-			return
-		}
-		if err := database.DB.Model(&user).Association("Roles").Replace(roles); err != nil {
-			response.Fail(c, fmt.Sprintf("更新用户角色失败:%s", err.Error()))
-			return
-		}
-	}
-
-	// 重新加载用户（含角色）
-	database.DB.Preload("Roles").First(&user, user.ID)
+	database.DB.First(&user, user.ID)
 	response.Success(c, "更新用户成功", user)
 }
 
@@ -201,9 +176,6 @@ func (u *userHandler) Delete(c *gin.Context) {
 		response.Fail(c, "用户不存在")
 		return
 	}
-
-	// 清除关联角色
-	database.DB.Model(&user).Association("Roles").Clear()
 
 	if err := database.DB.Delete(&user).Error; err != nil {
 		response.Fail(c, fmt.Sprintf("删除用户失败:%s", err.Error()))

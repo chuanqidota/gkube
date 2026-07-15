@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, Delete } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import type { FormInstance, FormRules } from 'element-plus'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const loading = ref(false)
 const userList = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
-const size = ref(10)
+const size = ref(20)
+const searchName = ref('')
+const selectedRows = ref<any[]>([])
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('创建用户')
@@ -32,7 +36,6 @@ const rules: FormRules = {
       required: true,
       message: '请输入密码',
       trigger: 'blur',
-      // Only required when creating (not editing)
       validator: (_rule: any, value: string, callback: any) => {
         if (!editingId.value && !value) {
           callback(new Error('请输入密码'))
@@ -44,6 +47,25 @@ const rules: FormRules = {
   ],
 }
 
+const filteredList = computed(() => {
+  if (!searchName.value) return userList.value
+  const keyword = searchName.value.toLowerCase()
+  return userList.value.filter(
+    (u) =>
+      u.username?.toLowerCase().includes(keyword) ||
+      u.nickname?.toLowerCase().includes(keyword) ||
+      u.email?.toLowerCase().includes(keyword)
+  )
+})
+
+function onSearchInput(value: string) {
+  searchName.value = value
+}
+
+function handleSelectionChange(rows: any[]) {
+  selectedRows.value = rows
+}
+
 async function fetchUsers() {
   loading.value = true
   try {
@@ -51,7 +73,7 @@ async function fetchUsers() {
     userList.value = res.data.items || []
     total.value = res.data.total || 0
   } catch {
-    // Silently handle — resource may not exist in cluster
+    // Silently handle
   } finally {
     loading.value = false
   }
@@ -120,6 +142,30 @@ async function handleDelete(row: any) {
   }
 }
 
+async function handleBatchDelete() {
+  if (!selectedRows.value.length) return
+  try {
+    await ElMessageBox.confirm(
+      `确定删除选中的 ${selectedRows.value.length} 个用户吗？`,
+      '确认删除',
+      { type: 'warning' }
+    )
+    const results = await Promise.allSettled(
+      selectedRows.value.map((row) => request.delete('/users', { data: { id: row.id } }))
+    )
+    const successCount = results.filter((r) => r.status === 'fulfilled').length
+    const failCount = results.filter((r) => r.status === 'rejected').length
+    if (failCount > 0) {
+      ElMessage.warning(`已删除 ${successCount} 个，失败 ${failCount} 个`)
+    } else {
+      ElMessage.success(`已删除 ${successCount} 个用户`)
+    }
+    fetchUsers()
+  } catch {
+    // cancelled
+  }
+}
+
 function handlePageChange(newPage: number) {
   page.value = newPage
   fetchUsers()
@@ -131,10 +177,24 @@ onMounted(fetchUsers)
 </script>
 
 <template>
-  <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h2 style="margin: 0;">用户管理</h2>
-      <div style="display: flex; align-items: center; gap: 8px;">
+  <div class="page-container">
+    <ResourceListToolbar
+      :search-value="searchName"
+      :total-count="total"
+      :selected-count="selectedRows.length"
+      :show-namespace="false"
+      search-placeholder="搜索用户名、昵称或邮箱"
+      @search-input="onSearchInput"
+    >
+      <template #actions>
+        <el-button type="success" @click="openCreate">
+          <el-icon><Plus /></el-icon> 创建用户
+        </el-button>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+        </el-button>
+      </template>
+      <template #extra>
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -145,34 +205,40 @@ onMounted(fetchUsers)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="primary" @click="openCreate">创建用户</el-button>
+      </template>
+    </ResourceListToolbar>
+
+    <el-card shadow="never" class="table-card">
+      <el-table
+        :data="filteredList"
+        v-loading="loading"
+        stripe
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="45" />
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="username" label="用户名" min-width="140" />
+        <el-table-column prop="nickname" label="昵称" min-width="140" />
+        <el-table-column prop="email" label="邮箱" min-width="200" />
+        <el-table-column prop="createdAt" label="创建时间" min-width="180" />
+        <el-table-column label="操作" width="160" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div v-if="total > size" class="pagination">
+        <el-pagination
+          :current-page="page"
+          :page-size="size"
+          :total="total"
+          layout="prev, pager, next"
+          @current-change="handlePageChange"
+        />
       </div>
-    </div>
-
-    <el-table :data="userList" v-loading="loading" stripe style="width: 100%">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="username" label="用户名" min-width="140" />
-      <el-table-column prop="nickname" label="昵称" min-width="140" />
-      <el-table-column prop="email" label="邮箱" min-width="200" />
-      <el-table-column prop="createdAt" label="创建时间" min-width="180" />
-      <el-table-column label="操作" width="160" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
-      <el-pagination
-        v-if="total > size"
-        :current-page="page"
-        :page-size="size"
-        :total="total"
-        layout="prev, pager, next"
-        @current-change="handlePageChange"
-      />
-    </div>
+    </el-card>
 
     <!-- Create / Edit Dialog -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="480px" destroy-on-close>
@@ -204,3 +270,18 @@ onMounted(fetchUsers)
     </el-dialog>
   </div>
 </template>
+
+<style scoped>
+.page-container {
+  padding: 20px;
+}
+.table-card {
+  border-radius: 8px;
+}
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 0;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+</style>

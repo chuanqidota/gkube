@@ -618,7 +618,6 @@ export default {
     crd: 'CRD',
     system: '系统管理',
     users: '用户管理',
-    platformRoles: '平台角色',
     authSettings: '认证设置',
     audit: '审计日志',
   },

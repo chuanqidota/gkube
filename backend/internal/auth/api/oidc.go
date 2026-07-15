@@ -132,7 +132,7 @@ func (h *oidcHandler) HandleCallback(c *gin.Context) {
 	}
 
 	// Generate JWT tokens
-	tokenPair, err := auth.GenerateToken(user.ID, user.Username, false)
+	tokenPair, err := auth.GenerateToken(user.ID, user.Username)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("生成 Token 失败: %s", err.Error()))
 		return

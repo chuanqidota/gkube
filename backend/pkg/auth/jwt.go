@@ -13,9 +13,8 @@ var jwtSecret = []byte("gkube-jwt-secret-key-change-in-production")
 
 // Claims represents the JWT claims structure.
 type Claims struct {
-	UserID       uint   `json:"user_id"`
-	Username     string `json:"username"`
-	IsSuperAdmin bool   `json:"is_super_admin"`
+	UserID   uint   `json:"user_id"`
+	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
@@ -26,14 +25,13 @@ type TokenPair struct {
 }
 
 // GenerateToken creates a new access token (2h) and refresh token (7d) for the given user.
-func GenerateToken(userID uint, username string, isSuperAdmin bool) (*TokenPair, error) {
+func GenerateToken(userID uint, username string) (*TokenPair, error) {
 	now := time.Now()
 
 	// Access token claims with 2-hour expiry
 	accessClaims := Claims{
-		UserID:       userID,
-		Username:     username,
-		IsSuperAdmin: isSuperAdmin,
+		UserID:   userID,
+		Username: username,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(2 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -50,9 +48,8 @@ func GenerateToken(userID uint, username string, isSuperAdmin bool) (*TokenPair,
 
 	// Refresh token claims with 7-day expiry
 	refreshClaims := Claims{
-		UserID:       userID,
-		Username:     username,
-		IsSuperAdmin: isSuperAdmin,
+		UserID:   userID,
+		Username: username,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(7 * 24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(now),

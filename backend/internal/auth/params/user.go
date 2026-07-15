@@ -5,7 +5,6 @@ type CreateUserParams struct {
 	Password    string `json:"password" binding:"required" label:"密码"`
 	Email       string `json:"email" label:"邮箱"`
 	DisplayName string `json:"displayName" label:"显示名称"`
-	RoleIDs     []uint `json:"roleIds" label:"角色ID列表"`
 }
 
 type UpdateUserParams struct {
@@ -13,7 +12,6 @@ type UpdateUserParams struct {
 	Email       string `json:"email" label:"邮箱"`
 	DisplayName string `json:"displayName" label:"显示名称"`
 	Status      *int   `json:"status" label:"状态"`
-	RoleIDs     []uint `json:"roleIds" label:"角色ID列表"`
 }
 
 type UserQueryParams struct {

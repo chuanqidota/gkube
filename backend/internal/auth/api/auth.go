@@ -29,7 +29,7 @@ func (h *authHandler) Login(c *gin.Context) {
 
 	// 查询用户
 	var user model.User
-	if err := database.DB.Preload("Roles").Where("username = ? AND status = 1", p.Username).First(&user).Error; err != nil {
+	if err := database.DB.Where("username = ? AND status = 1", p.Username).First(&user).Error; err != nil {
 		response.Fail(c, "用户名或密码错误")
 		return
 	}
@@ -40,17 +40,8 @@ func (h *authHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 判断是否为超级管理员
-	var isSuperAdmin bool
-	for _, role := range user.Roles {
-		if role.Name == "super_admin" {
-			isSuperAdmin = true
-			break
-		}
-	}
-
 	// 生成 Token
-	tokenPair, err := auth.GenerateToken(user.ID, user.Username, isSuperAdmin)
+	tokenPair, err := auth.GenerateToken(user.ID, user.Username)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("生成Token失败:%s", err.Error()))
 		return
@@ -64,7 +55,6 @@ func (h *authHandler) Login(c *gin.Context) {
 			"username":     user.Username,
 			"email":        user.Email,
 			"display_name": user.DisplayName,
-			"roles":        user.Roles,
 		},
 	})
 }
@@ -96,7 +86,7 @@ func (h *authHandler) Refresh(c *gin.Context) {
 	}
 
 	// 生成新的 Token 对
-	tokenPair, err := auth.GenerateToken(claims.UserID, claims.Username, claims.IsSuperAdmin)
+	tokenPair, err := auth.GenerateToken(claims.UserID, claims.Username)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("生成Token失败:%s", err.Error()))
 		return
@@ -121,7 +111,7 @@ func (h *authHandler) GetMe(c *gin.Context) {
 	}
 
 	var user model.User
-	if err := database.DB.Preload("Roles.Permissions").Where("id = ?", userID).First(&user).Error; err != nil {
+	if err := database.DB.Where("id = ?", userID).First(&user).Error; err != nil {
 		response.Fail(c, fmt.Sprintf("查询用户失败:%s", err.Error()))
 		return
 	}
@@ -132,7 +122,6 @@ func (h *authHandler) GetMe(c *gin.Context) {
 		"email":        user.Email,
 		"display_name": user.DisplayName,
 		"status":       user.Status,
-		"roles":        user.Roles,
 		"created_at":   user.CreatedAt,
 	})
 }

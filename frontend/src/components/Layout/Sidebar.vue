@@ -213,10 +213,6 @@
           <el-icon><User /></el-icon>
           <template #title>{{ t('sidebar.users') }}</template>
         </el-menu-item>
-        <el-menu-item index="/roles" @click="navigateTo('/roles')">
-          <el-icon><UserFilled /></el-icon>
-          <template #title>{{ t('sidebar.platformRoles') }}</template>
-        </el-menu-item>
         <el-menu-item index="/settings/auth" @click="navigateTo('/settings/auth')">
           <el-icon><Setting /></el-icon>
           <template #title>{{ t('sidebar.authSettings') }}</template>

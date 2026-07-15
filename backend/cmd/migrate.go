@@ -28,8 +28,6 @@ to quickly create a Cobra application.`,
 		if err := database.DB.AutoMigrate(
 			&clustermodel.K8SCluster{},
 			&model.TerminalRecord{},
-			&authmodel.Permission{},
-			&authmodel.Role{},
 			&authmodel.User{},
 		); err != nil {
 			fmt.Printf("migrate error:%v", err)
