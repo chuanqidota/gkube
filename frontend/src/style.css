@@ -188,6 +188,15 @@ button:focus-visible,
   color: var(--gk-color-text-primary);
   font-weight: 600;
   font-size: var(--gk-font-size-sm);
+  text-align: center;
+}
+
+.el-table th .cell {
+  text-align: center;
+}
+
+.el-table td .cell {
+  text-align: center;
 }
 
 .el-table td {
