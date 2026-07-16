@@ -35,6 +35,8 @@ interface FormData {
   namespace: string
   labels: Array<{ key: string; value: string }>
   data: DataEntry[]
+  binaryData: DataEntry[]
+  immutable: boolean
 }
 
 const form = reactive<FormData>({
@@ -42,6 +44,8 @@ const form = reactive<FormData>({
   namespace: 'default',
   labels: [],
   data: [],
+  binaryData: [],
+  immutable: false,
 })
 
 // ---- Parse initial data for edit mode ----
@@ -62,6 +66,14 @@ function parseInitialData(data: any) {
   const entries = data.data || {}
   form.data = Object.entries(entries).map(([k, v]) => ({ key: k, value: String(v ?? '') }))
   if (form.data.length === 0) form.data.push({ key: '', value: '' })
+
+  // Binary data entries
+  const binEntries = data.binaryData || {}
+  form.binaryData = Object.entries(binEntries).map(([k, v]) => ({ key: k, value: String(v ?? '') }))
+  if (form.binaryData.length === 0) form.binaryData.push({ key: '', value: '' })
+
+  // Immutable
+  form.immutable = data.immutable || false
 }
 
 if (props.isEdit && props.initialData) {
@@ -127,12 +139,17 @@ function buildYamlStr(): string {
     if (entry.key.trim()) data[entry.key.trim()] = entry.value
   })
 
+  const binaryData: Record<string, string> = {}
+  form.binaryData.forEach((entry) => {
+    if (entry.key.trim()) binaryData[entry.key.trim()] = entry.value
+  })
+
   const labels: Record<string, string> = {}
   form.labels.forEach((l) => {
     if (l.key.trim()) labels[l.key.trim()] = l.value
   })
 
-  const obj = {
+  const obj: any = {
     apiVersion: 'v1',
     kind: 'ConfigMap',
     metadata: {
@@ -142,6 +159,10 @@ function buildYamlStr(): string {
     },
     data,
   }
+
+  if (Object.keys(binaryData).length > 0) obj.binaryData = binaryData
+  if (form.immutable) obj.immutable = true
+
   return yaml.dump(obj, { indent: 2, lineWidth: -1, noRefs: true })
 }
 
@@ -214,6 +235,10 @@ function handleCancel() {
 
       <div class="form-section">
         <div class="section-title">数据</div>
+        <el-form-item label="不可变">
+          <el-switch v-model="form.immutable" />
+          <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">设置后不可修改，只能删除重建</div>
+        </el-form-item>
         <el-form-item label="数据项">
           <div style="width: 100%;">
             <div v-for="(entry, i) in form.data" :key="i" class="data-entry-row">
@@ -225,6 +250,20 @@ function handleCancel() {
             </div>
             <el-button @click="addEntry" size="small">
               <el-icon><Plus /></el-icon> 添加数据项
+            </el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="二进制数据">
+          <div style="width: 100%;">
+            <div v-for="(entry, i) in form.binaryData" :key="i" class="data-entry-row">
+              <el-input v-model="entry.key" placeholder="Key" style="width: 200px;" />
+              <el-input v-model="entry.value" type="textarea" :rows="2" placeholder="Base64 编码值" style="flex: 1;" />
+              <el-button type="danger" circle :disabled="form.binaryData.length <= 1" @click="form.binaryData.splice(i, 1)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </div>
+            <el-button @click="form.binaryData.push({ key: '', value: '' })" size="small">
+              <el-icon><Plus /></el-icon> 添加二进制数据项
             </el-button>
           </div>
         </el-form-item>

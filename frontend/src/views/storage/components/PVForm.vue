@@ -34,11 +34,14 @@ interface FormData {
   accessModes: string[]
   storageClassName: string
   reclaimPolicy: string
+  volumeMode: string
+  mountOptions: string[]
   storageType: string
   nfsServer: string
   nfsPath: string
   hostPath: string
   localPath: string
+  nodeAffinityRequired: string
   labels: Label[]
 }
 
@@ -48,11 +51,14 @@ const form = reactive<FormData>({
   accessModes: ['ReadWriteOnce'],
   storageClassName: '',
   reclaimPolicy: 'Retain',
+  volumeMode: 'Filesystem',
+  mountOptions: [],
   storageType: 'nfs',
   nfsServer: '',
   nfsPath: '',
   hostPath: '',
   localPath: '',
+  nodeAffinityRequired: '',
   labels: [{ key: '', value: '' }],
 })
 
@@ -68,6 +74,20 @@ function parseInitialData(data: any) {
   form.accessModes = spec.accessModes || ['ReadWriteOnce']
   form.storageClassName = spec.storageClassName || ''
   form.reclaimPolicy = spec.persistentVolumeReclaimPolicy || 'Retain'
+  form.volumeMode = spec.volumeMode || 'Filesystem'
+
+  // Mount options
+  const mountOpts = spec.mountOptions || []
+  form.mountOptions = mountOpts.length > 0 ? [...mountOpts] : []
+
+  // Node affinity (for local volumes)
+  const nodeAffinity = spec.nodeAffinity?.required?.nodeSelectorTerms
+  if (nodeAffinity && nodeAffinity.length > 0) {
+    const expr = nodeAffinity[0]?.matchExpressions?.[0] || nodeAffinity[0]?.matchFields?.[0]
+    if (expr) {
+      form.nodeAffinityRequired = expr.values ? expr.values.join(',') : ''
+    }
+  }
 
   // Storage source
   if (spec.nfs) {
@@ -145,6 +165,32 @@ function buildK8sPV(): Record<string, any> {
 
   if (form.storageClassName) {
     spec.storageClassName = form.storageClassName
+  }
+
+  if (form.volumeMode && form.volumeMode !== 'Filesystem') {
+    spec.volumeMode = form.volumeMode
+  }
+
+  if (form.mountOptions.length > 0) {
+    spec.mountOptions = form.mountOptions
+  }
+
+  // Node affinity for local volumes
+  if (form.storageType === 'local' && form.nodeAffinityRequired) {
+    const values = form.nodeAffinityRequired.split(',').map(s => s.trim()).filter(Boolean)
+    if (values.length > 0) {
+      spec.nodeAffinity = {
+        required: {
+          nodeSelectorTerms: [{
+            matchExpressions: [{
+              key: 'kubernetes.io/hostname',
+              operator: 'In',
+              values,
+            }],
+          }],
+        },
+      }
+    }
   }
 
   // Storage source
@@ -274,6 +320,27 @@ function handleCancel() {
           </el-select>
         </el-form-item>
 
+        <el-form-item label="卷模式">
+          <el-select v-model="form.volumeMode" style="width: 100%;">
+            <el-option label="Filesystem (文件系统)" value="Filesystem" />
+            <el-option label="Block (块设备)" value="Block" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="挂载选项">
+          <div style="width: 100%;">
+            <div v-for="(_opt, i) in form.mountOptions" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <el-input v-model="form.mountOptions[i]" placeholder="例如: hard,nfsvers=4.1" style="flex: 1;" />
+              <el-button type="danger" circle @click="form.mountOptions.splice(i, 1)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </div>
+            <el-button @click="form.mountOptions.push('')" size="small">
+              <el-icon><Plus /></el-icon> 添加挂载选项
+            </el-button>
+          </div>
+        </el-form-item>
+
         <el-form-item label="标签">
           <div style="width: 100%;">
             <div
@@ -331,6 +398,10 @@ function handleCancel() {
         <template v-if="form.storageType === 'local'">
           <el-form-item label="本地路径" required>
             <el-input v-model="form.localPath" placeholder="例如: /mnt/disks/ssd1" />
+          </el-form-item>
+          <el-form-item label="节点亲和性">
+            <el-input v-model="form.nodeAffinityRequired" placeholder="节点名称，多个用逗号分隔" />
+            <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">Local PV 必须指定节点亲和性，用逗号分隔多个节点名</div>
           </el-form-item>
         </template>
       </div>

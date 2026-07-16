@@ -49,6 +49,7 @@ interface RuleItem {
 const form = reactive({
   name: '',
   namespace: 'default',
+  labels: [{ key: '', value: '' }] as Label[],
   policyTypes: ['Ingress', 'Egress'] as string[],
   podSelectorLabels: [{ key: 'app', value: '' }] as Label[],
   ingressRules: [{
@@ -197,10 +198,17 @@ function buildNetworkPolicy(): Record<string, any> {
   const matchLabels: Record<string, string> = {}
   form.podSelectorLabels.forEach(l => { if (l.key.trim()) matchLabels[l.key.trim()] = l.value })
 
+  // Labels
+  const labels: Record<string, string> = {}
+  form.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+
+  const metadata: Record<string, any> = { name: form.name, namespace: form.namespace }
+  if (Object.keys(labels).length > 0) metadata.labels = labels
+
   const resource: Record<string, any> = {
     apiVersion: 'networking.k8s.io/v1',
     kind: 'NetworkPolicy',
-    metadata: { name: form.name, namespace: form.namespace },
+    metadata,
     spec: {
       podSelector: { matchLabels },
       policyTypes: form.policyTypes,
@@ -249,6 +257,12 @@ function parseInitialData(data: any) {
   form.name = meta.name || ''
   form.namespace = meta.namespace || 'default'
   form.policyTypes = spec.policyTypes || ['Ingress', 'Egress']
+
+  // Labels
+  const labels = meta.labels || {}
+  form.labels = Object.keys(labels).length > 0
+    ? Object.entries(labels).map(([k, v]) => ({ key: k, value: v as string }))
+    : [{ key: '', value: '' }]
 
   // Pod Selector
   const matchLabels = spec.podSelector?.matchLabels || {}
@@ -338,6 +352,29 @@ function handleCancel() {
               </el-select>
             </el-form-item>
           </div>
+        </div>
+      </div>
+
+      <!-- Section: Labels -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">标签</div>
+        </div>
+        <div class="section-content">
+          <el-form-item label="标签">
+            <div style="width: 100%;">
+              <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
+                <el-input v-model="label.key" placeholder="Key" />
+                <el-input v-model="label.value" placeholder="Value" />
+                <el-button type="danger" text circle @click="form.labels.splice(i, 1)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button text type="primary" @click="form.labels.push({ key: '', value: '' })" size="small">
+                <el-icon><Plus /></el-icon> 添加标签
+              </el-button>
+            </div>
+          </el-form-item>
         </div>
       </div>
 

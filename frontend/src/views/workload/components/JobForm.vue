@@ -40,6 +40,7 @@ interface TopologySpreadConstraint { maxSkew: number; topologyKey: string; whenU
 interface FormData {
   name: string; namespace: string; labels: Label[]
   completions: number | null; parallelism: number | null; backoffLimit: number | null; activeDeadlineSeconds: number | null
+  ttlSecondsAfterFinished: number | null; completionMode: string
   containers: Container[]; initContainers: Container[]; volumes: Volume[]
   nodeSelector: Label[]; tolerations: Tolerance[]; annotations: Annotation[]
   serviceAccountName: string; terminationGracePeriodSeconds: number | null
@@ -72,6 +73,7 @@ const form = reactive<FormData>({
   name: '', namespace: 'default',
   labels: [{ key: 'app', value: '' }],
   completions: 1, parallelism: 1, backoffLimit: 6, activeDeadlineSeconds: null,
+  ttlSecondsAfterFinished: null, completionMode: 'NonIndexed',
   containers: [createEmptyContainer()], initContainers: [], volumes: [],
   nodeSelector: [], tolerations: [], annotations: [],
   serviceAccountName: '', terminationGracePeriodSeconds: null, imagePullSecrets: [],
@@ -296,6 +298,8 @@ function buildK8sResource(): Record<string, any> {
   if (form.parallelism !== null && form.parallelism !== undefined) resource.spec.parallelism = form.parallelism
   if (form.backoffLimit !== null && form.backoffLimit !== undefined) resource.spec.backoffLimit = form.backoffLimit
   if (form.activeDeadlineSeconds !== null && form.activeDeadlineSeconds !== undefined) resource.spec.activeDeadlineSeconds = form.activeDeadlineSeconds
+  if (form.ttlSecondsAfterFinished !== null && form.ttlSecondsAfterFinished !== undefined) resource.spec.ttlSecondsAfterFinished = form.ttlSecondsAfterFinished
+  if (form.completionMode && form.completionMode !== 'NonIndexed') resource.spec.completionMode = form.completionMode
 
   return resource
 }
@@ -400,6 +404,15 @@ function handleCancel() { router.push('/workloads/jobs') }
             </el-form-item>
             <el-form-item label="超时时间(秒)">
               <el-input-number v-model="form.activeDeadlineSeconds" :min="1" placeholder="无限制" style="width: 100%;" />
+            </el-form-item>
+            <el-form-item label="完成后 TTL(秒)">
+              <el-input-number v-model="form.ttlSecondsAfterFinished" :min="0" placeholder="不自动清理" style="width: 100%;" />
+            </el-form-item>
+            <el-form-item label="完成模式">
+              <el-select v-model="form.completionMode" style="width: 100%;">
+                <el-option label="NonIndexed (默认)" value="NonIndexed" />
+                <el-option label="Indexed (索引模式)" value="Indexed" />
+              </el-select>
             </el-form-item>
           </div>
         </div>

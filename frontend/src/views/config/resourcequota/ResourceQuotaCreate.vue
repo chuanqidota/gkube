@@ -13,6 +13,9 @@ const namespaceList = ref<string[]>([])
 const form = ref({
   name: '',
   namespace: 'default',
+  labels: [{ key: '', value: '' }] as Array<{ key: string; value: string }>,
+  scopes: [] as string[],
+  scopeSelector: '',
   limits: [
     { resource: 'requests.cpu', value: '' },
     { resource: 'requests.memory', value: '' },
@@ -21,6 +24,9 @@ const form = ref({
     { resource: 'pods', value: '' },
     { resource: 'services', value: '' },
     { resource: 'persistentvolumeclaims', value: '' },
+    { resource: 'configmaps', value: '' },
+    { resource: 'secrets', value: '' },
+    { resource: 'replicationcontrollers', value: '' },
   ],
 })
 
@@ -36,11 +42,30 @@ async function fetchNamespaces() {
 function buildYaml() {
   const hard: Record<string, string> = {}
   form.value.limits.forEach(l => { if (l.value) hard[l.resource] = l.value })
+
+  const labels: Record<string, string> = {}
+  form.value.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+
+  const metadata: Record<string, any> = { name: form.value.name, namespace: form.value.namespace }
+  if (Object.keys(labels).length > 0) metadata.labels = labels
+
+  const spec: any = { hard }
+  if (form.value.scopes.length > 0) spec.scopes = form.value.scopes
+  if (form.value.scopeSelector) {
+    spec.scopeSelector = {
+      matchExpressions: [{
+        scopeName: form.value.scopeSelector,
+        operator: 'In',
+        values: [''],
+      }],
+    }
+  }
+
   const rq = {
     apiVersion: 'v1',
     kind: 'ResourceQuota',
-    metadata: { name: form.value.name, namespace: form.value.namespace },
-    spec: { hard },
+    metadata,
+    spec,
   }
   yamlContent.value = JSON.stringify(rq, null, 2)
 }
@@ -76,6 +101,26 @@ onMounted(fetchNamespaces)
         <el-form-item label="Namespace" required>
           <el-select v-model="form.namespace" placeholder="Select namespace" style="width: 100%;">
             <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="标签">
+          <div style="width: 100%;">
+            <div v-for="(label, i) in form.labels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <el-input v-model="label.key" placeholder="Key" style="flex: 1;" />
+              <el-input v-model="label.value" placeholder="Value" style="flex: 1;" />
+              <el-button type="danger" circle size="small" @click="form.labels.splice(i, 1)">X</el-button>
+            </div>
+            <el-button size="small" @click="form.labels.push({ key: '', value: '' })">+ 添加标签</el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="作用域 (Scopes)">
+          <el-select v-model="form.scopes" multiple clearable placeholder="选择作用域（可选）" style="width: 100%;">
+            <el-option label="Terminating" value="Terminating" />
+            <el-option label="NotTerminating" value="NotTerminating" />
+            <el-option label="BestEffort" value="BestEffort" />
+            <el-option label="NotBestEffort" value="NotBestEffort" />
+            <el-option label="PriorityClass" value="PriorityClass" />
+            <el-option label="CrossNamespacePodAffinity" value="CrossNamespacePodAffinity" />
           </el-select>
         </el-form-item>
         <el-divider>Resource Limits</el-divider>

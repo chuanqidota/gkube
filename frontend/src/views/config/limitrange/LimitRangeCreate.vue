@@ -13,12 +13,14 @@ const namespaceList = ref<string[]>([])
 const form = ref({
   name: '',
   namespace: 'default',
+  labels: [{ key: '', value: '' }] as Array<{ key: string; value: string }>,
   limits: [{
     type: 'Container',
     maxCpu: '', maxMemory: '',
     minCpu: '', minMemory: '',
     defaultCpu: '', defaultMemory: '',
     defaultRequestCpu: '', defaultRequestMemory: '',
+    maxLimitRequestRatioCpu: '', maxLimitRequestRatioMemory: '',
   }],
 })
 
@@ -47,12 +49,22 @@ function buildYaml() {
     if (Object.keys(min).length) limit.min = min
     if (Object.keys(def).length) limit.default = def
     if (Object.keys(defReq).length) limit.defaultRequest = defReq
+    const maxLimitReqRatio: any = {}
+    if (l.maxLimitRequestRatioCpu) maxLimitReqRatio.cpu = l.maxLimitRequestRatioCpu
+    if (l.maxLimitRequestRatioMemory) maxLimitReqRatio.memory = l.maxLimitRequestRatioMemory
+    if (Object.keys(maxLimitReqRatio).length) limit.maxLimitRequestRatio = maxLimitReqRatio
     return limit
   })
+  const labels: Record<string, string> = {}
+  form.value.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+
+  const metadata: Record<string, any> = { name: form.value.name, namespace: form.value.namespace }
+  if (Object.keys(labels).length > 0) metadata.labels = labels
+
   const lr = {
     apiVersion: 'v1',
     kind: 'LimitRange',
-    metadata: { name: form.value.name, namespace: form.value.namespace },
+    metadata,
     spec: { limits },
   }
   yamlContent.value = JSON.stringify(lr, null, 2)
@@ -78,6 +90,7 @@ function addLimit() {
   form.value.limits.push({
     type: 'Container', maxCpu: '', maxMemory: '', minCpu: '', minMemory: '',
     defaultCpu: '', defaultMemory: '', defaultRequestCpu: '', defaultRequestMemory: '',
+    maxLimitRequestRatioCpu: '', maxLimitRequestRatioMemory: '',
   })
 }
 
@@ -101,6 +114,17 @@ onMounted(fetchNamespaces)
           </el-select>
         </el-form-item>
 
+        <el-form-item label="标签">
+          <div style="width: 100%;">
+            <div v-for="(label, i) in form.labels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <el-input v-model="label.key" placeholder="Key" style="flex: 1;" />
+              <el-input v-model="label.value" placeholder="Value" style="flex: 1;" />
+              <el-button type="danger" circle size="small" @click="form.labels.splice(i, 1)">X</el-button>
+            </div>
+            <el-button size="small" @click="form.labels.push({ key: '', value: '' })">+ 添加标签</el-button>
+          </div>
+        </el-form-item>
+
         <div v-for="(limit, i) in form.limits" :key="i" style="border: 1px solid var(--gk-color-border); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
             <el-select v-model="limit.type" style="width: 200px;">
@@ -118,6 +142,13 @@ onMounted(fetchNamespaces)
           <el-form-item label="Default Memory"><el-input v-model="limit.defaultMemory" placeholder="e.g. 512Mi" /></el-form-item>
           <el-form-item label="Default Req CPU"><el-input v-model="limit.defaultRequestCpu" placeholder="e.g. 100m" /></el-form-item>
           <el-form-item label="Default Req Memory"><el-input v-model="limit.defaultRequestMemory" placeholder="e.g. 128Mi" /></el-form-item>
+          <el-form-item label="MaxLimit/Request CPU">
+            <el-input v-model="limit.maxLimitRequestRatioCpu" placeholder="e.g. 10" />
+            <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">限制/请求的最大比率</div>
+          </el-form-item>
+          <el-form-item label="MaxLimit/Request Memory">
+            <el-input v-model="limit.maxLimitRequestRatioMemory" placeholder="e.g. 4" />
+          </el-form-item>
         </div>
         <el-button @click="addLimit" style="margin-bottom: 16px;">+ Add Limit</el-button>
 

@@ -42,11 +42,17 @@ interface TlsConfig {
   secretName: string
 }
 
+interface Annotation { key: string; value: string }
+
 interface FormData {
   name: string
   namespace: string
   labels: Label[]
+  annotations: Annotation[]
   ingressClassName: string
+  defaultBackendEnabled: boolean
+  defaultBackendService: string
+  defaultBackendPort: number | null
   rules: IngressRule[]
   tlsEnabled: boolean
   tls: TlsConfig[]
@@ -56,7 +62,11 @@ const form = reactive<FormData>({
   name: '',
   namespace: 'default',
   labels: [{ key: 'app', value: '' }],
+  annotations: [],
   ingressClassName: 'nginx',
+  defaultBackendEnabled: false,
+  defaultBackendService: '',
+  defaultBackendPort: null,
   rules: [{ host: '', path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }],
   tlsEnabled: false,
   tls: [{ hosts: '', secretName: '' }],
@@ -149,14 +159,32 @@ function buildK8sIngress(): Record<string, any> {
       },
     }))
 
+  const annotations: Record<string, string> = {}
+  form.annotations.forEach(a => { if (a.key.trim()) annotations[a.key.trim()] = a.value })
+
+  const metadata: Record<string, any> = { name: form.name, namespace: form.namespace, labels: { ...labels } }
+  if (Object.keys(annotations).length > 0) metadata.annotations = annotations
+
+  const spec: Record<string, any> = {
+    ingressClassName: form.ingressClassName,
+    rules,
+  }
+
+  // Default backend
+  if (form.defaultBackendEnabled && form.defaultBackendService && form.defaultBackendPort) {
+    spec.defaultBackend = {
+      service: {
+        name: form.defaultBackendService,
+        port: { number: form.defaultBackendPort },
+      },
+    }
+  }
+
   const resource: Record<string, any> = {
     apiVersion: 'networking.k8s.io/v1',
     kind: 'Ingress',
-    metadata: { name: form.name, namespace: form.namespace, labels: { ...labels } },
-    spec: {
-      ingressClassName: form.ingressClassName,
-      rules,
-    },
+    metadata,
+    spec,
   }
 
   if (form.tlsEnabled) {
@@ -187,6 +215,20 @@ function parseInitialData(data: any) {
   form.labels = Object.keys(labels).length > 0
     ? Object.entries(labels).map(([k, v]) => ({ key: k, value: v as string }))
     : [{ key: 'app', value: '' }]
+
+  // Annotations
+  const annotations = meta.annotations || {}
+  form.annotations = Object.keys(annotations).length > 0
+    ? Object.entries(annotations).map(([k, v]) => ({ key: k, value: v as string }))
+    : []
+
+  // Default backend
+  const defaultBackend = spec.defaultBackend
+  if (defaultBackend) {
+    form.defaultBackendEnabled = true
+    form.defaultBackendService = defaultBackend.service?.name || ''
+    form.defaultBackendPort = defaultBackend.service?.port?.number ?? null
+  }
 
   // Rules
   const rules = spec.rules || []
@@ -301,6 +343,30 @@ function handleCancel() {
         </div>
       </div>
 
+      <!-- Section: Annotations -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">注解</div>
+        </div>
+        <div class="section-content">
+          <el-form-item label="注解">
+            <div style="width: 100%;">
+              <div v-for="(ann, i) in form.annotations" :key="i" class="kv-row">
+                <el-input v-model="ann.key" placeholder="Key (如 nginx.ingress.kubernetes.io/rewrite-target)" />
+                <el-input v-model="ann.value" placeholder="Value" />
+                <el-button type="danger" text circle @click="form.annotations.splice(i, 1)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button text type="primary" @click="form.annotations.push({ key: '', value: '' })" size="small">
+                <el-icon><Plus /></el-icon> 添加注解
+              </el-button>
+              <div class="form-tip">常用注解: nginx.ingress.kubernetes.io/rewrite-target, nginx.ingress.kubernetes.io/ssl-redirect</div>
+            </div>
+          </el-form-item>
+        </div>
+      </div>
+
       <!-- Section 3: Rules -->
       <div class="form-section">
         <div class="section-sidebar">
@@ -333,6 +399,29 @@ function handleCancel() {
               </el-button>
             </div>
           </el-form-item>
+        </div>
+      </div>
+
+      <!-- Section: Default Backend -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">默认后端</div>
+        </div>
+        <div class="section-content">
+          <el-form-item label="启用默认后端">
+            <el-switch v-model="form.defaultBackendEnabled" />
+            <div class="form-tip">无匹配规则时的兜底服务</div>
+          </el-form-item>
+          <template v-if="form.defaultBackendEnabled">
+            <div class="fields-grid">
+              <el-form-item label="Service 名称">
+                <el-input v-model="form.defaultBackendService" placeholder="默认后端 Service" />
+              </el-form-item>
+              <el-form-item label="端口">
+                <el-input-number v-model="form.defaultBackendPort" :min="1" :max="65535" style="width: 100%;" />
+              </el-form-item>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -478,6 +567,12 @@ function handleCancel() {
   font-size: 13px;
   color: var(--el-text-color-regular);
   white-space: nowrap;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-top: 4px;
 }
 
 /* TLS cards */

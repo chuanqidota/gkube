@@ -40,6 +40,7 @@ interface TopologySpreadConstraint { maxSkew: number; topologyKey: string; whenU
 interface FormData {
   name: string; namespace: string; labels: Label[]
   schedule: string; concurrencyPolicy: string; suspend: boolean
+  startingDeadlineSeconds: number | null; timeZone: string
   successfulJobsHistoryLimit: number | null; failedJobsHistoryLimit: number | null
   completions: number | null; parallelism: number | null; backoffLimit: number | null
   containers: Container[]; initContainers: Container[]; volumes: Volume[]
@@ -74,6 +75,7 @@ const form = reactive<FormData>({
   name: '', namespace: 'default',
   labels: [{ key: 'app', value: '' }],
   schedule: '', concurrencyPolicy: 'Allow', suspend: false,
+  startingDeadlineSeconds: null, timeZone: '',
   successfulJobsHistoryLimit: 3, failedJobsHistoryLimit: 1,
   completions: 1, parallelism: 1, backoffLimit: 6,
   containers: [createEmptyContainer()], initContainers: [], volumes: [],
@@ -307,6 +309,8 @@ function buildK8sResource(): Record<string, any> {
 
   if (form.successfulJobsHistoryLimit !== null && form.successfulJobsHistoryLimit !== undefined) resource.spec.successfulJobsHistoryLimit = form.successfulJobsHistoryLimit
   if (form.failedJobsHistoryLimit !== null && form.failedJobsHistoryLimit !== undefined) resource.spec.failedJobsHistoryLimit = form.failedJobsHistoryLimit
+  if (form.startingDeadlineSeconds !== null && form.startingDeadlineSeconds !== undefined) resource.spec.startingDeadlineSeconds = form.startingDeadlineSeconds
+  if (form.timeZone) resource.spec.timeZone = form.timeZone
 
   return resource
 }
@@ -413,6 +417,14 @@ function handleCancel() { router.push('/workloads/cronjobs') }
             </el-form-item>
             <el-form-item label="暂停 (Suspend)">
               <el-switch v-model="form.suspend" />
+            </el-form-item>
+            <el-form-item label="调度截止时间(秒)">
+              <el-input-number v-model="form.startingDeadlineSeconds" :min="0" placeholder="不限制" style="width: 100%;" />
+              <div class="form-help">错过调度时间后的截止秒数，超过则跳过本次执行</div>
+            </el-form-item>
+            <el-form-item label="时区 (TimeZone)">
+              <el-input v-model="form.timeZone" placeholder="例如: Asia/Shanghai" />
+              <div class="form-help">K8s 1.27+ 支持，如 Asia/Shanghai、America/New_York</div>
             </el-form-item>
             <el-form-item label="成功任务历史限制">
               <el-input-number v-model="form.successfulJobsHistoryLimit" :min="0" style="width: 100%;" />

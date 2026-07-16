@@ -31,6 +31,8 @@ interface FormData {
   provisioner: string
   reclaimPolicy: string
   volumeBindingMode: string
+  allowVolumeExpansion: boolean
+  mountOptions: string[]
   parameters: KVPair[]
   labels: KVPair[]
 }
@@ -40,6 +42,8 @@ const form = reactive<FormData>({
   provisioner: '',
   reclaimPolicy: 'Delete',
   volumeBindingMode: 'Immediate',
+  allowVolumeExpansion: false,
+  mountOptions: [],
   parameters: [],
   labels: [],
 })
@@ -51,6 +55,11 @@ function parseInitialData(data: any) {
   form.provisioner = data.provisioner || ''
   form.reclaimPolicy = data.reclaimPolicy || data.reclaim_policy || 'Delete'
   form.volumeBindingMode = data.volumeBindingMode || data.volume_binding_mode || 'Immediate'
+  form.allowVolumeExpansion = data.allowVolumeExpansion || data.allow_volume_expansion || false
+
+  // Mount Options
+  const mountOpts = data.mountOptions || data.mount_options || []
+  form.mountOptions = mountOpts.length > 0 ? [...mountOpts] : []
 
   // Parameters
   const params = data.parameters || {}
@@ -99,6 +108,8 @@ function buildYamlStr(): string {
   }
   if (Object.keys(parameters).length > 0) obj.parameters = parameters
   if (Object.keys(labels).length > 0) obj.metadata.labels = labels
+  if (form.allowVolumeExpansion) obj.allowVolumeExpansion = true
+  if (form.mountOptions.length > 0) obj.mountOptions = form.mountOptions
   return yaml.dump(obj, { indent: 2, lineWidth: -1, noRefs: true })
 }
 
@@ -165,6 +176,24 @@ function handleCancel() {
             <el-radio value="Immediate">Immediate</el-radio>
             <el-radio value="WaitForFirstConsumer">WaitForFirstConsumer</el-radio>
           </el-radio-group>
+        </el-form-item>
+
+        <el-form-item label="允许卷扩展">
+          <el-switch v-model="form.allowVolumeExpansion" />
+        </el-form-item>
+
+        <el-form-item label="挂载选项">
+          <div style="width: 100%;">
+            <div v-for="(_opt, i) in form.mountOptions" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <el-input v-model="form.mountOptions[i]" placeholder="例如: nfsvers=4.1" style="flex: 1;" />
+              <el-button type="danger" circle @click="form.mountOptions.splice(i, 1)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </div>
+            <el-button @click="form.mountOptions.push('')" size="small">
+              <el-icon><Plus /></el-icon> 添加挂载选项
+            </el-button>
+          </div>
         </el-form-item>
 
         <el-form-item label="参数">

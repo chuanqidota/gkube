@@ -36,6 +36,7 @@ interface FormData {
   type: string
   labels: Array<{ key: string; value: string }>
   data: DataEntry[]
+  immutable: boolean
 }
 
 const form = reactive<FormData>({
@@ -44,6 +45,7 @@ const form = reactive<FormData>({
   type: 'Opaque',
   labels: [],
   data: [],
+  immutable: false,
 })
 
 // ---- Secret Types ----
@@ -153,6 +155,9 @@ function parseInitialData(data: any) {
     form.data = Object.entries(entries).map(([k, v]) => ({ key: k, value: base64Decode(String(v ?? '')) }))
     if (form.data.length === 0) form.data.push({ key: '', value: '' })
   }
+
+  // Immutable
+  form.immutable = data.immutable || false
 }
 
 if (props.isEdit && props.initialData) {
@@ -237,7 +242,7 @@ function buildYamlStr(): string {
     })
   }
 
-  const obj = {
+  const obj: any = {
     apiVersion: 'v1',
     kind: 'Secret',
     metadata: {
@@ -248,6 +253,8 @@ function buildYamlStr(): string {
     type: form.type,
     data,
   }
+
+  if (form.immutable) obj.immutable = true
   return yaml.dump(obj, { indent: 2, lineWidth: -1, noRefs: true })
 }
 
@@ -325,6 +332,10 @@ function handleCancel() {
 
       <div class="form-section">
         <div class="section-title">数据</div>
+        <el-form-item label="不可变">
+          <el-switch v-model="form.immutable" />
+          <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">设置后不可修改，只能删除重建</div>
+        </el-form-item>
 
         <!-- TLS 专用表单 -->
         <template v-if="form.type === 'kubernetes.io/tls'">

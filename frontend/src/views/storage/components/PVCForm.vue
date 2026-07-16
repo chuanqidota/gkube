@@ -36,6 +36,11 @@ interface FormData {
   accessModes: string[]
   storageRequestSize: string
   storageRequestUnit: string
+  volumeMode: string
+  volumeName: string
+  dataSourceType: string
+  dataSourceName: string
+  dataSourceKind: string
 }
 
 const form = reactive<FormData>({
@@ -46,6 +51,11 @@ const form = reactive<FormData>({
   accessModes: ['ReadWriteOnce'],
   storageRequestSize: '10',
   storageRequestUnit: 'Gi',
+  volumeMode: 'Filesystem',
+  volumeName: '',
+  dataSourceType: '',
+  dataSourceName: '',
+  dataSourceKind: 'VolumeSnapshot',
 })
 
 // ---- Parse initial data for edit mode ----
@@ -78,6 +88,19 @@ function parseInitialData(data: any) {
   const labels = meta.labels || {}
   form.labels = Object.entries(labels).map(([k, v]) => ({ key: k, value: String(v) }))
   if (form.labels.length === 0) form.labels = [{ key: '', value: '' }]
+
+  // Volume mode
+  form.volumeMode = spec.volumeMode || 'Filesystem'
+
+  // Volume name (binding to specific PV)
+  form.volumeName = spec.volumeName || ''
+
+  // Data source
+  if (spec.dataSource) {
+    form.dataSourceType = spec.dataSource.kind === 'PersistentVolumeClaim' ? 'pvc' : 'snapshot'
+    form.dataSourceName = spec.dataSource.name || ''
+    form.dataSourceKind = spec.dataSource.kind || 'VolumeSnapshot'
+  }
 }
 
 if (props.isEdit && props.initialData) {
@@ -147,6 +170,22 @@ function buildK8sPVC(): Record<string, any> {
 
   if (form.storageClassName) {
     spec.storageClassName = form.storageClassName
+  }
+
+  if (form.volumeMode && form.volumeMode !== 'Filesystem') {
+    spec.volumeMode = form.volumeMode
+  }
+
+  if (form.volumeName) {
+    spec.volumeName = form.volumeName
+  }
+
+  if (form.dataSourceType && form.dataSourceName) {
+    spec.dataSource = {
+      name: form.dataSourceName,
+      kind: form.dataSourceType === 'pvc' ? 'PersistentVolumeClaim' : 'VolumeSnapshot',
+      apiGroup: form.dataSourceType === 'pvc' ? '' : 'snapshot.storage.k8s.io',
+    }
   }
 
   return {
@@ -271,6 +310,31 @@ function handleCancel() {
               <el-checkbox label="ReadWriteMany" value="ReadWriteMany" />
             </el-checkbox-group>
           </el-form-item>
+
+          <div class="fields-grid">
+            <el-form-item label="卷模式">
+              <el-select v-model="form.volumeMode" style="width: 100%;">
+                <el-option label="Filesystem (文件系统)" value="Filesystem" />
+                <el-option label="Block (块设备)" value="Block" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="指定 PV 名称">
+              <el-input v-model="form.volumeName" placeholder="留空不绑定特定 PV" />
+            </el-form-item>
+          </div>
+
+          <el-divider content-position="left">数据源 (从快照或 PVC 克隆)</el-divider>
+          <div class="fields-grid">
+            <el-form-item label="数据源类型">
+              <el-select v-model="form.dataSourceType" style="width: 100%;" clearable placeholder="不使用数据源">
+                <el-option label="VolumeSnapshot (快照)" value="snapshot" />
+                <el-option label="PVC (克隆)" value="pvc" />
+              </el-select>
+            </el-form-item>
+            <el-form-item v-if="form.dataSourceType" label="数据源名称">
+              <el-input v-model="form.dataSourceName" placeholder="快照或 PVC 名称" />
+            </el-form-item>
+          </div>
         </div>
       </div>
 

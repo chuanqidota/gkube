@@ -17,6 +17,8 @@ const form = ref({
   maxUnavailable: '',
   selectorLabels: [{ key: 'app', value: '' }],
   useMinAvailable: true,
+  labels: [{ key: '', value: '' }] as Array<{ key: string; value: string }>,
+  unhealthyPodEvictionPolicy: '',
 })
 
 const yamlContent = ref('')
@@ -29,20 +31,30 @@ async function fetchNamespaces() {
 }
 
 function buildYaml() {
+  const matchLabels: Record<string, string> = {}
+  form.value.selectorLabels.forEach(l => { if (l.key) matchLabels[l.key] = l.value })
+
   const labels: Record<string, string> = {}
-  form.value.selectorLabels.forEach(l => { if (l.key) labels[l.key] = l.value })
+  form.value.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+
+  const metadata: Record<string, any> = { name: form.value.name, namespace: form.value.namespace }
+  if (Object.keys(labels).length > 0) metadata.labels = labels
+
   const pdb: any = {
     apiVersion: 'policy/v1',
     kind: 'PodDisruptionBudget',
-    metadata: { name: form.value.name, namespace: form.value.namespace },
+    metadata,
     spec: {
-      selector: { matchLabels: labels },
+      selector: { matchLabels },
     },
   }
   if (form.value.useMinAvailable && form.value.minAvailable) {
     pdb.spec.minAvailable = form.value.minAvailable
   } else if (!form.value.useMinAvailable && form.value.maxUnavailable) {
     pdb.spec.maxUnavailable = form.value.maxUnavailable
+  }
+  if (form.value.unhealthyPodEvictionPolicy) {
+    pdb.spec.unhealthyPodEvictionPolicy = form.value.unhealthyPodEvictionPolicy
   }
   yamlContent.value = JSON.stringify(pdb, null, 2)
 }
@@ -83,6 +95,16 @@ onMounted(fetchNamespaces)
             <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
           </el-select>
         </el-form-item>
+        <el-form-item label="标签">
+          <div style="width: 100%;">
+            <div v-for="(label, i) in form.labels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <el-input v-model="label.key" placeholder="Key" style="flex: 1;" />
+              <el-input v-model="label.value" placeholder="Value" style="flex: 1;" />
+              <el-button type="danger" circle size="small" @click="form.labels.splice(i, 1)">X</el-button>
+            </div>
+            <el-button size="small" @click="form.labels.push({ key: '', value: '' })">+ 添加标签</el-button>
+          </div>
+        </el-form-item>
         <el-form-item label="Pod Selector">
           <div style="width: 100%;">
             <div v-for="(label, i) in form.selectorLabels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
@@ -104,6 +126,14 @@ onMounted(fetchNamespaces)
         </el-form-item>
         <el-form-item v-else label="Max Unavailable">
           <el-input v-model="form.maxUnavailable" placeholder="e.g. 1 or 25%" />
+        </el-form-item>
+        <el-form-item label="不健康 Pod 驱逐策略">
+          <el-select v-model="form.unhealthyPodEvictionPolicy" clearable placeholder="默认" style="width: 100%;">
+            <el-option label="Default (默认)" value="" />
+            <el-option label="AlwaysAllow (始终允许)" value="AlwaysAllow" />
+            <el-option label="IfHealthy (健康时)" value="IfHealthy" />
+          </el-select>
+          <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">K8s 1.27+ 支持</div>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="loading" @click="handleCreate">创建 PDB</el-button>

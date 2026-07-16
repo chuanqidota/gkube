@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
+import yaml from 'js-yaml'
 import { createHpa, updateHpa, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 
 const props = withDefaults(defineProps<{
@@ -22,6 +23,9 @@ const router = useRouter()
 const loading = ref(false)
 const namespaceList = ref<string[]>([])
 
+interface Label { key: string; value: string }
+interface ScalingPolicy { type: string; value: number; periodSeconds: number }
+
 const form = ref({
   name: '',
   namespace: 'default',
@@ -32,6 +36,14 @@ const form = ref({
   cpuUtilization: 80,
   memoryUtilization: 0,
   customMetrics: [] as Array<{ type: string; name: string; target: number }>,
+  labels: [{ key: 'app', value: '' }] as Label[],
+  behaviorEnabled: false,
+  scaleUpStabilizationSeconds: 0,
+  scaleUpSelectPolicy: 'Max',
+  scaleUpPolicies: [] as ScalingPolicy[],
+  scaleDownStabilizationSeconds: 300,
+  scaleDownSelectPolicy: 'Min',
+  scaleDownPolicies: [{ type: 'Percent', value: 100, periodSeconds: 15 }] as ScalingPolicy[],
 })
 
 function parseInitialData(data: any) {
@@ -56,6 +68,31 @@ function parseInitialData(data: any) {
       })
     }
   }
+
+  // Labels
+  const labels = data.metadata?.labels || {}
+  const labelEntries = Object.entries(labels).map(([k, v]) => ({ key: k, value: String(v) }))
+  if (labelEntries.length > 0) form.value.labels = labelEntries
+
+  // Behavior
+  const behavior = data.spec?.behavior
+  if (behavior) {
+    form.value.behaviorEnabled = true
+    if (behavior.scaleUp) {
+      form.value.scaleUpStabilizationSeconds = behavior.scaleUp.stabilizationWindowSeconds ?? 0
+      form.value.scaleUpSelectPolicy = behavior.scaleUp.selectPolicy || 'Max'
+      form.value.scaleUpPolicies = (behavior.scaleUp.policies || []).map((p: any) => ({
+        type: p.type || 'Percent', value: p.value ?? 0, periodSeconds: p.periodSeconds ?? 60,
+      }))
+    }
+    if (behavior.scaleDown) {
+      form.value.scaleDownStabilizationSeconds = behavior.scaleDown.stabilizationWindowSeconds ?? 300
+      form.value.scaleDownSelectPolicy = behavior.scaleDown.selectPolicy || 'Min'
+      form.value.scaleDownPolicies = (behavior.scaleDown.policies || []).map((p: any) => ({
+        type: p.type || 'Percent', value: p.value ?? 0, periodSeconds: p.periodSeconds ?? 60,
+      }))
+    }
+  }
 }
 
 const rules = {
@@ -77,6 +114,10 @@ function removeCustomMetric(index: number) {
 }
 
 function buildYaml(): string {
+  // Labels
+  const labels: Record<string, string> = {}
+  form.value.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+
   const metrics: any[] = []
 
   // CPU metric
@@ -127,6 +168,7 @@ function buildYaml(): string {
     metadata: {
       name: form.value.name,
       namespace: form.value.namespace,
+      ...(Object.keys(labels).length > 0 ? { labels } : {}),
     },
     spec: {
       scaleTargetRef: {
@@ -140,7 +182,27 @@ function buildYaml(): string {
     },
   }
 
-  return JSON.stringify(hpa, null, 2)
+  // Behavior
+  if (form.value.behaviorEnabled) {
+    const behavior: any = {}
+    if (form.value.scaleUpPolicies.length > 0 || form.value.scaleUpStabilizationSeconds > 0) {
+      behavior.scaleUp = {
+        stabilizationWindowSeconds: form.value.scaleUpStabilizationSeconds,
+        selectPolicy: form.value.scaleUpSelectPolicy,
+        policies: form.value.scaleUpPolicies.map(p => ({ type: p.type, value: p.value, periodSeconds: p.periodSeconds })),
+      }
+    }
+    if (form.value.scaleDownPolicies.length > 0) {
+      behavior.scaleDown = {
+        stabilizationWindowSeconds: form.value.scaleDownStabilizationSeconds,
+        selectPolicy: form.value.scaleDownSelectPolicy,
+        policies: form.value.scaleDownPolicies.map(p => ({ type: p.type, value: p.value, periodSeconds: p.periodSeconds })),
+      }
+    }
+    if (Object.keys(behavior).length > 0) hpa.spec.behavior = behavior
+  }
+
+  return yaml.dump(hpa, { indent: 2, lineWidth: -1, noRefs: true })
 }
 
 async function handleSubmit() {
@@ -214,6 +276,29 @@ onMounted(() => {
               </el-select>
             </el-form-item>
           </div>
+        </div>
+      </div>
+
+      <!-- Section: Labels -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">标签</div>
+        </div>
+        <div class="section-content">
+          <el-form-item label="标签">
+            <div style="width: 100%;">
+              <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
+                <el-input v-model="label.key" placeholder="Key" />
+                <el-input v-model="label.value" placeholder="Value" />
+                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="form.labels.splice(i, 1)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button text type="primary" @click="form.labels.push({ key: '', value: '' })" size="small">
+                <el-icon><Plus /></el-icon> 添加标签
+              </el-button>
+            </div>
+          </el-form-item>
         </div>
       </div>
 
@@ -291,6 +376,84 @@ onMounted(() => {
               </el-button>
             </div>
           </el-form-item>
+        </div>
+      </div>
+
+      <!-- Section 5: Behavior -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">扩缩容行为</div>
+        </div>
+        <div class="section-content">
+          <el-form-item label="启用行为配置">
+            <el-switch v-model="form.behaviorEnabled" />
+          </el-form-item>
+
+          <template v-if="form.behaviorEnabled">
+            <el-divider content-position="left">扩容 (Scale Up)</el-divider>
+            <div class="fields-grid">
+              <el-form-item label="稳定窗口(秒)">
+                <el-input-number v-model="form.scaleUpStabilizationSeconds" :min="0" :max="3600" style="width: 100%;" />
+              </el-form-item>
+              <el-form-item label="选择策略">
+                <el-select v-model="form.scaleUpSelectPolicy" style="width: 100%;">
+                  <el-option label="Max (最大值)" value="Max" />
+                  <el-option label="Min (最小值)" value="Min" />
+                  <el-option label="Disabled (禁用)" value="Disabled" />
+                </el-select>
+              </el-form-item>
+            </div>
+            <el-form-item label="扩容策略">
+              <div style="width: 100%;">
+                <div v-for="(p, i) in form.scaleUpPolicies" :key="i" class="kv-row">
+                  <el-select v-model="p.type" style="width: 120px;">
+                    <el-option label="Pods" value="Pods" />
+                    <el-option label="Percent" value="Percent" />
+                  </el-select>
+                  <el-input-number v-model="p.value" :min="1" style="flex: 1;" />
+                  <el-input-number v-model="p.periodSeconds" :min="1" placeholder="周期(秒)" style="width: 140px;" />
+                  <el-button type="danger" text circle @click="form.scaleUpPolicies.splice(i, 1)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+                <el-button text type="primary" @click="form.scaleUpPolicies.push({ type: 'Pods', value: 4, periodSeconds: 60 })" size="small">
+                  <el-icon><Plus /></el-icon> 添加策略
+                </el-button>
+              </div>
+            </el-form-item>
+
+            <el-divider content-position="left">缩容 (Scale Down)</el-divider>
+            <div class="fields-grid">
+              <el-form-item label="稳定窗口(秒)">
+                <el-input-number v-model="form.scaleDownStabilizationSeconds" :min="0" :max="3600" style="width: 100%;" />
+              </el-form-item>
+              <el-form-item label="选择策略">
+                <el-select v-model="form.scaleDownSelectPolicy" style="width: 100%;">
+                  <el-option label="Min (最小值)" value="Min" />
+                  <el-option label="Max (最大值)" value="Max" />
+                  <el-option label="Disabled (禁用)" value="Disabled" />
+                </el-select>
+              </el-form-item>
+            </div>
+            <el-form-item label="缩容策略">
+              <div style="width: 100%;">
+                <div v-for="(p, i) in form.scaleDownPolicies" :key="i" class="kv-row">
+                  <el-select v-model="p.type" style="width: 120px;">
+                    <el-option label="Pods" value="Pods" />
+                    <el-option label="Percent" value="Percent" />
+                  </el-select>
+                  <el-input-number v-model="p.value" :min="1" style="flex: 1;" />
+                  <el-input-number v-model="p.periodSeconds" :min="1" placeholder="周期(秒)" style="width: 140px;" />
+                  <el-button type="danger" text circle @click="form.scaleDownPolicies.splice(i, 1)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+                <el-button text type="primary" @click="form.scaleDownPolicies.push({ type: 'Percent', value: 100, periodSeconds: 60 })" size="small">
+                  <el-icon><Plus /></el-icon> 添加策略
+                </el-button>
+              </div>
+            </el-form-item>
+          </template>
         </div>
       </div>
 
@@ -378,5 +541,16 @@ onMounted(() => {
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;
+}
+
+.kv-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.kv-row :deep(.el-input) {
+  flex: 1;
 }
 </style>
