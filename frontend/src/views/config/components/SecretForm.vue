@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Delete, Plus } from '@element-plus/icons-vue'
+import { Delete, Plus, Upload } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
 import { createSecret, updateSecret, getNamespaceList, extractNamespaceNames } from '@/api/resource'
@@ -54,6 +54,51 @@ const secretTypes = [
   { label: 'Docker Config JSON', value: 'kubernetes.io/dockerconfigjson' },
 ]
 
+// TLS specific data
+const tlsData = ref({ cert: '', key: '' })
+
+// Docker Config JSON specific data
+const dockerConfig = ref({ server: '', username: '', password: '', email: '' })
+
+// File upload
+function handleFileUpload(entry: DataEntry, event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    entry.value = e.target?.result as string
+  }
+  reader.readAsText(file)
+  input.value = ''
+}
+
+function handleTlsFileUpload(field: 'cert' | 'key', event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    tlsData.value[field] = e.target?.result as string
+  }
+  reader.readAsText(file)
+  input.value = ''
+}
+
+function buildDockerConfigJson(): string {
+  const config = {
+    auths: {
+      [dockerConfig.value.server]: {
+        username: dockerConfig.value.username,
+        password: dockerConfig.value.password,
+        email: dockerConfig.value.email || undefined,
+        auth: btoa(`${dockerConfig.value.username}:${dockerConfig.value.password}`),
+      },
+    },
+  }
+  return JSON.stringify(config)
+}
+
 // ---- Parse initial data for edit mode ----
 
 function base64Decode(str: string): string {
@@ -87,8 +132,27 @@ function parseInitialData(data: any) {
 
   // Data entries (decode base64)
   const entries = data.data || {}
-  form.data = Object.entries(entries).map(([k, v]) => ({ key: k, value: base64Decode(String(v ?? '')) }))
-  if (form.data.length === 0) form.data.push({ key: '', value: '' })
+
+  if (form.type === 'kubernetes.io/tls') {
+    tlsData.value.cert = entries['tls.crt'] ? base64Decode(entries['tls.crt']) : ''
+    tlsData.value.key = entries['tls.key'] ? base64Decode(entries['tls.key']) : ''
+  } else if (form.type === 'kubernetes.io/dockerconfigjson') {
+    try {
+      const configJson = JSON.parse(base64Decode(entries['.dockerconfigjson'] || ''))
+      const auths = configJson.auths || {}
+      const server = Object.keys(auths)[0] || ''
+      const auth = auths[server] || {}
+      dockerConfig.value = {
+        server,
+        username: auth.username || '',
+        password: auth.password || '',
+        email: auth.email || '',
+      }
+    } catch { /* ignore parse errors */ }
+  } else {
+    form.data = Object.entries(entries).map(([k, v]) => ({ key: k, value: base64Decode(String(v ?? '')) }))
+    if (form.data.length === 0) form.data.push({ key: '', value: '' })
+  }
 }
 
 if (props.isEdit && props.initialData) {
@@ -150,15 +214,28 @@ function removeEntry(index: number) {
 // ---- Build & Submit ----
 
 function buildYamlStr(): string {
-  const data: Record<string, string> = {}
-  form.data.forEach((entry) => {
-    if (entry.key.trim()) data[entry.key.trim()] = base64Encode(entry.value)
-  })
-
   const labels: Record<string, string> = {}
   form.labels.forEach((l) => {
     if (l.key.trim()) labels[l.key.trim()] = l.value
   })
+
+  let data: Record<string, string> = {}
+
+  if (form.type === 'kubernetes.io/tls') {
+    // TLS: use dedicated cert/key fields
+    if (tlsData.value.cert) data['tls.crt'] = base64Encode(tlsData.value.cert)
+    if (tlsData.value.key) data['tls.key'] = base64Encode(tlsData.value.key)
+  } else if (form.type === 'kubernetes.io/dockerconfigjson') {
+    // Docker Config JSON: build from form fields
+    if (dockerConfig.value.server && dockerConfig.value.username && dockerConfig.value.password) {
+      data['.dockerconfigjson'] = base64Encode(buildDockerConfigJson())
+    }
+  } else {
+    // Opaque: use generic data entries
+    form.data.forEach((entry) => {
+      if (entry.key.trim()) data[entry.key.trim()] = base64Encode(entry.value)
+    })
+  }
 
   const obj = {
     apiVersion: 'v1',
@@ -248,21 +325,75 @@ function handleCancel() {
 
       <div class="form-section">
         <div class="section-title">数据</div>
-        <el-alert title="值将自动进行 Base64 编码后写入 YAML。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
-        <el-form-item label="数据项">
-          <div style="width: 100%;">
-            <div v-for="(entry, i) in form.data" :key="i" class="data-entry-row">
-              <el-input v-model="entry.key" placeholder="Key" style="width: 200px;" />
-              <el-input v-model="entry.value" type="textarea" :rows="2" placeholder="Value" style="flex: 1;" />
-              <el-button type="danger" circle :disabled="form.data.length <= 1" @click="removeEntry(i)">
-                <el-icon><Delete /></el-icon>
+
+        <!-- TLS 专用表单 -->
+        <template v-if="form.type === 'kubernetes.io/tls'">
+          <el-alert title="TLS Secret 需要证书 (PEM) 和私钥 (PEM) 两个字段。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+          <el-form-item label="证书 (tls.crt)" required>
+            <div style="width: 100%;">
+              <el-input v-model="tlsData.cert" type="textarea" :rows="6" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----" />
+              <div style="margin-top: 8px;">
+                <label class="file-upload-btn">
+                  <input type="file" accept=".pem,.crt,.cer,.txt" style="display: none;" @change="handleTlsFileUpload('cert', $event)" />
+                  <el-button size="small" type="primary" plain>上传证书文件</el-button>
+                </label>
+              </div>
+            </div>
+          </el-form-item>
+          <el-form-item label="私钥 (tls.key)" required>
+            <div style="width: 100%;">
+              <el-input v-model="tlsData.key" type="textarea" :rows="6" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----" />
+              <div style="margin-top: 8px;">
+                <label class="file-upload-btn">
+                  <input type="file" accept=".pem,.key,.txt" style="display: none;" @change="handleTlsFileUpload('key', $event)" />
+                  <el-button size="small" type="primary" plain>上传私钥文件</el-button>
+                </label>
+              </div>
+            </div>
+          </el-form-item>
+        </template>
+
+        <!-- Docker Config JSON 专用表单 -->
+        <template v-else-if="form.type === 'kubernetes.io/dockerconfigjson'">
+          <el-alert title="Docker Registry 认证信息，将自动编码为 .dockerconfigjson 格式。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+          <el-form-item label="Registry 地址" required>
+            <el-input v-model="dockerConfig.server" placeholder="https://index.docker.io/v1/" />
+          </el-form-item>
+          <el-form-item label="用户名" required>
+            <el-input v-model="dockerConfig.username" placeholder="用户名" />
+          </el-form-item>
+          <el-form-item label="密码" required>
+            <el-input v-model="dockerConfig.password" type="password" show-password placeholder="密码" />
+          </el-form-item>
+          <el-form-item label="邮箱">
+            <el-input v-model="dockerConfig.email" placeholder="user@example.com" />
+          </el-form-item>
+        </template>
+
+        <!-- 通用数据表单 (Opaque) -->
+        <template v-else>
+          <el-alert title="值将自动进行 Base64 编码后写入 YAML。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+          <el-form-item label="数据项">
+            <div style="width: 100%;">
+              <div v-for="(entry, i) in form.data" :key="i" class="data-entry-row">
+                <el-input v-model="entry.key" placeholder="Key" style="width: 200px;" />
+                <el-input v-model="entry.value" type="textarea" :rows="2" placeholder="Value" style="flex: 1;" />
+                <label class="file-upload-btn">
+                  <input type="file" style="display: none;" @change="handleFileUpload(entry, $event)" />
+                  <el-button type="primary" text circle>
+                    <el-icon><Upload /></el-icon>
+                  </el-button>
+                </label>
+                <el-button type="danger" circle :disabled="form.data.length <= 1" @click="removeEntry(i)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button @click="addEntry" size="small">
+                <el-icon><Plus /></el-icon> 添加数据项
               </el-button>
             </div>
-            <el-button @click="addEntry" size="small">
-              <el-icon><Plus /></el-icon> 添加数据项
-            </el-button>
-          </div>
-        </el-form-item>
+          </el-form-item>
+        </template>
       </div>
     </el-form>
 
@@ -309,5 +440,11 @@ function handleCancel() {
   padding-top: 24px;
   border-top: 1px solid var(--el-border-color-lighter);
   margin-top: 24px;
+}
+
+.file-upload-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
 }
 </style>

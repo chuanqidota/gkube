@@ -2,11 +2,10 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, PriceTag, Notebook, Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
+import { Plus, Delete, Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
 import {
   getNamespaceDetail,
   getNamespaceYaml,
-  updateNamespace,
   deleteNamespace,
   updateNamespaceLabels,
   getResourceQuotaList,

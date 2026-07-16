@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, Refresh, ScaleToOriginal, ArrowDown } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref } from 'vue'
 import {
   getStatefulSetList,
   getStatefulSetYaml,
   updateStatefulSetYaml,
   deleteStatefulSet,
   transformStatefulSets,
+  scaleStatefulSet,
+  restartStatefulSet,
 } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
@@ -52,6 +56,44 @@ const {
 })
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+
+// ---- Quick Actions ----
+const scaleDialogVisible = ref(false)
+const scaleTarget = ref<{ namespace: string; name: string } | null>(null)
+const scaleReplicas = ref<number>(1)
+const scaleLoading = ref(false)
+
+function handleQuickScale(row: any) {
+  scaleTarget.value = { namespace: row.namespace, name: row.name }
+  scaleReplicas.value = row.ready_replicas ?? 1
+  scaleDialogVisible.value = true
+}
+
+async function handleScaleConfirm() {
+  if (!scaleTarget.value) return
+  scaleLoading.value = true
+  try {
+    await scaleStatefulSet({ ...scaleTarget.value, replicas: scaleReplicas.value })
+    ElMessage.success(`已将 ${scaleTarget.value.name} 扩缩容至 ${scaleReplicas.value} 副本`)
+    scaleDialogVisible.value = false
+    fetchResources()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '扩缩容失败')
+  } finally {
+    scaleLoading.value = false
+  }
+}
+
+async function handleQuickRestart(row: any) {
+  try {
+    await ElMessageBox.confirm(`确定要重启 StatefulSet "${row.name}" 吗？`, '确认重启', { type: 'warning' })
+    await restartStatefulSet({ namespace: row.namespace, name: row.name })
+    ElMessage.success(`${row.name} 重启成功`)
+    fetchResources()
+  } catch (e: any) {
+    if (e !== 'cancel') ElMessage.error(e?.message || '重启失败')
+  }
+}
 </script>
 
 <template>
@@ -105,9 +147,24 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <el-table-column prop="serviceName" label="服务" width="160" show-overflow-tooltip />
         <el-table-column prop="updateStrategy" label="更新策略" width="140" />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+            <el-dropdown trigger="click" @command="(cmd: string) => { if (cmd === 'scale') handleQuickScale(row); else if (cmd === 'restart') handleQuickRestart(row) }">
+              <el-button size="small" type="primary" plain>
+                操作 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="scale">
+                    <el-icon><ScaleToOriginal /></el-icon> 扩缩容
+                  </el-dropdown-item>
+                  <el-dropdown-item command="restart">
+                    <el-icon><Refresh /></el-icon> 重启
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -133,6 +190,20 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
       </div>
     </el-drawer>
+
+    <!-- Scale Dialog -->
+    <el-dialog v-model="scaleDialogVisible" title="扩缩容" width="420px" destroy-on-close>
+      <div>
+        <p style="margin-bottom: 16px;">调整 <strong>{{ scaleTarget?.name }}</strong> 副本数</p>
+        <el-form-item label="目标副本数">
+          <el-input-number v-model="scaleReplicas" :min="0" :max="100" style="width: 200px;" />
+        </el-form-item>
+      </div>
+      <template #footer>
+        <el-button @click="scaleDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="scaleLoading" @click="handleScaleConfirm">确认</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 

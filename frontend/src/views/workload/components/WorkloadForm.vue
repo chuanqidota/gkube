@@ -8,7 +8,7 @@ import { getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import { createDeployment, createStatefulSet, createDaemonSet, updateDeploymentYaml } from '@/api/resource'
 
 const props = withDefaults(defineProps<{
-  kind: 'Deployment' | 'StatefulSet' | 'DaemonSet'
+  kind: 'Deployment' | 'StatefulSet' | 'DaemonSet' | 'Job' | 'CronJob'
   isEdit?: boolean
   initialData?: any
   onSubmit?: (yaml: string) => Promise<void>
@@ -596,10 +596,10 @@ function handleCancel() {
         <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="名称" prop="name">
-              <el-input v-model="form.name" placeholder="my-app" />
+              <el-input v-model="form.name" :disabled="isEdit" placeholder="my-app" />
             </el-form-item>
             <el-form-item label="命名空间" prop="namespace">
-              <el-select v-model="form.namespace" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+              <el-select v-model="form.namespace" :disabled="isEdit" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
                 <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
               </el-select>
             </el-form-item>

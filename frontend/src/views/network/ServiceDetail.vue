@@ -4,8 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getServiceDetail,
-  getServiceYaml,
-  updateService,
   deleteService,
   getServiceEvents,
   getServicePods,
@@ -82,16 +80,6 @@ async function fetchDetail() {
     ElMessage.error(e?.message || '加载 Service 详情失败')
   } finally {
     loading.value = false
-  }
-}
-
-async function fetchYaml() {
-  try {
-    const res: any = await getServiceYaml({ namespace, name })
-    return res.data?.yaml || res.data || ''
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 YAML 失败')
-    return ''
   }
 }
 

@@ -2,8 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Plus, Monitor, Cpu, Coin, Grid, Files, Warning, PriceTag, CircleClose, Search, Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
-import { getNodeDetail, getNodeYaml, getNodePods, getNodeEvents, cordonNode, updateNodeTaints, updateNodeLabels, updateNodeYaml, drainNode, deleteNode, type NodeDetail as NodeDetailType } from '@/api/resource'
+import { Delete, Plus, Cpu, Coin, Grid, Files, Search, Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
+import { getNodeDetail, getNodePods, getNodeEvents, cordonNode, updateNodeTaints, updateNodeLabels, drainNode, deleteNode, type NodeDetail as NodeDetailType } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
@@ -28,7 +28,6 @@ const filteredPods = computed(() => {
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
 const yamlDialogVisible = ref(false)
-const activeTab = ref('info')
 const taintDialogVisible = ref(false)
 const taints = ref<any[]>([])
 const labelsDialogVisible = ref(false)
@@ -51,13 +50,6 @@ const statusTagType = computed(() => {
 
 const statusText = computed(() => {
   return node.value?.status || 'Unknown'
-})
-
-const metaInfo = computed(() => {
-  const parts = []
-  if (node.value?.roles) parts.push(node.value.roles)
-  if (node.value?.unschedulable) parts.push('不可调度')
-  return parts.join(' · ')
 })
 
 async function fetchDetail() {
@@ -114,20 +106,6 @@ function handleOpenYaml() {
 
 function handleYamlSaved() {
   fetchDetail()
-}
-
-function handleTabChange(tab: string) {
-  if (tab === 'events' && events.value.length === 0) fetchEvents()
-}
-
-async function handleSaveYaml() {
-  try {
-    await updateNodeYaml({ name: nodeName, yaml: '' })
-    ElMessage.success('YAML 保存成功')
-    fetchDetail()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '保存 YAML 失败')
-  }
 }
 
 async function handleCordon() {

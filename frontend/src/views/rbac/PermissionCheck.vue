@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { Search, Warning } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
@@ -9,8 +8,6 @@ import {
   getRoleBindingList,
   getClusterRoleBindingList,
 } from '@/api/resource'
-
-const { t } = useI18n()
 
 // Query form
 const subjectType = ref<'User' | 'Group' | 'ServiceAccount'>('User')

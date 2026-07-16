@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, Refresh } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getDaemonSetList,
   getDaemonSetYaml,
   updateDaemonSetYaml,
   deleteDaemonSet,
   transformDaemonSets,
+  restartDaemonSet,
 } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
@@ -52,6 +54,18 @@ const {
 })
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+
+// ---- Quick Actions ----
+async function handleQuickRestart(row: any) {
+  try {
+    await ElMessageBox.confirm(`确定要重启 DaemonSet "${row.name}" 吗？`, '确认重启', { type: 'warning' })
+    await restartDaemonSet({ namespace: row.namespace, name: row.name })
+    ElMessage.success(`${row.name} 重启成功`)
+    fetchResources()
+  } catch (e: any) {
+    if (e !== 'cancel') ElMessage.error(e?.message || '重启失败')
+  }
+}
 </script>
 
 <template>
@@ -106,9 +120,12 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <el-table-column prop="ready" label="就绪" width="90" />
         <el-table-column prop="updateStrategy" label="更新策略" width="120" />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+            <el-button size="small" type="warning" @click="handleQuickRestart(row)">
+              <el-icon><Refresh /></el-icon> 重启
+            </el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>

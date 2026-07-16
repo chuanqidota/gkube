@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { DocumentCopy, View, Edit, Setting, User, Connection, Box, Key } from '@element-plus/icons-vue'
+import { DocumentCopy, View, Edit, Setting, User, Connection, Box } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { Component } from 'vue'
 import request from '@/api/request'
-
-const { t } = useI18n()
 
 interface RBACTemplate {
   id: string

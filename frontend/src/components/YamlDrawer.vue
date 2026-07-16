@@ -12,7 +12,6 @@
     <div v-loading="loading" style="height: calc(100vh - 52px);">
       <YamlEditor
         v-if="!loading"
-        ref="yamlEditorRef"
         v-model="yamlContent"
         height="100%"
         auto-format
@@ -187,19 +186,12 @@ const emit = defineEmits<{
 const loading = ref(false)
 const saving = ref(false)
 const yamlContent = ref('')
-const yamlEditorRef = ref<InstanceType<typeof YamlEditor> | null>(null)
 
 // Computed title
 const drawerTitle = computed(() => {
   if (props.title) return props.title
   const typeName = resourceDisplayNames[props.resourceType] || props.resourceType
   return `${typeName} YAML: ${props.name}`
-})
-
-// Check if resource is read-only
-const isReadOnly = computed(() => {
-  const api = resourceApis[props.resourceType]
-  return api.updateYaml === null
 })
 
 // Resources that don't need name in update data (name is extracted from YAML)

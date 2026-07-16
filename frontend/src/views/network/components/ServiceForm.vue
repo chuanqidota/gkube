@@ -30,6 +30,11 @@ interface Label { key: string; value: string }
 interface ServicePort { name: string; port: number | null; targetPort: number | null; protocol: string; nodePort: number | null }
 interface Selector { key: string; value: string }
 
+interface Label { key: string; value: string }
+interface ServicePort { name: string; port: number | null; targetPort: number | null; protocol: string; nodePort: number | null }
+interface Selector { key: string; value: string }
+interface Annotation { key: string; value: string }
+
 interface FormData {
   name: string
   namespace: string
@@ -39,6 +44,11 @@ interface FormData {
   selectors: Selector[]
   sessionAffinity: string
   externalTrafficPolicy: string
+  externalName: string
+  clusterIP: string
+  loadBalancerIP: string
+  externalIPs: string[]
+  annotations: Annotation[]
 }
 
 const form = reactive<FormData>({
@@ -50,6 +60,11 @@ const form = reactive<FormData>({
   selectors: [{ key: 'app', value: '' }],
   sessionAffinity: 'None',
   externalTrafficPolicy: 'Cluster',
+  externalName: '',
+  clusterIP: '',
+  loadBalancerIP: '',
+  externalIPs: [],
+  annotations: [],
 })
 
 // ---- Validation ----
@@ -105,6 +120,14 @@ function removePort(i: number) {
   form.ports.splice(i, 1)
 }
 
+// ---- Annotation Management ----
+function addAnnotation() { form.annotations.push({ key: '', value: '' }) }
+function removeAnnotation(i: number) { form.annotations.splice(i, 1) }
+
+// ---- ExternalIPs Management ----
+function addExternalIP() { form.externalIPs.push('') }
+function removeExternalIP(i: number) { form.externalIPs.splice(i, 1) }
+
 // ---- YAML Generation ----
 
 const generatedYaml = computed(() => {
@@ -115,6 +138,9 @@ const generatedYaml = computed(() => {
 function buildK8sService(): Record<string, any> {
   const labels: Record<string, string> = {}
   form.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+
+  const annotations: Record<string, string> = {}
+  form.annotations.forEach(a => { if (a.key.trim()) annotations[a.key.trim()] = a.value })
 
   const selector: Record<string, string> = {}
   form.selectors.forEach(s => { if (s.key.trim()) selector[s.key.trim()] = s.value })
@@ -128,11 +154,40 @@ function buildK8sService(): Record<string, any> {
       return port
     })
 
+  const metadata: Record<string, any> = { name: form.name, namespace: form.namespace, labels: { ...labels } }
+  if (Object.keys(annotations).length > 0) metadata.annotations = annotations
+
   const resource: Record<string, any> = {
     apiVersion: 'v1',
     kind: 'Service',
-    metadata: { name: form.name, namespace: form.namespace, labels: { ...labels } },
-    spec: { type: form.type, selector, ports },
+    metadata,
+    spec: { type: form.type, ports },
+  }
+
+  // Selector: not needed for ExternalName
+  if (form.type !== 'ExternalName' && Object.keys(selector).length > 0) {
+    resource.spec.selector = selector
+  }
+
+  // ExternalName
+  if (form.type === 'ExternalName' && form.externalName) {
+    resource.spec.externalName = form.externalName
+  }
+
+  // ClusterIP
+  if (form.type === 'ClusterIP' && form.clusterIP) {
+    resource.spec.clusterIP = form.clusterIP
+  }
+
+  // LoadBalancer
+  if (form.type === 'LoadBalancer' && form.loadBalancerIP) {
+    resource.spec.loadBalancerIP = form.loadBalancerIP
+  }
+
+  // ExternalIPs
+  const validExternalIPs = form.externalIPs.filter(ip => ip.trim())
+  if (validExternalIPs.length > 0) {
+    resource.spec.externalIPs = validExternalIPs
   }
 
   if (form.sessionAffinity !== 'None') resource.spec.sessionAffinity = form.sessionAffinity
@@ -154,12 +209,22 @@ function parseInitialData(data: any) {
   form.type = spec.type || 'ClusterIP'
   form.sessionAffinity = spec.sessionAffinity || 'None'
   form.externalTrafficPolicy = spec.externalTrafficPolicy || 'Cluster'
+  form.externalName = spec.externalName || ''
+  form.clusterIP = spec.clusterIP || ''
+  form.loadBalancerIP = spec.loadBalancerIP || ''
+  form.externalIPs = spec.externalIPs || []
 
   // Labels
   const labels = meta.labels || {}
   form.labels = Object.keys(labels).length > 0
     ? Object.entries(labels).map(([k, v]) => ({ key: k, value: v as string }))
     : [{ key: 'app', value: '' }]
+
+  // Annotations
+  const annotations = meta.annotations || {}
+  form.annotations = Object.keys(annotations).length > 0
+    ? Object.entries(annotations).map(([k, v]) => ({ key: k, value: v as string }))
+    : []
 
   // Selector
   const selector = spec.selector || {}
@@ -241,7 +306,17 @@ function handleCancel() {
                 <el-option label="ClusterIP" value="ClusterIP" />
                 <el-option label="NodePort" value="NodePort" />
                 <el-option label="LoadBalancer" value="LoadBalancer" />
+                <el-option label="ExternalName" value="ExternalName" />
               </el-select>
+            </el-form-item>
+            <el-form-item v-if="form.type === 'ExternalName'" label="External Name" required>
+              <el-input v-model="form.externalName" placeholder="my.database.example.com" />
+            </el-form-item>
+            <el-form-item v-if="form.type === 'ClusterIP'" label="Cluster IP">
+              <el-input v-model="form.clusterIP" placeholder="自动分配或指定 (如 10.96.0.100)" />
+            </el-form-item>
+            <el-form-item v-if="form.type === 'LoadBalancer'" label="LoadBalancer IP">
+              <el-input v-model="form.loadBalancerIP" placeholder="指定 LB IP (可选)" />
             </el-form-item>
             <el-form-item label="Session Affinity">
               <el-select v-model="form.sessionAffinity" style="width: 100%;">
@@ -293,11 +368,38 @@ function handleCancel() {
               </el-button>
             </div>
           </el-form-item>
+          <el-form-item label="注解 (Annotations)">
+            <div style="width: 100%;">
+              <div v-for="(ann, i) in form.annotations" :key="i" class="kv-row">
+                <el-input v-model="ann.key" placeholder="Key" />
+                <el-input v-model="ann.value" placeholder="Value" />
+                <el-button type="danger" text circle @click="removeAnnotation(i)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button text type="primary" @click="addAnnotation" size="small">
+                <el-icon><Plus /></el-icon> 添加注解
+              </el-button>
+            </div>
+          </el-form-item>
+          <el-form-item v-if="form.type !== 'ExternalName'" label="External IPs">
+            <div style="width: 100%;">
+              <div v-for="(_ip, i) in form.externalIPs" :key="i" class="kv-row">
+                <el-input v-model="form.externalIPs[i]" placeholder="外部 IP 地址" />
+                <el-button type="danger" text circle @click="removeExternalIP(i)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button text type="primary" @click="addExternalIP" size="small">
+                <el-icon><Plus /></el-icon> 添加 External IP
+              </el-button>
+            </div>
+          </el-form-item>
         </div>
       </div>
 
-      <!-- Section 3: Ports -->
-      <div class="form-section">
+      <!-- Section 3: Ports (not needed for ExternalName) -->
+      <div v-if="form.type !== 'ExternalName'" class="form-section">
         <div class="section-sidebar">
           <div class="section-title">端口配置</div>
         </div>

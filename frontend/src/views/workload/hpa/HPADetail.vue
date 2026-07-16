@@ -288,7 +288,7 @@ onMounted(fetchDetail)
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="horizontalpodautoscaler"
+      resource-type="hpa"
       :namespace="namespace"
       :name="name"
       @saved="handleYamlSaved"
