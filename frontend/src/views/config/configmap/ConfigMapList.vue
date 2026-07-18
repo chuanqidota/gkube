@@ -58,12 +58,12 @@ function handleViewYaml(row: any) {
 }
 
 async function handleViewData(row: any) {
-  dataLoading.value = true; dataDialogVisible.value = true; dataDialogTitle.value = `ConfigMap: ${row.name}`; dataEntries.value = []
+  dataLoading.value = true; dataDialogVisible.value = true; dataDialogTitle.value = `数据字典: ${row.name}`; dataEntries.value = []
   try {
     const res: any = await getConfigMapDetail({ name: row.name, namespace: row.namespace })
     const data = res.data?.data || res.data || {}
     dataEntries.value = Object.entries(data).map(([key, value]) => ({ key, value: String(value ?? '') }))
-  } catch (e: any) { ElMessage.error(e?.message || 'Failed to load data'); dataDialogVisible.value = false }
+  } catch (e: any) { ElMessage.error(e?.message || '加载数据失败'); dataDialogVisible.value = false }
   finally { dataLoading.value = false }
 }
 
@@ -71,21 +71,21 @@ function handleDetail(row: any) { router.push(`/config/configmaps/${row.namespac
 
 async function handleDelete(row: any) {
   try {
-    await ElMessageBox.confirm(`Delete ConfigMap "${row.name}" in namespace "${row.namespace}"?`, 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(`确定要删除命名空间 "${row.namespace}" 中的数据字典 "${row.name}" 吗？`, '确认', { type: 'warning' })
     await deleteConfigMap({ name: row.name, namespace: row.namespace })
-    ElMessage.success('Deleted'); fetchConfigMaps()
+    ElMessage.success('删除成功'); fetchConfigMaps()
   } catch { /* cancelled */ }
 }
 
 async function handleBatchDelete() {
   if (!selectedRows.value.length) return
   try {
-    await ElMessageBox.confirm(`Delete ${selectedRows.value.length} selected ConfigMap(s)?`, 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 个数据字典吗？`, '确认', { type: 'warning' })
     let count = 0
     for (const row of selectedRows.value) {
       try { await deleteConfigMap({ name: row.name, namespace: row.namespace }); count++ } catch { /* continue */ }
     }
-    ElMessage.success(`Deleted ${count} ConfigMap(s)`); fetchConfigMaps()
+    ElMessage.success(`已成功删除 ${count} 个数据字典`); fetchConfigMaps()
   } catch { /* cancelled */ }
 }
 
@@ -129,18 +129,18 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
     <el-card shadow="never" class="table-card">
       <el-table :data="filteredList" v-loading="loading" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
           <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
         </el-table-column>
-        <el-table-column prop="namespace" label="Namespace" width="140" />
-        <el-table-column label="Data Keys" width="120">
+        <el-table-column prop="namespace" label="命名空间" width="140" />
+        <el-table-column label="数据键数量" width="120">
           <template #default="{ row }"><el-tag size="small">{{ row.data_keys_count ?? Object.keys(row.data || {}).length }}</el-tag></template>
         </el-table-column>
-        <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="Actions" width="240" fixed="right">
+        <el-table-column prop="age" label="创建时间" width="120" />
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="primary" @click="handleViewData(row)">Data</el-button>
+            <el-button size="small" type="primary" @click="handleViewData(row)">查看数据</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -156,12 +156,12 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
     <el-dialog v-model="dataDialogVisible" :title="dataDialogTitle" width="60%" top="8vh">
       <div v-loading="dataLoading">
         <el-table :data="dataEntries" stripe style="width: 100%" max-height="400">
-          <el-table-column prop="key" label="Key" min-width="200" show-overflow-tooltip />
-          <el-table-column prop="value" label="Value" min-width="300">
+          <el-table-column prop="key" label="键" min-width="200" show-overflow-tooltip />
+          <el-table-column prop="value" label="值" min-width="300">
             <template #default="{ row }"><div style="white-space: pre-wrap; word-break: break-all; max-height: 100px; overflow-y: auto;">{{ row.value }}</div></template>
           </el-table-column>
         </el-table>
-        <el-empty v-if="!dataLoading && dataEntries.length === 0" description="No data" />
+        <el-empty v-if="!dataLoading && dataEntries.length === 0" description="暂无数据" />
       </div>
     </el-dialog>
   </div>
