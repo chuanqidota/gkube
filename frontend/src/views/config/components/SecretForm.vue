@@ -292,156 +292,189 @@ function handleCancel() {
 
 <template>
   <div class="secret-form">
-    <el-form
-      ref="formRef"
-      :model="form"
-      :rules="rules"
-      label-width="120px"
-      style="max-width: 700px;"
-    >
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+      <!-- Section 1: Basic Info -->
       <div class="form-section">
-        <div class="section-title">基本信息</div>
-        <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" :disabled="isEdit" placeholder="例如: my-secret" />
-        </el-form-item>
-        <el-form-item label="命名空间" prop="namespace">
-          <el-select v-model="form.namespace" :disabled="isEdit" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
-            <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="类型" prop="type">
-          <el-select v-model="form.type" :disabled="isEdit" style="width: 100%;">
-            <el-option v-for="t in secretTypes" :key="t.value" :label="t.label" :value="t.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="标签">
-          <div style="width: 100%;">
-            <div v-for="(label, i) in form.labels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <el-input v-model="label.key" placeholder="键" style="flex: 1;" />
-              <el-input v-model="label.value" placeholder="值" style="flex: 1;" />
-              <el-button type="danger" circle :disabled="form.labels.length <= 1" @click="removeLabel(i)">
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </div>
-            <el-button @click="addLabel" size="small">
-              <el-icon><Plus /></el-icon> 添加标签
-            </el-button>
+        <div class="section-sidebar">
+          <div class="section-title">基本信息</div>
+        </div>
+        <div class="section-content">
+          <div class="fields-grid">
+            <el-form-item label="名称" prop="name">
+              <el-input v-model="form.name" :disabled="isEdit" placeholder="my-secret" />
+            </el-form-item>
+            <el-form-item label="命名空间" prop="namespace">
+              <el-select v-model="form.namespace" :disabled="isEdit" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+                <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="类型" prop="type" class="full-width">
+              <el-select v-model="form.type" :disabled="isEdit" style="width: 100%;">
+                <el-option v-for="t in secretTypes" :key="t.value" :label="t.label" :value="t.value" />
+              </el-select>
+            </el-form-item>
           </div>
-        </el-form-item>
+        </div>
       </div>
 
+      <!-- Section 2: Labels -->
       <div class="form-section">
-        <div class="section-title">数据</div>
-        <el-form-item label="不可变">
-          <el-switch v-model="form.immutable" />
-          <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">设置后不可修改，只能删除重建</div>
-        </el-form-item>
-
-        <!-- TLS 专用表单 -->
-        <template v-if="form.type === 'kubernetes.io/tls'">
-          <el-alert title="TLS Secret 需要证书 (PEM) 和私钥 (PEM) 两个字段。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
-          <el-form-item label="证书 (tls.crt)" required>
+        <div class="section-sidebar">
+          <div class="section-title">标签</div>
+        </div>
+        <div class="section-content">
+          <el-form-item label="标签">
             <div style="width: 100%;">
-              <el-input v-model="tlsData.cert" type="textarea" :rows="6" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----" />
-              <div style="margin-top: 8px;">
-                <label class="file-upload-btn">
-                  <input type="file" accept=".pem,.crt,.cer,.txt" style="display: none;" @change="handleTlsFileUpload('cert', $event)" />
-                  <el-button size="small" type="primary" plain>上传证书文件</el-button>
-                </label>
-              </div>
-            </div>
-          </el-form-item>
-          <el-form-item label="私钥 (tls.key)" required>
-            <div style="width: 100%;">
-              <el-input v-model="tlsData.key" type="textarea" :rows="6" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----" />
-              <div style="margin-top: 8px;">
-                <label class="file-upload-btn">
-                  <input type="file" accept=".pem,.key,.txt" style="display: none;" @change="handleTlsFileUpload('key', $event)" />
-                  <el-button size="small" type="primary" plain>上传私钥文件</el-button>
-                </label>
-              </div>
-            </div>
-          </el-form-item>
-        </template>
-
-        <!-- Docker Config JSON 专用表单 -->
-        <template v-else-if="form.type === 'kubernetes.io/dockerconfigjson'">
-          <el-alert title="Docker Registry 认证信息，将自动编码为 .dockerconfigjson 格式。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
-          <el-form-item label="Registry 地址" required>
-            <el-input v-model="dockerConfig.server" placeholder="https://index.docker.io/v1/" />
-          </el-form-item>
-          <el-form-item label="用户名" required>
-            <el-input v-model="dockerConfig.username" placeholder="用户名" />
-          </el-form-item>
-          <el-form-item label="密码" required>
-            <el-input v-model="dockerConfig.password" type="password" show-password placeholder="密码" />
-          </el-form-item>
-          <el-form-item label="邮箱">
-            <el-input v-model="dockerConfig.email" placeholder="user@example.com" />
-          </el-form-item>
-        </template>
-
-        <!-- 通用数据表单 (Opaque) -->
-        <template v-else>
-          <el-alert title="值将自动进行 Base64 编码后写入 YAML。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
-          <el-form-item label="数据项">
-            <div style="width: 100%;">
-              <div v-for="(entry, i) in form.data" :key="i" class="data-entry-row">
-                <el-input v-model="entry.key" placeholder="Key" style="width: 200px;" />
-                <el-input v-model="entry.value" type="textarea" :rows="2" placeholder="Value" style="flex: 1;" />
-                <label class="file-upload-btn">
-                  <input type="file" style="display: none;" @change="handleFileUpload(entry, $event)" />
-                  <el-button type="primary" text circle>
-                    <el-icon><Upload /></el-icon>
-                  </el-button>
-                </label>
-                <el-button type="danger" circle :disabled="form.data.length <= 1" @click="removeEntry(i)">
+              <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
+                <el-input v-model="label.key" placeholder="Key" />
+                <el-input v-model="label.value" placeholder="Value" />
+                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="removeLabel(i)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button @click="addEntry" size="small">
-                <el-icon><Plus /></el-icon> 添加数据项
+              <el-button text type="primary" @click="addLabel" size="small">
+                <el-icon><Plus /></el-icon> 添加标签
               </el-button>
             </div>
           </el-form-item>
-        </template>
+        </div>
+      </div>
+
+      <!-- Section 3: Data -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">数据</div>
+        </div>
+        <div class="section-content">
+          <el-form-item label="不可变">
+            <div style="width: 100%;">
+              <el-switch v-model="form.immutable" />
+              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">设置后不可修改，只能删除重建</div>
+            </div>
+          </el-form-item>
+
+          <!-- TLS 专用表单 -->
+          <template v-if="form.type === 'kubernetes.io/tls'">
+            <el-alert title="TLS Secret 需要证书 (PEM) 和私钥 (PEM) 两个字段。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+            <el-form-item label="证书 (tls.crt)" required>
+              <div style="width: 100%;">
+                <el-input v-model="tlsData.cert" type="textarea" :rows="6" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----" />
+                <div style="margin-top: 8px;">
+                  <label class="file-upload-btn">
+                    <input type="file" accept=".pem,.crt,.cer,.txt" style="display: none;" @change="handleTlsFileUpload('cert', $event)" />
+                    <el-button size="small" type="primary" plain>上传证书文件</el-button>
+                  </label>
+                </div>
+              </div>
+            </el-form-item>
+            <el-form-item label="私钥 (tls.key)" required>
+              <div style="width: 100%;">
+                <el-input v-model="tlsData.key" type="textarea" :rows="6" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----" />
+                <div style="margin-top: 8px;">
+                  <label class="file-upload-btn">
+                    <input type="file" accept=".pem,.key,.txt" style="display: none;" @change="handleTlsFileUpload('key', $event)" />
+                    <el-button size="small" type="primary" plain>上传私钥文件</el-button>
+                  </label>
+                </div>
+              </div>
+            </el-form-item>
+          </template>
+
+          <!-- Docker Config JSON 专用表单 -->
+          <template v-else-if="form.type === 'kubernetes.io/dockerconfigjson'">
+            <el-alert title="Docker Registry 认证信息，将自动编码为 .dockerconfigjson 格式。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+            <div class="fields-grid">
+              <el-form-item label="Registry 地址" required>
+                <el-input v-model="dockerConfig.server" placeholder="https://index.docker.io/v1/" />
+              </el-form-item>
+              <el-form-item label="用户名" required>
+                <el-input v-model="dockerConfig.username" placeholder="用户名" />
+              </el-form-item>
+              <el-form-item label="密码" required>
+                <el-input v-model="dockerConfig.password" type="password" show-password placeholder="密码" />
+              </el-form-item>
+              <el-form-item label="邮箱">
+                <el-input v-model="dockerConfig.email" placeholder="user@example.com" />
+              </el-form-item>
+            </div>
+          </template>
+
+          <!-- 通用数据表单 (Opaque) -->
+          <template v-else>
+            <el-alert title="值将自动进行 Base64 编码后写入 YAML。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+            <el-form-item label="数据项">
+              <div style="width: 100%;">
+                <div v-for="(entry, i) in form.data" :key="i" class="data-row">
+                  <el-input v-model="entry.key" placeholder="Key" style="width: 220px;" />
+                  <el-input v-model="entry.value" type="textarea" :rows="2" placeholder="Value" style="flex: 1;" />
+                  <label class="file-upload-btn">
+                    <input type="file" style="display: none;" @change="handleFileUpload(entry, $event)" />
+                    <el-button type="primary" text circle>
+                      <el-icon><Upload /></el-icon>
+                    </el-button>
+                  </label>
+                  <el-button type="danger" text circle :disabled="form.data.length <= 1" @click="removeEntry(i)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+                <el-button text type="primary" @click="addEntry" size="small">
+                  <el-icon><Plus /></el-icon> 添加数据项
+                </el-button>
+              </div>
+            </el-form-item>
+          </template>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div class="form-section">
+        <div class="section-sidebar"></div>
+        <div class="section-content">
+          <div class="form-actions">
+            <el-button @click="handleCancel">取消</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
+          </div>
+        </div>
       </div>
     </el-form>
-
-    <div class="form-actions">
-      <el-button @click="handleCancel">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
-    </div>
   </div>
 </template>
 
 <style scoped>
 .secret-form {
-  max-width: 900px;
+  padding: 0 40px;
+  max-width: 1000px;
   margin: 0 auto;
-  padding: 20px 0;
 }
 
+/* Section layout with sidebar titles */
 .form-section {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
+  display: flex;
+  gap: 24px;
+  margin-bottom: 32px;
+  align-items: flex-start;
+}
+
+.section-sidebar {
+  width: 120px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 20px;
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  color: var(--el-color-primary);
+  padding: 12px 16px;
+  background: var(--el-fill-color-lighter);
+  border-left: 3px solid var(--el-color-primary);
+  border-radius: 0 4px 4px 0;
 }
 
-.data-entry-row {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  margin-bottom: 8px;
+.section-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .form-actions {
@@ -449,8 +482,45 @@ function handleCancel() {
   justify-content: flex-end;
   gap: 12px;
   padding-top: 24px;
-  border-top: 1px solid var(--el-border-color-lighter);
-  margin-top: 24px;
+  border-top: 1px solid var(--el-border-color-light);
+}
+
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 32px;
+}
+
+.fields-grid :deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+
+.fields-grid :deep(.el-form-item:last-child) {
+  margin-bottom: 0;
+}
+
+.fields-grid :deep(.el-form-item.full-width) {
+  grid-column: 1 / -1;
+}
+
+/* Key-value rows */
+.kv-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.kv-row :deep(.el-input) {
+  flex: 1;
+}
+
+/* Data rows (key + textarea value) */
+.data-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 8px;
 }
 
 .file-upload-btn {

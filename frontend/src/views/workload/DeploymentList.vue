@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Plus, Delete, Refresh, ScaleToOriginal, Edit, ArrowDown } from '@element-plus/icons-vue'
+import { Plus, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getDeploymentList,
@@ -194,28 +194,15 @@ async function handleImageConfirm() {
         <el-table-column prop="up_to_date" label="最新" width="110" />
         <el-table-column prop="available" label="可用" width="110" />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="340" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-dropdown trigger="click" @command="(cmd: string) => { if (cmd === 'scale') handleQuickScale(row); else if (cmd === 'restart') handleQuickRestart(row); else if (cmd === 'image') handleQuickUpdateImage(row) }">
-              <el-button size="small" type="primary" plain>
-                操作 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="scale">
-                    <el-icon><ScaleToOriginal /></el-icon> 扩缩容
-                  </el-dropdown-item>
-                  <el-dropdown-item command="restart">
-                    <el-icon><Refresh /></el-icon> 重启
-                  </el-dropdown-item>
-                  <el-dropdown-item command="image">
-                    <el-icon><Edit /></el-icon> 更新镜像
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <div class="action-buttons">
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" type="primary" @click="handleQuickScale(row)">扩缩容</el-button>
+              <el-button size="small" type="warning" @click="handleQuickRestart(row)">重启</el-button>
+              <el-button size="small" type="primary" @click="handleQuickUpdateImage(row)">更新镜像</el-button>
+              <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -286,6 +273,15 @@ async function handleImageConfirm() {
   justify-content: center;
   padding: 12px 0;
   border-top: 1px solid var(--el-border-color-lighter);
+}
+.action-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+}
+.action-buttons .el-button + .el-button {
+  margin-left: 0;
 }
 </style>
 

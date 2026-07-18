@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Delete, Refresh } from '@element-plus/icons-vue'
+import { Plus, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getDaemonSetList,
@@ -123,9 +123,7 @@ async function handleQuickRestart(row: any) {
         <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="warning" @click="handleQuickRestart(row)">
-              <el-icon><Refresh /></el-icon> 重启
-            </el-button>
+            <el-button size="small" type="warning" @click="handleQuickRestart(row)">重启</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
