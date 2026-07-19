@@ -1239,3 +1239,117 @@ export function getCronJobEvents(params: { namespace: string; name: string }) {
 export function getCronJobJobs(params: { namespace: string; name: string }) {
   return request.get('/k8s/cronjob/jobs', { params })
 }
+
+// ReplicaSet detail
+export function getReplicaSetDetail(params: { namespace: string; name: string }) {
+  return request.get('/k8s/replicaset/detail', { params })
+}
+
+// CRD custom resource update/patch
+export function updateCustomResource(data: {
+  group: string
+  version: string
+  resource: string
+  namespace?: string
+  yaml: string
+}) {
+  return request.put('/k8s/crd/resource/update', data)
+}
+
+export function patchCustomResource(data: {
+  group: string
+  version: string
+  resource: string
+  namespace?: string
+  name: string
+  patch: string
+  patchType?: 'strategic' | 'merge' | 'json'
+}) {
+  return request.patch('/k8s/crd/resource/patch', data)
+}
+
+// Event API
+export function getEventList(params: {
+  namespace?: string
+  fieldSelector?: string
+  limit?: number
+  continue?: string
+}) {
+  return request.get('/k8s/event/list', { params })
+}
+
+// CronJob operations
+export function suspendCronJob(params: { namespace: string; name: string }) {
+  return request.put('/k8s/cronjob/suspend', undefined, { params })
+}
+
+export function resumeCronJob(params: { namespace: string; name: string }) {
+  return request.put('/k8s/cronjob/resume', undefined, { params })
+}
+
+export function triggerCronJob(params: { namespace: string; name: string }) {
+  return request.post('/k8s/cronjob/trigger', undefined, { params })
+}
+
+// StatefulSet rollback + update-image
+export function rollbackStatefulSet(data: { namespace: string; name: string; revision: number }) {
+  return request.post('/k8s/statefulset/rollback', data)
+}
+
+export function updateStatefulSetImage(data: { namespace: string; name: string; containerName: string; image: string }) {
+  return request.put('/k8s/statefulset/update-image', data)
+}
+
+// DaemonSet rollback + update-image
+export function rollbackDaemonSet(data: { namespace: string; name: string; revision: number }) {
+  return request.post('/k8s/daemonset/rollback', data)
+}
+
+export function updateDaemonSetImage(data: { namespace: string; name: string; containerName: string; image: string }) {
+  return request.put('/k8s/daemonset/update-image', data)
+}
+
+// RBAC detail methods
+export function getServiceAccountDetail(params: { namespace: string; name: string }) {
+  return request.get('/k8s/serviceaccount/detail', { params })
+}
+
+export function createServiceAccount(data: { namespace: string; yaml: string }) {
+  return request.post('/k8s/serviceaccount/create', data)
+}
+
+export function updateServiceAccount(data: { yaml: string }) {
+  return request.put('/k8s/serviceaccount/update', data)
+}
+
+export function getRoleDetail(params: { namespace: string; name: string }) {
+  return request.get('/k8s/role/detail', { params })
+}
+
+export function updateRole(data: { yaml: string }) {
+  return request.put('/k8s/role/update', data)
+}
+
+export function getClusterRoleDetail(params: { name: string }) {
+  return request.get('/k8s/clusterrole/detail', { params })
+}
+
+export function updateClusterRole(data: { yaml: string }) {
+  return request.put('/k8s/clusterrole/update', data)
+}
+
+export function getRoleBindingDetail(params: { namespace: string; name: string }) {
+  return request.get('/k8s/rolebinding/detail', { params })
+}
+
+export function updateRoleBinding(data: { yaml: string }) {
+  return request.put('/k8s/rolebinding/update', data)
+}
+
+export function getClusterRoleBindingDetail(params: { name: string }) {
+  return request.get('/k8s/clusterrolebinding/detail', { params })
+}
+
+export function updateClusterRoleBinding(data: { yaml: string }) {
+  return request.put('/k8s/clusterrolebinding/update', data)
+}

@@ -47,3 +47,11 @@ func CreateClusterRole(client *kubernetes.Clientset, clusterRoleYaml string) (bo
 	}
 	return true, nil
 }
+
+func GetClusterRoleDetail(client *kubernetes.Clientset, name string) (*rbacv1.ClusterRole, error) {
+	return client.RbacV1().ClusterRoles().Get(context.TODO(), name, metav1.GetOptions{})
+}
+
+func UpdateClusterRole(client *kubernetes.Clientset, cr *rbacv1.ClusterRole) (*rbacv1.ClusterRole, error) {
+	return client.RbacV1().ClusterRoles().Update(context.TODO(), cr, metav1.UpdateOptions{})
+}

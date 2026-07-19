@@ -76,18 +76,12 @@ func (p *pdb) GetPDBDetail(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	pdbList, err := k8sPdb.GetPDBList(client, namespace)
+	pdb, err := k8sPdb.GetPDBDetail(client, namespace, name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取PDB详情失败:%s", err.Error()))
 		return
 	}
-	for _, p := range pdbList {
-		if p.Name == name {
-			response.Success(c, "执行成功", p)
-			return
-		}
-	}
-	response.Fail(c, "PDB不存在")
+	response.Success(c, "执行成功", pdb)
 }
 
 func (p *pdb) GetPDBYaml(c *gin.Context) {

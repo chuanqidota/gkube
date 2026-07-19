@@ -193,6 +193,12 @@ const router = createRouter({
           component: () => import('@/views/workload/ReplicaSetList.vue'),
           meta: { title: 'ReplicaSet', icon: 'CopyDocument' },
         },
+        {
+          path: 'workloads/replicasets/:namespace/:name',
+          name: 'ReplicaSetDetail',
+          component: () => import('@/views/workload/ReplicaSetDetail.vue'),
+          meta: { title: 'ReplicaSet 详情' },
+        },
         // Workloads - HPA
         {
           path: 'workloads/hpa',

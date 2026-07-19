@@ -59,3 +59,7 @@ func UpdatePDB(client *kubernetes.Clientset, namespace, yamlContent string) erro
 func DeletePDB(client *kubernetes.Clientset, namespace, name string) error {
 	return client.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
+
+func GetPDBDetail(client *kubernetes.Clientset, namespace, name string) (*policyv1.PodDisruptionBudget, error) {
+	return client.PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}

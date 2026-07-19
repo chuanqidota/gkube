@@ -268,3 +268,70 @@ func (c *crd) CreateCustomResource(ginCtx *gin.Context) {
 	}
 	response.Success(ginCtx, "创建自定义资源成功", nil)
 }
+
+func (c *crd) UpdateCustomResource(ginCtx *gin.Context) {
+	var req struct {
+		ClusterName string `json:"clusterName"`
+		Group       string `json:"group"`
+		Version     string `json:"version"`
+		Resource    string `json:"resource"`
+		Namespace   string `json:"namespace"`
+		Yaml        string `json:"yaml"`
+	}
+	if err := ginCtx.ShouldBindJSON(&req); err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("参数错误:%s", err.Error()))
+		return
+	}
+	if req.Group == "" || req.Version == "" || req.Resource == "" {
+		response.Fail(ginCtx, "group, version, resource参数不能为空")
+		return
+	}
+	client, err := k8s.GetDynamicClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("获取dynamic客户端失败:%s", err.Error()))
+		return
+	}
+	gvr := schema.GroupVersionResource{Group: req.Group, Version: req.Version, Resource: req.Resource}
+	result, err := k8sCrd.UpdateDynamicResource(client, gvr, req.Namespace, req.Yaml)
+	if err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("更新自定义资源失败:%s", err.Error()))
+		return
+	}
+	response.Success(ginCtx, "更新自定义资源成功", result)
+}
+
+func (c *crd) PatchCustomResource(ginCtx *gin.Context) {
+	var req struct {
+		ClusterName string `json:"clusterName"`
+		Group       string `json:"group"`
+		Version     string `json:"version"`
+		Resource    string `json:"resource"`
+		Namespace   string `json:"namespace"`
+		Name        string `json:"name"`
+		Patch       string `json:"patch"`
+		PatchType   string `json:"patchType"`
+	}
+	if err := ginCtx.ShouldBindJSON(&req); err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("参数错误:%s", err.Error()))
+		return
+	}
+	if req.Group == "" || req.Version == "" || req.Resource == "" || req.Name == "" {
+		response.Fail(ginCtx, "group, version, resource, name参数不能为空")
+		return
+	}
+	if req.PatchType == "" {
+		req.PatchType = "strategic"
+	}
+	client, err := k8s.GetDynamicClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("获取dynamic客户端失败:%s", err.Error()))
+		return
+	}
+	gvr := schema.GroupVersionResource{Group: req.Group, Version: req.Version, Resource: req.Resource}
+	result, err := k8sCrd.PatchDynamicResource(client, gvr, req.Namespace, req.Name, req.Patch, req.PatchType)
+	if err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("Patch自定义资源失败:%s", err.Error()))
+		return
+	}
+	response.Success(ginCtx, "Patch自定义资源成功", result)
+}

@@ -50,3 +50,11 @@ func CreateRole(client *kubernetes.Clientset, namespace string, roleYaml string)
 	}
 	return true, nil
 }
+
+func GetRoleDetail(client *kubernetes.Clientset, namespace, name string) (*rbacv1.Role, error) {
+	return client.RbacV1().Roles(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}
+
+func UpdateRole(client *kubernetes.Clientset, namespace string, role *rbacv1.Role) (*rbacv1.Role, error) {
+	return client.RbacV1().Roles(namespace).Update(context.TODO(), role, metav1.UpdateOptions{})
+}

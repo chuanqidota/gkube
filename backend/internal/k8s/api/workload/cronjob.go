@@ -242,3 +242,64 @@ func (cj *cronjob) CronJobJobsList(c *gin.Context) {
 	}
 	response.Success(c, "执行成功", jobList)
 }
+
+func (cj *cronjob) SuspendCronJob(c *gin.Context) {
+	namespace := c.Query("namespace")
+	name := c.Query("name")
+	clusterName := c.Query("clusterName")
+	if name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(clusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	if err := k8sCronjob.SuspendCronJob(client, namespace, name); err != nil {
+		response.Fail(c, fmt.Sprintf("暂停CronJob失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "暂停CronJob成功", nil)
+}
+
+func (cj *cronjob) ResumeCronJob(c *gin.Context) {
+	namespace := c.Query("namespace")
+	name := c.Query("name")
+	clusterName := c.Query("clusterName")
+	if name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(clusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	if err := k8sCronjob.ResumeCronJob(client, namespace, name); err != nil {
+		response.Fail(c, fmt.Sprintf("恢复CronJob失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "恢复CronJob成功", nil)
+}
+
+func (cj *cronjob) TriggerCronJob(c *gin.Context) {
+	namespace := c.Query("namespace")
+	name := c.Query("name")
+	clusterName := c.Query("clusterName")
+	if name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(clusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	job, err := k8sCronjob.TriggerCronJob(client, namespace, name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("触发CronJob失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "触发CronJob成功", job)
+}

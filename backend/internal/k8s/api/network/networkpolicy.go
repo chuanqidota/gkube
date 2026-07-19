@@ -73,18 +73,12 @@ func (np *networkPolicy) GetNetworkPolicyDetail(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	npList, err := k8sNp.GetNetworkPolicyList(client, namespace)
+	npDetail, err := k8sNp.GetNetworkPolicyDetail(client, namespace, name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取NetworkPolicy详情失败:%s", err.Error()))
 		return
 	}
-	for _, n := range npList {
-		if n.Name == name {
-			response.Success(c, "执行成功", n)
-			return
-		}
-	}
-	response.Fail(c, "NetworkPolicy不存在")
+	response.Success(c, "执行成功", npDetail)
 }
 
 func (np *networkPolicy) GetNetworkPolicyYaml(c *gin.Context) {

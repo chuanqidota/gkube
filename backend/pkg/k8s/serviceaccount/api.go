@@ -34,3 +34,15 @@ func GetServiceAccountYaml(client *kubernetes.Clientset, namespace, name string)
 func DeleteServiceAccount(client *kubernetes.Clientset, namespace, name string) error {
 	return client.CoreV1().ServiceAccounts(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
+
+func GetServiceAccountDetail(client *kubernetes.Clientset, namespace, name string) (*corev1.ServiceAccount, error) {
+	return client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}
+
+func CreateServiceAccount(client *kubernetes.Clientset, namespace string, sa *corev1.ServiceAccount) (*corev1.ServiceAccount, error) {
+	return client.CoreV1().ServiceAccounts(namespace).Create(context.TODO(), sa, metav1.CreateOptions{})
+}
+
+func UpdateServiceAccount(client *kubernetes.Clientset, namespace string, sa *corev1.ServiceAccount) (*corev1.ServiceAccount, error) {
+	return client.CoreV1().ServiceAccounts(namespace).Update(context.TODO(), sa, metav1.UpdateOptions{})
+}

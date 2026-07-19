@@ -4,6 +4,8 @@ import (
 	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
+	"time"
+
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -237,4 +239,50 @@ func DeleteCronJobByLabel(client *kubernetes.Clientset, namespace string, labelM
 		return fmt.Errorf("删除cronjob资源失败:%s", err.Error())
 	}
 	return nil
+}
+
+func SuspendCronJob(client *kubernetes.Clientset, namespace, name string) error {
+	ctx := context.TODO()
+	cj, err := client.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	trueVal := true
+	cj.Spec.Suspend = &trueVal
+	_, err = client.BatchV1().CronJobs(namespace).Update(ctx, cj, metav1.UpdateOptions{})
+	return err
+}
+
+func ResumeCronJob(client *kubernetes.Clientset, namespace, name string) error {
+	ctx := context.TODO()
+	cj, err := client.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	falseVal := false
+	cj.Spec.Suspend = &falseVal
+	_, err = client.BatchV1().CronJobs(namespace).Update(ctx, cj, metav1.UpdateOptions{})
+	return err
+}
+
+func TriggerCronJob(client *kubernetes.Clientset, namespace, name string) (*batchv1.Job, error) {
+	ctx := context.TODO()
+	cj, err := client.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-manual-%d", cj.Name, time.Now().Unix()),
+			Namespace: namespace,
+			Annotations: map[string]string{
+				"cronjob.kubernetes.io/instantiate": "manual",
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(cj, batchv1.SchemeGroupVersion.WithKind("CronJob")),
+			},
+		},
+		Spec: cj.Spec.JobTemplate.Spec,
+	}
+	return client.BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 }

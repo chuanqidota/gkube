@@ -1,6 +1,7 @@
 package statefulset
 
 import (
+	"encoding/json"
 	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
@@ -271,4 +272,45 @@ func RestartStatefulSet(client *kubernetes.Clientset, namespace, name string) (b
 		return false, fmt.Errorf("更新statefulSet资源失败:%s", err.Error())
 	}
 	return true, nil
+}
+
+func UpdateStatefulSetImage(client *kubernetes.Clientset, namespace, name, containerName, image string) (*appsv1.StatefulSet, error) {
+	ctx := context.TODO()
+	sts, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for i, c := range sts.Spec.Template.Spec.Containers {
+		if c.Name == containerName {
+			sts.Spec.Template.Spec.Containers[i].Image = image
+			return client.AppsV1().StatefulSets(namespace).Update(ctx, sts, metav1.UpdateOptions{})
+		}
+	}
+	return nil, fmt.Errorf("container %s not found", containerName)
+}
+
+func RollbackStatefulSet(client *kubernetes.Clientset, namespace, name string, revision int64) (*appsv1.StatefulSet, error) {
+	ctx := context.TODO()
+	sts, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	revisions, err := client.AppsV1().ControllerRevisions(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: metav1.FormatLabelSelector(sts.Spec.Selector),
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, rev := range revisions.Items {
+		if rev.Revision == revision {
+			var restored appsv1.StatefulSet
+			if err := json.Unmarshal(rev.Data.Raw, &restored); err != nil {
+				continue
+			}
+			restored.ResourceVersion = sts.ResourceVersion
+			restored.UID = sts.UID
+			return client.AppsV1().StatefulSets(namespace).Update(ctx, &restored, metav1.UpdateOptions{})
+		}
+	}
+	return nil, fmt.Errorf("revision %d not found", revision)
 }

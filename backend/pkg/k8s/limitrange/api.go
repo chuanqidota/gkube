@@ -59,3 +59,7 @@ func UpdateLimitRange(client *kubernetes.Clientset, namespace, yamlContent strin
 func DeleteLimitRange(client *kubernetes.Clientset, namespace, name string) error {
 	return client.CoreV1().LimitRanges(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
+
+func GetLimitRangeDetail(client *kubernetes.Clientset, namespace, name string) (*corev1.LimitRange, error) {
+	return client.CoreV1().LimitRanges(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}

@@ -47,3 +47,11 @@ func CreateClusterRoleBinding(client *kubernetes.Clientset, crbYaml string) (boo
 	}
 	return true, nil
 }
+
+func GetClusterRoleBindingDetail(client *kubernetes.Clientset, name string) (*rbacv1.ClusterRoleBinding, error) {
+	return client.RbacV1().ClusterRoleBindings().Get(context.TODO(), name, metav1.GetOptions{})
+}
+
+func UpdateClusterRoleBinding(client *kubernetes.Clientset, crb *rbacv1.ClusterRoleBinding) (*rbacv1.ClusterRoleBinding, error) {
+	return client.RbacV1().ClusterRoleBindings().Update(context.TODO(), crb, metav1.UpdateOptions{})
+}

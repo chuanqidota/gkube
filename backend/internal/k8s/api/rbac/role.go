@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"sigs.k8s.io/yaml"
 	"gkube/pkg/k8s"
 	k8sRole "gkube/pkg/k8s/role"
 	"gkube/pkg/response"
@@ -112,4 +114,52 @@ func (r *role) CreateRole(c *gin.Context) {
 		return
 	}
 	response.Success(c, "创建Role成功", nil)
+}
+
+func (r *role) GetRoleDetail(c *gin.Context) {
+	namespace := c.Query("namespace")
+	name := c.Query("name")
+	clusterName := c.Query("clusterName")
+	if name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(clusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	role, err := k8sRole.GetRoleDetail(client, namespace, name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取Role详情失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", role)
+}
+
+func (r *role) UpdateRole(c *gin.Context) {
+	var req struct {
+		ClusterName string `json:"clusterName"`
+		Yaml        string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
+		return
+	}
+	client, err := k8s.GetK8sClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	var role rbacv1.Role
+	if err := yaml.Unmarshal([]byte(req.Yaml), &role); err != nil {
+		response.Fail(c, fmt.Sprintf("YAML解析失败:%s", err.Error()))
+		return
+	}
+	result, err := k8sRole.UpdateRole(client, role.Namespace, &role)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("更新Role失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "更新Role成功", result)
 }

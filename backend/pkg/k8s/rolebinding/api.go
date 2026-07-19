@@ -50,3 +50,11 @@ func CreateRoleBinding(client *kubernetes.Clientset, namespace string, rbYaml st
 	}
 	return true, nil
 }
+
+func GetRoleBindingDetail(client *kubernetes.Clientset, namespace, name string) (*rbacv1.RoleBinding, error) {
+	return client.RbacV1().RoleBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}
+
+func UpdateRoleBinding(client *kubernetes.Clientset, namespace string, rb *rbacv1.RoleBinding) (*rbacv1.RoleBinding, error) {
+	return client.RbacV1().RoleBindings(namespace).Update(context.TODO(), rb, metav1.UpdateOptions{})
+}

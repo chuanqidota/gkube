@@ -6,11 +6,9 @@ import (
 	"gkube/internal/k8s/params"
 	"gkube/pkg/k8s"
 	k8sPod "gkube/pkg/k8s/pod"
+	k8sEvent "gkube/pkg/k8s/event"
 	"gkube/pkg/response"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"time"
 )
 
 type pod struct {
@@ -179,7 +177,10 @@ func (p *pod) DeletePodByName(c *gin.Context) {
 
 // WatchPodEvent
 //
-//	@Description: 监听pod的event事件
+//	@Description: streams K8s events for a specific Pod via SSE.
+//	Deprecated: prefer GET /v1/k8s/event/list or /v1/k8s/event/watch.
+//	This endpoint is kept as a backward-compatible alias.
+//
 //	@receiver p
 //	@param c
 func (p *pod) WatchPodEvent(c *gin.Context) {
@@ -188,55 +189,40 @@ func (p *pod) WatchPodEvent(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
 		return
 	}
-	// 1. 初始化客户端
 	client, err := k8s.GetK8sClientByName(query.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	// 2. 创建Watcher
-	watcher, err := client.CoreV1().Pods(query.Namespace).Watch(c.Request.Context(), metav1.ListOptions{
-		FieldSelector: "metadata.name=" + query.PodName,
-	})
+
+	fieldSelector := fmt.Sprintf("involvedObject.name=%s", query.PodName)
+	watcher, err := k8sEvent.WatchEvents(client, query.Namespace, fieldSelector)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("创建watcher失败:%s", err.Error()))
 		return
 	}
 	defer watcher.Stop()
-	// 3. 设置SSE响应头
+
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
 
-	// 4. 实时推送事件
+	ctx := c.Request.Context()
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case event, ok := <-watcher.ResultChan():
 			if !ok {
 				return
 			}
 			if event.Type == watch.Error {
-				c.SSEvent("error", gin.H{"message": "发生错误"})
+				c.SSEvent("error", gin.H{"message": "watch error occurred"})
 				return
-			} else {
-				pod, ok := event.Object.(*corev1.Pod)
-				if !ok {
-					c.SSEvent("error", gin.H{"message": "unexpected event object type"})
-					continue
-				}
-				c.SSEvent("message", gin.H{
-					"type":      event.Type,
-					"name":      pod.Name,
-					"namespace": pod.Namespace,
-					"status":    pod.Status.Phase,
-					"message":   pod.Status.Message,
-					"reason":    pod.Status.Reason,
-					"time":      time.Now().Format(time.DateTime),
-				})
-				c.Writer.Flush()
 			}
-		case <-c.Request.Context().Done():
-			return
+
+			c.SSEvent("message", event.Object)
+			c.Writer.Flush()
 		}
 	}
 }

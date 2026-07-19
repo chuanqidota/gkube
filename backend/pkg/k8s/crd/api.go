@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/yaml"
@@ -127,4 +128,45 @@ func CreateCustomResource(config *rest.Config, gvr schema.GroupVersionResource, 
 		_, err = dynamicClient.Resource(gvr).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
 	}
 	return err
+}
+
+func UpdateDynamicResource(client dynamic.Interface, gvr schema.GroupVersionResource, namespace, yamlContent string) (*unstructured.Unstructured, error) {
+	obj := make(map[string]any)
+	if err := yaml.Unmarshal([]byte(yamlContent), &obj); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal custom resource YAML: %w", err)
+	}
+	unstructuredObj := &unstructured.Unstructured{Object: obj}
+	unstructured.RemoveNestedField(unstructuredObj.Object, "status")
+
+	var result *unstructured.Unstructured
+	var err error
+	if namespace != "" {
+		result, err = client.Resource(gvr).Namespace(namespace).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
+	} else {
+		result, err = client.Resource(gvr).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
+	}
+	return result, err
+}
+
+func PatchDynamicResource(client dynamic.Interface, gvr schema.GroupVersionResource, namespace, name, patchData string, patchType string) (*unstructured.Unstructured, error) {
+	pt := types.StrategicMergePatchType
+	switch patchType {
+	case "merge":
+		pt = types.MergePatchType
+	case "json":
+		pt = types.JSONPatchType
+	case "strategic":
+		pt = types.StrategicMergePatchType
+	default:
+		return nil, fmt.Errorf("unsupported patch type: %s (supported: strategic, merge, json)", patchType)
+	}
+
+	var result *unstructured.Unstructured
+	var err error
+	if namespace != "" {
+		result, err = client.Resource(gvr).Namespace(namespace).Patch(context.TODO(), name, pt, []byte(patchData), metav1.PatchOptions{})
+	} else {
+		result, err = client.Resource(gvr).Patch(context.TODO(), name, pt, []byte(patchData), metav1.PatchOptions{})
+	}
+	return result, err
 }

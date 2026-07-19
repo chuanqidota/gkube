@@ -1,6 +1,7 @@
 package daemonset
 
 import (
+	"encoding/json"
 	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
@@ -252,4 +253,45 @@ func RestartDaemonSet(client *kubernetes.Clientset, namespace, name string) (boo
 		return false, fmt.Errorf("更新daemonSet资源失败:%s", err.Error())
 	}
 	return true, nil
+}
+
+func UpdateDaemonSetImage(client *kubernetes.Clientset, namespace, name, containerName, image string) (*appsv1.DaemonSet, error) {
+	ctx := context.TODO()
+	ds, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for i, c := range ds.Spec.Template.Spec.Containers {
+		if c.Name == containerName {
+			ds.Spec.Template.Spec.Containers[i].Image = image
+			return client.AppsV1().DaemonSets(namespace).Update(ctx, ds, metav1.UpdateOptions{})
+		}
+	}
+	return nil, fmt.Errorf("container %s not found", containerName)
+}
+
+func RollbackDaemonSet(client *kubernetes.Clientset, namespace, name string, revision int64) (*appsv1.DaemonSet, error) {
+	ctx := context.TODO()
+	ds, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	revisions, err := client.AppsV1().ControllerRevisions(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: metav1.FormatLabelSelector(ds.Spec.Selector),
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, rev := range revisions.Items {
+		if rev.Revision == revision {
+			var restored appsv1.DaemonSet
+			if err := json.Unmarshal(rev.Data.Raw, &restored); err != nil {
+				continue
+			}
+			restored.ResourceVersion = ds.ResourceVersion
+			restored.UID = ds.UID
+			return client.AppsV1().DaemonSets(namespace).Update(ctx, &restored, metav1.UpdateOptions{})
+		}
+	}
+	return nil, fmt.Errorf("revision %d not found", revision)
 }

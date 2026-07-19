@@ -65,6 +65,10 @@ func DeleteNetworkPolicy(client *kubernetes.Clientset, namespace, name string) e
 	return client.NetworkingV1().NetworkPolicies(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
 
+func GetNetworkPolicyDetail(client *kubernetes.Clientset, namespace, name string) (*networkingv1.NetworkPolicy, error) {
+	return client.NetworkingV1().NetworkPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}
+
 // GetNetworkPolicyPods returns pods matched by the NetworkPolicy's podSelector.
 func GetNetworkPolicyPods(client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
 	np, err := client.NetworkingV1().NetworkPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})

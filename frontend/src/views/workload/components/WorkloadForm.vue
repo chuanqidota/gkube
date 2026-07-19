@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getNamespaceList, extractNamespaceNames } from '@/api/resource'
-import { createDeployment, createStatefulSet, createDaemonSet, updateDeploymentYaml } from '@/api/resource'
+import { createDeployment, createStatefulSet, createDaemonSet, updateDeploymentYaml, updateStatefulSetYaml, updateDaemonSetYaml, updateJobYaml, updateCronJobYaml } from '@/api/resource'
 
 const props = withDefaults(defineProps<{
   kind: 'Deployment' | 'StatefulSet' | 'DaemonSet' | 'Job' | 'CronJob'
@@ -556,10 +556,18 @@ async function handleSubmit() {
       // Custom submit handler (for edit mode)
       await props.onSubmit(generatedYaml.value)
     } else if (props.isEdit) {
-      // Edit mode - call update API
-      if (props.kind === 'Deployment') {
-        await updateDeploymentYaml({ namespace: form.namespace, name: form.name, yaml: generatedYaml.value })
+      // Edit mode - call update API based on kind
+      const updateFn = props.kind === 'Deployment' ? updateDeploymentYaml
+        : props.kind === 'StatefulSet' ? updateStatefulSetYaml
+        : props.kind === 'DaemonSet' ? updateDaemonSetYaml
+        : props.kind === 'Job' ? updateJobYaml
+        : props.kind === 'CronJob' ? updateCronJobYaml
+        : null
+      if (!updateFn) {
+        ElMessage.error(`不支持的资源类型: ${props.kind}`)
+        return
       }
+      await updateFn({ namespace: form.namespace, name: form.name, yaml: generatedYaml.value })
       ElMessage.success(`${props.kind} 更新成功`)
       emit('success')
     } else {

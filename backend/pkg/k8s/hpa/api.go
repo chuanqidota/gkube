@@ -62,3 +62,7 @@ func UpdateHPA(client *kubernetes.Clientset, namespace, yamlContent string) erro
 func DeleteHPA(client *kubernetes.Clientset, namespace, name string) error {
 	return client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
+
+func GetHPADetail(client *kubernetes.Clientset, namespace, name string) (*autoscalingv2.HorizontalPodAutoscaler, error) {
+	return client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}

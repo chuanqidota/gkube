@@ -10,6 +10,7 @@ import (
 	"gkube/pkg/database"
 
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -33,6 +34,9 @@ var (
 
 	restConfigCache   = make(map[string]cachedClient[*rest.Config])
 	restConfigCacheMu sync.RWMutex
+
+	dynamicClientCache   = make(map[string]cachedClient[dynamic.Interface])
+	dynamicClientCacheMu sync.RWMutex
 )
 
 // getCachedKubeConfig retrieves the kubeconfig for a cluster, using DB lookup
@@ -170,4 +174,34 @@ func GetRestConfigByName(name string) (*rest.Config, error) {
 	restConfigCacheMu.Unlock()
 
 	return config, nil
+}
+
+// GetDynamicClientByName retrieves a dynamic client by cluster name with caching
+func GetDynamicClientByName(name string) (dynamic.Interface, error) {
+	cacheKey := "name:" + name
+
+	dynamicClientCacheMu.RLock()
+	if cached, ok := dynamicClientCache[cacheKey]; ok && time.Now().Before(cached.expiresAt) {
+		dynamicClientCacheMu.RUnlock()
+		return cached.client, nil
+	}
+	dynamicClientCacheMu.RUnlock()
+
+	config, err := GetRestConfigByName(name)
+	if err != nil {
+		return nil, err
+	}
+	client, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("初始化dynamic客户端错误:%s", err.Error())
+	}
+
+	dynamicClientCacheMu.Lock()
+	dynamicClientCache[cacheKey] = cachedClient[dynamic.Interface]{
+		client:    client,
+		expiresAt: time.Now().Add(clientCacheTTL),
+	}
+	dynamicClientCacheMu.Unlock()
+
+	return client, nil
 }

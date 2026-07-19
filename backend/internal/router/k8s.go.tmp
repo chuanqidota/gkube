@@ -112,8 +112,6 @@ func registerWorkloadRoutes(k8s *gin.RouterGroup) {
 	k8s.DELETE("statefulset/delete", k8sWorkload.StatefulSet.DeleteStatefulSetByName)
 	k8s.PUT("statefulset/scale", k8sWorkload.StatefulSet.ScaleStatefulSet)
 	k8s.PUT("statefulset/restart", k8sWorkload.StatefulSet.RestartStatefulSet)
-		k8s.POST("statefulset/rollback", k8sWorkload.StatefulSet.RollbackStatefulSet)
-		k8s.PUT("statefulset/update-image", k8sWorkload.StatefulSet.UpdateStatefulSetImage)
 
 	// DaemonSet
 	k8s.GET("daemonset/list", k8sWorkload.DaemonSet.GetDaemonSetList)
@@ -125,8 +123,6 @@ func registerWorkloadRoutes(k8s *gin.RouterGroup) {
 	k8s.PUT("daemonset/update", k8sWorkload.DaemonSet.UpdateDaemonSet)
 	k8s.DELETE("daemonset/delete", k8sWorkload.DaemonSet.DeleteDaemonSetByName)
 	k8s.POST("daemonset/restart", k8sWorkload.DaemonSet.RestartDaemonSet)
-		k8s.POST("daemonset/rollback", k8sWorkload.DaemonSet.RollbackDaemonSet)
-		k8s.PUT("daemonset/update-image", k8sWorkload.DaemonSet.UpdateDaemonSetImage)
 
 	// Job
 	k8s.GET("job/list", k8sWorkload.Job.GetJobList)
@@ -147,10 +143,6 @@ func registerWorkloadRoutes(k8s *gin.RouterGroup) {
 	k8s.POST("cronjob/create", k8sWorkload.Cronjob.CreateCronJob)
 	k8s.PUT("cronjob/update", k8sWorkload.Cronjob.UpdateCronJob)
 	k8s.DELETE("cronjob/delete", k8sWorkload.Cronjob.DeleteCronJobByName)
-
-		k8s.PUT("cronjob/suspend", k8sWorkload.Cronjob.SuspendCronJob)
-		k8s.PUT("cronjob/resume", k8sWorkload.Cronjob.ResumeCronJob)
-		k8s.POST("cronjob/trigger", k8sWorkload.Cronjob.TriggerCronJob)
 
 	// ReplicaSet
 		k8s.GET("replicaset/list", k8sWorkload.ReplicaSet.GetReplicaSetList)

@@ -63,18 +63,12 @@ func (lr *limitRange) GetLimitRangeDetail(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	lrList, err := k8sLr.GetLimitRangeList(client, namespace)
+	lrDetail, err := k8sLr.GetLimitRangeDetail(client, namespace, name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取LimitRange详情失败:%s", err.Error()))
 		return
 	}
-	for _, l := range lrList {
-		if l.Name == name {
-			response.Success(c, "执行成功", l)
-			return
-		}
-	}
-	response.Fail(c, "LimitRange不存在")
+	response.Success(c, "执行成功", lrDetail)
 }
 
 func (lr *limitRange) GetLimitRangeYaml(c *gin.Context) {

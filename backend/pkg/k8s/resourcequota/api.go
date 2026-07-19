@@ -59,3 +59,7 @@ func UpdateResourceQuota(client *kubernetes.Clientset, namespace, yamlContent st
 func DeleteResourceQuota(client *kubernetes.Clientset, namespace, name string) error {
 	return client.CoreV1().ResourceQuotas(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
+
+func GetResourceQuotaDetail(client *kubernetes.Clientset, namespace, name string) (*corev1.ResourceQuota, error) {
+	return client.CoreV1().ResourceQuotas(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}

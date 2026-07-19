@@ -61,18 +61,12 @@ func (h *hpa) GetHPADetail(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	hpaList, err := k8sHpa.GetHPAList(client, namespace)
+	hpa, err := k8sHpa.GetHPADetail(client, namespace, name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取HPA详情失败:%s", err.Error()))
 		return
 	}
-	for _, h := range hpaList {
-		if h.Name == name {
-			response.Success(c, "执行成功", h)
-			return
-		}
-	}
-	response.Fail(c, "HPA不存在")
+	response.Success(c, "执行成功", hpa)
 }
 
 func (h *hpa) GetHPAYaml(c *gin.Context) {

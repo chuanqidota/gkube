@@ -62,18 +62,12 @@ func (rq *resourceQuota) GetResourceQuotaDetail(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	rqList, err := k8sRq.GetResourceQuotaList(client, namespace)
+	rqDetail, err := k8sRq.GetResourceQuotaDetail(client, namespace, name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取ResourceQuota详情失败:%s", err.Error()))
 		return
 	}
-	for _, r := range rqList {
-		if r.Name == name {
-			response.Success(c, "执行成功", r)
-			return
-		}
-	}
-	response.Fail(c, "ResourceQuota不存在")
+	response.Success(c, "执行成功", rqDetail)
 }
 
 func (rq *resourceQuota) GetResourceQuotaYaml(c *gin.Context) {

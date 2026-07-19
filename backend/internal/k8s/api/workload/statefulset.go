@@ -300,3 +300,60 @@ func (s *statefulSet) RestartStatefulSet(c *gin.Context) {
 	}
 	response.Success(c, "执行成功", nil)
 }
+
+func (s *statefulSet) RollbackStatefulSet(c *gin.Context) {
+	var req struct {
+		ClusterName string `json:"clusterName"`
+		Namespace   string `json:"namespace"`
+		Name        string `json:"name"`
+		Revision    int64  `json:"revision"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
+		return
+	}
+	if req.Name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	result, err := k8sStatefulSet.RollbackStatefulSet(client, req.Namespace, req.Name, req.Revision)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("回滚StatefulSet失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "回滚成功", result)
+}
+
+func (s *statefulSet) UpdateStatefulSetImage(c *gin.Context) {
+	var req struct {
+		ClusterName   string `json:"clusterName"`
+		Namespace     string `json:"namespace"`
+		Name          string `json:"name"`
+		ContainerName string `json:"containerName"`
+		Image         string `json:"image"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
+		return
+	}
+	if req.Name == "" || req.ContainerName == "" || req.Image == "" {
+		response.Fail(c, "name, containerName, image参数不能为空")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(req.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	result, err := k8sStatefulSet.UpdateStatefulSetImage(client, req.Namespace, req.Name, req.ContainerName, req.Image)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("更新StatefulSet镜像失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "更新镜像成功", result)
+}
