@@ -2,8 +2,9 @@ package secret
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+
+	"gkube/pkg/yamlutil"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,15 +52,12 @@ func GetSecretYaml(client *kubernetes.Clientset, namespace, name string) (string
 	if err != nil {
 		return "", err
 	}
-	secretJSON, err := json.Marshal(secret)
+	secret.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"}
+	secretYAML, err := yamlutil.MarshalWithoutManagedFields(secret)
 	if err != nil {
 		return "", err
 	}
-	secretYAML, err := yaml.JSONToYAML(secretJSON)
-	if err != nil {
-		return "", err
-	}
-	return string(secretYAML), nil
+	return secretYAML, nil
 }
 
 // DeleteSecret

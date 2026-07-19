@@ -2,8 +2,9 @@ package configmap
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+
+	"gkube/pkg/yamlutil"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,15 +53,12 @@ func GetConfigMapYaml(client *kubernetes.Clientset, namespace, name string) (str
 	if err != nil {
 		return "", err
 	}
-	configmapJSON, err := json.Marshal(configmap)
+	configmap.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"}
+	configmapYAML, err := yamlutil.MarshalWithoutManagedFields(configmap)
 	if err != nil {
 		return "", err
 	}
-	configmapYAML, err := yaml.JSONToYAML(configmapJSON)
-	if err != nil {
-		return "", err
-	}
-	return string(configmapYAML), nil
+	return configmapYAML, nil
 }
 
 // DeleteConfigMap

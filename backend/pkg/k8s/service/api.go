@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"encoding/json"
+	"gkube/pkg/yamlutil"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -108,15 +108,12 @@ func GetServicesYaml(client *kubernetes.Clientset, namespace, name string) (stri
 	if err != nil {
 		return "", nil
 	}
-	servicesJSON, err := json.Marshal(services)
+	services.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "Service"}
+	servicesYAML, err := yamlutil.MarshalWithoutManagedFields(services)
 	if err != nil {
 		return "", err
 	}
-	servicesYAML, err := yaml.JSONToYAML(servicesJSON)
-	if err != nil {
-		return "", err
-	}
-	return string(servicesYAML), nil
+	return servicesYAML, nil
 }
 
 // CreateService

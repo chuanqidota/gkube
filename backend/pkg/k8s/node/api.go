@@ -2,14 +2,15 @@ package node
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+
+	"gkube/pkg/yamlutil"
+
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/yaml"
 )
 
 // GetNodeYaml
@@ -24,15 +25,12 @@ func GetNodeYaml(client *kubernetes.Clientset, nodeName string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	nodeJSON, err := json.Marshal(node)
+	node.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "Node"}
+	nodeYAML, err := yamlutil.MarshalWithoutManagedFields(node)
 	if err != nil {
 		return "", err
 	}
-	nodeYAML, err := yaml.JSONToYAML(nodeJSON)
-	if err != nil {
-		return "", err
-	}
-	return string(nodeYAML), nil
+	return nodeYAML, nil
 }
 
 // GetNodePods

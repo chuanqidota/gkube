@@ -31,6 +31,17 @@
         </el-button-group>
       </div>
       <div class="toolbar-right">
+        <el-tooltip content="精简视图隐藏 status、resourceVersion 等系统字段" placement="top">
+          <el-switch
+            v-model="showSystemFields"
+            size="small"
+            inline-prompt
+            active-text="完整"
+            inactive-text="精简"
+            :disabled="isDirty"
+            class="fields-switch"
+          />
+        </el-tooltip>
         <el-tag v-if="isEditing" type="success" size="small" effect="plain">Editing</el-tag>
         <el-tag v-else-if="readOnly" type="info" size="small" effect="plain">Read-only</el-tag>
         <el-tooltip content="还原" placement="top">
@@ -73,6 +84,17 @@
 
       <!-- Right: Mode indicator + Fullscreen toggle -->
       <div class="toolbar-right">
+        <el-tooltip content="精简视图隐藏 status、resourceVersion 等系统字段" placement="top">
+          <el-switch
+            v-model="showSystemFields"
+            size="small"
+            inline-prompt
+            active-text="完整"
+            inactive-text="精简"
+            :disabled="isDirty"
+            class="fields-switch"
+          />
+        </el-tooltip>
         <el-tag v-if="isEditing" type="success" size="small" effect="plain">Editing</el-tag>
         <el-tag v-else-if="readOnly" type="info" size="small" effect="plain">Read-only</el-tag>
         <el-tooltip :content="isFullscreen ? '还原' : '最大化'" placement="top">
@@ -133,29 +155,71 @@ const originalContent = ref('')
 const saving = ref(false)
 const displayValue = ref('')
 const isFullscreen = ref(false)
+// 精简/完整视图切换：默认精简（隐藏 status 及系统元数据）
+const showSystemFields = ref(false)
+// 用户是否已修改编辑器内容（脏标记）。为脏时禁用视图切换，避免丢失编辑。
+const isDirty = ref(false)
+// 记录本组件自身最近一次回写的值，用于在 watch 中识别“自己触发的更新”并跳过重渲染
+let lastEmitted: string | null = null
 
-// Track a local formatted version for display
-watch(() => props.modelValue, (val) => {
-  if (props.autoFormat && val) {
-    try {
-      const parsed = yaml.load(val)
-      const formatted = yaml.dump(parsed, {
-        indent: 2,
-        lineWidth: 120,
-        noRefs: true,
-        sortKeys: false,
-      })
-      displayValue.value = formatted
-      if (formatted !== val) {
-        emit('update:modelValue', formatted)
-      }
-    } catch {
-      displayValue.value = val
+const dumpOptions = { indent: 2, lineWidth: 120, noRefs: true, sortKeys: false } as const
+
+function emitModel(v: string) {
+  lastEmitted = v
+  emit('update:modelValue', v)
+}
+
+// 删除仅供服务端展示、编辑时无意义的系统字段
+function stripSystemFields(obj: any) {
+  if (!obj || typeof obj !== 'object') return
+  delete obj.status
+  const md = obj.metadata
+  if (md && typeof md === 'object') {
+    for (const k of ['resourceVersion', 'uid', 'creationTimestamp', 'generation', 'selfLink']) {
+      delete md[k]
     }
-  } else {
-    displayValue.value = val || ''
   }
+}
+
+// 根据传入内容 + 当前视图模式，渲染 Monaco 中显示的文本
+function renderDisplay(source?: string) {
+  const val = source ?? props.modelValue ?? ''
+  if (!val) {
+    displayValue.value = ''
+    return
+  }
+  // 完整视图且不要求自动格式化：原样显示
+  if (showSystemFields.value && !props.autoFormat) {
+    displayValue.value = val
+    return
+  }
+  try {
+    const parsed = yaml.load(val)
+    if (!showSystemFields.value) {
+      stripSystemFields(parsed)
+    }
+    displayValue.value = yaml.dump(parsed, dumpOptions)
+  } catch {
+    // 解析失败则回退显示原文
+    displayValue.value = val
+  }
+}
+
+// modelValue 由父组件更新时（新数据/取消还原）重新渲染并清除脏标记；
+// 若是本组件自身回写触发的，则跳过，避免打断用户输入。
+watch(() => props.modelValue, (val) => {
+  if (val === lastEmitted) {
+    lastEmitted = null
+    return
+  }
+  isDirty.value = false
+  renderDisplay()
 }, { immediate: true })
+
+// 切换精简/完整视图（脏状态下开关禁用，故此处一定是未编辑状态）
+watch(showSystemFields, () => {
+  if (!isDirty.value) renderDisplay()
+})
 
 // Sync isEditing when readOnly prop changes (e.g., parent resets after save)
 watch(() => props.readOnly, (val) => {
@@ -189,9 +253,11 @@ function handleSave() {
 function handleCancel() {
   isEditing.value = false
   saving.value = false
+  isDirty.value = false
   if (originalContent.value !== props.modelValue) {
-    emit('update:modelValue', originalContent.value)
+    emitModel(originalContent.value)
   }
+  renderDisplay(originalContent.value)
 }
 
 // Force Monaco to re-layout after dialog open animation
@@ -204,19 +270,16 @@ function handleEditorMount() {
 }
 
 function handleChange(value: string) {
-  emit('update:modelValue', value)
+  isDirty.value = true
+  emitModel(value)
 }
 
 function handleFormat() {
   try {
     const parsed = yaml.load(props.modelValue)
-    const formatted = yaml.dump(parsed, {
-      indent: 2,
-      lineWidth: 120,
-      noRefs: true,
-      sortKeys: false,
-    })
-    emit('update:modelValue', formatted)
+    const formatted = yaml.dump(parsed, dumpOptions)
+    emitModel(formatted)
+    displayValue.value = formatted
     ElMessage.success('Formatted')
   } catch (e: any) {
     ElMessage.error('Invalid YAML: ' + (e.message || 'Format failed'))

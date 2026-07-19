@@ -2,8 +2,9 @@ package ingress
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+
+	"gkube/pkg/yamlutil"
 
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -96,15 +97,12 @@ func GetIngressYaml(client *kubernetes.Clientset, namespace, name string) (strin
 	if err != nil {
 		return "", nil
 	}
-	ingressJSON, err := json.Marshal(ingress)
+	ingress.TypeMeta = metav1.TypeMeta{APIVersion: "networking.k8s.io/v1", Kind: "Ingress"}
+	ingressYAML, err := yamlutil.MarshalWithoutManagedFields(ingress)
 	if err != nil {
 		return "", err
 	}
-	ingressYAML, err := yaml.JSONToYAML(ingressJSON)
-	if err != nil {
-		return "", err
-	}
-	return string(ingressYAML), nil
+	return ingressYAML, nil
 }
 
 // CreateIngress
