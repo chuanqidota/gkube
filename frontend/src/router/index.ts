@@ -52,6 +52,13 @@ const router = createRouter({
           path: 'system/overview',
           redirect: '/dashboard',
         },
+        // 404 catch-all inside the app shell (keeps sidebar/header)
+        {
+          path: ':pathMatch(.*)*',
+          name: 'NotFound',
+          component: () => import('@/views/system/NotFound.vue'),
+          meta: { title: '页面不存在' },
+        },
         // Clusters
         {
           path: 'clusters',
@@ -596,12 +603,18 @@ const router = createRouter({
 router.beforeEach((to, _from, next) => {
   const token = getToken()
   if (!to.meta.public && !token) {
-    next('/login')
+    // Preserve the intended destination so login can return the user there
+    next({ path: '/login', query: to.fullPath !== '/' ? { redirect: to.fullPath } : {} })
   } else if (to.path === '/login' && token) {
     next('/dashboard')
   } else {
     next()
   }
+})
+
+router.afterEach((to) => {
+  const title = to.meta.title as string | undefined
+  document.title = title ? `${title} - GKube` : 'GKube - Kubernetes 管理平台'
 })
 
 export default router

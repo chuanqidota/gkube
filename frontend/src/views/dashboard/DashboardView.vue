@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getOverview, getWorkloads, getEvents, getResources } from '@/api/dashboard'
@@ -137,10 +137,12 @@ function initGauges() {
       }]
     })
   }
-  window.addEventListener('resize', () => {
-    cpuChart?.resize()
-    memChart?.resize()
-  })
+  window.addEventListener('resize', handleChartResize)
+}
+
+function handleChartResize() {
+  cpuChart?.resize()
+  memChart?.resize()
 }
 
 const workloadItems = computed(() => [
@@ -217,6 +219,14 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 onMounted(() => {
   fetchAll()
   nextTick(initGauges)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleChartResize)
+  cpuChart?.dispose()
+  memChart?.dispose()
+  cpuChart = null
+  memChart = null
 })
 </script>
 

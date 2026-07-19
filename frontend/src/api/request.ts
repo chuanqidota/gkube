@@ -109,10 +109,17 @@ request.interceptors.response.use(
           throw new Error('刷新Token响应格式异常')
         }
       } catch {
-        // Refresh failed: clear tokens and redirect to login
+        // Refresh failed: clear tokens and redirect to login (preserve intended destination)
         removeToken()
         pendingRequests = []
-        window.location.href = '/login'
+        const { pathname, search } = window.location
+        const current = pathname + search
+        const target = current && current !== '/login'
+          ? `/login?redirect=${encodeURIComponent(current)}`
+          : '/login'
+        if (pathname !== '/login') {
+          window.location.assign(target)
+        }
         // 返回一个永不 resolve 的 Promise，阻止原始请求继续抛出错误
         return new Promise(() => {})
       } finally {

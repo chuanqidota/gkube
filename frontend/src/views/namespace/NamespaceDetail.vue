@@ -6,6 +6,7 @@ import { Plus, Delete, Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue
 import {
   getNamespaceDetail,
   getNamespaceYaml,
+  updateNamespace,
   deleteNamespace,
   updateNamespaceLabels,
   getResourceQuotaList,
@@ -16,6 +17,7 @@ import {
 import { useNamespaceStore } from '@/stores/namespace'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import yaml from 'js-yaml'
 
 const route = useRoute()
 const router = useRouter()
@@ -276,18 +278,33 @@ function handleEditAnnotations() {
 function addAnnotation() { annotationsArray.value.push({ key: '', value: '' }) }
 function removeAnnotation(i: number) { annotationsArray.value.splice(i, 1) }
 
+const annotationsSaving = ref(false)
+
 async function handleSaveAnnotations() {
+  const annotations: Record<string, string> = {}
+  annotationsArray.value.forEach((a) => {
+    if (a.key.trim()) annotations[a.key.trim()] = a.value
+  })
+  annotationsSaving.value = true
   try {
-    const annotations: Record<string, string> = {}
-    annotationsArray.value.forEach((a) => {
-      if (a.key.trim()) annotations[a.key.trim()] = a.value
-    })
-    // Save annotations via YAML update since we don't have a dedicated API
-    await getNamespaceYaml({ name })
-    ElMessage.info('注解请通过 YAML 编辑')
+    // 后端无专门的注解更新接口，通过全量 YAML 更新实现：拉取当前 YAML → 覆盖 annotations → 提交
+    const res: any = await getNamespaceYaml({ name })
+    const raw = res.data?.yaml ?? res.data ?? ''
+    const doc: any = yaml.load(raw) || {}
+    if (!doc.metadata) doc.metadata = {}
+    if (Object.keys(annotations).length > 0) {
+      doc.metadata.annotations = annotations
+    } else {
+      delete doc.metadata.annotations
+    }
+    await updateNamespace({ yaml: yaml.dump(doc) })
+    ElMessage.success('注解已更新')
     annotationsDialogVisible.value = false
+    fetchDetail()
   } catch (e: any) {
     ElMessage.error(e?.message || '更新注解失败')
+  } finally {
+    annotationsSaving.value = false
   }
 }
 
@@ -570,7 +587,7 @@ onMounted(() => {
       </el-button>
       <template #footer>
         <el-button @click="annotationsDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveAnnotations">保存</el-button>
+        <el-button type="primary" :loading="annotationsSaving" @click="handleSaveAnnotations">保存</el-button>
       </template>
     </el-dialog>
 

@@ -1,134 +1,44 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { getPvList, getPvYaml, updatePvYaml, deletePv, transformPvs, type Pv } from '@/api/resource'
+import { getPvList, getPvYaml, updatePvYaml, deletePv, transformPvs } from '@/api/resource'
+import { statusType } from '@/utils/helpers'
+import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
-const router = useRouter()
-const loading = ref(false)
-const pvList = ref<Pv[]>([])
-const searchName = ref('')
-const selectedRows = ref<any[]>([])
-
-// YAML drawer state
-const yamlDialogVisible = ref(false)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
-const yamlSaving = ref(false)
-const yamlTarget = ref<any>(null)
-
-const filteredList = computed(() => {
-  if (!searchName.value) return pvList.value
-  const keyword = searchName.value.toLowerCase()
-  return pvList.value.filter((d) => d.name?.toLowerCase().includes(keyword))
+const {
+  loading,
+  filteredList,
+  searchName,
+  onSearchInput,
+  selectedRows,
+  yamlDialogVisible,
+  yamlContent,
+  yamlLoading,
+  yamlSaving,
+  totalCount,
+  fetchResources,
+  handleSelectionChange,
+  handleViewYaml,
+  handleSaveYaml,
+  handleCancelYaml,
+  handleDetail,
+  handleDelete,
+  handleBatchDelete,
+} = useResourceList({
+  resourceName: 'PersistentVolume',
+  fetchList: getPvList,
+  transform: transformPvs,
+  getYaml: getPvYaml,
+  updateYaml: updatePvYaml,
+  deleteResource: deletePv,
+  detailRoute: '/storage/pvs',
+  deleteConfirm: (row) => `删除持久卷 "${row.name}"?`,
 })
 
-function onSearchInput(val: string) { searchName.value = val }
-
-async function fetchPvs() {
-  loading.value = true
-  try {
-    const res: any = await getPvList()
-    const items = res.data?.items || res.data || []
-    pvList.value = transformPvs(items)
-  } catch {
-    // Silently handle — resource may not exist in cluster
-  } finally {
-    loading.value = false
-  }
-}
-
-function handleSelectionChange(rows: any[]) {
-  selectedRows.value = rows
-}
-
-function statusType(status: string) {
-  const s = (status || '').toLowerCase()
-  if (s === 'bound') return 'success'
-  if (s === 'available') return 'primary'
-  if (s === 'released') return 'warning'
-  if (s === 'failed') return 'danger'
-  return 'info'
-}
-
-async function handleViewYaml(row: any) {
-  yamlTarget.value = row
-  yamlDialogVisible.value = true
-  yamlLoading.value = true
-  yamlContent.value = ''
-  try {
-    const res: any = await getPvYaml({ name: row.name })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load YAML')
-    yamlDialogVisible.value = false
-  } finally {
-    yamlLoading.value = false
-  }
-}
-
-async function handleSaveYaml() {
-  if (!yamlTarget.value) return
-  yamlSaving.value = true
-  try {
-    await updatePvYaml({ name: yamlTarget.value.name, yaml: yamlContent.value })
-    ElMessage.success('YAML saved successfully')
-    yamlDialogVisible.value = false
-    fetchPvs()
-  } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to save YAML')
-  } finally {
-    yamlSaving.value = false
-  }
-}
-
-function handleCancelYaml() {
-  yamlDialogVisible.value = false
-}
-
-function handleDetail(row: any) {
-  router.push(`/storage/pvs/${row.name}`)
-}
-
-async function handleDelete(row: any) {
-  try {
-    await ElMessageBox.confirm(`删除持久卷 "${row.name}"?`, '确认', { type: 'warning' })
-    await deletePv({ name: row.name })
-    ElMessage.success('删除成功')
-    fetchPvs()
-  } catch {
-    /* cancelled */
-  }
-}
-
-async function handleBatchDelete() {
-  if (!selectedRows.value.length) return
-  try {
-    await ElMessageBox.confirm(`删除选中的 ${selectedRows.value.length} 个持久卷?`, '确认', { type: 'warning' })
-    const results = await Promise.allSettled(
-      selectedRows.value.map((row) => deletePv({ name: row.name }))
-    )
-    const successCount = results.filter((r) => r.status === 'fulfilled').length
-    const failCount = results.filter((r) => r.status === 'rejected').length
-    if (failCount > 0) {
-      ElMessage.warning(`删除成功 ${successCount} 个，失败 ${failCount} 个`)
-    } else {
-      ElMessage.success(`成功删除 ${successCount} 个持久卷`)
-    }
-    fetchPvs()
-  } catch {
-    /* cancelled */
-  }
-}
-
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchPvs)
-
-onMounted(fetchPvs)
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
 </script>
 
 <template>
@@ -136,12 +46,12 @@ onMounted(fetchPvs)
     <ResourceListToolbar
       :search-value="searchName"
       :show-namespace="false"
-      :total-count="pvList.length"
+      :total-count="totalCount"
       :selected-count="selectedRows.length"
       @search-input="onSearchInput"
     >
       <template #actions>
-        <el-button type="success" @click="router.push('/storage/pvs/create')">
+        <el-button type="success" @click="$router.push('/storage/pvs/create')">
           <el-icon><Plus /></el-icon> 创建
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">

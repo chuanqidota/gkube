@@ -108,8 +108,9 @@ export function useResourceList(options: ResourceListOptions) {
         list.value = options.transform ? options.transform(items) : items
         totalCount.value = list.value.length
       }
-    } catch {
-      // Silently handle fetch failure — resource type may not exist in cluster
+    } catch (e) {
+      // Resource type may legitimately not exist in the cluster; log rather than swallow silently
+      console.error(`[useResourceList] Failed to fetch ${options.resourceName} list:`, e)
     } finally {
       loading.value = false
     }
@@ -219,7 +220,11 @@ export function useResourceList(options: ResourceListOptions) {
 
   function handleDetail(row: any) {
     if (options.detailRoute) {
-      router.push(`${options.detailRoute}/${row.namespace}/${row.name}`)
+      // Cluster-scoped resources have no namespace segment
+      const path = row.namespace
+        ? `${options.detailRoute}/${row.namespace}/${row.name}`
+        : `${options.detailRoute}/${row.name}`
+      router.push(path)
     }
   }
 

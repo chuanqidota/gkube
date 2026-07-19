@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { Bell, Warning, InfoFilled, Search } from '@element-plus/icons-vue'
 import { getDashboardEvents, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -13,11 +14,12 @@ const loading = ref(false)
 const eventList = ref<any[]>([])
 const namespaceList = ref<string[]>([])
 
-// Pagination
+// Pagination (K8s continue tokens are opaque, forward-only — use a token stack for prev/next)
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(50)
-const continueToken = ref('')
+const nextToken = ref('')          // continue token returned for the *next* page
+const pageTokens = ref<string[]>([]) // token used to load each page; pageTokens[i] loads page i+1
 const hasMore = ref(false)
 
 // Filters
@@ -53,7 +55,9 @@ async function fetchEvents() {
     }
     if (selectedType.value) params.type = selectedType.value
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
-    if (continueToken.value) params.continue = continueToken.value
+    // Token used to load the current page (empty for the first page)
+    const token = pageTokens.value[currentPage.value - 1] || ''
+    if (token) params.continue = token
 
     const res: any = await getDashboardEvents(params)
     const data = res.data || {}
@@ -61,31 +65,43 @@ async function fetchEvents() {
     eventList.value = data.items || []
     total.value = data.total || 0
     hasMore.value = data.has_more || false
-    continueToken.value = data.continue || ''
-  } catch {
-    // Silently handle — resource may not exist in cluster
+    nextToken.value = data.continue || ''
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.loadFailed'))
+    eventList.value = []
   } finally {
     loading.value = false
   }
 }
 
-function handleFilterChange() {
-  continueToken.value = ''
+function resetPagination() {
   currentPage.value = 1
+  pageTokens.value = []
+  nextToken.value = ''
+}
+
+function handleFilterChange() {
+  resetPagination()
   fetchEvents()
 }
 
-function handlePageChange(page: number) {
-  currentPage.value = page
-  // Calculate continue token based on page
-  continueToken.value = String((page - 1) * pageSize.value)
+function handlePrevPage() {
+  if (currentPage.value <= 1) return
+  currentPage.value--
+  fetchEvents()
+}
+
+function handleNextPage() {
+  if (!hasMore.value || !nextToken.value) return
+  // Record the token needed to load the next page, then advance
+  pageTokens.value[currentPage.value] = nextToken.value
+  currentPage.value++
   fetchEvents()
 }
 
 function handleSizeChange(size: number) {
   pageSize.value = size
-  continueToken.value = ''
-  currentPage.value = 1
+  resetPagination()
   fetchEvents()
 }
 
@@ -340,17 +356,26 @@ onMounted(() => {
         />
       </el-table>
 
-      <!-- Pagination -->
+      <!-- Pagination (token-based: forward-only prev/next) -->
       <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :total="total"
-          :page-sizes="[20, 50, 100, 200]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @current-change="handlePageChange"
-          @size-change="handleSizeChange"
-        />
+        <el-select
+          v-model="pageSize"
+          size="small"
+          style="width: 120px; margin-right: 12px;"
+          @change="handleSizeChange"
+        >
+          <el-option v-for="s in [20, 50, 100, 200]" :key="s" :value="s" :label="`${s} / ${t('common.page')}`" />
+        </el-select>
+        <span class="page-total">{{ t('common.total') }}: {{ total }}</span>
+        <el-button-group>
+          <el-button size="small" :disabled="currentPage <= 1 || loading" @click="handlePrevPage">
+            {{ t('common.prevPage') }}
+          </el-button>
+          <el-button size="small" disabled>{{ currentPage }}</el-button>
+          <el-button size="small" :disabled="!hasMore || loading" @click="handleNextPage">
+            {{ t('common.nextPage') }}
+          </el-button>
+        </el-button-group>
       </div>
 
       <el-empty v-if="!loading && filteredEvents.length === 0" :description="t('event.noEvents')" />

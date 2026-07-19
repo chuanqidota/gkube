@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
@@ -8,6 +8,7 @@ import { User, Lock, Connection } from '@element-plus/icons-vue'
 import { getOidcLoginUrl } from '@/api/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const { t } = useI18n()
 
@@ -42,7 +43,8 @@ async function handleLogin() {
   loading.value = true
   try {
     await authStore.login({ username: form.username, password: form.password })
-    router.push('/dashboard')
+    const redirect = route.query.redirect
+    router.push(typeof redirect === 'string' ? redirect : '/dashboard')
   } catch (e: any) {
     ElMessage.error(e?.message || t('login.loginFailed'))
   } finally {

@@ -1,98 +1,63 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Search } from '@element-plus/icons-vue'
-import { getPdbList, getPdbYaml, deletePdb, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { Plus, Delete } from '@element-plus/icons-vue'
+import { getPdbList, getPdbYaml, deletePdb } from '@/api/resource'
+import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
+import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
-const router = useRouter()
-const loading = ref(false)
-const pdbList = ref<any[]>([])
-const namespaceList = ref<string[]>([])
-const selectedNamespace = ref('')
-const searchName = ref('')
-const selectedRows = ref<any[]>([])
-const yamlDialogVisible = ref(false)
-const yamlContent = ref('')
-const yamlLoading = ref(false)
-
-const filteredList = computed(() => {
-  if (!searchName.value) return pdbList.value
-  const keyword = searchName.value.toLowerCase()
-  return pdbList.value.filter((d) => d.name?.toLowerCase().includes(keyword))
+const {
+  loading,
+  filteredList,
+  selectedNamespace,
+  searchName,
+  onSearchInput,
+  selectedRows,
+  namespaceList,
+  yamlDialogVisible,
+  yamlContent,
+  yamlLoading,
+  totalCount,
+  fetchResources,
+  handleNamespaceChange,
+  handleSelectionChange,
+  handleViewYaml,
+  handleDetail,
+  handleDelete,
+  handleBatchDelete,
+} = useResourceList({
+  resourceName: 'PDB',
+  fetchList: getPdbList,
+  getYaml: getPdbYaml,
+  deleteResource: deletePdb,
+  detailRoute: '/workloads/pdb',
+  deleteConfirm: (row) => `确定要删除命名空间 "${row.namespace}" 下的 PDB "${row.name}" 吗？`,
 })
 
-async function fetchNamespaces() {
-  try {
-    const res: any = await getNamespaceList()
-    namespaceList.value = extractNamespaceNames(res.data)
-  } catch { /* ignore */ }
-}
-
-async function fetchPdbs() {
-  loading.value = true
-  try {
-    const params: any = {}
-    if (selectedNamespace.value) params.namespace = selectedNamespace.value
-    const res: any = await getPdbList(params)
-    pdbList.value = res.data || []
-  } catch {
-    // Silently handle — resource may not exist in cluster
-  } finally { loading.value = false }
-}
-
-function handleNamespaceChange() { fetchPdbs() }
-function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
-
-async function handleViewYaml(row: any) {
-  yamlDialogVisible.value = true; yamlLoading.value = true; yamlContent.value = ''
-  try {
-    const res: any = await getPdbYaml({ namespace: row.namespace, name: row.name })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) { ElMessage.error(e?.message || 'Failed to load YAML'); yamlDialogVisible.value = false }
-  finally { yamlLoading.value = false }
-}
-
-function handleDetail(row: any) { router.push(`/workloads/pdb/${row.namespace}/${row.name}`) }
-
-async function handleDelete(row: any) {
-  try {
-    await ElMessageBox.confirm(`Delete PDB "${row.name}" in namespace "${row.namespace}"?`, 'Confirm', { type: 'warning' })
-    await deletePdb({ namespace: row.namespace, name: row.name })
-    ElMessage.success('PDB deleted'); fetchPdbs()
-  } catch { /* cancelled */ }
-}
-
-async function handleBatchDelete() {
-  if (!selectedRows.value.length) return
-  try {
-    await ElMessageBox.confirm(`Delete ${selectedRows.value.length} selected PDB(s)?`, 'Confirm', { type: 'warning' })
-    let count = 0
-    for (const row of selectedRows.value) {
-      try { await deletePdb({ namespace: row.namespace, name: row.name }); count++ } catch { /* continue */ }
-    }
-    ElMessage.success(`Deleted ${count} PDB(s)`); fetchPdbs()
-  } catch { /* cancelled */ }
-}
-
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchPdbs)
-
-onMounted(() => { fetchNamespaces(); fetchPdbs() })
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
 </script>
 
 <template>
   <div class="page-container">
-    <el-card shadow="never" class="filter-card">
-      <div class="filter-bar">
-        <el-input v-model="searchName" placeholder="Search by name" style="width: 220px;" clearable>
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
-        <el-select v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 180px;" @change="handleNamespaceChange">
-          <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
-        </el-select>
+    <ResourceListToolbar
+      :search-value="searchName"
+      v-model:namespace-value="selectedNamespace"
+      :namespace-list="namespaceList"
+      :total-count="totalCount"
+      :selected-count="selectedRows.length"
+      @search-input="onSearchInput"
+      @namespace-change="handleNamespaceChange"
+    >
+      <template #actions>
+        <el-button type="success" @click="$router.push('/workloads/pdb/create')">
+          <el-icon><Plus /></el-icon> 创建 PDB
+        </el-button>
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+        </el-button>
+      </template>
+      <template #extra>
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -103,33 +68,34 @@ onMounted(() => { fetchNamespaces(); fetchPdbs() })
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button type="success" @click="router.push('/workloads/pdb/create')"><el-icon><Plus /></el-icon> 创建 PDB</el-button>
-        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})</el-button>
-      </div>
-    </el-card>
+      </template>
+    </ResourceListToolbar>
+
     <el-card shadow="never" class="table-card">
       <el-table :data="filteredList" v-loading="loading" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
           <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
         </el-table-column>
-        <el-table-column prop="namespace" label="Namespace" width="140" />
-        <el-table-column prop="min_available" label="Min Available" width="130" />
-        <el-table-column prop="max_unavailable" label="Max Unavailable" width="140" />
-        <el-table-column prop="selector" label="Selector" min-width="200" show-overflow-tooltip />
-        <el-table-column label="Allowed" width="100">
+        <el-table-column prop="namespace" label="命名空间" width="140" />
+        <el-table-column prop="min_available" label="最小可用" width="130" />
+        <el-table-column prop="max_unavailable" label="最大不可用" width="140" />
+        <el-table-column prop="selector" label="选择器" min-width="200" show-overflow-tooltip />
+        <el-table-column label="允许中断数" width="110">
           <template #default="{ row }"><el-tag :type="row.allowed > 0 ? 'success' : 'danger'" size="small">{{ row.allowed }}</el-tag></template>
         </el-table-column>
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="Actions" width="200" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
+            <el-button size="small" type="primary" @click="handleDetail(row)">详情</el-button>
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
-    <!-- YAML Drawer -->
+
+    <!-- YAML Drawer (read-only) -->
     <el-drawer v-model="yamlDialogVisible" title="PDB YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
       <div v-loading="yamlLoading" style="height: 100%;">
@@ -141,8 +107,6 @@ onMounted(() => { fetchNamespaces(); fetchPdbs() })
 
 <style scoped>
 .page-container { padding: 20px; }
-.filter-card { margin-bottom: 16px; }
-.filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .table-card { border-radius: 8px; }
 </style>
 

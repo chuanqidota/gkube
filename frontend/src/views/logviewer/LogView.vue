@@ -37,6 +37,16 @@ const isEmbedded = ref(false)
 
 let abortController: AbortController | null = null
 
+// Cap retained log lines to avoid unbounded memory growth on long-running streams
+const MAX_LOG_LINES = 5000
+function appendLog(text: string) {
+  logContent.value += text
+  const lines = logContent.value.split('\n')
+  if (lines.length > MAX_LOG_LINES) {
+    logContent.value = lines.slice(lines.length - MAX_LOG_LINES).join('\n')
+  }
+}
+
 const statusTextMap: Record<ConnectionStatus, () => string> = {
   disconnected: () => t('log.disconnected'),
   connecting: () => t('log.connecting'),
@@ -63,8 +73,8 @@ async function fetchClusters() {
       name: c.cluster_name || c.name,
       displayName: c.display_name || c.cluster_name || c.name,
     }))
-  } catch {
-    // silently fail
+  } catch (e) {
+    console.error('[LogView] Failed to load clusters:', e)
   }
 }
 
@@ -84,8 +94,8 @@ async function fetchNamespaces() {
     const json = await res.json()
     const nsData = json?.data?.namespaces || json?.data || json?.namespaces || []
     namespaces.value = nsData.map((n: any) => typeof n === 'string' ? n : n.name)
-  } catch {
-    // silently fail
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.loadFailed'))
   }
 }
 
@@ -106,8 +116,8 @@ async function fetchPods() {
     const json = await res.json()
     const podData = json?.data || json || []
     pods.value = (Array.isArray(podData) ? podData : []).map((p: any) => typeof p === 'string' ? p : (p.metadata?.name || p.name))
-  } catch {
-    // silently fail
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.loadFailed'))
   }
 }
 
@@ -153,12 +163,12 @@ async function startLogStream() {
 
     if (!response.ok) {
       status.value = 'error'
-      logContent.value += `[Error] HTTP ${response.status}: ${response.statusText}\n`
+      appendLog(`[Error] HTTP ${response.status}: ${response.statusText}\n`)
       return
     }
 
     status.value = 'connected'
-    logContent.value += t('log.connectedToStream') + '\n'
+    appendLog(t('log.connectedToStream') + '\n')
 
     const reader = response.body?.getReader()
     if (!reader) {
@@ -181,10 +191,10 @@ async function startLogStream() {
         if (line.startsWith('data:')) {
           const data = line.slice(5).trim()
           if (data) {
-            logContent.value += data + '\n'
+            appendLog(data + '\n')
           }
         } else if (line.trim() && !line.startsWith(':')) {
-          logContent.value += line + '\n'
+          appendLog(line + '\n')
         }
       }
 
@@ -197,7 +207,7 @@ async function startLogStream() {
       status.value = 'disconnected'
     } else {
       status.value = 'error'
-      logContent.value += `[Error] ${err.message}\n`
+      appendLog(`[Error] ${err.message}\n`)
     }
   }
 }

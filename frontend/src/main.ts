@@ -17,6 +17,11 @@ initTheme()
 
 const app = createApp(App)
 
+// Global error handler: surface uncaught render/runtime errors instead of a blank subtree
+app.config.errorHandler = (err, _instance, info) => {
+  console.error('[gkube] Uncaught error:', err, info)
+}
+
 // Register all Element Plus icons globally
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
