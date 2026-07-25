@@ -7,6 +7,7 @@ import (
 	"context"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -34,6 +35,22 @@ func GetReplicaSetYaml(client *kubernetes.Clientset, namespace, name string) (st
 
 func DeleteReplicaSet(client *kubernetes.Clientset, namespace, name string) error {
 	return client.AppsV1().ReplicaSets(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+// GetReplicaSetPodList returns the full Pod list controlled by the ReplicaSet (matched by its selector).
+func GetReplicaSetPodList(client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
+	rs, err := client.AppsV1().ReplicaSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取ReplicaSet资源失败:%s", err.Error())
+	}
+	selector := metav1.FormatLabelSelector(rs.Spec.Selector)
+	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: selector,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
+	}
+	return podList, nil
 }
 
 // PodSummary contains a brief summary of a Pod

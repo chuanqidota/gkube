@@ -899,11 +899,21 @@ export function getReplicaSetList(params?: { namespace?: string; cluster_id?: nu
 }
 
 export function getReplicaSetYaml(params: { namespace: string; name: string }) {
-  return request.get('/k8s/replicaset/yaml', { params })
+  return request.get('/k8s/replicaset/get-yaml', { params })
 }
 
 export function deleteReplicaSet(params: { namespace: string; name: string }) {
   return request.delete('/k8s/replicaset/delete', { params })
+}
+
+// 获取 ReplicaSet 关联的 Pod 列表
+export function getReplicaSetPodList(params: { namespace: string; name: string }) {
+  return request.get('/k8s/replicaset/pods', { params })
+}
+
+// 获取 ReplicaSet 事件
+export function getReplicaSetEvents(params: { namespace: string; name: string }) {
+  return request.get('/k8s/replicaset/events', { params })
 }
 
 // PDB

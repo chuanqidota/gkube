@@ -191,7 +191,8 @@ const router = createRouter({
           path: 'workloads/replicasets/:namespace/:name',
           name: 'ReplicaSetDetail',
           component: () => import('@/views/workload/ReplicaSetDetail.vue'),
-          meta: { title: 'ReplicaSet 详情' },
+          props: true,
+          meta: { title: 'ReplicaSet 详情', parent: 'ReplicaSetList' },
         },
         // Workloads - HPA
         {

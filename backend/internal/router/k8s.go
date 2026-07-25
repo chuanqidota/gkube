@@ -156,6 +156,8 @@ func registerWorkloadRoutes(k8s *gin.RouterGroup) {
 		k8s.GET("replicaset/list", k8sWorkload.ReplicaSet.GetReplicaSetList)
 		k8s.GET("replicaset/get-yaml", k8sWorkload.ReplicaSet.GetReplicaSetYaml)
 		k8s.GET("replicaset/detail", k8sWorkload.ReplicaSet.GetReplicaSetDetail)
+		k8s.GET("replicaset/pods", k8sWorkload.ReplicaSet.GetReplicaSetPodList)
+		k8s.GET("replicaset/events", k8sWorkload.ReplicaSet.GetReplicaSetEvents)
 		k8s.DELETE("replicaset/delete", k8sWorkload.ReplicaSet.DeleteReplicaSet)
 
 	// HPA
