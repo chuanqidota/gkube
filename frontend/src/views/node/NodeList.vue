@@ -223,28 +223,30 @@ onMounted(fetchNodes)
         <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
           <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
         </el-table-column>
+        <el-table-column prop="internal_ip" label="IP 地址" width="150">
+          <template #default="{ row }">{{ row.internal_ip || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="roles" label="角色" width="110">
           <template #default="{ row }">{{ row.roles || '-' }}</template>
         </el-table-column>
         <el-table-column prop="version" label="版本" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.version || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="internal_ip" label="IP 地址" width="150">
-          <template #default="{ row }">{{ row.internal_ip || '-' }}</template>
-        </el-table-column>
         <el-table-column prop="age" label="年龄" width="170" show-overflow-tooltip>
           <template #default="{ row }">{{ row.age || '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" min-width="360" fixed="right">
+        <el-table-column label="操作" min-width="380" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" :type="row.unschedulable ? 'success' : 'warning'" @click="handleCordon(row)">
-              {{ row.unschedulable ? '解除封锁' : '封锁' }}
-            </el-button>
-            <el-button size="small" type="primary" @click="handleTaints(row)">污点</el-button>
-            <el-button size="small" type="info" @click="handleLabels(row)">标签</el-button>
-            <el-button size="small" type="danger" @click="handleDrain(row)">驱逐</el-button>
-            <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
+            <div class="table-actions">
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" :type="row.unschedulable ? 'success' : 'warning'" @click="handleCordon(row)">
+                {{ row.unschedulable ? '解除封锁' : '封锁' }}
+              </el-button>
+              <el-button size="small" type="primary" @click="handleTaints(row)">污点</el-button>
+              <el-button size="small" type="info" @click="handleLabels(row)">标签</el-button>
+              <el-button size="small" type="danger" @click="handleDrain(row)">驱逐</el-button>
+              <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -371,6 +373,8 @@ onMounted(fetchNodes)
 <style scoped>
 .page-container { padding: 20px; }
 .table-card { border-radius: 8px; }
+.table-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; }
+.table-actions .el-button { margin-left: 0 !important; }
 .node-card { height: 100%; }
 .node-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .node-header-tags { display: flex; align-items: center; gap: 6px; }
