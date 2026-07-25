@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Plus, ArrowDown } from '@element-plus/icons-vue'
+import { Delete, Plus } from '@element-plus/icons-vue'
 import { getNodeList, getNodeYaml, updateNodeYaml, cordonNode, updateNodeTaints, updateNodeLabels, drainNode, deleteNode, type NodeInfo } from '@/api/resource'
 import { usagePercent, progressColor } from '@/utils/helpers'
 import YamlEditor from '@/components/YamlEditor.vue'
@@ -187,15 +187,6 @@ async function handleDelete(row: any) {
   }
 }
 
-function handleMoreCommand(cmd: string, row: any) {
-  switch (cmd) {
-    case 'taints': handleTaints(row); break
-    case 'labels': handleLabels(row); break
-    case 'drain': handleDrain(row); break
-    case 'delete': handleDelete(row); break
-  }
-}
-
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchNodes)
 
 onMounted(fetchNodes)
@@ -308,39 +299,30 @@ onMounted(fetchNodes)
               {{ node.internal_ip || '-' }}<template v-if="node.version"> · {{ node.version }}</template><template v-if="node.age"> · {{ node.age }}</template>
             </div>
 
-            <div class="node-usage">
-              <div class="usage-item">
+            <el-row :gutter="12" class="node-usage">
+              <el-col :span="8">
                 <div class="usage-title">CPU</div>
-                <el-progress :percentage="usagePercent(node.cpu_used, node.cpu_total)" :color="progressColor(usagePercent(node.cpu_used, node.cpu_total))" :stroke-width="18" :text-inside="true" :format="(p: number) => `${fmtCpu(node.cpu_used)}/${fmtCpu(node.cpu_total)}核 ${p}%`" />
-              </div>
-              <div class="usage-item">
+                <el-progress :percentage="usagePercent(node.cpu_used, node.cpu_total)" :color="progressColor(usagePercent(node.cpu_used, node.cpu_total))" :stroke-width="16" :text-inside="true" :format="(p: number) => `${fmtCpu(node.cpu_used)}/${fmtCpu(node.cpu_total)}核 ${p}%`" />
+              </el-col>
+              <el-col :span="8">
                 <div class="usage-title">内存</div>
-                <el-progress :percentage="usagePercent(node.mem_used, node.mem_total)" :color="progressColor(usagePercent(node.mem_used, node.mem_total))" :stroke-width="18" :text-inside="true" :format="(p: number) => `${fmtMem(node.mem_used)}/${fmtMem(node.mem_total)}GiB ${p}%`" />
-              </div>
-              <div class="usage-item">
+                <el-progress :percentage="usagePercent(node.mem_used, node.mem_total)" :color="progressColor(usagePercent(node.mem_used, node.mem_total))" :stroke-width="16" :text-inside="true" :format="(p: number) => `${fmtMem(node.mem_used)}/${fmtMem(node.mem_total)}GiB ${p}%`" />
+              </el-col>
+              <el-col :span="8">
                 <div class="usage-title">Pods</div>
-                <el-progress :percentage="usagePercent(node.pod_count, node.pod_total)" :color="progressColor(usagePercent(node.pod_count, node.pod_total))" :stroke-width="18" :text-inside="true" :format="() => `${node.pod_count || 0}/${node.pod_total || 0}`" />
-              </div>
-            </div>
+                <el-progress :percentage="usagePercent(node.pod_count, node.pod_total)" :color="progressColor(usagePercent(node.pod_count, node.pod_total))" :stroke-width="16" :text-inside="true" :format="() => `${node.pod_count || 0}/${node.pod_total || 0}`" />
+              </el-col>
+            </el-row>
 
             <div class="node-footer">
-              <div class="node-footer-main">
-                <el-button size="small" @click="handleViewYaml(node)">YAML</el-button>
-                <el-button size="small" :type="node.unschedulable ? 'success' : 'warning'" @click="handleCordon(node)">
-                  {{ node.unschedulable ? '解除封锁' : '封锁' }}
-                </el-button>
-              </div>
-              <el-dropdown trigger="click" @command="(cmd: string) => handleMoreCommand(cmd, node)">
-                <el-button size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="taints">污点</el-dropdown-item>
-                    <el-dropdown-item command="labels">标签</el-dropdown-item>
-                    <el-dropdown-item command="drain">驱逐</el-dropdown-item>
-                    <el-dropdown-item command="delete" divided class="danger-item">删除</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+              <el-button size="small" @click="handleViewYaml(node)">YAML</el-button>
+              <el-button size="small" :type="node.unschedulable ? 'success' : 'warning'" @click="handleCordon(node)">
+                {{ node.unschedulable ? '解除封锁' : '封锁' }}
+              </el-button>
+              <el-button size="small" text @click="handleTaints(node)">污点</el-button>
+              <el-button size="small" text @click="handleLabels(node)">标签</el-button>
+              <el-button size="small" text @click="handleDrain(node)">驱逐</el-button>
+              <el-button size="small" text type="danger" @click="handleDelete(node)">删除</el-button>
             </div>
           </el-card>
         </el-col>
@@ -428,12 +410,9 @@ onMounted(fetchNodes)
 .node-header-tags { display: flex; align-items: center; gap: 6px; }
 .node-meta { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: 12px; }
 .node-usage { margin-bottom: 12px; }
-.usage-item { margin-bottom: 10px; }
-.usage-item:last-child { margin-bottom: 0; }
 .usage-title { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: 4px; }
-.node-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
-.node-footer-main { display: flex; gap: 8px; }
-.danger-item { color: var(--gk-color-danger); }
+.node-footer { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
+.node-footer .el-button { margin-left: 0 !important; }
 </style>
 
 <style>
