@@ -193,6 +193,7 @@ onMounted(fetchClusters)
       </template>
     </ResourceListToolbar>
 
+    <el-card shadow="never" class="table-card">
     <el-table v-if="viewMode === 'table'" :data="filteredList" v-loading="loading" stripe>
       <el-table-column label="状态" width="100" align="center">
         <template #default="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag></template>
@@ -264,6 +265,7 @@ onMounted(fetchClusters)
     <el-empty v-if="!loading && filteredList.length === 0" :description="t('cluster.noClusters')">
       <el-button type="primary" @click="router.push('/clusters/create')"><el-icon><Plus /></el-icon> {{ t('cluster.add') }}</el-button>
     </el-empty>
+    </el-card>
 
     <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
       <el-pagination
@@ -310,6 +312,7 @@ onMounted(fetchClusters)
 
 <style scoped>
 .page-container { padding: 20px; }
+.table-card { border-radius: 8px; }
 .cluster-card { height: 100%; }
 .cluster-header { display: flex; justify-content: space-between; align-items: center; }
 .cluster-info { display: flex; align-items: center; gap: 8px; }
