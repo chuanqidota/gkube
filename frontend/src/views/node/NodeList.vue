@@ -2,15 +2,19 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Plus } from '@element-plus/icons-vue'
+import { Delete, Plus, ArrowDown } from '@element-plus/icons-vue'
 import { getNodeList, getNodeYaml, updateNodeYaml, cordonNode, updateNodeTaints, updateNodeLabels, drainNode, deleteNode, type NodeInfo } from '@/api/resource'
 import { usagePercent, progressColor } from '@/utils/helpers'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
+import ViewModeToggle from '@/components/ViewModeToggle.vue'
 
 const router = useRouter()
+const viewMode = ref<'card' | 'table'>(
+  (localStorage.getItem('gkube.node.viewMode') as 'card' | 'table') || 'card'
+)
 const loading = ref(false)
 const nodeList = ref<NodeInfo[]>([])
 const searchName = ref('')
@@ -184,6 +188,15 @@ async function handleDelete(row: any) {
   }
 }
 
+function handleMoreCommand(cmd: string, row: any) {
+  switch (cmd) {
+    case 'taints': handleTaints(row); break
+    case 'labels': handleLabels(row); break
+    case 'drain': handleDrain(row); break
+    case 'delete': handleDelete(row); break
+  }
+}
+
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchNodes)
 
 onMounted(fetchNodes)
@@ -209,10 +222,11 @@ onMounted(fetchNodes)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
+        <ViewModeToggle v-model="viewMode" storage-key="gkube.node.viewMode" />
       </template>
     </ResourceListToolbar>
     <el-card shadow="never" class="table-card">
-      <el-table :data="filteredList" v-loading="loading" stripe>
+      <el-table v-if="viewMode === 'table'" :data="filteredList" v-loading="loading" stripe>
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }"><el-tag :type="statusType(row)" size="small" effect="dark">{{ row.status || 'Unknown' }}</el-tag></template>
         </el-table-column>
@@ -277,6 +291,66 @@ onMounted(fetchNodes)
           </template>
         </el-table-column>
       </el-table>
+      <el-row v-else :gutter="16">
+        <el-col v-for="node in filteredList" :key="node.name" :xs="24" :sm="12" :md="8" style="margin-bottom: 16px;">
+          <el-card shadow="hover" class="node-card">
+            <template #header>
+              <div class="node-header">
+                <el-button link type="primary" @click="handleDetail(node)">{{ node.name }}</el-button>
+                <div class="node-header-tags">
+                  <el-tag :type="statusType(node)" size="small" effect="dark">{{ node.status || 'Unknown' }}</el-tag>
+                  <el-tag v-if="node.unschedulable" type="warning" size="small">已封锁</el-tag>
+                </div>
+              </div>
+            </template>
+
+            <div class="node-body">
+              <div class="node-detail"><span class="label">IP</span><span class="value">{{ node.internal_ip || '-' }}</span></div>
+              <div class="node-detail"><span class="label">角色</span><span class="value">{{ node.roles || '-' }}</span></div>
+              <div class="node-detail"><span class="label">版本</span><span class="value">{{ node.version || '-' }}</span></div>
+              <div class="node-detail"><span class="label">年龄</span><span class="value">{{ node.age || '-' }}</span></div>
+            </div>
+
+            <div class="node-usage">
+              <div class="usage-item">
+                <div class="usage-title">CPU（请求/容量）</div>
+                <el-progress :percentage="usagePercent(node.cpu_used, node.cpu_total)" :color="progressColor(usagePercent(node.cpu_used, node.cpu_total))" :stroke-width="14" :text-inside="true" />
+                <div class="res-caption">{{ fmtCpu(node.cpu_used) }} / {{ fmtCpu(node.cpu_total) }} 核</div>
+              </div>
+              <div class="usage-item">
+                <div class="usage-title">内存（请求/容量）</div>
+                <el-progress :percentage="usagePercent(node.mem_used, node.mem_total)" :color="progressColor(usagePercent(node.mem_used, node.mem_total))" :stroke-width="14" :text-inside="true" />
+                <div class="res-caption">{{ fmtMem(node.mem_used) }} / {{ fmtMem(node.mem_total) }} GiB</div>
+              </div>
+              <div class="usage-item">
+                <div class="usage-title">Pods（请求/容量）</div>
+                <el-progress :percentage="usagePercent(node.pod_count, node.pod_total)" :color="progressColor(usagePercent(node.pod_count, node.pod_total))" :stroke-width="14" :text-inside="true" />
+                <div class="res-caption">{{ node.pod_count || 0 }} / {{ node.pod_total || 0 }}</div>
+              </div>
+            </div>
+
+            <div class="node-footer">
+              <div class="node-footer-main">
+                <el-button size="small" @click="handleViewYaml(node)">YAML</el-button>
+                <el-button size="small" :type="node.unschedulable ? 'success' : 'warning'" @click="handleCordon(node)">
+                  {{ node.unschedulable ? '解除封锁' : '封锁' }}
+                </el-button>
+              </div>
+              <el-dropdown trigger="click" @command="(cmd: string) => handleMoreCommand(cmd, node)">
+                <el-button size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="taints">污点</el-dropdown-item>
+                    <el-dropdown-item command="labels">标签</el-dropdown-item>
+                    <el-dropdown-item command="drain">驱逐</el-dropdown-item>
+                    <el-dropdown-item command="delete" divided class="danger-item">删除</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
     </el-card>
 
     <!-- YAML Drawer -->
@@ -355,6 +429,19 @@ onMounted(fetchNodes)
 .page-container { padding: 20px; }
 .table-card { border-radius: 8px; }
 .res-caption { font-size: 12px; color: var(--gk-color-text-secondary); margin-top: 2px; }
+.node-card { height: 100%; }
+.node-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.node-header-tags { display: flex; align-items: center; gap: 6px; }
+.node-body { margin-bottom: 12px; }
+.node-detail { display: flex; margin-bottom: 8px; }
+.node-detail .label { color: var(--gk-color-text-secondary); width: 70px; flex-shrink: 0; }
+.node-detail .value { color: var(--gk-color-text-primary); }
+.node-usage { margin-bottom: 12px; }
+.usage-item { margin-bottom: 12px; }
+.usage-title { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: 4px; }
+.node-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
+.node-footer-main { display: flex; gap: 8px; }
+.danger-item { color: var(--gk-color-danger); }
 </style>
 
 <style>
