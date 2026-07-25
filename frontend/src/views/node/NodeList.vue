@@ -319,9 +319,9 @@ onMounted(fetchNodes)
               <el-button size="small" :type="node.unschedulable ? 'success' : 'warning'" @click="handleCordon(node)">
                 {{ node.unschedulable ? '解除封锁' : '封锁' }}
               </el-button>
-              <el-button size="small" @click="handleTaints(node)">污点</el-button>
-              <el-button size="small" @click="handleLabels(node)">标签</el-button>
-              <el-button size="small" @click="handleDrain(node)">驱逐</el-button>
+              <el-button size="small" type="primary" @click="handleTaints(node)">污点</el-button>
+              <el-button size="small" type="info" @click="handleLabels(node)">标签</el-button>
+              <el-button size="small" type="danger" @click="handleDrain(node)">驱逐</el-button>
               <el-button size="small" type="danger" plain @click="handleDelete(node)">删除</el-button>
             </div>
           </el-card>
