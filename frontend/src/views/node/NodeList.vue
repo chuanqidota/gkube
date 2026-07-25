@@ -299,20 +299,20 @@ onMounted(fetchNodes)
               {{ node.internal_ip || '-' }}<template v-if="node.version"> · {{ node.version }}</template><template v-if="node.age"> · {{ node.age }}</template>
             </div>
 
-            <el-row :gutter="12" class="node-usage">
-              <el-col :span="8">
-                <div class="usage-title">CPU</div>
+            <div class="node-usage">
+              <div class="usage-item">
+                <span class="usage-label">CPU</span>
                 <el-progress :percentage="usagePercent(node.cpu_used, node.cpu_total)" :color="progressColor(usagePercent(node.cpu_used, node.cpu_total))" :stroke-width="16" :text-inside="true" :format="(p: number) => `${fmtCpu(node.cpu_used)}/${fmtCpu(node.cpu_total)}核 ${p}%`" />
-              </el-col>
-              <el-col :span="8">
-                <div class="usage-title">内存</div>
+              </div>
+              <div class="usage-item">
+                <span class="usage-label">内存</span>
                 <el-progress :percentage="usagePercent(node.mem_used, node.mem_total)" :color="progressColor(usagePercent(node.mem_used, node.mem_total))" :stroke-width="16" :text-inside="true" :format="(p: number) => `${fmtMem(node.mem_used)}/${fmtMem(node.mem_total)}GiB ${p}%`" />
-              </el-col>
-              <el-col :span="8">
-                <div class="usage-title">Pods</div>
+              </div>
+              <div class="usage-item">
+                <span class="usage-label">Pods</span>
                 <el-progress :percentage="usagePercent(node.pod_count, node.pod_total)" :color="progressColor(usagePercent(node.pod_count, node.pod_total))" :stroke-width="16" :text-inside="true" :format="() => `${node.pod_count || 0}/${node.pod_total || 0}`" />
-              </el-col>
-            </el-row>
+              </div>
+            </div>
 
             <div class="node-footer">
               <el-button size="small" @click="handleViewYaml(node)">YAML</el-button>
@@ -410,7 +410,11 @@ onMounted(fetchNodes)
 .node-header-tags { display: flex; align-items: center; gap: 6px; }
 .node-meta { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: 12px; }
 .node-usage { margin-bottom: 12px; }
-.usage-title { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: 4px; }
+.usage-item { display: flex; align-items: center; margin-bottom: 10px; }
+.usage-item:last-child { margin-bottom: 0; }
+.usage-label { width: 36px; flex-shrink: 0; font-size: 12px; color: var(--gk-color-text-secondary); }
+.usage-item :deep(.el-progress) { flex: 1; }
+.usage-item :deep(.el-progress-bar) { padding-right: 0; }
 .node-footer { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
 .node-footer .el-button { margin-left: 0 !important; }
 </style>
