@@ -232,39 +232,6 @@ onMounted(fetchNodes)
         <el-table-column prop="internal_ip" label="IP 地址" width="150">
           <template #default="{ row }">{{ row.internal_ip || '-' }}</template>
         </el-table-column>
-        <el-table-column label="CPU（请求/容量）" min-width="150">
-          <template #default="{ row }">
-            <el-progress
-              :percentage="usagePercent(row.cpu_used, row.cpu_total)"
-              :color="progressColor(usagePercent(row.cpu_used, row.cpu_total))"
-              :stroke-width="14"
-              :text-inside="true"
-            />
-            <div class="res-caption">{{ fmtCpu(row.cpu_used) }} / {{ fmtCpu(row.cpu_total) }} 核</div>
-          </template>
-        </el-table-column>
-        <el-table-column label="内存（请求/容量）" min-width="160">
-          <template #default="{ row }">
-            <el-progress
-              :percentage="usagePercent(row.mem_used, row.mem_total)"
-              :color="progressColor(usagePercent(row.mem_used, row.mem_total))"
-              :stroke-width="14"
-              :text-inside="true"
-            />
-            <div class="res-caption">{{ fmtMem(row.mem_used) }} / {{ fmtMem(row.mem_total) }} GiB</div>
-          </template>
-        </el-table-column>
-        <el-table-column label="Pods（请求/容量）" min-width="150">
-          <template #default="{ row }">
-            <el-progress
-              :percentage="usagePercent(row.pod_count, row.pod_total)"
-              :color="progressColor(usagePercent(row.pod_count, row.pod_total))"
-              :stroke-width="14"
-              :text-inside="true"
-            />
-            <div class="res-caption">{{ row.pod_count || 0 }} / {{ row.pod_total || 0 }}</div>
-          </template>
-        </el-table-column>
         <el-table-column prop="age" label="年龄" width="170" show-overflow-tooltip>
           <template #default="{ row }">{{ row.age || '-' }}</template>
         </el-table-column>
@@ -404,7 +371,6 @@ onMounted(fetchNodes)
 <style scoped>
 .page-container { padding: 20px; }
 .table-card { border-radius: 8px; }
-.res-caption { font-size: 12px; color: var(--gk-color-text-secondary); margin-top: 2px; }
 .node-card { height: 100%; }
 .node-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .node-header-tags { display: flex; align-items: center; gap: 6px; }
