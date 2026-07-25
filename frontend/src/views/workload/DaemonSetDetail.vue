@@ -44,9 +44,9 @@ const statusTagType = computed(() => {
 const statusText = computed(() => {
   const desired = daemonSet.value?.status?.desiredNumberScheduled || 0
   const ready = daemonSet.value?.status?.numberReady || 0
-  if (ready === desired && desired > 0) return '就绪'
-  if (ready > 0) return '部分就绪'
-  return '未就绪'
+  if (ready === desired && desired > 0) return 'Ready'
+  if (ready > 0) return 'Progressing'
+  return 'Unavailable'
 })
 
 // ---- Resize: left-right ----
@@ -255,7 +255,7 @@ onMounted(() => {
           <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
           <span class="ns-tag">ns/{{ namespace }}</span>
           <span class="replicas-info" v-if="daemonSet">
-            {{ daemonSet.status?.numberReady ?? 0 }}/{{ daemonSet.status?.desiredNumberScheduled ?? 0 }} 就绪
+            {{ daemonSet.status?.numberReady ?? 0 }}/{{ daemonSet.status?.desiredNumberScheduled ?? 0 }} ready
           </span>
         </div>
       </div>
