@@ -298,33 +298,28 @@ onMounted(fetchNodes)
                 <el-button link type="primary" @click="handleDetail(node)">{{ node.name }}</el-button>
                 <div class="node-header-tags">
                   <el-tag :type="statusType(node)" size="small" effect="dark">{{ node.status || 'Unknown' }}</el-tag>
+                  <el-tag v-if="node.roles" size="small" effect="plain">{{ node.roles }}</el-tag>
                   <el-tag v-if="node.unschedulable" type="warning" size="small">已封锁</el-tag>
                 </div>
               </div>
             </template>
 
-            <div class="node-body">
-              <div class="node-detail"><span class="label">IP</span><span class="value">{{ node.internal_ip || '-' }}</span></div>
-              <div class="node-detail"><span class="label">角色</span><span class="value">{{ node.roles || '-' }}</span></div>
-              <div class="node-detail"><span class="label">版本</span><span class="value">{{ node.version || '-' }}</span></div>
-              <div class="node-detail"><span class="label">年龄</span><span class="value">{{ node.age || '-' }}</span></div>
+            <div class="node-meta">
+              {{ node.internal_ip || '-' }}<template v-if="node.version"> · {{ node.version }}</template><template v-if="node.age"> · {{ node.age }}</template>
             </div>
 
             <div class="node-usage">
               <div class="usage-item">
-                <div class="usage-title">CPU（请求/容量）</div>
-                <el-progress :percentage="usagePercent(node.cpu_used, node.cpu_total)" :color="progressColor(usagePercent(node.cpu_used, node.cpu_total))" :stroke-width="14" :text-inside="true" />
-                <div class="res-caption">{{ fmtCpu(node.cpu_used) }} / {{ fmtCpu(node.cpu_total) }} 核</div>
+                <div class="usage-title">CPU</div>
+                <el-progress :percentage="usagePercent(node.cpu_used, node.cpu_total)" :color="progressColor(usagePercent(node.cpu_used, node.cpu_total))" :stroke-width="18" :text-inside="true" :format="(p: number) => `${fmtCpu(node.cpu_used)}/${fmtCpu(node.cpu_total)}核 ${p}%`" />
               </div>
               <div class="usage-item">
-                <div class="usage-title">内存（请求/容量）</div>
-                <el-progress :percentage="usagePercent(node.mem_used, node.mem_total)" :color="progressColor(usagePercent(node.mem_used, node.mem_total))" :stroke-width="14" :text-inside="true" />
-                <div class="res-caption">{{ fmtMem(node.mem_used) }} / {{ fmtMem(node.mem_total) }} GiB</div>
+                <div class="usage-title">内存</div>
+                <el-progress :percentage="usagePercent(node.mem_used, node.mem_total)" :color="progressColor(usagePercent(node.mem_used, node.mem_total))" :stroke-width="18" :text-inside="true" :format="(p: number) => `${fmtMem(node.mem_used)}/${fmtMem(node.mem_total)}GiB ${p}%`" />
               </div>
               <div class="usage-item">
-                <div class="usage-title">Pods（请求/容量）</div>
-                <el-progress :percentage="usagePercent(node.pod_count, node.pod_total)" :color="progressColor(usagePercent(node.pod_count, node.pod_total))" :stroke-width="14" :text-inside="true" />
-                <div class="res-caption">{{ node.pod_count || 0 }} / {{ node.pod_total || 0 }}</div>
+                <div class="usage-title">Pods</div>
+                <el-progress :percentage="usagePercent(node.pod_count, node.pod_total)" :color="progressColor(usagePercent(node.pod_count, node.pod_total))" :stroke-width="18" :text-inside="true" :format="() => `${node.pod_count || 0}/${node.pod_total || 0}`" />
               </div>
             </div>
 
@@ -431,12 +426,10 @@ onMounted(fetchNodes)
 .node-card { height: 100%; }
 .node-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .node-header-tags { display: flex; align-items: center; gap: 6px; }
-.node-body { margin-bottom: 12px; }
-.node-detail { display: flex; margin-bottom: 8px; }
-.node-detail .label { color: var(--gk-color-text-secondary); width: 70px; flex-shrink: 0; }
-.node-detail .value { color: var(--gk-color-text-primary); }
+.node-meta { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: 12px; }
 .node-usage { margin-bottom: 12px; }
-.usage-item { margin-bottom: 12px; }
+.usage-item { margin-bottom: 10px; }
+.usage-item:last-child { margin-bottom: 0; }
 .usage-title { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: 4px; }
 .node-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
 .node-footer-main { display: flex; gap: 8px; }
