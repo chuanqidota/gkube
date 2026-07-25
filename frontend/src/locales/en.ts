@@ -1,6 +1,9 @@
 export default {
   login: {
+    welcome: 'Welcome back',
     subtitle: 'Kubernetes Cluster Management Platform',
+    usernameLabel: 'Username',
+    passwordLabel: 'Password',
     usernamePlaceholder: 'Enter username',
     passwordPlaceholder: 'Enter password',
     usernameRequired: 'Enter username',
@@ -8,6 +11,7 @@ export default {
     rememberMe: 'Remember me',
     loginButton: 'Login',
     loginFailed: 'Login failed',
+    clusterCaption: 'Live control plane',
   },
   common: {
     home: 'Home',

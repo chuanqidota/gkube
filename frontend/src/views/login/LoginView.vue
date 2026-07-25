@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, watch, computed, nextTick, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
+import Logo from '@/components/Logo.vue'
+import { useClusterGraph, graphState } from '@/composables/useClusterGraph'
 
 const router = useRouter()
 const route = useRoute()
@@ -13,6 +15,12 @@ const { t } = useI18n()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const usernameRef = ref()
+const canvasRef = ref<HTMLCanvasElement>()
+
+// Ambient control-plane canvas. The composable reads graphState (below) to
+// react to form focus / typing / submit / error without this view re-rendering.
+useClusterGraph(canvasRef)
 
 const form = reactive({
   username: '',
@@ -24,103 +32,111 @@ const rules: FormRules = {
   password: [{ required: true, message: t('login.passwordRequired'), trigger: 'blur' }],
 }
 
+// ── Left-right linkage ──
+// Typing a character bumps typing.at so the canvas spawns a particle burst at
+// the cluster hub matching the active field's zone.
+watch(
+  () => form.username,
+  () => {
+    if (graphState.activeField === 'username') {
+      graphState.typing = { field: 'username', at: Date.now() }
+    }
+  },
+)
+watch(
+  () => form.password,
+  () => {
+    if (graphState.activeField === 'password') {
+      graphState.typing = { field: 'password', at: Date.now() }
+    }
+  },
+)
+
+function onUsernameFocus() {
+  graphState.activeField = 'username'
+}
+function onPasswordFocus() {
+  graphState.activeField = 'password'
+}
+function onBlur() {
+  // only clear if neither field holds focus
+  void nextTick(() => {
+    const ae = document.activeElement
+    if (!ae || !ae.closest('.login-form')) graphState.activeField = null
+  })
+}
+
+const canSubmit = computed(() => form.username.trim().length > 0 && form.password.length > 0)
+
 async function handleLogin() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 
   loading.value = true
+  graphState.status = 'loading'
+  graphState.burstTick++
   try {
     await authStore.login({ username: form.username, password: form.password })
     const redirect = route.query.redirect
     router.push(typeof redirect === 'string' ? redirect : '/dashboard')
   } catch (e: any) {
+    graphState.status = 'error'
     ElMessage.error(e?.message || t('login.loginFailed'))
   } finally {
     loading.value = false
   }
 }
+
+// Autofocus the username field so the canvas shows an active zone on load.
+onMounted(() => {
+  usernameRef.value?.focus?.()
+})
 </script>
 
 <template>
   <div class="login-page">
-    <!-- Animated background -->
-    <div class="bg-layer">
-      <div class="mesh-gradient"></div>
-      <div class="grid-pattern"></div>
-      <!-- Floating geometric shapes -->
-      <div class="floating-shapes">
-        <div class="shape hexagon shape-1"></div>
-        <div class="shape hexagon shape-2"></div>
-        <div class="shape hexagon shape-3"></div>
-        <div class="shape circle shape-4"></div>
-        <div class="shape circle shape-5"></div>
-        <div class="shape ring shape-6"></div>
-        <div class="shape ring shape-7"></div>
-        <div class="shape dot shape-8"></div>
-        <div class="shape dot shape-9"></div>
-        <div class="shape dot shape-10"></div>
-        <!-- Connection lines -->
-        <svg class="connections" viewBox="0 0 1440 900" preserveAspectRatio="none">
-          <line x1="200" y1="150" x2="400" y2="350" class="conn-line" />
-          <line x1="1100" y1="200" x2="900" y2="450" class="conn-line" />
-          <line x1="300" y1="700" x2="550" y2="550" class="conn-line" />
-          <line x1="1200" y1="600" x2="950" y2="700" class="conn-line" />
-          <line x1="700" y1="100" x2="850" y2="300" class="conn-line delay" />
-        </svg>
+    <!-- Left: ambient control-plane canvas -->
+    <section class="canvas-panel">
+      <div class="canvas-atmosphere" aria-hidden="true"></div>
+      <canvas ref="canvasRef" class="graph-canvas" aria-hidden="true" />
+      <div class="canvas-head">
+        <Logo :size="36" show-text :text-size="20" tone="light" />
       </div>
-    </div>
+      <div class="canvas-foot">
+        <span class="mono">{{ t('login.clusterCaption') }}</span>
+      </div>
+    </section>
 
-    <!-- Login card -->
-    <div class="login-container">
-      <div class="login-card">
-        <!-- Logo -->
-        <div class="login-brand">
-          <div class="brand-icon">
-            <svg viewBox="0 0 48 48" width="48" height="48">
-              <defs>
-                <linearGradient id="login-hex" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stop-color="#6366f1" />
-                  <stop offset="50%" stop-color="#818cf8" />
-                  <stop offset="100%" stop-color="#3b82f6" />
-                </linearGradient>
-                <linearGradient id="login-inner" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#c7d2fe" />
-                  <stop offset="100%" stop-color="#e0e7ff" />
-                </linearGradient>
-              </defs>
-              <path d="M24 2 L44 14 L44 34 L24 46 L4 34 L4 14 Z" fill="url(#login-hex)" />
-              <path d="M24 8 L38 16 L38 32 L24 40 L10 32 L10 16 Z" fill="url(#login-inner)" opacity="0.15" />
-              <path
-                d="M30 16 C26.5 13.5 21.5 13.5 18 16 C14.5 18.5 14 23 14 24 C14 28 16 31 20 33 C23 34.5 27 34.5 30 33 L30 26 L24 26 L24 23 L30 23 Z"
-                fill="white"
-                opacity="0.95"
-              />
-              <circle cx="36" cy="12" r="3" fill="#a78bfa" opacity="0.8" />
-            </svg>
-          </div>
-          <h1 class="brand-name">GKube</h1>
-          <p class="brand-tagline">{{ t('login.subtitle') }}</p>
-        </div>
+    <!-- Right: form -->
+    <section class="form-panel">
+      <div class="form-card">
+        <header class="form-head">
+          <h1 class="form-title">{{ t('login.welcome') }}</h1>
+          <p class="form-subtitle">{{ t('login.subtitle') }}</p>
+        </header>
 
-        <!-- Form -->
         <el-form
           ref="formRef"
           :model="form"
           :rules="rules"
+          label-position="top"
           @submit.prevent="handleLogin"
           class="login-form"
         >
-          <el-form-item prop="username">
+          <el-form-item :label="t('login.usernameLabel')" prop="username">
             <el-input
+              ref="usernameRef"
               v-model="form.username"
               :placeholder="t('login.usernamePlaceholder')"
               size="large"
               :prefix-icon="User"
               autocomplete="username"
+              @focus="onUsernameFocus"
+              @blur="onBlur"
               @keyup.enter="handleLogin"
             />
           </el-form-item>
-          <el-form-item prop="password">
+          <el-form-item :label="t('login.passwordLabel')" prop="password">
             <el-input
               v-model="form.password"
               type="password"
@@ -129,6 +145,8 @@ async function handleLogin() {
               show-password
               :prefix-icon="Lock"
               autocomplete="current-password"
+              @focus="onPasswordFocus"
+              @blur="onBlur"
               @keyup.enter="handleLogin"
             />
           </el-form-item>
@@ -138,6 +156,7 @@ async function handleLogin() {
               type="primary"
               native-type="submit"
               :loading="loading"
+              :disabled="!canSubmit"
               size="large"
               class="login-btn"
             >
@@ -146,344 +165,257 @@ async function handleLogin() {
           </el-form-item>
         </el-form>
 
-        <div class="login-footer">
-          <span>Powered by <strong>GKube</strong></span>
-        </div>
+        <footer class="form-foot">
+          <span class="mono">Powered by GKube</span>
+        </footer>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <style scoped>
 .login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  background: #0a0a1a;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 58fr 42fr;
+  background: #07080f;
+  /* One theme for the whole page (always-dark gateway). No mid-page flips. */
+  color: #e2e8f0;
 }
 
-/* ─── Background layers ─── */
-.bg-layer {
+/* ─── Canvas panel ─── */
+.canvas-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #07080f;
+  border-right: 1px solid rgba(148, 163, 184, 0.08);
+  overflow: hidden;
+}
+
+.canvas-atmosphere {
   position: absolute;
   inset: 0;
   z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 28% 38%, rgba(59, 130, 246, 0.14) 0%, transparent 62%),
+    radial-gradient(ellipse 50% 60% at 78% 72%, rgba(99, 102, 241, 0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 90% 70% at 50% 120%, rgba(59, 130, 246, 0.06) 0%, transparent 70%),
+    linear-gradient(180deg, #090b14 0%, #07080f 55%, #05060c 100%);
 }
 
-.mesh-gradient {
+.canvas-atmosphere::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(148, 163, 184, 0.10) 0.5px, transparent 0.5px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, black 25%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, black 25%, transparent 80%);
+}
+
+.canvas-atmosphere::after {
+  content: '';
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 20% 30%, rgba(99, 102, 241, 0.25) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 80% at 80% 70%, rgba(59, 130, 246, 0.2) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
-  animation: meshShift 20s ease-in-out infinite alternate;
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
 }
 
-@keyframes meshShift {
-  0% {
-    background:
-      radial-gradient(ellipse 80% 60% at 20% 30%, rgba(99, 102, 241, 0.25) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 80% at 80% 70%, rgba(59, 130, 246, 0.2) 0%, transparent 60%),
-      radial-gradient(ellipse 50% 50% at 50% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
-  }
-  100% {
-    background:
-      radial-gradient(ellipse 60% 80% at 70% 60%, rgba(99, 102, 241, 0.3) 0%, transparent 60%),
-      radial-gradient(ellipse 80% 60% at 30% 20%, rgba(59, 130, 246, 0.25) 0%, transparent 60%),
-      radial-gradient(ellipse 50% 50% at 60% 40%, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
-  }
-}
-
-.grid-pattern {
+.graph-canvas {
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(99, 102, 241, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(99, 102, 241, 0.04) 1px, transparent 1px);
-  background-size: 60px 60px;
-  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 70%);
-}
-
-/* ─── Floating shapes ─── */
-.floating-shapes {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.shape {
-  position: absolute;
-  opacity: 0;
-  animation: floatIn 1.2s ease-out forwards;
-}
-
-.hexagon {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(59, 130, 246, 0.1));
-  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-}
-
-.circle {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 2px solid rgba(99, 102, 241, 0.2);
-}
-
-.ring {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(139, 92, 246, 0.12);
-}
-
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(167, 139, 250, 0.4);
-}
-
-.shape-1 { top: 10%; left: 8%; animation-delay: 0.2s; }
-.shape-2 { top: 25%; right: 12%; animation-delay: 0.5s; width: 28px; height: 28px; }
-.shape-3 { bottom: 20%; left: 15%; animation-delay: 0.8s; width: 32px; height: 32px; }
-.shape-4 { top: 60%; right: 8%; animation-delay: 0.3s; }
-.shape-5 { bottom: 35%; left: 5%; animation-delay: 0.7s; width: 16px; height: 16px; }
-.shape-6 { top: 15%; left: 35%; animation-delay: 1s; }
-.shape-7 { bottom: 15%; right: 25%; animation-delay: 0.6s; width: 40px; height: 40px; }
-.shape-8 { top: 40%; left: 20%; animation-delay: 0.4s; }
-.shape-9 { top: 70%; right: 15%; animation-delay: 0.9s; }
-.shape-10 { bottom: 40%; left: 40%; animation-delay: 1.1s; width: 8px; height: 8px; }
-
-@keyframes floatIn {
-  from { opacity: 0; transform: translateY(20px) scale(0.8); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.shape-1 { animation: floatIn 1.2s ease-out 0.2s forwards, floatDrift 12s ease-in-out 1.4s infinite; }
-.shape-2 { animation: floatIn 1.2s ease-out 0.5s forwards, floatDrift 15s ease-in-out 1.7s infinite; }
-.shape-3 { animation: floatIn 1.2s ease-out 0.8s forwards, floatDrift 18s ease-in-out 2s infinite; }
-.shape-6 { animation: floatIn 1.2s ease-out 1s forwards, floatDrift 20s ease-in-out 2.2s infinite; }
-
-@keyframes floatDrift {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25% { transform: translateY(-12px) rotate(3deg); }
-  50% { transform: translateY(-6px) rotate(-2deg); }
-  75% { transform: translateY(-18px) rotate(1deg); }
-}
-
-/* Connection lines */
-.connections {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.conn-line {
-  stroke: rgba(99, 102, 241, 0.08);
-  stroke-width: 1;
-  stroke-dasharray: 8 6;
-  animation: dashFlow 8s linear infinite;
-}
-
-.conn-line.delay {
-  animation-delay: 3s;
-}
-
-@keyframes dashFlow {
-  to { stroke-dashoffset: -56; }
-}
-
-/* ─── Login card ─── */
-.login-container {
-  position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 440px;
-  padding: 0 16px;
+  height: 100%;
+  display: block;
 }
 
-.login-card {
-  padding: 48px 40px 40px;
-  background: rgba(15, 15, 35, 0.7);
-  border: 1px solid rgba(99, 102, 241, 0.15);
-  border-radius: 20px;
-  backdrop-filter: blur(24px) saturate(1.4);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.03),
-    0 8px 40px rgba(0, 0, 0, 0.4),
-    0 0 80px rgba(99, 102, 241, 0.06);
-  animation: cardAppear 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  opacity: 0;
+.canvas-head {
+  position: relative;
+  z-index: 2;
+  padding: var(--gk-space-8) var(--gk-space-10);
 }
 
-@keyframes cardAppear {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+.canvas-foot {
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  padding: var(--gk-space-6) var(--gk-space-10);
 }
 
-/* ─── Brand section ─── */
-.login-brand {
-  text-align: center;
-  margin-bottom: 40px;
+.canvas-foot::before {
+  content: '';
+  position: absolute;
+  left: var(--gk-space-10);
+  top: 0;
+  width: 28px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--gk-color-primary), transparent);
 }
 
-.brand-icon {
-  display: inline-flex;
+.mono {
+  font-family: var(--gk-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: rgba(148, 163, 184, 0.6);
+}
+
+/* ─── Form panel ─── */
+.form-panel {
+  display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 20px;
-  animation: iconPulse 3s ease-in-out infinite;
+  padding: var(--gk-space-8) var(--gk-space-6);
+  background: #0f1117;
 }
 
-@keyframes iconPulse {
-  0%, 100% { filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.3)); }
-  50% { filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.5)); }
+.form-card {
+  width: 100%;
+  max-width: 380px;
 }
 
-.brand-name {
-  margin: 0 0 8px;
-  font-size: 32px;
+.form-head {
+  margin-bottom: var(--gk-space-10);
+}
+
+.form-title {
+  margin: 0 0 var(--gk-space-3);
+  font-family: var(--gk-font-sans);
+  font-size: 30px;
   font-weight: 700;
-  color: #f0f0ff;
-  letter-spacing: 3px;
-  text-transform: uppercase;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  color: #f8fafc;
 }
 
-.brand-tagline {
+.form-subtitle {
   margin: 0;
   font-size: 14px;
-  color: rgba(200, 200, 230, 0.6);
-  letter-spacing: 0.5px;
+  line-height: 1.5;
+  color: rgba(148, 163, 184, 0.75);
+  max-width: 38ch;
 }
 
-/* ─── Form styles ─── */
-.login-form {
-  margin-top: 0;
-}
-
+/* ─── Form controls (token-driven, WCAG AA on dark) ─── */
 .login-form :deep(.el-form-item) {
-  margin-bottom: 22px;
+  margin-bottom: var(--gk-space-6);
+}
+
+.login-form :deep(.el-form-item__label) {
+  color: rgba(203, 213, 225, 0.92);
+  font-size: 13px;
+  font-weight: 500;
+  padding-bottom: var(--gk-space-2);
+  line-height: 1.4;
 }
 
 .login-form :deep(.el-input__wrapper) {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(99, 102, 241, 0.12);
-  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.05);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--gk-radius-md);
   box-shadow: none;
-  padding: 4px 14px;
-  transition: all 0.3s ease;
+  padding: 8px 14px;
+  transition: border-color var(--gk-transition-base), background var(--gk-transition-base),
+    box-shadow var(--gk-transition-base), transform var(--gk-transition-fast);
 }
 
 .login-form :deep(.el-input__wrapper:hover) {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(99, 102, 241, 0.25);
+  background: rgba(148, 163, 184, 0.09);
+  border-color: rgba(96, 165, 250, 0.4);
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(99, 102, 241, 0.5);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  background: rgba(59, 130, 246, 0.08);
+  border-color: var(--gk-color-primary);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16);
+  transform: translateY(-1px);
 }
 
 .login-form :deep(.el-input__inner) {
-  color: #e0e0f0;
+  color: #e2e8f0;
   font-size: 14px;
 }
 
 .login-form :deep(.el-input__inner::placeholder) {
-  color: rgba(180, 180, 210, 0.4);
+  color: rgba(148, 163, 184, 0.45);
 }
 
-.login-form :deep(.el-input__prefix .el-icon) {
-  color: rgba(167, 139, 250, 0.6);
-}
-
+.login-form :deep(.el-input__prefix .el-icon),
 .login-form :deep(.el-input__suffix .el-icon) {
-  color: rgba(167, 139, 250, 0.5);
+  color: rgba(148, 163, 184, 0.7);
+}
+
+.login-form :deep(.el-input__wrapper.is-focus .el-input__prefix .el-icon) {
+  color: var(--gk-color-primary-light);
 }
 
 .login-btn {
   width: 100%;
-  height: 48px;
+  height: 50px;
   font-size: 15px;
   font-weight: 600;
-  border-radius: 12px;
-  letter-spacing: 3px;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #3b82f6 100%);
+  border-radius: var(--gk-radius-md);
+  letter-spacing: 0.04em;
+  background: var(--gk-color-primary);
   border: none;
-  margin-top: 4px;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+  margin-top: var(--gk-space-2);
+  transition: transform var(--gk-transition-fast), box-shadow var(--gk-transition-base),
+    background var(--gk-transition-base), opacity var(--gk-transition-fast);
 }
 
-.login-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, #818cf8 0%, #6366f1 50%, #60a5fa 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.login-btn:hover {
+.login-btn:hover:not(:disabled):not(.is-loading) {
+  background: var(--gk-color-primary-light);
+  box-shadow: 0 10px 28px rgba(59, 130, 246, 0.36);
   transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
 }
 
-.login-btn:hover::before {
-  opacity: 1;
+.login-btn:active:not(:disabled):not(.is-loading) {
+  transform: translateY(1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.24);
 }
 
-.login-btn:active {
-  transform: translateY(0);
+.login-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-/* ─── Footer ─── */
-.login-footer {
+.form-foot {
+  margin-top: var(--gk-space-8);
   text-align: center;
-  margin-top: 32px;
-  font-size: 12px;
-  color: rgba(150, 150, 180, 0.35);
 }
 
-.login-footer strong {
-  color: rgba(167, 139, 250, 0.5);
-  font-weight: 600;
-}
-
-/* ─── Responsive ─── */
-@media (max-width: 480px) {
-  .login-card {
-    padding: 36px 24px 32px;
-    border-radius: 16px;
+/* ─── Responsive: collapse to single column under 768px ─── */
+@media (max-width: 768px) {
+  .login-page {
+    grid-template-columns: 1fr;
+    grid-template-rows: 32vh 1fr;
   }
 
-  .brand-name {
-    font-size: 26px;
-    letter-spacing: 2px;
+  .canvas-panel {
+    border-right: none;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.08);
   }
 
-  .login-btn {
-    height: 44px;
+  .canvas-head {
+    padding: var(--gk-space-4) var(--gk-space-5);
   }
 
-  .hexagon,
-  .ring,
-  .connections {
+  .canvas-foot {
     display: none;
+  }
+
+  .form-panel {
+    padding: var(--gk-space-6) var(--gk-space-5);
+  }
+
+  .form-head {
+    margin-bottom: var(--gk-space-6);
+  }
+
+  .form-title {
+    font-size: 24px;
   }
 }
 </style>

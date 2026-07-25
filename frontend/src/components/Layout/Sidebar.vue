@@ -1,23 +1,7 @@
 <template>
   <div class="sidebar-container">
     <div class="sidebar-logo">
-      <div class="logo-icon">
-        <svg viewBox="0 0 48 48" width="32" height="32">
-          <defs>
-            <linearGradient id="sidebar-hex" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#6366f1"/>
-              <stop offset="50%" stop-color="#818cf8"/>
-              <stop offset="100%" stop-color="#3b82f6"/>
-            </linearGradient>
-          </defs>
-          <path d="M24 2 L44 14 L44 34 L24 46 L4 34 L4 14 Z" fill="url(#sidebar-hex)"/>
-          <path d="M30 16 C26.5 13.5 21.5 13.5 18 16 C14.5 18.5 14 23 14 24 C14 28 16 31 20 33 C23 34.5 27 34.5 30 33 L30 26 L24 26 L24 23 L30 23 Z" fill="white" opacity="0.95"/>
-          <circle cx="36" cy="12" r="3" fill="#a78bfa" opacity="0.8"/>
-        </svg>
-      </div>
-      <transition name="fade">
-        <span v-show="!isCollapse" class="logo-text">GKube</span>
-      </transition>
+      <Logo :size="32" :show-text="!isCollapse" :text-size="20" tone="light" />
     </div>
     <el-menu
       :default-active="activeMenu"
@@ -226,6 +210,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import Logo from '@/components/Logo.vue'
 import {
   Odometer,
   Connection,
@@ -299,21 +284,6 @@ function navigateTo(path: string) {
   flex-shrink: 0;
 }
 
-.logo-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.logo-text {
-  color: var(--gk-sidebar-text-active);
-  font-size: var(--gk-font-size-xl);
-  font-weight: 700;
-  white-space: nowrap;
-  letter-spacing: -0.02em;
-}
-
 .sidebar-menu {
   flex: 1;
   border-right: none;
@@ -378,16 +348,5 @@ function navigateTo(path: string) {
 
 .sidebar-menu::-webkit-scrollbar-track {
   background: transparent;
-}
-
-/* Fade transition for logo text */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity var(--gk-transition-fast);
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 </style>

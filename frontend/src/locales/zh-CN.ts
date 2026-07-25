@@ -1,6 +1,9 @@
 export default {
   login: {
+    welcome: '欢迎回来',
     subtitle: 'Kubernetes 集群管理平台',
+    usernameLabel: '用户名',
+    passwordLabel: '密码',
     usernamePlaceholder: '请输入用户名',
     passwordPlaceholder: '请输入密码',
     usernameRequired: '请输入用户名',
@@ -8,6 +11,7 @@ export default {
     rememberMe: '记住我',
     loginButton: '登 录',
     loginFailed: '登录失败',
+    clusterCaption: '实时控制平面',
   },
   common: {
     home: '首页',
