@@ -319,10 +319,10 @@ onMounted(fetchNodes)
               <el-button size="small" :type="node.unschedulable ? 'success' : 'warning'" @click="handleCordon(node)">
                 {{ node.unschedulable ? '解除封锁' : '封锁' }}
               </el-button>
-              <el-button size="small" text @click="handleTaints(node)">污点</el-button>
-              <el-button size="small" text @click="handleLabels(node)">标签</el-button>
-              <el-button size="small" text @click="handleDrain(node)">驱逐</el-button>
-              <el-button size="small" text type="danger" @click="handleDelete(node)">删除</el-button>
+              <el-button size="small" @click="handleTaints(node)">污点</el-button>
+              <el-button size="small" @click="handleLabels(node)">标签</el-button>
+              <el-button size="small" @click="handleDrain(node)">驱逐</el-button>
+              <el-button size="small" type="danger" plain @click="handleDelete(node)">删除</el-button>
             </div>
           </el-card>
         </el-col>
@@ -416,7 +416,7 @@ onMounted(fetchNodes)
 .usage-item :deep(.el-progress) { flex: 1; }
 .usage-item :deep(.el-progress-bar) { padding-right: 0; }
 .node-footer { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
-.node-footer .el-button { margin-left: 0 !important; }
+.node-footer .el-button { margin-left: 0 !important; padding: 5px 8px; font-size: 12px; height: auto; }
 </style>
 
 <style>
