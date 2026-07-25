@@ -213,10 +213,6 @@
           <el-icon><User /></el-icon>
           <template #title>{{ t('sidebar.users') }}</template>
         </el-menu-item>
-        <el-menu-item index="/settings/auth" @click="navigateTo('/settings/auth')">
-          <el-icon><Setting /></el-icon>
-          <template #title>{{ t('sidebar.authSettings') }}</template>
-        </el-menu-item>
         <el-menu-item index="/audit" @click="navigateTo('/audit')">
           <el-icon><Document /></el-icon>
           <template #title>{{ t('sidebar.audit') }}</template>

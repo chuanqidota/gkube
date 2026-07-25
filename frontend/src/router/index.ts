@@ -11,12 +11,6 @@ const router = createRouter({
       component: () => import('@/views/login/LoginView.vue'),
       meta: { public: true },
     },
-    {
-      path: '/oidc/callback',
-      name: 'OIDCCallback',
-      component: () => import('@/views/login/OIDCCallback.vue'),
-      meta: { public: true },
-    },
     // Fullscreen layout for terminal and logs (no sidebar/header, opens in new tab)
     {
       path: '/fullscreen',
@@ -586,13 +580,6 @@ const router = createRouter({
           name: 'UserList',
           component: () => import('@/views/system/UserList.vue'),
           meta: { title: '用户管理', icon: 'User' },
-        },
-        // System - Auth Settings
-        {
-          path: 'settings/auth',
-          name: 'OIDCSettings',
-          component: () => import('@/views/settings/OIDCSettings.vue'),
-          meta: { title: '认证设置', icon: 'Setting' },
         },
         // System - Audit
         {

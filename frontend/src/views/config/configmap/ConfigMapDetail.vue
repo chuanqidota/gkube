@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import { getConfigMapDetail, deleteConfigMap } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
+import ConfigDataViewer from '@/components/ConfigDataViewer.vue'
 import ConfigMapForm from '@/views/config/components/ConfigMapForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
@@ -188,15 +189,7 @@ onMounted(fetchDetail)
               <span class="count-badge">{{ dataCount }} 项</span>
             </div>
             <div class="data-body">
-              <el-table v-if="dataEntries.length > 0" :data="dataEntries" size="small" border stripe>
-                <el-table-column prop="key" label="Key" width="220" show-overflow-tooltip />
-                <el-table-column prop="value" label="Value" min-width="300">
-                  <template #default="{ row }">
-                    <div class="value-cell">{{ row.value }}</div>
-                  </template>
-                </el-table-column>
-              </el-table>
-              <div v-else class="empty-hint">暂无数据</div>
+              <ConfigDataViewer :entries="dataEntries" />
             </div>
           </div>
         </div>
@@ -461,17 +454,8 @@ onMounted(fetchDetail)
 
 .data-body {
   flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
-.value-cell {
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 120px;
-  overflow-y: auto;
-  font-family: monospace;
-  font-size: 12px;
+  overflow: hidden;
+  padding: 8px;
 }
 
 .empty-hint {

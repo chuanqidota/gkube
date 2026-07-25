@@ -8,6 +8,7 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
+import ConfigDataViewer from '@/components/ConfigDataViewer.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -153,21 +154,31 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
       :name="yamlTarget?.name || ''"
       @saved="fetchConfigMaps"
     />
-    <el-dialog v-model="dataDialogVisible" :title="dataDialogTitle" width="60%" top="8vh">
-      <div v-loading="dataLoading">
-        <el-table :data="dataEntries" stripe style="width: 100%" max-height="400">
-          <el-table-column prop="key" label="键" min-width="200" show-overflow-tooltip />
-          <el-table-column prop="value" label="值" min-width="300">
-            <template #default="{ row }"><div style="white-space: pre-wrap; word-break: break-all; max-height: 100px; overflow-y: auto;">{{ row.value }}</div></template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-if="!dataLoading && dataEntries.length === 0" description="暂无数据" />
+    <el-drawer
+      v-model="dataDialogVisible"
+      :title="dataDialogTitle"
+      size="85%"
+      direction="rtl"
+      class="data-drawer"
+      :body-style="{ padding: '0', height: '100%' }"
+      :destroy-on-close="true"
+    >
+      <div v-loading="dataLoading" style="height: calc(100vh - 52px);">
+        <ConfigDataViewer :entries="dataEntries" :loading="dataLoading" />
       </div>
-    </el-dialog>
+    </el-drawer>
   </div>
 </template>
 
 <style scoped>
 .page-container { padding: 20px; }
 .table-card { border-radius: 8px; }
+</style>
+
+<style>
+.data-drawer .el-drawer__header {
+  padding: 6px 16px;
+  margin-bottom: 0;
+  min-height: auto;
+}
 </style>

@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { User, Lock, Connection } from '@element-plus/icons-vue'
-import { getOidcLoginUrl } from '@/api/auth'
+import { User, Lock } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -14,8 +13,6 @@ const { t } = useI18n()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
-const oidcLoading = ref(false)
-const oidcEnabled = ref(false)
 
 const form = reactive({
   username: '',
@@ -26,15 +23,6 @@ const rules: FormRules = {
   username: [{ required: true, message: t('login.usernameRequired'), trigger: 'blur' }],
   password: [{ required: true, message: t('login.passwordRequired'), trigger: 'blur' }],
 }
-
-onMounted(async () => {
-  try {
-    await getOidcLoginUrl()
-    oidcEnabled.value = true
-  } catch {
-    oidcEnabled.value = false
-  }
-})
 
 async function handleLogin() {
   const valid = await formRef.value?.validate().catch(() => false)
@@ -49,22 +37,6 @@ async function handleLogin() {
     ElMessage.error(e?.message || t('login.loginFailed'))
   } finally {
     loading.value = false
-  }
-}
-
-async function handleOIDCLogin() {
-  oidcLoading.value = true
-  try {
-    const res = await getOidcLoginUrl()
-    if (res.data?.url) {
-      window.location.href = res.data.url
-    } else {
-      ElMessage.error(t('login.oidcUrlFailed'))
-    }
-  } catch {
-    ElMessage.error(t('login.oidcFailed'))
-  } finally {
-    oidcLoading.value = false
   }
 }
 </script>
@@ -172,26 +144,6 @@ async function handleOIDCLogin() {
               {{ t('login.loginButton') }}
             </el-button>
           </el-form-item>
-
-          <template v-if="oidcEnabled">
-            <div class="oidc-divider">
-              <span class="divider-line"></span>
-              <span class="divider-text">{{ t('login.or') }}</span>
-              <span class="divider-line"></span>
-            </div>
-
-            <el-form-item>
-              <el-button
-                :loading="oidcLoading"
-                size="large"
-                class="oidc-btn"
-                @click="handleOIDCLogin"
-              >
-                <el-icon class="oidc-icon"><Connection /></el-icon>
-                {{ t('login.oidcLogin') }}
-              </el-button>
-            </el-form-item>
-          </template>
         </el-form>
 
         <div class="login-footer">
@@ -499,48 +451,6 @@ async function handleOIDCLogin() {
   transform: translateY(0);
 }
 
-/* ─── OIDC divider ─── */
-.oidc-divider {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: 8px 0 22px;
-}
-
-.divider-line {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.2), transparent);
-}
-
-.divider-text {
-  color: rgba(180, 180, 210, 0.4);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-}
-
-.oidc-btn {
-  width: 100%;
-  height: 48px;
-  font-size: 14px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(99, 102, 241, 0.15);
-  color: #c8c8e6;
-  transition: all 0.3s ease;
-}
-
-.oidc-btn:hover {
-  background: rgba(99, 102, 241, 0.08);
-  border-color: rgba(99, 102, 241, 0.3);
-  color: #e0e0ff;
-}
-
-.oidc-icon {
-  margin-right: 8px;
-}
-
 /* ─── Footer ─── */
 .login-footer {
   text-align: center;
@@ -566,8 +476,7 @@ async function handleOIDCLogin() {
     letter-spacing: 2px;
   }
 
-  .login-btn,
-  .oidc-btn {
+  .login-btn {
     height: 44px;
   }
 
