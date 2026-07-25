@@ -12,9 +12,8 @@ import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import ViewModeToggle from '@/components/ViewModeToggle.vue'
 
 const router = useRouter()
-const viewMode = ref<'card' | 'table'>(
-  (localStorage.getItem('gkube.node.viewMode') as 'card' | 'table') || 'card'
-)
+const storedView = localStorage.getItem('gkube.node.viewMode')
+const viewMode = ref<'card' | 'table'>(storedView === 'table' || storedView === 'card' ? storedView : 'card')
 const loading = ref(false)
 const nodeList = ref<NodeInfo[]>([])
 const searchName = ref('')
