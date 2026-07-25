@@ -8,6 +8,8 @@ import (
 	"gkube/pkg/k8s"
 	k8sReplicaSet "gkube/pkg/k8s/replicaset"
 	"gkube/pkg/response"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"context"
 )
 
 type replicaset struct{}
@@ -109,4 +111,61 @@ func (r *replicaset) GetReplicaSetDetail(c *gin.Context) {
 		return
 	}
 	response.Success(c, "执行成功", detail)
+}
+
+func (r *replicaset) GetReplicaSetPodList(c *gin.Context) {
+	namespace := c.Query("namespace")
+	name := c.Query("name")
+	clusterName := c.Query("clusterName")
+	if name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(clusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	podList, err := k8sReplicaSet.GetReplicaSetPodList(client, namespace, name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取ReplicaSet关联Pod失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", podList)
+}
+
+func (r *replicaset) GetReplicaSetEvents(c *gin.Context) {
+	namespace := c.Query("namespace")
+	name := c.Query("name")
+	clusterName := c.Query("clusterName")
+	if name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	client, err := k8s.GetK8sClientByName(clusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	events, err := client.CoreV1().Events(namespace).List(context.TODO(), metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=ReplicaSet", name),
+	})
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取ReplicaSet事件失败:%s", err.Error()))
+		return
+	}
+	var result []map[string]any
+	for _, event := range events.Items {
+		lastSeen := ""
+		if !event.LastTimestamp.IsZero() {
+			lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
+		}
+		result = append(result, map[string]any{
+			"type":      event.Type,
+			"reason":    event.Reason,
+			"message":   event.Message,
+			"last_seen": lastSeen,
+		})
+	}
+	response.Success(c, "执行成功", result)
 }
