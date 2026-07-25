@@ -212,7 +212,7 @@ onMounted(fetchClusters)
       <el-table-column label="描述" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">{{ row.description || '-' }}</template>
       </el-table-column>
-      <el-table-column label="操作" min-width="280" fixed="right">
+      <el-table-column label="操作" min-width="280" fixed="right" align="center">
         <template #default="{ row }">
           <div class="table-actions">
             <el-button size="small" @click="handleCheck(row)"><el-icon><CircleCheck /></el-icon> {{ t('cluster.checkConnection') }}</el-button>

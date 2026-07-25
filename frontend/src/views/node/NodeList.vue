@@ -235,7 +235,7 @@ onMounted(fetchNodes)
         <el-table-column prop="age" label="年龄" width="170" show-overflow-tooltip>
           <template #default="{ row }">{{ row.age || '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" min-width="380" fixed="right">
+        <el-table-column label="操作" min-width="380" fixed="right" align="center">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
