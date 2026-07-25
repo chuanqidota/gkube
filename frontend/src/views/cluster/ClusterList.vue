@@ -318,6 +318,6 @@ onMounted(fetchClusters)
 .cluster-detail .label { color: var(--gk-color-text-secondary); width: 70px; flex-shrink: 0; }
 .cluster-detail .value { color: var(--gk-color-text-primary); }
 .cluster-footer { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
-.table-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; }
+.table-actions { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 4px; }
 .table-actions .el-button { margin-left: 0 !important; }
 </style>

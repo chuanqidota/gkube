@@ -373,7 +373,7 @@ onMounted(fetchNodes)
 <style scoped>
 .page-container { padding: 20px; }
 .table-card { border-radius: 8px; }
-.table-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; }
+.table-actions { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 4px; }
 .table-actions .el-button { margin-left: 0 !important; }
 .node-card { height: 100%; }
 .node-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
