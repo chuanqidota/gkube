@@ -9,8 +9,6 @@ import (
 func registerPublicAuthRoutes(rg *gin.RouterGroup) {
 	rg.POST("auth/login", authApi.Auth.Login)
 	rg.POST("auth/refresh", authApi.Auth.Refresh)
-	rg.GET("auth/oidc/login", authApi.OIDC.GetLoginURL)
-	rg.GET("auth/oidc/callback", authApi.OIDC.HandleCallback)
 }
 
 // registerAuthRoutes 注册需要认证的用户路由

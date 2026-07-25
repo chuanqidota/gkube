@@ -22,7 +22,6 @@ func Engine() *gin.Engine {
 		registerAuthRoutes(authorized)
 		registerClusterRoutes(authorized)
 		registerDashboardRoutes(authorized)
-		registerSettingsRoutes(authorized)
 		registerK8sRoutes(authorized)
 	}
 
