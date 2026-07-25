@@ -26,4 +26,12 @@ type NodeInfo struct {
 	KernelVersion    string               `json:"kernel_version" label:"内核版本"`
 	ContainerRuntime string               `json:"container_runtime" label:"容器运行时"`
 	Age              string               `json:"age" label:"年龄"`
+
+	// 资源使用（口径：已请求 / 可分配，非真实负载）
+	// CPU 单位为核，内存单位为 GiB；PodTotal 来自 Status.Capacity[pods]
+	CPUUsed  float64 `json:"cpu_used" label:"已请求CPU"`
+	CPUTotal float64 `json:"cpu_total" label:"可分配CPU"`
+	MemUsed  float64 `json:"mem_used" label:"已请求内存"`
+	MemTotal float64 `json:"mem_total" label:"可分配内存"`
+	PodTotal int     `json:"pod_total" label:"Pod容量"`
 }

@@ -103,3 +103,20 @@ export function truncate(str: string, maxLen: number): string {
 export function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj))
 }
+
+/**
+ * 计算使用率百分比（0-100），total 非正时返回 0
+ */
+export function usagePercent(used: number, total: number): number {
+  if (!total || total <= 0) return 0
+  return Math.min(100, Math.round((used / total) * 100))
+}
+
+/**
+ * 根据使用率百分比返回进度条颜色（>=90 危险 / >=70 警告 / 其余主色）
+ */
+export function progressColor(percent: number): string {
+  if (percent >= 90) return 'var(--gk-color-danger)'
+  if (percent >= 70) return 'var(--gk-color-warning)'
+  return 'var(--gk-color-primary)'
+}

@@ -322,6 +322,12 @@ export interface NodeInfo {
   kernel_version: string
   container_runtime: string
   age: string
+  // 资源使用（口径：已请求 / 可分配，非真实负载）
+  cpu_used: number
+  cpu_total: number
+  mem_used: number
+  mem_total: number
+  pod_total: number
 }
 
 export interface NodeDetail {

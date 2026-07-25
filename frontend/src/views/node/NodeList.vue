@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import { getNodeList, getNodeYaml, updateNodeYaml, cordonNode, updateNodeTaints, updateNodeLabels, drainNode, deleteNode, type NodeInfo } from '@/api/resource'
+import { usagePercent, progressColor } from '@/utils/helpers'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
@@ -55,6 +56,10 @@ function statusType(node: any) {
   if (node.status === 'NotReady') return 'danger'
   return 'warning'
 }
+
+// 资源数值格式化（CPU 核 / 内存 GiB）
+function fmtCpu(n: number) { return (n || 0).toFixed(2) }
+function fmtMem(n: number) { return (n || 0).toFixed(1) }
 
 async function handleViewYaml(row: any) {
   yamlTarget.value = row
@@ -211,11 +216,53 @@ onMounted(fetchNodes)
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }"><el-tag :type="statusType(row)" size="small" effect="dark">{{ row.status || 'Unknown' }}</el-tag></template>
         </el-table-column>
-        <el-table-column prop="name" label="名称" min-width="240" show-overflow-tooltip>
+        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
           <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
         </el-table-column>
-        <el-table-column prop="internal_ip" label="IP 地址" min-width="180">
+        <el-table-column prop="roles" label="角色" width="110">
+          <template #default="{ row }">{{ row.roles || '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="version" label="版本" width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.version || '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="internal_ip" label="IP 地址" width="150">
           <template #default="{ row }">{{ row.internal_ip || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="CPU（请求/容量）" min-width="150">
+          <template #default="{ row }">
+            <el-progress
+              :percentage="usagePercent(row.cpu_used, row.cpu_total)"
+              :color="progressColor(usagePercent(row.cpu_used, row.cpu_total))"
+              :stroke-width="14"
+              :text-inside="true"
+            />
+            <div class="res-caption">{{ fmtCpu(row.cpu_used) }} / {{ fmtCpu(row.cpu_total) }} 核</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="内存（请求/容量）" min-width="160">
+          <template #default="{ row }">
+            <el-progress
+              :percentage="usagePercent(row.mem_used, row.mem_total)"
+              :color="progressColor(usagePercent(row.mem_used, row.mem_total))"
+              :stroke-width="14"
+              :text-inside="true"
+            />
+            <div class="res-caption">{{ fmtMem(row.mem_used) }} / {{ fmtMem(row.mem_total) }} GiB</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="Pods（请求/容量）" min-width="150">
+          <template #default="{ row }">
+            <el-progress
+              :percentage="usagePercent(row.pod_count, row.pod_total)"
+              :color="progressColor(usagePercent(row.pod_count, row.pod_total))"
+              :stroke-width="14"
+              :text-inside="true"
+            />
+            <div class="res-caption">{{ row.pod_count || 0 }} / {{ row.pod_total || 0 }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="age" label="年龄" width="170" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.age || '-' }}</template>
         </el-table-column>
         <el-table-column label="操作" min-width="360" fixed="right">
           <template #default="{ row }">
@@ -307,6 +354,7 @@ onMounted(fetchNodes)
 <style scoped>
 .page-container { padding: 20px; }
 .table-card { border-radius: 8px; }
+.res-caption { font-size: 12px; color: var(--gk-color-text-secondary); margin-top: 2px; }
 </style>
 
 <style>

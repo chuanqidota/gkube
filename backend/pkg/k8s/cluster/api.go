@@ -4,6 +4,7 @@ import (
 	"context"
 	clusterModel "gkube/internal/cluster/model"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -34,14 +35,35 @@ func GetClusterNodesInfo(client *kubernetes.Clientset) ([]clusterModel.NodeInfo,
 		return nil, err
 	}
 
-	// 获取每个节点的 Pod 数量
+	// 获取每个节点的 Pod 数量，并按节点累加 Pod 资源请求（仅 Running/Pending）
 	podCounts := make(map[string]int)
+	type nodeRequests struct {
+		cpu resource.Quantity
+		mem resource.Quantity
+	}
+	nodeReqs := make(map[string]nodeRequests)
 	pods, err := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 	if err == nil {
 		for _, pod := range pods.Items {
-			if pod.Spec.NodeName != "" && pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
+			if pod.Spec.NodeName == "" {
+				continue
+			}
+			if pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
 				podCounts[pod.Spec.NodeName]++
 			}
+			if pod.Status.Phase != corev1.PodRunning && pod.Status.Phase != corev1.PodPending {
+				continue
+			}
+			reqs := nodeReqs[pod.Spec.NodeName]
+			for _, container := range pod.Spec.Containers {
+				if req, ok := container.Resources.Requests[corev1.ResourceCPU]; ok {
+					reqs.cpu.Add(req)
+				}
+				if req, ok := container.Resources.Requests[corev1.ResourceMemory]; ok {
+					reqs.mem.Add(req)
+				}
+			}
+			nodeReqs[pod.Spec.NodeName] = reqs
 		}
 	}
 
@@ -117,6 +139,21 @@ func GetClusterNodesInfo(client *kubernetes.Clientset) ([]clusterModel.NodeInfo,
 		}
 		if mem, ok := node.Status.Allocatable[corev1.ResourceMemory]; ok {
 			nodeInfo.AllocatableMem = formatMemory(mem)
+		}
+
+		// 进度条用数字字段：已请求 / 可分配（口径为调度压力，非真实负载）
+		if allocCPU, ok := node.Status.Allocatable[corev1.ResourceCPU]; ok {
+			nodeInfo.CPUTotal = float64(allocCPU.MilliValue()) / 1000.0
+		}
+		if allocMem, ok := node.Status.Allocatable[corev1.ResourceMemory]; ok {
+			nodeInfo.MemTotal = float64(allocMem.Value()) / (1024 * 1024 * 1024)
+		}
+		if podsCap, ok := node.Status.Capacity[corev1.ResourcePods]; ok {
+			nodeInfo.PodTotal = int(podsCap.Value())
+		}
+		if reqs, ok := nodeReqs[node.Name]; ok {
+			nodeInfo.CPUUsed = float64(reqs.cpu.MilliValue()) / 1000.0
+			nodeInfo.MemUsed = float64(reqs.mem.Value()) / (1024 * 1024 * 1024)
 		}
 
 		nodesInfo = append(nodesInfo, nodeInfo)
