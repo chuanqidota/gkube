@@ -8,6 +8,7 @@ import { getClusterList, deleteCluster, checkCluster, updateCluster } from '@/ap
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
+import ViewModeToggle from '@/components/ViewModeToggle.vue'
 const { t } = useI18n()
 const router = useRouter()
 const loading = ref(false)
@@ -16,6 +17,9 @@ const searchName = ref('')
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+
+const storedView = localStorage.getItem('gkube.cluster.viewMode')
+const viewMode = ref<'card' | 'table'>(storedView === 'table' || storedView === 'card' ? storedView : 'card')
 
 // 编辑对话框相关
 const editVisible = ref(false)
@@ -185,10 +189,41 @@ onMounted(fetchClusters)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
+        <ViewModeToggle v-model="viewMode" storage-key="gkube.cluster.viewMode" />
       </template>
     </ResourceListToolbar>
 
-    <el-row :gutter="16" v-if="filteredList.length > 0">
+    <el-table v-if="viewMode === 'table'" :data="filteredList" v-loading="loading" stripe>
+      <el-table-column label="状态" width="100" align="center">
+        <template #default="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag></template>
+      </el-table-column>
+      <el-table-column label="显示名称" min-width="160" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.displayName || row.clusterName }}</template>
+      </el-table-column>
+      <el-table-column prop="clusterName" label="集群名称" min-width="160" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.clusterName || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="版本" width="130" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.clusterVersion || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="节点数" width="90" align="center">
+        <template #default="{ row }">{{ row.nodeCount || 0 }}</template>
+      </el-table-column>
+      <el-table-column label="描述" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.description || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="操作" min-width="280" fixed="right">
+        <template #default="{ row }">
+          <div class="table-actions">
+            <el-button size="small" @click="handleCheck(row)"><el-icon><CircleCheck /></el-icon> {{ t('cluster.checkConnection') }}</el-button>
+            <el-button size="small" @click="handleEdit(row)"><el-icon><Edit /></el-icon> {{ t('common.edit') }}</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)"><el-icon><Delete /></el-icon> {{ t('common.delete') }}</el-button>
+          </div>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-row :gutter="16" v-else-if="viewMode === 'card' && filteredList.length > 0">
       <el-col :span="8" v-for="cluster in filteredList" :key="cluster.id" style="margin-bottom: 16px;">
         <el-card shadow="hover" class="cluster-card">
           <template #header>
@@ -283,4 +318,6 @@ onMounted(fetchClusters)
 .cluster-detail .label { color: var(--gk-color-text-secondary); width: 70px; flex-shrink: 0; }
 .cluster-detail .value { color: var(--gk-color-text-primary); }
 .cluster-footer { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
+.table-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; }
+.table-actions .el-button { margin-left: 0 !important; }
 </style>
