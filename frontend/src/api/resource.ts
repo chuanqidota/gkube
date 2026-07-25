@@ -744,7 +744,7 @@ export function getHpaDetail(params: { namespace: string; name: string }) {
 }
 
 export function getHpaYaml(params: { namespace: string; name: string }) {
-  return request.get('/k8s/hpa/yaml', { params })
+  return request.get('/k8s/hpa/get-yaml', { params })
 }
 
 export function createHpa(data: { namespace: string; yaml: string }) {
