@@ -31,7 +31,7 @@ const loading = computed(() => resourcesLoading.value || nodesLoading.value || n
 // ---- state ----
 const overview = ref<Overview>({ cluster_count: 0, node_count: 0, pod_count: 0, namespace_count: 0 })
 const resources = ref<ResourceMetrics>({ cpu: { used: 0, total: 0 }, memory: { used: 0, total: 0 }, storage: { used: 0, total: 0 } })
-const workloads = ref<WorkloadSummary>({ deployments: 0, statefulsets: 0, daemonsets: 0, jobs: 0, cronjobs: 0 })
+const workloads = ref<WorkloadSummary>({ deployments: 0, statefulsets: 0, daemonsets: 0, jobs: 0, cronjobs: 0, ingresses: 0 })
 const nodeList = ref<NodeInfo[]>([])
 const nsList = ref<NamespaceUsage[]>([])
 const nsTotal = ref({ cpu: 0, mem: 0 })
@@ -96,6 +96,7 @@ const stats = computed(() => [
   { label: t('dashboard.podCount'), value: overview.value.pod_count, route: '/workloads/pods' },
   { label: t('dashboard.namespaceCount'), value: overview.value.namespace_count, route: '/namespaces' },
   { label: t('workload.deployment'), value: workloads.value.deployments, route: '/workloads/deployments' },
+  { label: t('network.ingress'), value: workloads.value.ingresses, route: '/network/ingresses' },
 ])
 
 // 容量环(口径:已分配 / Allocatable,语义为分配率)
@@ -251,7 +252,7 @@ function updateBar() {
       },
       label: {
         show: true, position: 'right',
-        formatter: (p: any) => sortKey.value === 'cpu' ? fmtCpu(p.value) : fmtMem(p.value) + 'G',
+        formatter: (p: any) => sortKey.value === 'cpu' ? fmtCpu(p.value) + ' 核' : fmtMem(p.value) + 'G',
         color: secondary, fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
       },
     }],
@@ -564,7 +565,7 @@ function nodePipClass(n: NodeInfo) {
   box-shadow: var(--gk-shadow-sm);
   cursor: pointer;
   transition: all var(--gk-transition-fast);
-  text-align: left;
+  text-align: center;
   min-width: 76px;
 }
 .stat-pill:hover { border-color: var(--gk-color-primary-light); box-shadow: 0 0 0 3px var(--gk-color-primary-bg); }

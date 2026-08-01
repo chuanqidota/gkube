@@ -19,6 +19,7 @@ export interface WorkloadSummary {
   daemonsets: number
   jobs: number
   cronjobs: number
+  ingresses: number
 }
 
 export interface NamespaceUsage {

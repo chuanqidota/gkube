@@ -228,7 +228,7 @@ func (d *dashboard) Workloads(c *gin.Context) {
 		return
 	}
 
-	var totalDeployments, totalStatefulSets, totalDaemonSets, totalJobs, totalCronJobs int
+	var totalDeployments, totalStatefulSets, totalDaemonSets, totalJobs, totalCronJobs, totalIngresses int
 
 	for _, cluster := range clusters {
 		if cluster.Status != "online" {
@@ -267,6 +267,11 @@ func (d *dashboard) Workloads(c *gin.Context) {
 		if err == nil {
 			totalCronJobs += len(cronJobs.Items)
 		}
+
+		ingresses, err := client.NetworkingV1().Ingresses(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		if err == nil {
+			totalIngresses += len(ingresses.Items)
+		}
 	}
 
 	data := map[string]any{
@@ -275,6 +280,7 @@ func (d *dashboard) Workloads(c *gin.Context) {
 		"daemonsets":   totalDaemonSets,
 		"jobs":         totalJobs,
 		"cronjobs":     totalCronJobs,
+		"ingresses":    totalIngresses,
 	}
 	response.Success(c, "获取工作负载信息成功", data)
 }
