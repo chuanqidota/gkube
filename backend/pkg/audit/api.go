@@ -23,7 +23,7 @@ func (e *EsRecord) WriteData(data map[string]any) {
 	if es.ElasticSearch == nil {
 		return
 	}
-	logger.Info(fmt.Sprintf("存es的日志数据-%v", data))
+	// 终端 I/O 数据量大且频繁,不再逐条打印日志(DEBUG 级别以下不记录)
 	index := e.Index
 	if !es.IsExistsIndex(index) {
 		if err := es.CreateIndex(index); err != nil {
@@ -55,16 +55,20 @@ func (e *EsRecord) WriteData(data map[string]any) {
 	}
 }
 
-// ReadData 从es中读取记录
+// ReadData 从es中读取记录。为避免大终端会话 OOM,设总量上限。
 func (e *EsRecord) ReadData(key string) []map[string]any {
 	if es.ElasticSearch == nil {
 		return nil
 	}
+	const maxTotal = 500000
 	result := make([]map[string]any, 0)
 	index := e.Index
 	pageNum := 1
 	pageSize := 10000
 	for {
+		if len(result) >= maxTotal {
+			break
+		}
 		from := (pageNum - 1) * pageSize
 		query := `{
             "query":{

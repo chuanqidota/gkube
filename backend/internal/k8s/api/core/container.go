@@ -1,13 +1,18 @@
 package core
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
+	"gorm.io/gorm"
 
 	"encoding/json"
 	"gkube/internal/k8s/model"
@@ -16,18 +21,14 @@ import (
 	"gkube/pkg/audit"
 	"gkube/pkg/database"
 	"gkube/pkg/k8s/container"
+	"gkube/pkg/logger"
+	"gkube/pkg/middleware"
+	"gkube/pkg/response"
 	"gkube/pkg/s3"
-	"time"
 
 	"gkube/config"
 
-	"gkube/pkg/response"
-
 	"gkube/pkg/k8s"
-
-	"bufio"
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 )
 
 // WebSocket处理函数
@@ -35,11 +36,13 @@ func HandleWebSocket(c *gin.Context) {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
-		CheckOrigin:     func(r *http.Request) bool { return true }, // 生产环境需严格限制
+		// 校验 Origin 在配置的白名单内,空配置仅允许同源(无 Origin)
+		CheckOrigin: func(r *http.Request) bool {
+			return middleware.IsOriginAllowed(r.Header.Get("Origin"))
+		},
 	}
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-
 		return
 	}
 	defer conn.Close()
@@ -49,16 +52,6 @@ func HandleWebSocket(c *gin.Context) {
 	conn.SetPongHandler(func(string) error {
 		return conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	})
-	// 启动心跳goroutine
-	go func() {
-		ticker := time.NewTicker(30 * time.Second)
-		defer ticker.Stop()
-		for range ticker.C {
-			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				return
-			}
-		}
-	}()
 
 	// 获取Pod参数
 	var reqQueryParams params.ContainerQueryParams
@@ -79,6 +72,7 @@ func HandleWebSocket(c *gin.Context) {
 		Namespace:   namespace,
 		PodName:     podName,
 	}).Error; err != nil {
+		logger.Error(err.Error())
 		_ = conn.WriteMessage(websocket.CloseMessage, []byte("数据库错误"))
 		return
 	}
@@ -107,9 +101,10 @@ func HandleWebSocket(c *gin.Context) {
 	record := audit.NewEsRecord()
 	asciinema.WriteHeader(key, cols, rows, startTime, record)
 
-	// 执行Exec到Pod，传入初始终端尺寸
+	// 执行Exec到Pod，传入初始终端尺寸(心跳与并发写由 ExecToPod 内部管理)
 	if err := container.ExecToPod(key, clusterName, namespace, podName, containerName, conn, record, cols, rows); err != nil {
-		_ = conn.WriteMessage(websocket.TextMessage, []byte("Error: "+err.Error()))
+		logger.Error(err.Error())
+		_ = conn.WriteMessage(websocket.TextMessage, []byte("终端执行失败"))
 	}
 }
 
@@ -119,14 +114,28 @@ func RecordList(c *gin.Context) {
 	offset := c.DefaultQuery("offset", "0")
 	limitInt, _ := strconv.Atoi(limit)
 	offsetInt, _ := strconv.Atoi(offset)
+	if limitInt <= 0 {
+		limitInt = 10
+	}
+	if limitInt > 500 {
+		limitInt = 500
+	}
+	if offsetInt < 0 {
+		offsetInt = 0
+	}
 
 	db := database.DB.Model(&model.TerminalRecord{})
 	var count int64
-	db.Count(&count)
+	if err := db.Session(&gorm.Session{}).Count(&count).Error; err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "获取记录总数失败")
+		return
+	}
 
 	result := make([]model.TerminalRecord, 0)
 	if err := db.Limit(limitInt).Offset(offsetInt).Find(&result).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("获取失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "获取失败")
 		return
 	}
 	response.Success(c, "获取成功", map[string]any{"count": count, "result": result})
@@ -136,6 +145,7 @@ func RecordList(c *gin.Context) {
 func RecordUrl(c *gin.Context) {
 	key := c.Query("key")
 	if key == "" {
+		response.Fail(c, "key参数不能为空")
 		return
 	}
 	endpoint := config.Conf.S3.EndPoint
@@ -150,7 +160,7 @@ func RecordUrl(c *gin.Context) {
 		buffer.Write([]byte(history))
 		buffer.WriteByte('\n')
 	}
-	// 上传到as3中-会覆盖更新
+	// 上传到s3中-会覆盖更新
 	s3.UploadFile(key, buffer.Bytes())
 
 	url := fmt.Sprintf("http://%s/%s/%s", endpoint, bucket, key)
@@ -161,34 +171,36 @@ func RecordUrl(c *gin.Context) {
 func PodContainerLog(c *gin.Context) {
 	var query params.ContainerLogQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
+		response.Fail(c, "参数错误")
 		return
 	}
 
 	client, err := k8s.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 	log, err := container.GetPodContainerLog(client, query.Namespace, query.PodName, query.Container, query.TailLines)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取日志失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取日志失败")
 		return
 	}
 	response.Success(c, "获取成功", log)
 }
 
 // 通过SSE获取日志信息
-
 func StreamPodContainerLogs(c *gin.Context) {
 	var query params.ContainerLogQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
+		response.Fail(c, "参数错误")
 		return
 	}
 	client, err := k8s.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 
@@ -196,6 +208,7 @@ func StreamPodContainerLogs(c *gin.Context) {
 	ctx := c.Request.Context()
 	stream, err := container.GetPodContainerLogStream(ctx, client, query.Namespace, query.PodName, query.Container, query.TailLines)
 	if err != nil {
+		logger.Error(err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "日志流创建失败"})
 		return
 	}
@@ -205,7 +218,6 @@ func StreamPodContainerLogs(c *gin.Context) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
-	c.Header("Access-Control-Allow-Origin", "*")
 
 	// 创建带缓冲的读取器
 	reader := bufio.NewReader(stream)
@@ -233,22 +245,16 @@ func StreamPodContainerLogs(c *gin.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			// 客户端断开连接
 			return
 		case result, ok := <-ch:
 			if !ok {
-				// channel已关闭
 				return
 			}
 			if result.err != nil {
-				// 流读取结束或出错
 				return
 			}
 
-			// 发送 SSE 格式数据
 			c.SSEvent("message", string(result.line))
-
-			// 手动刷新缓冲区
 			c.Writer.Flush()
 		}
 	}

@@ -37,13 +37,37 @@ func (t CustomTime) Value() (driver.Value, error) {
 	return time.Time(t), nil
 }
 
-// Scan 实现 sql.Scanner 接口
+// Scan 实现 sql.Scanner 接口,安全断言多种底层驱动类型。
 func (t *CustomTime) Scan(value interface{}) error {
-	var tm time.Time
-	if value != nil {
-		tm = value.(time.Time)
+	if value == nil {
+		*t = CustomTime(time.Time{})
+		return nil
 	}
-	*t = CustomTime(tm)
+	switch v := value.(type) {
+	case time.Time:
+		*t = CustomTime(v)
+	case []byte:
+		parsed, err := time.Parse(time.DateTime, string(v))
+		if err != nil {
+			// 兼容其他常见格式
+			parsed, err = time.Parse(time.RFC3339, string(v))
+			if err != nil {
+				return err
+			}
+		}
+		*t = CustomTime(parsed)
+	case string:
+		parsed, err := time.Parse(time.DateTime, v)
+		if err != nil {
+			parsed, err = time.Parse(time.RFC3339, v)
+			if err != nil {
+				return err
+			}
+		}
+		*t = CustomTime(parsed)
+	default:
+		return fmt.Errorf("CustomTime.Scan: 不支持的类型 %T", value)
+	}
 	return nil
 }
 

@@ -3,14 +3,17 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sort"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gkube/internal/cluster/model"
 	"gkube/internal/dashboard/params"
-	"gkube/pkg/auth"
 	"gkube/pkg/database"
 	"gkube/pkg/k8s"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
 
 	corev1 "k8s.io/api/core/v1"
@@ -21,6 +24,37 @@ import (
 type dashboard struct{}
 
 var Dashboard = new(dashboard)
+
+const (
+	dashboardTimeout      = 30 * time.Second
+	maxConcurrentClusters = 5
+)
+
+// dashboardCtx 派生请求级带超时的 context。
+func dashboardCtx(c *gin.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(c.Request.Context(), dashboardTimeout)
+}
+
+// forEachCluster 并发(信号量限流)遍历集群执行 fn,fn 内对共享状态的写操作需自行加锁(mu)。
+// 单个集群出错被忽略,与既有行为一致(返回可得的聚合结果)。
+func forEachCluster(c *gin.Context, clusters []model.K8SCluster, fn func(ctx context.Context, cluster model.K8SCluster, mu *sync.Mutex)) {
+	ctx, cancel := dashboardCtx(c)
+	defer cancel()
+	sem := make(chan struct{}, maxConcurrentClusters)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	for _, cl := range clusters {
+		cl := cl
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			fn(ctx, cl, &mu)
+		}()
+	}
+	wg.Wait()
+}
 
 // getTargetClusters 按 clusterID 选取目标集群:
 //   - clusterID 命中:返回该单个集群(无论状态),与 Events 既有行为一致;
@@ -41,57 +75,53 @@ func getTargetClusters(clusterID *uint) ([]model.K8SCluster, error) {
 	return clusters, nil
 }
 
-// Overview
-//
-//	@Description: 获取仪表盘概览数据
-//	@receiver d
-//	@param c
+// Overview 获取仪表盘概览数据
 func (d *dashboard) Overview(c *gin.Context) {
 	var query params.DashboardQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
 	clusters, err := getTargetClusters(query.ClusterID)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取集群列表失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
 		return
 	}
 
 	clusterCount := len(clusters)
 	var nodeCount, podCount, namespaceCount int
 
-	for _, cluster := range clusters {
+	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster, mu *sync.Mutex) {
+		mu.Lock()
 		nodeCount += cluster.NodeCount
-
+		mu.Unlock()
 		if cluster.Status != "online" {
-			continue
+			return
 		}
-		kubeConfig, err := auth.DecryptAES(cluster.KubeConfig)
+		// 复用缓存客户端
+		client, err := k8s.GetK8sClientByName(cluster.ClusterName)
 		if err != nil {
-			continue
-		}
-		client, err := k8s.GetK8sClient(kubeConfig)
-		if err != nil {
-			continue
+			return
 		}
 
+		var localPod, localNS int
 		// Count pods
-		podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err == nil {
-			podCount += len(podList.Items)
+		if podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(ctx, metav1.ListOptions{}); err == nil {
+			localPod = len(podList.Items)
 		}
-
 		// Count namespaces
-		nsList, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
-		if err == nil {
-			nsCount := len(nsList.Items)
-			if nsCount > namespaceCount {
-				namespaceCount = nsCount
-			}
+		if nsList, err := client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{}); err == nil {
+			localNS = len(nsList.Items)
 		}
-	}
+		mu.Lock()
+		podCount += localPod
+		if localNS > namespaceCount {
+			namespaceCount = localNS
+		}
+		mu.Unlock()
+	})
 
 	data := map[string]any{
 		"cluster_count":   clusterCount,
@@ -102,65 +132,60 @@ func (d *dashboard) Overview(c *gin.Context) {
 	response.Success(c, "获取概览数据成功", data)
 }
 
-// Resources
-//
-//	@Description: 获取集群资源使用情况（CPU/内存/存储）
-//	@receiver d
-//	@param c
+// Resources 获取集群资源使用情况（CPU/内存/存储）
 func (d *dashboard) Resources(c *gin.Context) {
 	var query params.DashboardQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
 	clusters, err := getTargetClusters(query.ClusterID)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取集群列表失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
 		return
 	}
 
+	var mu sync.Mutex
 	var totalCPUUsed, totalCPUTotal resource.Quantity
 	var totalMemUsed, totalMemTotal resource.Quantity
 	var totalStorageUsed, totalStorageTotal resource.Quantity
 
-	for _, cluster := range clusters {
+	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster, _ *sync.Mutex) {
 		if cluster.Status != "online" {
-			continue
+			return
 		}
-		kubeConfig, err := auth.DecryptAES(cluster.KubeConfig)
+		client, err := k8s.GetK8sClientByName(cluster.ClusterName)
 		if err != nil {
-			continue
-		}
-		client, err := k8s.GetK8sClient(kubeConfig)
-		if err != nil {
-			continue
+			return
 		}
 
-		// 总量取 Allocatable(真实可调度,Capacity 减去系统预留),与节点级口径一致
-		nodeList, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+		// 总量取 Allocatable(真实可调度)
+		nodeList, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 		if err != nil {
-			continue
+			return
 		}
+		var cpuTotal, memTotal, storTotal resource.Quantity
+		var cpuUsed, memUsed, storUsed resource.Quantity
 		for _, node := range nodeList.Items {
 			if allocCPU, ok := node.Status.Allocatable[corev1.ResourceCPU]; ok {
-				totalCPUTotal.Add(allocCPU)
+				cpuTotal.Add(allocCPU)
 			}
 			if allocMem, ok := node.Status.Allocatable[corev1.ResourceMemory]; ok {
-				totalMemTotal.Add(allocMem)
+				memTotal.Add(allocMem)
 			}
-			// ephemeral-storage 优先 Allocatable,回退 Capacity
 			if allocStor := node.Status.Allocatable.StorageEphemeral(); !allocStor.IsZero() {
-				totalStorageTotal.Add(*allocStor)
+				storTotal.Add(*allocStor)
 			} else if storageCap := node.Status.Capacity.StorageEphemeral(); !storageCap.IsZero() {
-				totalStorageTotal.Add(*storageCap)
+				storTotal.Add(*storageCap)
 			}
 		}
 
 		// Sum pod resource requests as "used"
-		podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+		podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(ctx, metav1.ListOptions{})
 		if err != nil {
-			continue
+			return
 		}
 		for _, pod := range podList.Items {
 			if pod.Status.Phase != corev1.PodRunning && pod.Status.Phase != corev1.PodPending {
@@ -168,111 +193,98 @@ func (d *dashboard) Resources(c *gin.Context) {
 			}
 			for _, container := range pod.Spec.Containers {
 				if req, ok := container.Resources.Requests[corev1.ResourceCPU]; ok {
-					totalCPUUsed.Add(req)
+					cpuUsed.Add(req)
 				}
 				if req, ok := container.Resources.Requests[corev1.ResourceMemory]; ok {
-					totalMemUsed.Add(req)
+					memUsed.Add(req)
 				}
 				if req, ok := container.Resources.Requests[corev1.ResourceEphemeralStorage]; ok {
-					totalStorageUsed.Add(req)
+					storUsed.Add(req)
 				}
 			}
 		}
-	}
-
-	// Convert to human-readable units
-	// CPU in cores (float64)
-	cpuUsed := float64(totalCPUUsed.MilliValue()) / 1000.0
-	cpuTotal := float64(totalCPUTotal.MilliValue()) / 1000.0
-
-	// Memory in GiB (float64)
-	memUsed := float64(totalMemUsed.Value()) / (1024 * 1024 * 1024)
-	memTotal := float64(totalMemTotal.Value()) / (1024 * 1024 * 1024)
-
-	// Storage in GiB (float64)
-	storageUsed := float64(totalStorageUsed.Value()) / (1024 * 1024 * 1024)
-	storageTotal := float64(totalStorageTotal.Value()) / (1024 * 1024 * 1024)
+		mu.Lock()
+		totalCPUUsed.Add(cpuUsed)
+		totalCPUTotal.Add(cpuTotal)
+		totalMemUsed.Add(memUsed)
+		totalMemTotal.Add(memTotal)
+		totalStorageUsed.Add(storUsed)
+		totalStorageTotal.Add(storTotal)
+		mu.Unlock()
+	})
 
 	data := map[string]any{
 		"cpu": map[string]any{
-			"used":  cpuUsed,
-			"total": cpuTotal,
+			"used":  float64(totalCPUUsed.MilliValue()) / 1000.0,
+			"total": float64(totalCPUTotal.MilliValue()) / 1000.0,
 		},
 		"memory": map[string]any{
-			"used":  memUsed,
-			"total": memTotal,
+			"used":  float64(totalMemUsed.Value()) / (1024 * 1024 * 1024),
+			"total": float64(totalMemTotal.Value()) / (1024 * 1024 * 1024),
 		},
 		"storage": map[string]any{
-			"used":  storageUsed,
-			"total": storageTotal,
+			"used":  float64(totalStorageUsed.Value()) / (1024 * 1024 * 1024),
+			"total": float64(totalStorageTotal.Value()) / (1024 * 1024 * 1024),
 		},
 	}
 	response.Success(c, "获取资源信息成功", data)
 }
 
-// Workloads
-//
-//	@Description: 获取所有集群工作负载统计
-//	@receiver d
-//	@param c
+// Workloads 获取所有集群工作负载统计
 func (d *dashboard) Workloads(c *gin.Context) {
 	var query params.DashboardQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
 	clusters, err := getTargetClusters(query.ClusterID)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取集群列表失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
 		return
 	}
 
+	var mu sync.Mutex
 	var totalDeployments, totalStatefulSets, totalDaemonSets, totalJobs, totalCronJobs, totalIngresses int
 
-	for _, cluster := range clusters {
+	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster, _ *sync.Mutex) {
 		if cluster.Status != "online" {
-			continue
+			return
 		}
-		kubeConfig, err := auth.DecryptAES(cluster.KubeConfig)
+		client, err := k8s.GetK8sClientByName(cluster.ClusterName)
 		if err != nil {
-			continue
-		}
-		client, err := k8s.GetK8sClient(kubeConfig)
-		if err != nil {
-			continue
+			return
 		}
 
-		deployments, err := client.AppsV1().Deployments(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err == nil {
-			totalDeployments += len(deployments.Items)
+		var d, ss, ds, j, cj, ing int
+		if deployments, err := client.AppsV1().Deployments(corev1.NamespaceAll).List(ctx, metav1.ListOptions{}); err == nil {
+			d = len(deployments.Items)
 		}
-
-		statefulSets, err := client.AppsV1().StatefulSets(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err == nil {
-			totalStatefulSets += len(statefulSets.Items)
+		if statefulSets, err := client.AppsV1().StatefulSets(corev1.NamespaceAll).List(ctx, metav1.ListOptions{}); err == nil {
+			ss = len(statefulSets.Items)
 		}
-
-		daemonSets, err := client.AppsV1().DaemonSets(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err == nil {
-			totalDaemonSets += len(daemonSets.Items)
+		if daemonSets, err := client.AppsV1().DaemonSets(corev1.NamespaceAll).List(ctx, metav1.ListOptions{}); err == nil {
+			ds = len(daemonSets.Items)
 		}
-
-		jobs, err := client.BatchV1().Jobs(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err == nil {
-			totalJobs += len(jobs.Items)
+		if jobs, err := client.BatchV1().Jobs(corev1.NamespaceAll).List(ctx, metav1.ListOptions{}); err == nil {
+			j = len(jobs.Items)
 		}
-
-		cronJobs, err := client.BatchV1().CronJobs(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err == nil {
-			totalCronJobs += len(cronJobs.Items)
+		if cronJobs, err := client.BatchV1().CronJobs(corev1.NamespaceAll).List(ctx, metav1.ListOptions{}); err == nil {
+			cj = len(cronJobs.Items)
 		}
-
-		ingresses, err := client.NetworkingV1().Ingresses(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err == nil {
-			totalIngresses += len(ingresses.Items)
+		if ingresses, err := client.NetworkingV1().Ingresses(corev1.NamespaceAll).List(ctx, metav1.ListOptions{}); err == nil {
+			ing = len(ingresses.Items)
 		}
-	}
+		mu.Lock()
+		totalDeployments += d
+		totalStatefulSets += ss
+		totalDaemonSets += ds
+		totalJobs += j
+		totalCronJobs += cj
+		totalIngresses += ing
+		mu.Unlock()
+	})
 
 	data := map[string]any{
 		"deployments":  totalDeployments,
@@ -285,21 +297,18 @@ func (d *dashboard) Workloads(c *gin.Context) {
 	response.Success(c, "获取工作负载信息成功", data)
 }
 
-// Namespaces
-//
-//	@Description: 获取按命名空间聚合的资源占用(Pod 数 + CPU/内存 requests),及集群总量
-//	@receiver d
-//	@param c
+// Namespaces 获取按命名空间聚合的资源占用
 func (d *dashboard) Namespaces(c *gin.Context) {
 	var query params.DashboardQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
 	clusters, err := getTargetClusters(query.ClusterID)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取集群列表失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
 		return
 	}
 
@@ -311,88 +320,100 @@ func (d *dashboard) Namespaces(c *gin.Context) {
 		Mem         resource.Quantity
 	}
 	agg := make(map[string]*nsAgg)
+	var mu sync.Mutex
 	var totalCPU, totalMem resource.Quantity
 
-	for _, cluster := range clusters {
+	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster, _ *sync.Mutex) {
 		if cluster.Status != "online" {
-			continue
+			return
 		}
-		kubeConfig, err := auth.DecryptAES(cluster.KubeConfig)
+		client, err := k8s.GetK8sClientByName(cluster.ClusterName)
 		if err != nil {
-			continue
-		}
-		client, err := k8s.GetK8sClient(kubeConfig)
-		if err != nil {
-			continue
+			return
 		}
 
-		// 集群总量 = 所有节点 Allocatable 之和(真实可调度)
-		nodeList, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-		if err == nil {
+		// 集群总量 = 所有节点 Allocatable 之和
+		var localCPU, localMem resource.Quantity
+		if nodeList, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{}); err == nil {
 			for _, node := range nodeList.Items {
 				if allocCPU, ok := node.Status.Allocatable[corev1.ResourceCPU]; ok {
-					totalCPU.Add(allocCPU)
+					localCPU.Add(allocCPU)
 				}
 				if allocMem, ok := node.Status.Allocatable[corev1.ResourceMemory]; ok {
-					totalMem.Add(allocMem)
+					localMem.Add(allocMem)
 				}
 			}
 		}
 
-		// 按命名空间累加 Pod 数与 requests(仅 Running/Pending,与 Resources 口径一致)
-		podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			continue
-		}
-		for _, pod := range podList.Items {
-			ns := pod.Namespace
-			if ns == "" {
-				continue
-			}
-			a, ok := agg[ns]
-			if !ok {
-				a = &nsAgg{Name: ns}
-				agg[ns] = a
-			}
-			// Pod 数统计该 ns 全部 Pod(含 Completed)
-			a.PodCount++
-			if pod.Status.Phase != corev1.PodRunning && pod.Status.Phase != corev1.PodPending {
-				continue
-			}
-			a.RunningPods++
-			for _, container := range pod.Spec.Containers {
-				if req, ok := container.Resources.Requests[corev1.ResourceCPU]; ok {
-					a.CPU.Add(req)
-				}
-				if req, ok := container.Resources.Requests[corev1.ResourceMemory]; ok {
-					a.Mem.Add(req)
-				}
-			}
-		}
-
-		// 补齐没有 Pod 的命名空间,使分布与命名空间菜单口径一致
-		nsList, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+		// 按命名空间累加
+		localAgg := make(map[string]*nsAgg)
+		podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(ctx, metav1.ListOptions{})
 		if err == nil {
+			for _, pod := range podList.Items {
+				ns := pod.Namespace
+				if ns == "" {
+					continue
+				}
+				a, ok := localAgg[ns]
+				if !ok {
+					a = &nsAgg{Name: ns}
+					localAgg[ns] = a
+				}
+				a.PodCount++
+				if pod.Status.Phase != corev1.PodRunning && pod.Status.Phase != corev1.PodPending {
+					continue
+				}
+				a.RunningPods++
+				for _, container := range pod.Spec.Containers {
+					if req, ok := container.Resources.Requests[corev1.ResourceCPU]; ok {
+						a.CPU.Add(req)
+					}
+					if req, ok := container.Resources.Requests[corev1.ResourceMemory]; ok {
+						a.Mem.Add(req)
+					}
+				}
+			}
+		}
+
+		// 补齐没有 Pod 的命名空间
+		if nsList, err := client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{}); err == nil {
 			for _, ns := range nsList.Items {
 				if ns.Name == "" {
 					continue
 				}
-				if _, ok := agg[ns.Name]; !ok {
-					agg[ns.Name] = &nsAgg{Name: ns.Name}
+				if _, ok := localAgg[ns.Name]; !ok {
+					localAgg[ns.Name] = &nsAgg{Name: ns.Name}
 				}
 			}
 		}
-	}
+
+		// 合并到全局 agg
+		mu.Lock()
+		totalCPU.Add(localCPU)
+		totalMem.Add(localMem)
+		for name, a := range localAgg {
+			g, ok := agg[name]
+			if !ok {
+				g = &nsAgg{Name: name}
+				agg[name] = g
+			}
+			g.PodCount += a.PodCount
+			g.RunningPods += a.RunningPods
+			g.CPU.Add(a.CPU)
+			g.Mem.Add(a.Mem)
+		}
+		mu.Unlock()
+	})
 
 	// 转为切片并按 CPU 请求降序排序
 	items := make([]map[string]any, 0, len(agg))
 	for _, a := range agg {
 		items = append(items, map[string]any{
-			"name":          a.Name,
-			"pod_count":     a.PodCount,
-			"running_pods":  a.RunningPods,
-			"cpu_used":      float64(a.CPU.MilliValue()) / 1000.0,
-			"mem_used":      float64(a.Mem.Value()) / (1024 * 1024 * 1024),
+			"name":         a.Name,
+			"pod_count":    a.PodCount,
+			"running_pods": a.RunningPods,
+			"cpu_used":     float64(a.CPU.MilliValue()) / 1000.0,
+			"mem_used":     float64(a.Mem.Value()) / (1024 * 1024 * 1024),
 		})
 	}
 	sort.Slice(items, func(i, j int) bool {
@@ -410,34 +431,31 @@ func (d *dashboard) Namespaces(c *gin.Context) {
 // 重启异常阈值:restartCount 达到此值视为异常
 const restartThreshold = 10
 
-// 异常容器 waiting reason 集合(CrashLoop/镜像/创建失败等)
+// 异常容器 waiting reason 集合
 var abnormalWaitingReasons = map[string]bool{
-	"CrashLoopBackOff":            true,
-	"ImagePullBackOff":            true,
-	"ErrImagePull":                true,
-	"InvalidImageName":            true,
-	"CreateContainerConfigError":  true,
-	"CreateContainerError":        true,
-	"RunContainerError":           true,
-	"ContainerCreating":           true,
-	"OOMKilled":                   true,
+	"CrashLoopBackOff":           true,
+	"ImagePullBackOff":           true,
+	"ErrImagePull":               true,
+	"InvalidImageName":           true,
+	"CreateContainerConfigError": true,
+	"CreateContainerError":       true,
+	"RunContainerError":          true,
+	"ContainerCreating":          true,
+	"OOMKilled":                  true,
 }
 
-// Health
-//
-//	@Description: 获取集群健康快照(异常Pod/重启Pod/NotReady节点/压力节点/异常PVC + summary),仅用原生 API
-//	@receiver d
-//	@param c
+// Health 获取集群健康快照
 func (d *dashboard) Health(c *gin.Context) {
 	var query params.DashboardQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
 	clusters, err := getTargetClusters(query.ClusterID)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取集群列表失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
 		return
 	}
 
@@ -464,6 +482,7 @@ func (d *dashboard) Health(c *gin.Context) {
 		Phase     string `json:"phase"`
 	}
 
+	var mu sync.Mutex
 	var abnormalPods []abnormalPod
 	var restartingPods []restartingPod
 	var notReadyNodes []string
@@ -474,33 +493,35 @@ func (d *dashboard) Health(c *gin.Context) {
 	readyNodes, notReadyNodeCount := 0, 0
 	boundPVCs, abnormalPVCCount := 0, 0
 
-	for _, cluster := range clusters {
+	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster, _ *sync.Mutex) {
 		if cluster.Status != "online" {
-			continue
+			return
 		}
-		kubeConfig, err := auth.DecryptAES(cluster.KubeConfig)
+		client, err := k8s.GetK8sClientByName(cluster.ClusterName)
 		if err != nil {
-			continue
-		}
-		client, err := k8s.GetK8sClient(kubeConfig)
-		if err != nil {
-			continue
+			return
 		}
 
+		var lAbnPods []abnormalPod
+		var lRestartPods []restartingPod
+		var lNotReadyNodes []string
+		var lPressureNodes []pressureNode
+		var lAbnPVCs []abnormalPVC
+		lHealthy, lAbnPod := 0, 0
+		lReady, lNotReady := 0, 0
+		lBound, lAbnPVC := 0, 0
+
 		// Pods
-		podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err == nil {
+		if podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(ctx, metav1.ListOptions{}); err == nil {
 			for _, pod := range podList.Items {
 				phase := string(pod.Status.Phase)
 				reason := ""
 				abnormal := false
 
-				// Pending / Failed / Unknown 视为异常
 				if pod.Status.Phase != corev1.PodRunning && pod.Status.Phase != corev1.PodSucceeded {
 					abnormal = true
 					reason = phase
 				}
-				// 容器 waiting reason 命中异常集合
 				for _, cs := range pod.Status.ContainerStatuses {
 					if cs.State.Waiting != nil && abnormalWaitingReasons[cs.State.Waiting.Reason] {
 						abnormal = true
@@ -508,9 +529,8 @@ func (d *dashboard) Health(c *gin.Context) {
 							reason = cs.State.Waiting.Reason
 						}
 					}
-					// 重启异常
 					if cs.RestartCount >= restartThreshold {
-						restartingPods = append(restartingPods, restartingPod{
+						lRestartPods = append(lRestartPods, restartingPod{
 							Name:         pod.Name,
 							Namespace:    pod.Namespace,
 							RestartCount: int(cs.RestartCount),
@@ -520,21 +540,20 @@ func (d *dashboard) Health(c *gin.Context) {
 				}
 
 				if abnormal {
-					abnormalPodCount++
-					if len(abnormalPods) < 5 {
-						abnormalPods = append(abnormalPods, abnormalPod{
+					lAbnPod++
+					if len(lAbnPods) < 5 {
+						lAbnPods = append(lAbnPods, abnormalPod{
 							Name: pod.Name, Namespace: pod.Namespace, Phase: phase, Reason: reason, Node: pod.Spec.NodeName,
 						})
 					}
 				} else if pod.Status.Phase == corev1.PodRunning {
-					healthyPods++
+					lHealthy++
 				}
 			}
 		}
 
 		// Nodes
-		nodeList, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-		if err == nil {
+		if nodeList, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{}); err == nil {
 			for _, node := range nodeList.Items {
 				ready := false
 				var pressures []string
@@ -549,33 +568,46 @@ func (d *dashboard) Health(c *gin.Context) {
 					}
 				}
 				if ready {
-					readyNodes++
+					lReady++
 				} else {
-					notReadyNodeCount++
-					notReadyNodes = append(notReadyNodes, node.Name)
+					lNotReady++
+					lNotReadyNodes = append(lNotReadyNodes, node.Name)
 				}
 				if len(pressures) > 0 {
-					pressureNodes = append(pressureNodes, pressureNode{Name: node.Name, Pressures: pressures})
+					lPressureNodes = append(lPressureNodes, pressureNode{Name: node.Name, Pressures: pressures})
 				}
 			}
 		}
 
 		// PVCs
-		pvcList, err := client.CoreV1().PersistentVolumeClaims(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-		if err == nil {
+		if pvcList, err := client.CoreV1().PersistentVolumeClaims(corev1.NamespaceAll).List(ctx, metav1.ListOptions{}); err == nil {
 			for _, pvc := range pvcList.Items {
 				phase := string(pvc.Status.Phase)
 				if pvc.Status.Phase == corev1.ClaimBound {
-					boundPVCs++
+					lBound++
 				} else {
-					abnormalPVCCount++
-					if len(abnormalPVCs) < 5 {
-						abnormalPVCs = append(abnormalPVCs, abnormalPVC{Name: pvc.Name, Namespace: pvc.Namespace, Phase: phase})
+					lAbnPVC++
+					if len(lAbnPVCs) < 5 {
+						lAbnPVCs = append(lAbnPVCs, abnormalPVC{Name: pvc.Name, Namespace: pvc.Namespace, Phase: phase})
 					}
 				}
 			}
 		}
-	}
+
+		mu.Lock()
+		abnormalPods = append(abnormalPods, lAbnPods...)
+		restartingPods = append(restartingPods, lRestartPods...)
+		notReadyNodes = append(notReadyNodes, lNotReadyNodes...)
+		pressureNodes = append(pressureNodes, lPressureNodes...)
+		abnormalPVCs = append(abnormalPVCs, lAbnPVCs...)
+		healthyPods += lHealthy
+		abnormalPodCount += lAbnPod
+		readyNodes += lReady
+		notReadyNodeCount += lNotReady
+		boundPVCs += lBound
+		abnormalPVCCount += lAbnPVC
+		mu.Unlock()
+	})
 
 	// 截断重启 Pod 清单到 5 条
 	if len(restartingPods) > 5 {
@@ -591,84 +623,80 @@ func (d *dashboard) Health(c *gin.Context) {
 			"bound_pvcs":      boundPVCs,
 			"abnormal_pvcs":   abnormalPVCCount,
 		},
-		"abnormal_pods":    abnormalPods,
-		"restarting_pods":  restartingPods,
-		"not_ready_nodes":  notReadyNodes,
-		"pressure_nodes":   pressureNodes,
-		"abnormal_pvcs":    abnormalPVCs,
+		"abnormal_pods":   abnormalPods,
+		"restarting_pods": restartingPods,
+		"not_ready_nodes": notReadyNodes,
+		"pressure_nodes":  pressureNodes,
+		"abnormal_pvcs":   abnormalPVCs,
 	}
 	response.Success(c, "获取集群健康快照成功", data)
 }
 
-// Events
-//
-//	@Description: 获取集群事件列表（支持分页）
-//	@receiver d
-//	@param c
+// Events 获取集群事件列表（支持分页）
 func (d *dashboard) Events(c *gin.Context) {
 	var query params.EventQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
-	// 设置默认限制
+	// 设置默认限制并加上限
 	if query.Limit <= 0 {
 		query.Limit = 100
+	}
+	if query.Limit > 500 {
+		query.Limit = 500
 	}
 
 	// 获取要查询的集群列表
 	var clusters []model.K8SCluster
 	if query.ClusterID != nil {
 		if err := database.DB.Where("id = ?", *query.ClusterID).Find(&clusters).Error; err != nil {
-			response.Fail(c, fmt.Sprintf("获取集群信息失败:%s", err.Error()))
+			logger.Error(err.Error())
+			response.FailWithStatus(c, http.StatusInternalServerError, "获取集群信息失败")
 			return
 		}
 	} else {
 		if err := database.DB.Where("status = ?", "online").Find(&clusters).Error; err != nil {
-			response.Fail(c, fmt.Sprintf("获取集群列表失败:%s", err.Error()))
+			logger.Error(err.Error())
+			response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
 			return
 		}
 	}
 
+	var mu sync.Mutex
 	var allEvents []map[string]any
-	for _, cluster := range clusters {
+
+	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster, _ *sync.Mutex) {
 		if cluster.Status != "online" {
-			continue
+			return
 		}
-		kubeConfig, err := auth.DecryptAES(cluster.KubeConfig)
+		client, err := k8s.GetK8sClientByName(cluster.ClusterName)
 		if err != nil {
-			continue
-		}
-		client, err := k8s.GetK8sClient(kubeConfig)
-		if err != nil {
-			continue
+			return
 		}
 
-		// 构建命名空间
 		namespace := query.Namespace
 		if namespace == "" {
 			namespace = corev1.NamespaceAll
 		}
 
-		// 构建 ListOptions
 		listOpts := metav1.ListOptions{}
 		if query.FieldSelector != "" {
 			listOpts.FieldSelector = query.FieldSelector
 		}
 
-		eventList, err := client.CoreV1().Events(namespace).List(context.TODO(), listOpts)
+		eventList, err := client.CoreV1().Events(namespace).List(ctx, listOpts)
 		if err != nil {
-			continue
+			return
 		}
 
+		var local []map[string]any
 		for _, event := range eventList.Items {
-			// 按类型过滤
 			if query.Type != "" && event.Type != query.Type {
 				continue
 			}
 
-			// 格式化时间
 			firstSeen := ""
 			if !event.FirstTimestamp.IsZero() {
 				firstSeen = event.FirstTimestamp.Time.Format("2006-01-02 15:04:05")
@@ -680,7 +708,7 @@ func (d *dashboard) Events(c *gin.Context) {
 				lastSeen = event.EventTime.Time.Format("2006-01-02 15:04:05")
 			}
 
-			allEvents = append(allEvents, map[string]any{
+			local = append(local, map[string]any{
 				"type":                 event.Type,
 				"reason":               event.Reason,
 				"message":              event.Message,
@@ -697,23 +725,23 @@ func (d *dashboard) Events(c *gin.Context) {
 				"cluster_name":         cluster.ClusterName,
 			})
 		}
-	}
+		mu.Lock()
+		allEvents = append(allEvents, local...)
+		mu.Unlock()
+	})
 
 	// 按最后时间倒序排序
 	sort.Slice(allEvents, func(i, j int) bool {
 		return allEvents[i]["last_seen"].(string) > allEvents[j]["last_seen"].(string)
 	})
 
-	// 计算总数
 	total := len(allEvents)
 
-	// 处理分页（基于 offset 的简单分页）
 	offset := 0
 	if query.Continue != "" {
 		fmt.Sscanf(query.Continue, "%d", &offset)
 	}
 
-	// 限制返回数量
 	end := offset + query.Limit
 	if end > total {
 		end = total
@@ -724,7 +752,6 @@ func (d *dashboard) Events(c *gin.Context) {
 
 	pagedEvents := allEvents[offset:end]
 
-	// 构建分页响应
 	continueToken := ""
 	if end < total {
 		continueToken = fmt.Sprintf("%d", end)

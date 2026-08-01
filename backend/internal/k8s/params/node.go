@@ -1,21 +1,21 @@
 package params
 
 type NodeQueryParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	NodeName    string `form:"nodeName" json:"nodeName" label:"节点名称"`
 	Name        string `form:"name" json:"name" label:"节点名称"` // 兼容前端 name 参数
 }
 
 // CordonNodeParams 封锁/解除封锁节点参数
 type CordonNodeParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Name        string `form:"name" json:"name" binding:"required" label:"节点名称"`
 	Cordon      *bool  `json:"cordon" binding:"required" label:"是否封锁"`
 }
 
 // TaintNodeParams 单个污点参数（保留兼容）
 type TaintNodeParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Name        string `form:"name" json:"name" binding:"required" label:"节点名称"`
 	Key         string `form:"key" json:"key" binding:"required" label:"污点key"`
 	Value       string `form:"value" json:"value" label:"污点value"`

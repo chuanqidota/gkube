@@ -9,6 +9,7 @@ import (
 	k8sNetwork "gkube/internal/k8s/api/network"
 	k8sStorage "gkube/internal/k8s/api/storage"
 	k8sWorkload "gkube/internal/k8s/api/workload"
+	"gkube/pkg/middleware"
 )
 
 // registerK8sRoutes 注册所有K8s资源路由
@@ -302,5 +303,6 @@ func registerAuditRoutes(k8s *gin.RouterGroup) {
 	k8s.GET("audit/detail", k8sCore.Audit.GetAuditLog)
 	k8s.POST("audit/create", k8sCore.Audit.CreateAuditLog)
 	k8s.GET("audit/stats", k8sCore.Audit.GetAuditStats)
-	k8s.DELETE("audit/clear", k8sCore.Audit.ClearAuditLogs)
+	// 审计清除属高危操作,需管理员
+	k8s.DELETE("audit/clear", middleware.RequireAdmin(), k8sCore.Audit.ClearAuditLogs)
 }

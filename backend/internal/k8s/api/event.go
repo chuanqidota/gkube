@@ -2,10 +2,12 @@ package api
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gkube/pkg/k8s"
 	k8sEvent "gkube/pkg/k8s/event"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
 	"k8s.io/apimachinery/pkg/watch"
 )
@@ -23,7 +25,8 @@ func (e *eventController) ListEvents(c *gin.Context) {
 
 	client, err := k8s.GetK8sClientByName(clusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 
@@ -31,10 +34,14 @@ func (e *eventController) ListEvents(c *gin.Context) {
 	if limitStr != "" {
 		fmt.Sscanf(limitStr, "%d", &limit)
 	}
+	if limit < 0 {
+		limit = 0
+	}
 
 	events, cont, rv, err := k8sEvent.ListEvents(client, namespace, fieldSelector, limit, continueToken)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取事件列表失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取事件列表失败")
 		return
 	}
 	response.Success(c, "执行成功", gin.H{
@@ -51,13 +58,15 @@ func (e *eventController) WatchEvents(c *gin.Context) {
 
 	client, err := k8s.GetK8sClientByName(clusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 
 	watcher, err := k8sEvent.WatchEvents(client, namespace, fieldSelector)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("Watch事件失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "Watch事件失败")
 		return
 	}
 	defer watcher.Stop()
