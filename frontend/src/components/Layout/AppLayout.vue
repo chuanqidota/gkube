@@ -11,7 +11,7 @@
         <Header @toggle-collapse="isCollapse = !isCollapse" />
       </el-header>
       <el-main class="app-main">
-        <router-view :key="viewKey" />
+        <router-view :key="reloadKey" />
       </el-main>
     </el-container>
   </el-container>
@@ -19,16 +19,18 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useClusterStore } from '@/stores/cluster'
 import Sidebar from './Sidebar.vue'
 import Header from './Header.vue'
 
-const route = useRoute()
+const clusterStore = useClusterStore()
 const isCollapse = ref(false)
-const viewKey = ref(0)
 
-watch(() => route.fullPath, () => {
-  viewKey.value++
+// 仅在切换集群时强制重挂当前路由页面，触发各页面 refetch 新集群数据。
+// 不再对每次路由 fullPath 变化都重挂（原 viewKey 行为已移除），避免无谓的重渲染。
+const reloadKey = ref(0)
+watch(() => clusterStore.currentCluster, () => {
+  reloadKey.value++
 })
 </script>
 

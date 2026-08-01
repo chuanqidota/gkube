@@ -13,6 +13,7 @@ import {
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useResizable } from '@/composables/useResizable'
 import { formatAge } from '@/utils/time'
 
 const route = useRoute()
@@ -28,50 +29,8 @@ const eventsLoading = ref(false)
 const namespace = route.params.namespace as string
 const name = route.params.name as string
 
-// ---- Resize: left-right ----
-const leftWidth = ref(320)
-const resizingH = ref(false)
-let startX = 0, startW = 0
-function onHResizeStart(e: MouseEvent) {
-  e.preventDefault()
-  resizingH.value = true
-  startX = e.clientX
-  startW = leftWidth.value
-  const onMove = (ev: MouseEvent) => {
-    leftWidth.value = Math.min(Math.max(startW + ev.clientX - startX, 220), 500)
-  }
-  const onUp = () => {
-    resizingH.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-  }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
-}
-
-// ---- Resize: top-bottom (Pods / Events) ----
-const rightTopHeight = ref<number | null>(null)
-const resizingV = ref(false)
-let startY = 0, startH = 0
-function onVResizeStart(e: MouseEvent) {
-  e.preventDefault()
-  resizingV.value = true
-  startY = e.clientY
-  const rightPanel = (e.target as HTMLElement).closest('.right-panel')
-  if (!rightPanel) return
-  startH = rightPanel.getBoundingClientRect().height
-  const onMove = (ev: MouseEvent) => {
-    const delta = ev.clientY - startY
-    rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
-  }
-  const onUp = () => {
-    resizingV.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-  }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
-}
+// ---- Resize: left-right + top-bottom ----
+const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
 
 const rs = computed(() => detail.value?.rs)
 

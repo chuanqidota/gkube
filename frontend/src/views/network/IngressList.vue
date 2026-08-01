@@ -3,7 +3,7 @@ import { Plus, Delete } from '@element-plus/icons-vue'
 import {
   getIngressList,
   getIngressYaml,
-  updateIngressYaml,
+  updateIngress,
   deleteIngress,
   transformIngresses,
 } from '@/api/resource'
@@ -40,7 +40,7 @@ const {
   fetchList: getIngressList,
   transform: transformIngresses,
   getYaml: getIngressYaml,
-  updateYaml: updateIngressYaml,
+  updateYaml: updateIngress,
   deleteResource: deleteIngress,
   detailRoute: '/network/ingresses',
   createRoute: '/network/ingresses/create',

@@ -10,6 +10,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
 import { getToken } from '@/utils/auth'
+import { getWsTicket } from '@/api/auth'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -60,7 +61,7 @@ async function initWithQueryParams() {
     // Also update Pinia store so it stays in sync
     clusterStore.setCurrentCluster(clusterObj)
   } else if (clusterStore.currentCluster) {
-    selectedCluster.value = clusterStore.currentCluster.cluster_name || clusterStore.currentCluster.name
+    selectedCluster.value = clusterStore.currentCluster.cluster_name || clusterStore.currentCluster.name || ''
   }
 
   selectedNamespace.value = namespace as string
@@ -148,23 +149,37 @@ async function fetchPods() {
   }
 }
 
-function connectTerminal() {
+async function connectTerminal() {
   if (!selectedCluster.value || !selectedNamespace.value || !selectedPod.value || !selectedContainer.value) {
     return
   }
 
   disconnectTerminal()
 
+  // WebSocket 无法设置自定义 header，改用一次性短期 ticket 鉴权（?ticket=），
+  // 避免长效 access token 进入 URL 被网关/浏览器历史记录。
+  let ticket = ''
+  try {
+    const res: any = await getWsTicket()
+    ticket = res.data?.ticket || ''
+  } catch (e: any) {
+    ElMessage.error('获取终端鉴权票据失败：' + (e?.message || 'unknown error'))
+    return
+  }
+  if (!ticket) {
+    ElMessage.error('获取终端鉴权票据失败')
+    return
+  }
+
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
-  const token = getToken()
   const params = new URLSearchParams({
     clusterName: selectedCluster.value,
     namespace: selectedNamespace.value,
     podName: selectedPod.value,
     container: selectedContainer.value,
     command: '/bin/sh',
-    ...(token ? { token } : {}),
+    ticket,
   })
   const wsUrl = `${protocol}//${host}/v1/k8s/container/exec?${params.toString()}`
 
@@ -184,6 +199,8 @@ function connectTerminal() {
     if (event.data instanceof Blob) {
       event.data.text().then((text: string) => {
         terminal?.write(text)
+      }).catch(() => {
+        // 忽略 Blob 读取失败
       })
     } else {
       terminal?.write(event.data)

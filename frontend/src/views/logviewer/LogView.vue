@@ -249,7 +249,7 @@ async function initWithQueryParams() {
     // Also update Pinia store so it stays in sync
     clusterStore.setCurrentCluster(clusterObj)
   } else if (clusterStore.currentCluster) {
-    selectedCluster.value = clusterStore.currentCluster.cluster_name || clusterStore.currentCluster.name
+    selectedCluster.value = clusterStore.currentCluster.cluster_name || clusterStore.currentCluster.name || ''
   }
 
   selectedNamespace.value = namespace as string

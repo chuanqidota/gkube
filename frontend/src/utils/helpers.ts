@@ -44,17 +44,28 @@ export function statusLabel(status: string): string {
 }
 
 /**
- * Base64 encode a string
+ * Base64 encode a UTF-8 string
  */
 export function base64Encode(str: string): string {
-  return btoa(unescape(encodeURIComponent(str)))
+  // 使用 TextEncoder 获取 UTF-8 字节，再编码为 base64（避免废弃的 escape/unescape）
+  const bytes = new TextEncoder().encode(str)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
 }
 
 /**
- * Base64 decode a string
+ * Base64 decode a string to UTF-8（使用 TextDecoder + Uint8Array，避免废弃的 escape/unescape）
  */
 export function base64Decode(str: string): string {
-  return decodeURIComponent(escape(atob(str)))
+  const binary = atob(str)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return new TextDecoder().decode(bytes)
 }
 
 /**
@@ -70,23 +81,22 @@ export function formatBytes(bytes: number, decimals = 2): string {
 }
 
 /**
- * Format a Kubernetes resource age from creation timestamp
+ * Format a Kubernetes resource age from creation timestamp.
+ * 最完整的年龄格式化实现（含秒/分/时/天/年），作为 utils/time.ts 与 api/resource.ts calcAge 的统一来源。
+ * @param suffix 为 true 时追加 " ago" 后缀（兼容旧 time.formatAge 调用方）
  */
-export function formatAge(creationTimestamp: string): string {
+export function formatAge(creationTimestamp: string, suffix: boolean = true): string {
   if (!creationTimestamp) return '-'
-  const created = new Date(creationTimestamp)
-  const now = new Date()
-  const diff = now.getTime() - created.getTime()
-
-  const seconds = Math.floor(diff / 1000)
-  const minutes = Math.floor(seconds / 60)
-  const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
-
-  if (days > 0) return `${days}d`
-  if (hours > 0) return `${hours}h`
-  if (minutes > 0) return `${minutes}m`
-  return `${seconds}s`
+  const created = new Date(creationTimestamp).getTime()
+  const now = Date.now()
+  const diff = Math.floor((now - created) / 1000)
+  const ago = suffix ? ' ago' : ''
+  if (diff < 60) return `${diff}s${ago}`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m${ago}`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h${ago}`
+  const days = Math.floor(diff / 86400)
+  if (days < 365) return `${days}d${ago}`
+  return `${Math.floor(days / 365)}y${ago}`
 }
 
 /**
@@ -98,7 +108,9 @@ export function truncate(str: string, maxLen: number): string {
 }
 
 /**
- * Deep clone an object
+ * Deep clone an object.
+ * 限制：基于 JSON 序列化，无法保留 undefined/函数/Symbol/Date 对象/循环引用等，
+ * 仅适用于可安全 JSON 序列化的 K8s 资源数据。
  */
 export function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj))

@@ -119,8 +119,8 @@ function handleObjectClick(row: any) {
     daemonset: `/workloads/daemonsets/${ns}/${objName}`,
     job: `/workloads/jobs/${ns}/${objName}`,
     cronjob: `/workloads/cronjobs/${ns}/${objName}`,
-    service: `/services/${ns}/${objName}`,
-    ingress: `/ingresses/${ns}/${objName}`,
+    service: `/network/services/${ns}/${objName}`,
+    ingress: `/network/ingresses/${ns}/${objName}`,
     configmap: `/config/configmaps/${ns}/${objName}`,
     secret: `/config/secrets/${ns}/${objName}`,
     persistentvolumeclaim: `/storage/pvcs/${ns}/${objName}`,
@@ -209,6 +209,7 @@ const filteredEvents = computed(() => {
 
 onMounted(() => {
   fetchNamespaces()
+  fetchEvents()
 })
 </script>
 

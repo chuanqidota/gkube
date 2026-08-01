@@ -1,5 +1,5 @@
 <template>
-  <div class="yaml-editor" :class="{ 'is-fullscreen': isFullscreen }" :style="isFullscreen ? {} : { height: height }">
+  <div ref="rootRef" class="yaml-editor" :class="{ 'is-fullscreen': isFullscreen }" :style="isFullscreen ? {} : { height: height }">
     <!-- Fullscreen toolbar (shown when fullscreen, even if showToolbar is false) -->
     <div class="yaml-editor-toolbar" v-if="isFullscreen">
       <div class="toolbar-left">
@@ -134,6 +134,7 @@ const props = withDefaults(defineProps<{
   saveable?: boolean
   showToolbar?: boolean
   showSaveButtons?: boolean
+  /** 保存按钮 loading 由父组件驱动，避免内部 ref 不复位 */
   saving?: boolean
 }>(), {
   height: '400px',
@@ -149,10 +150,12 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits(['update:modelValue', 'save', 'cancel'])
 
+// 根元素引用，用于限定全局 keydown 仅在编辑器聚焦/全屏时生效
+const rootRef = ref<HTMLElement | null>(null)
+
 // Internal editing state
 const isEditing = ref(!props.readOnly && props.saveable)
 const originalContent = ref('')
-const saving = ref(false)
 const displayValue = ref('')
 const isFullscreen = ref(false)
 // 精简/完整视图切换：默认精简（隐藏 status 及系统元数据）
@@ -225,7 +228,6 @@ watch(showSystemFields, () => {
 watch(() => props.readOnly, (val) => {
   if (val) {
     isEditing.value = false
-    saving.value = false
   }
 })
 
@@ -246,13 +248,12 @@ function enterEdit() {
 }
 
 function handleSave() {
-  saving.value = true
+  // loading 由父组件通过 saving prop 驱动，避免内部 ref 不复位
   emit('save', props.modelValue)
 }
 
 function handleCancel() {
   isEditing.value = false
-  saving.value = false
   isDirty.value = false
   if (originalContent.value !== props.modelValue) {
     emitModel(originalContent.value)
@@ -286,9 +287,36 @@ function handleFormat() {
   }
 }
 
-function handleCopy() {
-  navigator.clipboard.writeText(props.modelValue)
-  ElMessage.success('Copied to clipboard')
+async function handleCopy() {
+  // clipboard API 在非 HTTPS / 旧浏览器下可能不可用，需降级处理
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(props.modelValue)
+      ElMessage.success('Copied to clipboard')
+    } else {
+      fallbackCopy(props.modelValue)
+      ElMessage.success('Copied to clipboard')
+    }
+  } catch {
+    fallbackCopy(props.modelValue)
+    ElMessage.success('Copied to clipboard')
+  }
+}
+
+// 降级方案：使用临时 textarea + execCommand
+function fallbackCopy(text: string) {
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.style.position = 'fixed'
+  ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.select()
+  try {
+    document.execCommand('copy')
+  } catch {
+    // ignore
+  }
+  document.body.removeChild(ta)
 }
 
 function toggleFullscreen() {
@@ -300,8 +328,11 @@ function toggleFullscreen() {
   })
 }
 
-// Keyboard shortcuts
+// Keyboard shortcuts：仅在当前编辑器处于全屏，或焦点位于其内部时生效，避免多实例叠加响应
 function handleKeydown(e: KeyboardEvent) {
+  const active = document.activeElement
+  const focused = isFullscreen.value || (rootRef.value != null && active != null && rootRef.value.contains(active as Node))
+  if (!focused) return
   if (e.key === 'Escape' && isFullscreen.value) {
     e.preventDefault()
     toggleFullscreen()
@@ -330,12 +361,13 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
 })
 
+// 兼容旧调用方：loading 现由 saving prop 驱动，此处不再需要内部复位
 function resetSaving() {
-  saving.value = false
+  /* no-op: saving state is controlled by the parent via the saving prop */
 }
 
-// Expose saving state and utility functions for parent to control
-defineExpose({ saving, resetSaving, handleFormat, handleCopy, toggleFullscreen })
+// Expose utility functions for parent to control
+defineExpose({ resetSaving, handleFormat, handleCopy, toggleFullscreen })
 </script>
 
 <style scoped>

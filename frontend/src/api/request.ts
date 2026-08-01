@@ -6,6 +6,17 @@ const request = axios.create({
   timeout: 15000,
 })
 
+// 后端业务成功状态码（与后端契约对齐）
+const SUCCESS_CODE = 200
+
+// 判断一个值是否为“普通对象”，避免对 FormData/Blob/ArrayBuffer/字符串等写入属性时抛错
+function isPlainObject(val: unknown): val is Record<string, any> {
+  if (val === null || typeof val !== 'object') return false
+  if (val instanceof FormData || val instanceof Blob || val instanceof ArrayBuffer) return false
+  const proto = Object.getPrototypeOf(val)
+  return proto === Object.prototype || proto === null
+}
+
 // Request interceptor: attach Bearer token and cluster name
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -21,11 +32,12 @@ request.interceptors.request.use(
         const clusterName = cluster?.clusterName
         if (clusterName && config.url?.startsWith('/k8s/')) {
           if (!config.params) config.params = {}
-          if (!config.params.clusterName && !config.data?.clusterName) {
+          if (!config.params.clusterName && !(isPlainObject(config.data) && config.data.clusterName)) {
             config.params.clusterName = clusterName
           }
-          // POST/PUT/PUT requests: also inject into body so ShouldBindJSON can read it
-          if (config.method !== 'get' && config.data && typeof config.data === 'object' && !config.data.clusterName) {
+          // POST/PUT/DELETE requests: also inject into body so ShouldBindJSON can read it.
+          // 仅当 body 是普通对象时写入，避免对 FormData/Blob/字符串等抛错。
+          if (config.method !== 'get' && isPlainObject(config.data) && !config.data.clusterName) {
             config.data.clusterName = clusterName
           }
         }
@@ -42,13 +54,14 @@ request.interceptors.request.use(
 
 // Response interceptor: handle 401 with silent refresh, then redirect on failure
 let isRefreshing = false
-let pendingRequests: Array<(token: string) => void> = []
+// 排队请求：成功时回放，刷新失败时统一 reject，避免悬挂 Promise 导致内存泄漏
+let pendingRequests: Array<{ resolve: (token: string) => void; reject: (err: Error) => void }> = []
 
 request.interceptors.response.use(
   (response: AxiosResponse) => {
-    // 后端返回 code=0 表示业务失败，需要 reject
     const data = response.data
-    if (data && data.code === 0) {
+    // 正向判断业务成功：code === 200 视为成功，否则 reject（与后端契约对齐）
+    if (data && typeof data === 'object' && 'code' in data && data.code !== SUCCESS_CODE) {
       return Promise.reject(new Error(data.msg || '请求失败'))
     }
     // 解包后端响应：将 { code, msg, data } 中的 data 提升到 response.data
@@ -65,10 +78,13 @@ request.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       // If already refreshing, queue this request
       if (isRefreshing) {
-        return new Promise((resolve) => {
-          pendingRequests.push((token: string) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`
-            resolve(request(originalRequest))
+        return new Promise((resolve, reject) => {
+          pendingRequests.push({
+            resolve: (token: string) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`
+              resolve(request(originalRequest))
+            },
+            reject: (err: Error) => reject(err),
           })
         })
       }
@@ -101,17 +117,23 @@ request.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newToken}`
 
           // Retry all pending requests
-          pendingRequests.forEach((cb) => cb(newToken))
+          const queue = pendingRequests
           pendingRequests = []
+          queue.forEach((cb) => cb.resolve(newToken))
 
           return request(originalRequest)
         } else {
           throw new Error('刷新Token响应格式异常')
         }
       } catch {
-        // Refresh failed: clear tokens and redirect to login (preserve intended destination)
+        // Refresh failed: clear tokens, reject 排队中的请求，再由调用方/路由守卫处理跳转。
+        // 不再返回永不 resolve 的 Promise（避免内存泄漏）。
         removeToken()
+        const failure = new Error('登录已过期')
+        const queue = pendingRequests
         pendingRequests = []
+        queue.forEach((cb) => cb.reject(failure))
+
         const { pathname, search } = window.location
         const current = pathname + search
         const target = current && current !== '/login'
@@ -120,8 +142,7 @@ request.interceptors.response.use(
         if (pathname !== '/login') {
           window.location.assign(target)
         }
-        // 返回一个永不 resolve 的 Promise，阻止原始请求继续抛出错误
-        return new Promise(() => {})
+        return Promise.reject(failure)
       } finally {
         isRefreshing = false
       }

@@ -27,10 +27,10 @@ let startY = 0, startH = 0
 
 function onVResizeStart(e: MouseEvent) {
   e.preventDefault()
-  resizingV.value = true
-  startY = e.clientY
   const rightPanel = (e.target as HTMLElement).closest('.right-panel')
   if (!rightPanel) return
+  resizingV.value = true
+  startY = e.clientY
   startH = rightPanel.getBoundingClientRect().height
   const onMove = (ev: MouseEvent) => {
     const delta = ev.clientY - startY
