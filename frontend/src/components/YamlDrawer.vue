@@ -56,12 +56,6 @@ import {
   getNodeYaml, updateNodeYaml,
   // Namespace
   getNamespaceYaml, updateNamespace,
-  // RBAC
-  getClusterRoleYaml,
-  getClusterRoleBindingYaml,
-  getRoleYaml,
-  getRoleBindingYaml,
-  getServiceAccountYaml,
   // CRD
   getCrdYaml, updateCrd,
   // HPA
@@ -77,7 +71,6 @@ export type ResourceType =
   | 'pv' | 'pvc' | 'storageclass' | 'volumesnapshot' | 'volumesnapshotclass'
   | 'configmap' | 'secret' | 'resourcequota' | 'limitrange'
   | 'node' | 'namespace'
-  | 'clusterrole' | 'clusterrolebinding' | 'role' | 'rolebinding' | 'serviceaccount'
   | 'crd' | 'hpa' | 'pdb'
 
 // Resource display names
@@ -103,11 +96,6 @@ const resourceDisplayNames: Record<ResourceType, string> = {
   limitrange: 'LimitRange',
   node: 'Node',
   namespace: 'Namespace',
-  clusterrole: 'ClusterRole',
-  clusterrolebinding: 'ClusterRoleBinding',
-  role: 'Role',
-  rolebinding: 'RoleBinding',
-  serviceaccount: 'ServiceAccount',
   crd: 'CRD',
   hpa: 'HPA',
   pdb: 'PDB',
@@ -117,7 +105,6 @@ const resourceDisplayNames: Record<ResourceType, string> = {
 const clusterScopedResources: ResourceType[] = [
   'pv', 'storageclass', 'volumesnapshotclass',
   'node', 'namespace',
-  'clusterrole', 'clusterrolebinding',
   'crd',
 ]
 
@@ -155,12 +142,6 @@ const resourceApis: Record<ResourceType, ResourceApi> = {
   // Node & Namespace
   node: { getYaml: getNodeYaml, updateYaml: updateNodeYaml },
   namespace: { getYaml: getNamespaceYaml, updateYaml: updateNamespace },
-  // RBAC (read-only for now)
-  clusterrole: { getYaml: getClusterRoleYaml, updateYaml: null },
-  clusterrolebinding: { getYaml: getClusterRoleBindingYaml, updateYaml: null },
-  role: { getYaml: getRoleYaml, updateYaml: null },
-  rolebinding: { getYaml: getRoleBindingYaml, updateYaml: null },
-  serviceaccount: { getYaml: getServiceAccountYaml, updateYaml: null },
   // Others
   crd: { getYaml: getCrdYaml, updateYaml: updateCrd },
   hpa: { getYaml: getHpaYaml, updateYaml: updateHpa },

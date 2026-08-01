@@ -7,7 +7,6 @@ import (
 	k8sCore "gkube/internal/k8s/api/core"
 	k8sCrd "gkube/internal/k8s/api/crd"
 	k8sNetwork "gkube/internal/k8s/api/network"
-	k8sRbac "gkube/internal/k8s/api/rbac"
 	k8sStorage "gkube/internal/k8s/api/storage"
 	k8sWorkload "gkube/internal/k8s/api/workload"
 )
@@ -26,8 +25,6 @@ func registerK8sRoutes(rg *gin.RouterGroup) {
 		registerStorageRoutes(k8s)
 		// ---- Config ----
 		registerConfigRoutes(k8s)
-		// ---- RBAC ----
-		registerRbacRoutes(k8s)
 		// ---- CRD ----
 		registerCrdRoutes(k8s)
 		// ---- Audit ----
@@ -283,48 +280,6 @@ func registerConfigRoutes(k8s *gin.RouterGroup) {
 	k8s.POST("limitrange/create", k8sConfig.LimitRange.CreateLimitRange)
 	k8s.PUT("limitrange/update", k8sConfig.LimitRange.UpdateLimitRange)
 	k8s.DELETE("limitrange/delete", k8sConfig.LimitRange.DeleteLimitRange)
-}
-
-func registerRbacRoutes(k8s *gin.RouterGroup) {
-	// ServiceAccount
-	k8s.GET("serviceaccount/list", k8sRbac.ServiceAccount.GetServiceAccountList)
-	k8s.GET("serviceaccount/detail", k8sRbac.ServiceAccount.GetServiceAccountDetail)
-	k8s.GET("serviceaccount/get-yaml", k8sRbac.ServiceAccount.GetServiceAccountYaml)
-	k8s.POST("serviceaccount/create", k8sRbac.ServiceAccount.CreateServiceAccount)
-	k8s.PUT("serviceaccount/update", k8sRbac.ServiceAccount.UpdateServiceAccount)
-	k8s.DELETE("serviceaccount/delete", k8sRbac.ServiceAccount.DeleteServiceAccount)
-
-	// ClusterRole
-	k8s.GET("clusterrole/list", k8sRbac.ClusterRole.GetClusterRoleList)
-	k8s.GET("clusterrole/detail", k8sRbac.ClusterRole.GetClusterRoleDetail)
-	k8s.GET("clusterrole/get-yaml", k8sRbac.ClusterRole.GetClusterRoleYaml)
-	k8s.POST("clusterrole/create", k8sRbac.ClusterRole.CreateClusterRole)
-	k8s.PUT("clusterrole/update", k8sRbac.ClusterRole.UpdateClusterRole)
-	k8s.DELETE("clusterrole/delete", k8sRbac.ClusterRole.DeleteClusterRole)
-
-	// Role
-	k8s.GET("role/list", k8sRbac.Role.GetRoleList)
-	k8s.GET("role/detail", k8sRbac.Role.GetRoleDetail)
-	k8s.GET("role/get-yaml", k8sRbac.Role.GetRoleYaml)
-	k8s.POST("role/create", k8sRbac.Role.CreateRole)
-	k8s.PUT("role/update", k8sRbac.Role.UpdateRole)
-	k8s.DELETE("role/delete", k8sRbac.Role.DeleteRole)
-
-	// ClusterRoleBinding
-	k8s.GET("clusterrolebinding/list", k8sRbac.ClusterRoleBinding.GetClusterRoleBindingList)
-	k8s.GET("clusterrolebinding/detail", k8sRbac.ClusterRoleBinding.GetClusterRoleBindingDetail)
-	k8s.GET("clusterrolebinding/get-yaml", k8sRbac.ClusterRoleBinding.GetClusterRoleBindingYaml)
-	k8s.POST("clusterrolebinding/create", k8sRbac.ClusterRoleBinding.CreateClusterRoleBinding)
-	k8s.PUT("clusterrolebinding/update", k8sRbac.ClusterRoleBinding.UpdateClusterRoleBinding)
-	k8s.DELETE("clusterrolebinding/delete", k8sRbac.ClusterRoleBinding.DeleteClusterRoleBinding)
-
-	// RoleBinding
-	k8s.GET("rolebinding/list", k8sRbac.RoleBinding.GetRoleBindingList)
-	k8s.GET("rolebinding/detail", k8sRbac.RoleBinding.GetRoleBindingDetail)
-	k8s.GET("rolebinding/get-yaml", k8sRbac.RoleBinding.GetRoleBindingYaml)
-	k8s.POST("rolebinding/create", k8sRbac.RoleBinding.CreateRoleBinding)
-	k8s.PUT("rolebinding/update", k8sRbac.RoleBinding.UpdateRoleBinding)
-	k8s.DELETE("rolebinding/delete", k8sRbac.RoleBinding.DeleteRoleBinding)
 }
 
 func registerCrdRoutes(k8s *gin.RouterGroup) {

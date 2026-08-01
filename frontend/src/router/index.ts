@@ -526,55 +526,6 @@ const router = createRouter({
           component: () => import('@/views/crd/CustomResourceList.vue'),
           meta: { title: '自定义资源', parent: 'CRDList' },
         },
-        // RBAC - ServiceAccount
-        {
-          path: 'rbac/serviceaccounts',
-          name: 'ServiceAccountList',
-          component: () => import('@/views/rbac/ServiceAccountList.vue'),
-          meta: { title: 'ServiceAccount', icon: 'User' },
-        },
-        // RBAC - Role
-        {
-          path: 'rbac/roles',
-          name: 'RBACRoleList',
-          component: () => import('@/views/rbac/RoleList.vue'),
-          meta: { title: 'Role', icon: 'UserFilled' },
-        },
-        // RBAC - ClusterRole
-        {
-          path: 'rbac/clusterroles',
-          name: 'ClusterRoleList',
-          component: () => import('@/views/rbac/ClusterRoleList.vue'),
-          meta: { title: 'ClusterRole', icon: 'Stamp' },
-        },
-        // RBAC - RoleBinding
-        {
-          path: 'rbac/rolebindings',
-          name: 'RoleBindingList',
-          component: () => import('@/views/rbac/RoleBindingList.vue'),
-          meta: { title: 'RoleBinding', icon: 'Link' },
-        },
-        // RBAC - ClusterRoleBinding
-        {
-          path: 'rbac/clusterrolebindings',
-          name: 'ClusterRoleBindingList',
-          component: () => import('@/views/rbac/ClusterRoleBindingList.vue'),
-          meta: { title: 'ClusterRoleBinding', icon: 'CircleCheck' },
-        },
-        // RBAC - Permission Check
-        {
-          path: 'rbac/permission-check',
-          name: 'PermissionCheck',
-          component: () => import('@/views/rbac/PermissionCheck.vue'),
-          meta: { title: '权限查询', icon: 'Search' },
-        },
-        // RBAC - Templates
-        {
-          path: 'rbac/templates',
-          name: 'RBACTemplates',
-          component: () => import('@/views/rbac/RBACTemplates.vue'),
-          meta: { title: 'RBAC 模板', icon: 'DocumentCopy' },
-        },
         // System - Users
         {
           path: 'users',
