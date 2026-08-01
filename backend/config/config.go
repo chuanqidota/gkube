@@ -48,7 +48,7 @@ type Security struct {
 	JWTSecret string `json:"jwt_secret" mapstructure:"jwt_secret" comment:"JWT签名密钥"`
 	// AESKey AES-256-GCM 加密密钥(32 字节)，用于加密集群 kubeconfig，必填。
 	AESKey string `json:"aes_key" mapstructure:"aes_key" comment:"AES-256-GCM加密密钥(32字节)"`
-	// CORSOrigins 允许的跨域来源白名单，空时仅允许同源。
+	// CORSOrigins 允许的跨域来源白名单，空时允许所有来源，生产环境应显式配置白名单。
 	CORSOrigins []string `json:"cors_origins" mapstructure:"cors_origins" comment:"CORS允许的来源白名单"`
 	// AdminUsers 管理员用户名白名单，登录响应会标记 isAdmin，并作为 RequireAdmin 依据。
 	AdminUsers []string `json:"admin_users" mapstructure:"admin_users" comment:"管理员用户名白名单"`

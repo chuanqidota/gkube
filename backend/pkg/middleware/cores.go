@@ -7,12 +7,13 @@ import (
 	"gkube/config"
 )
 
-// IsOriginAllowed 判断 Origin 是否在配置的白名单内。空配置视为仅允许同源(无 Origin 头)。
+// IsOriginAllowed 判断 Origin 是否在配置的白名单内。空配置视为允许所有来源
+// (开发友好;生产环境应通过 cors_origins 显式收紧白名单)。
 func IsOriginAllowed(origin string) bool {
 	origins := config.Conf.Security.CORSOrigins
 	if len(origins) == 0 {
-		// 未配置白名单:仅允许无 Origin 的同源/非浏览器请求
-		return origin == ""
+		// 未配置白名单:允许所有来源
+		return true
 	}
 	for _, o := range origins {
 		if o == "*" || o == origin {
