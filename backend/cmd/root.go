@@ -7,11 +7,11 @@ import (
 	"context"
 	"fmt"
 	"gkube/config"
+	"gkube/internal/router"
 	"gkube/pkg/auth"
 	"gkube/pkg/database"
 	"gkube/pkg/es"
 	"gkube/pkg/logger"
-	"gkube/internal/router"
 	"net/http"
 	"os"
 	"os/signal"
@@ -37,7 +37,7 @@ to quickly create a Cobra application.`,
 	// PersistentPreRunE 在所有子命令执行前运行,完成启动链:logger → config → keys → database。
 	// migrate/seed 子命令也会触发,但不会初始化 ES(仅 server Run 需要)。
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		logger.Init()   // 初始化日志(最先)
+		logger.Init() // 初始化日志(最先)
 		config.Init(configPath)
 		auth.InitKeys() // 校验密钥,缺失即 Fatal
 		database.Init() // 初始化数据库,失败 Fatal

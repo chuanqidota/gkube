@@ -1,7 +1,6 @@
 package router
 
 import (
-	"github.com/gin-gonic/gin"
 	k8sApi "gkube/internal/k8s/api"
 	k8sConfig "gkube/internal/k8s/api/config"
 	k8sCore "gkube/internal/k8s/api/core"
@@ -10,6 +9,8 @@ import (
 	k8sStorage "gkube/internal/k8s/api/storage"
 	k8sWorkload "gkube/internal/k8s/api/workload"
 	"gkube/pkg/middleware"
+
+	"github.com/gin-gonic/gin"
 )
 
 // registerK8sRoutes 注册所有K8s资源路由
@@ -70,7 +71,6 @@ func registerCoreRoutes(k8s *gin.RouterGroup) {
 	k8s.PUT("pod/update-yaml", k8sCore.Pod.UpdatePod)
 	k8s.DELETE("pod/delete", k8sCore.Pod.DeletePodByName)
 
-
 	// Event
 	k8s.GET("event/list", k8sApi.Event.ListEvents)
 	k8s.GET("event/watch", k8sApi.Event.WatchEvents)
@@ -110,8 +110,8 @@ func registerWorkloadRoutes(k8s *gin.RouterGroup) {
 	k8s.DELETE("statefulset/delete", k8sWorkload.StatefulSet.DeleteStatefulSetByName)
 	k8s.PUT("statefulset/scale", k8sWorkload.StatefulSet.ScaleStatefulSet)
 	k8s.PUT("statefulset/restart", k8sWorkload.StatefulSet.RestartStatefulSet)
-		k8s.POST("statefulset/rollback", k8sWorkload.StatefulSet.RollbackStatefulSet)
-		k8s.PUT("statefulset/update-image", k8sWorkload.StatefulSet.UpdateStatefulSetImage)
+	k8s.POST("statefulset/rollback", k8sWorkload.StatefulSet.RollbackStatefulSet)
+	k8s.PUT("statefulset/update-image", k8sWorkload.StatefulSet.UpdateStatefulSetImage)
 
 	// DaemonSet
 	k8s.GET("daemonset/list", k8sWorkload.DaemonSet.GetDaemonSetList)
@@ -123,8 +123,8 @@ func registerWorkloadRoutes(k8s *gin.RouterGroup) {
 	k8s.PUT("daemonset/update", k8sWorkload.DaemonSet.UpdateDaemonSet)
 	k8s.DELETE("daemonset/delete", k8sWorkload.DaemonSet.DeleteDaemonSetByName)
 	k8s.POST("daemonset/restart", k8sWorkload.DaemonSet.RestartDaemonSet)
-		k8s.POST("daemonset/rollback", k8sWorkload.DaemonSet.RollbackDaemonSet)
-		k8s.PUT("daemonset/update-image", k8sWorkload.DaemonSet.UpdateDaemonSetImage)
+	k8s.POST("daemonset/rollback", k8sWorkload.DaemonSet.RollbackDaemonSet)
+	k8s.PUT("daemonset/update-image", k8sWorkload.DaemonSet.UpdateDaemonSetImage)
 
 	// Job
 	k8s.GET("job/list", k8sWorkload.Job.GetJobList)
@@ -146,17 +146,17 @@ func registerWorkloadRoutes(k8s *gin.RouterGroup) {
 	k8s.PUT("cronjob/update", k8sWorkload.Cronjob.UpdateCronJob)
 	k8s.DELETE("cronjob/delete", k8sWorkload.Cronjob.DeleteCronJobByName)
 
-		k8s.PUT("cronjob/suspend", k8sWorkload.Cronjob.SuspendCronJob)
-		k8s.PUT("cronjob/resume", k8sWorkload.Cronjob.ResumeCronJob)
-		k8s.POST("cronjob/trigger", k8sWorkload.Cronjob.TriggerCronJob)
+	k8s.PUT("cronjob/suspend", k8sWorkload.Cronjob.SuspendCronJob)
+	k8s.PUT("cronjob/resume", k8sWorkload.Cronjob.ResumeCronJob)
+	k8s.POST("cronjob/trigger", k8sWorkload.Cronjob.TriggerCronJob)
 
 	// ReplicaSet
-		k8s.GET("replicaset/list", k8sWorkload.ReplicaSet.GetReplicaSetList)
-		k8s.GET("replicaset/get-yaml", k8sWorkload.ReplicaSet.GetReplicaSetYaml)
-		k8s.GET("replicaset/detail", k8sWorkload.ReplicaSet.GetReplicaSetDetail)
-		k8s.GET("replicaset/pods", k8sWorkload.ReplicaSet.GetReplicaSetPodList)
-		k8s.GET("replicaset/events", k8sWorkload.ReplicaSet.GetReplicaSetEvents)
-		k8s.DELETE("replicaset/delete", k8sWorkload.ReplicaSet.DeleteReplicaSet)
+	k8s.GET("replicaset/list", k8sWorkload.ReplicaSet.GetReplicaSetList)
+	k8s.GET("replicaset/get-yaml", k8sWorkload.ReplicaSet.GetReplicaSetYaml)
+	k8s.GET("replicaset/detail", k8sWorkload.ReplicaSet.GetReplicaSetDetail)
+	k8s.GET("replicaset/pods", k8sWorkload.ReplicaSet.GetReplicaSetPodList)
+	k8s.GET("replicaset/events", k8sWorkload.ReplicaSet.GetReplicaSetEvents)
+	k8s.DELETE("replicaset/delete", k8sWorkload.ReplicaSet.DeleteReplicaSet)
 
 	// HPA
 	k8s.GET("hpa/list", k8sWorkload.Hpa.GetHPAList)
@@ -294,8 +294,8 @@ func registerCrdRoutes(k8s *gin.RouterGroup) {
 	k8s.GET("crd/resource/yaml", k8sCrd.Crd.GetCustomResourceYaml)
 	k8s.POST("crd/resource/create", k8sCrd.Crd.CreateCustomResource)
 	k8s.DELETE("crd/resource", k8sCrd.Crd.DeleteCustomResource)
-		k8s.PUT("crd/resource/update", k8sCrd.Crd.UpdateCustomResource)
-		k8s.PATCH("crd/resource/patch", k8sCrd.Crd.PatchCustomResource)
+	k8s.PUT("crd/resource/update", k8sCrd.Crd.UpdateCustomResource)
+	k8s.PATCH("crd/resource/patch", k8sCrd.Crd.PatchCustomResource)
 }
 
 func registerAuditRoutes(k8s *gin.RouterGroup) {
