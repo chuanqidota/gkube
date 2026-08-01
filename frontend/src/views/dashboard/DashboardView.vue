@@ -702,7 +702,11 @@ function nodePipClass(n: NodeInfo) {
 .ring-nums .unit { color: var(--gk-color-text-placeholder); }
 
 /* 右列:上下分栏,柱状图区内容驱动、节点区吃剩余空间 */
-.cell-right { padding: 0; }
+.cell-right {
+  padding: 0;
+  background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%);
+  border-color: var(--gk-color-primary-light);
+}
 .right-top { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; padding: var(--gk-space-4); border-bottom: 1px solid var(--gk-color-border-light); }
 .right-bottom { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--gk-space-4); }
 
