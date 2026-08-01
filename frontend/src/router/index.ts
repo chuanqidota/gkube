@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getToken } from '@/utils/auth'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -64,7 +65,7 @@ const router = createRouter({
           path: 'clusters/create',
           name: 'ClusterCreate',
           component: () => import('@/views/cluster/ClusterCreate.vue'),
-          meta: { title: '创建集群', parent: 'ClusterList' },
+          meta: { title: '创建集群', parent: 'ClusterList', requireAdmin: true },
         },
         // Workloads - Pod
         {
@@ -531,14 +532,14 @@ const router = createRouter({
           path: 'users',
           name: 'UserList',
           component: () => import('@/views/system/UserList.vue'),
-          meta: { title: '用户管理', icon: 'User' },
+          meta: { title: '用户管理', icon: 'User', requireAdmin: true },
         },
         // System - Audit
         {
           path: 'audit',
           name: 'AuditLog',
           component: () => import('@/views/audit/AuditLog.vue'),
-          meta: { title: '审计日志', icon: 'Document' },
+          meta: { title: '审计日志', icon: 'Document', requireAdmin: true },
         },
       ],
     },
@@ -550,11 +551,22 @@ router.beforeEach((to, _from, next) => {
   if (!to.meta.public && !token) {
     // Preserve the intended destination so login can return the user there
     next({ path: '/login', query: to.fullPath !== '/' ? { redirect: to.fullPath } : {} })
-  } else if (to.path === '/login' && token) {
-    next('/dashboard')
-  } else {
-    next()
+    return
   }
+  if (to.path === '/login' && token) {
+    next('/dashboard')
+    return
+  }
+  // 高危路由仅管理员可访问（客户端 best-effort，真实鉴权在服务端）。
+  // 仅在已加载到用户信息时可判定；未加载（如刷新后未恢复）时放行，避免误锁管理员。
+  if (to.meta.requireAdmin) {
+    const authStore = useAuthStore()
+    if (authStore.user && authStore.user.isAdmin === false) {
+      next({ path: '/dashboard' })
+      return
+    }
+  }
+  next()
 })
 
 router.afterEach((to) => {

@@ -1,4 +1,5 @@
 import request from './request'
+import { formatAge } from '@/utils/helpers'
 
 export interface Pod {
   name: string
@@ -89,18 +90,11 @@ export function extractNamespaceNames(data: any): string[] {
 
 /**
  * Calculate age string from a creation timestamp.
+ * 委托到统一的 @/utils/helpers formatAge（无 " ago" 后缀，与原语义一致）。
  */
 export function calcAge(creationTimestamp: string): string {
   if (!creationTimestamp) return ''
-  const created = new Date(creationTimestamp).getTime()
-  const now = Date.now()
-  const diff = Math.floor((now - created) / 1000)
-  if (diff < 60) return `${diff}s`
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
-  const days = Math.floor(diff / 86400)
-  if (days < 365) return `${days}d`
-  return `${Math.floor(days / 365)}y`
+  return formatAge(creationTimestamp, false)
 }
 
 /**
@@ -288,10 +282,6 @@ export function updateService(data: { namespace: string; name: string; yaml: str
   return request.put('/k8s/service/update', data)
 }
 
-export function updateServiceYaml(data: { namespace: string; name: string; yaml: string }) {
-  return request.put('/k8s/service/update', data)
-}
-
 export function getServiceEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/service/events', { params })
 }
@@ -438,10 +428,6 @@ export function updateIngress(data: { namespace: string; name: string; yaml: str
   return request.put('/k8s/ingress/update', data)
 }
 
-export function updateIngressYaml(data: { namespace: string; name: string; yaml: string }) {
-  return request.put('/k8s/ingress/update', data)
-}
-
 export function getIngressEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/ingress/events', { params })
 }
@@ -495,10 +481,6 @@ export function deletePod(data: { namespace: string; name: string }) {
 
 export function getPodEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/pod/events', { params })
-}
-
-export function getPodLogs(params: { namespace: string; podName: string; container?: string; tailLines?: number }) {
-  return request.get('/k8s/log', { params })
 }
 
 // Deployment create
@@ -679,8 +661,6 @@ export function createStorageClass(data: any) {
 export function updateStorageClass(data: { name: string; yaml: string }) {
   return request.put('/k8s/storageclass/update', data)
 }
-
-export const updateStorageClassYaml = updateStorageClass
 
 export function deleteStorageClass(data: { name: string }) {
   return request.delete('/k8s/storageclass/delete', { data })

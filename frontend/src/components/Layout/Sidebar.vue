@@ -132,7 +132,7 @@
         <template #title>{{ t('sidebar.crd') }}</template>
       </el-menu-item>
       <!-- System Management -->
-      <el-sub-menu index="system">
+      <el-sub-menu v-if="isAdmin" index="system">
         <template #title>
           <el-icon><Setting /></el-icon>
           <span>{{ t('sidebar.system') }}</span>
@@ -154,6 +154,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 import Logo from '@/components/Logo.vue'
 import {
   Odometer,
@@ -189,6 +190,10 @@ defineProps<{
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const authStore = useAuthStore()
+
+// 仅管理员可见系统管理（用户/审计）入口；未加载到用户信息时默认可见，避免误隐藏。
+const isAdmin = computed(() => authStore.user?.isAdmin !== false)
 
 const activeMenu = computed(() => {
   // 详情页高亮父级菜单项

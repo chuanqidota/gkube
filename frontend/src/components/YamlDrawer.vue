@@ -38,13 +38,13 @@ import {
   getCronJobYaml, updateCronJobYaml,
   getReplicaSetYaml,
   // Network
-  getServiceYaml, updateServiceYaml,
-  getIngressYaml, updateIngressYaml,
+  getServiceYaml, updateService,
+  getIngressYaml, updateIngress,
   getNetworkPolicyYaml, updateNetworkPolicyYaml,
   // Storage
   getPvYaml, updatePvYaml,
   getPvcYaml,
-  getStorageClassYaml, updateStorageClassYaml,
+  getStorageClassYaml, updateStorageClass,
   getVolumeSnapshotYaml, updateVolumeSnapshot,
   getVolumeSnapshotClassYaml, updateVolumeSnapshotClass,
   // Config
@@ -125,13 +125,13 @@ const resourceApis: Record<ResourceType, ResourceApi> = {
   cronjob: { getYaml: getCronJobYaml, updateYaml: updateCronJobYaml },
   replicaset: { getYaml: getReplicaSetYaml, updateYaml: null },
   // Network
-  service: { getYaml: getServiceYaml, updateYaml: updateServiceYaml },
-  ingress: { getYaml: getIngressYaml, updateYaml: updateIngressYaml },
+  service: { getYaml: getServiceYaml, updateYaml: updateService },
+  ingress: { getYaml: getIngressYaml, updateYaml: updateIngress },
   networkpolicy: { getYaml: getNetworkPolicyYaml, updateYaml: updateNetworkPolicyYaml },
   // Storage
   pv: { getYaml: getPvYaml, updateYaml: updatePvYaml },
   pvc: { getYaml: getPvcYaml, updateYaml: null },
-  storageclass: { getYaml: getStorageClassYaml, updateYaml: updateStorageClassYaml },
+  storageclass: { getYaml: getStorageClassYaml, updateYaml: updateStorageClass },
   volumesnapshot: { getYaml: getVolumeSnapshotYaml, updateYaml: updateVolumeSnapshot },
   volumesnapshotclass: { getYaml: getVolumeSnapshotClassYaml, updateYaml: updateVolumeSnapshotClass },
   // Config

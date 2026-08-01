@@ -3,7 +3,7 @@ import { Plus, Delete } from '@element-plus/icons-vue'
 import {
   getServiceList,
   getServiceYaml,
-  updateServiceYaml,
+  updateService,
   deleteService,
   transformServices,
 } from '@/api/resource'
@@ -40,7 +40,7 @@ const {
   fetchList: getServiceList,
   transform: transformServices,
   getYaml: getServiceYaml,
-  updateYaml: updateServiceYaml,
+  updateYaml: updateService,
   deleteResource: deleteService,
   detailRoute: '/network/services',
   createRoute: '/network/services/create',

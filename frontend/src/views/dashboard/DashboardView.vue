@@ -16,7 +16,7 @@ const router = useRouter()
 const { t } = useI18n()
 const clusterStore = useClusterStore()
 
-const clusterId = computed(() => clusterStore.currentCluster?.id)
+const clusterId = computed(() => Number(clusterStore.currentCluster?.id) || undefined)
 const clusterName = computed(() => clusterStore.currentCluster?.displayName || clusterStore.currentCluster?.clusterName || '-')
 
 // ---- loading ----
@@ -314,8 +314,8 @@ function nodePipClass(n: NodeInfo) {
       <div class="cmd-left">
         <span class="cmd-accent" />
         <h1 class="cmd-name">{{ clusterName }}</h1>
-        <span class="pip" :class="`pip-${clusterStatusType(clusterStore.currentCluster?.status || '')}`">
-          <i class="pip-dot" />{{ clusterStatusText(clusterStore.currentCluster?.status || '') }}
+        <span class="pip" :class="`pip-${clusterStatusType(String(clusterStore.currentCluster?.status || ''))}`">
+          <i class="pip-dot" />{{ clusterStatusText(String(clusterStore.currentCluster?.status || '')) }}
         </span>
         <span v-if="clusterStore.currentCluster?.clusterVersion" class="chip-mono">v{{ clusterStore.currentCluster.clusterVersion }}</span>
       </div>
