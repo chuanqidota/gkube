@@ -21,6 +21,64 @@ export interface WorkloadSummary {
   cronjobs: number
 }
 
+export interface NamespaceUsage {
+  name: string
+  pod_count: number
+  running_pods: number
+  cpu_used: number
+  mem_used: number
+}
+
+export interface NamespaceResources {
+  total_cpu: number
+  total_mem: number
+  namespaces: NamespaceUsage[]
+}
+
+export interface AbnormalPod {
+  name: string
+  namespace: string
+  phase: string
+  reason: string
+  node: string
+}
+
+export interface RestartingPod {
+  name: string
+  namespace: string
+  restart_count: number
+  node: string
+}
+
+export interface PressureNode {
+  name: string
+  pressures: string[]
+}
+
+export interface AbnormalPVC {
+  name: string
+  namespace: string
+  phase: string
+}
+
+export interface HealthSummary {
+  healthy_pods: number
+  abnormal_pods: number
+  ready_nodes: number
+  not_ready_nodes: number
+  bound_pvcs: number
+  abnormal_pvcs: number
+}
+
+export interface ClusterHealth {
+  summary: HealthSummary
+  abnormal_pods: AbnormalPod[] | null
+  restarting_pods: RestartingPod[] | null
+  not_ready_nodes: string[] | null
+  pressure_nodes: PressureNode[] | null
+  abnormal_pvcs: AbnormalPVC[] | null
+}
+
 export interface K8sEvent {
   type: string
   reason: string
@@ -30,16 +88,24 @@ export interface K8sEvent {
   last_seen: string
 }
 
-export function getOverview() {
-  return request.get<Overview>('/dashboard/overview')
+export function getOverview(params?: { clusterId?: number }) {
+  return request.get<Overview>('/dashboard/overview', { params })
 }
 
-export function getResources() {
-  return request.get<ResourceMetrics>('/dashboard/resources')
+export function getResources(params?: { clusterId?: number }) {
+  return request.get<ResourceMetrics>('/dashboard/resources', { params })
 }
 
-export function getWorkloads() {
-  return request.get<WorkloadSummary>('/dashboard/workloads')
+export function getWorkloads(params?: { clusterId?: number }) {
+  return request.get<WorkloadSummary>('/dashboard/workloads', { params })
+}
+
+export function getNamespaceResources(params?: { clusterId?: number }) {
+  return request.get<NamespaceResources>('/dashboard/namespaces', { params })
+}
+
+export function getHealth(params?: { clusterId?: number }) {
+  return request.get<ClusterHealth>('/dashboard/health', { params })
 }
 
 export interface EventsResponse {

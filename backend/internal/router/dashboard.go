@@ -12,6 +12,8 @@ func registerDashboardRoutes(rg *gin.RouterGroup) {
 		dashboard.GET("overview", dashboardApi.Dashboard.Overview)
 		dashboard.GET("resources", dashboardApi.Dashboard.Resources)
 		dashboard.GET("workloads", dashboardApi.Dashboard.Workloads)
+		dashboard.GET("namespaces", dashboardApi.Dashboard.Namespaces)
+		dashboard.GET("health", dashboardApi.Dashboard.Health)
 		dashboard.GET("events", dashboardApi.Dashboard.Events)
 	}
 }
