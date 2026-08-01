@@ -375,7 +375,11 @@ onMounted(fetchNodes)
 .table-card { border-radius: 8px; }
 .table-actions { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 4px; }
 .table-actions .el-button { margin-left: 0 !important; }
-.node-card { height: 100%; }
+.node-card {
+  height: 100%;
+  background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%);
+  border-color: var(--gk-color-primary-light);
+}
 .node-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .node-header-tags { display: flex; align-items: center; gap: 6px; }
 .node-meta { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: 12px; }

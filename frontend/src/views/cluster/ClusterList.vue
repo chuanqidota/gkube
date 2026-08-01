@@ -313,7 +313,11 @@ onMounted(fetchClusters)
 <style scoped>
 .page-container { padding: 20px; }
 .table-card { border-radius: 8px; }
-.cluster-card { height: 100%; }
+.cluster-card {
+  height: 100%;
+  background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%);
+  border-color: var(--gk-color-primary-light);
+}
 .cluster-header { display: flex; justify-content: space-between; align-items: center; }
 .cluster-info { display: flex; align-items: center; gap: 8px; }
 .cluster-body { margin-bottom: 12px; }
