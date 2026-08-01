@@ -234,11 +234,16 @@ export function useResourceList(options: ResourceListOptions) {
       : `Delete ${options.resourceName.toLowerCase()} "${row.name}" in namespace "${row.namespace}"?`
     try {
       await ElMessageBox.confirm(msg, 'Confirm', { type: 'warning' })
+    } catch {
+      // 用户取消,不报错
+      return
+    }
+    try {
       await options.deleteResource({ namespace: row.namespace, name: row.name })
       ElMessage.success(`${options.resourceName} deleted`)
       fetchResources()
-    } catch {
-      // cancelled
+    } catch (e: any) {
+      ElMessage.error(e?.message || `删除${options.resourceName}失败`)
     }
   }
 

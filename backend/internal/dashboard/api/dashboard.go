@@ -363,6 +363,19 @@ func (d *dashboard) Namespaces(c *gin.Context) {
 				}
 			}
 		}
+
+		// 补齐没有 Pod 的命名空间,使分布与命名空间菜单口径一致
+		nsList, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+		if err == nil {
+			for _, ns := range nsList.Items {
+				if ns.Name == "" {
+					continue
+				}
+				if _, ok := agg[ns.Name]; !ok {
+					agg[ns.Name] = &nsAgg{Name: ns.Name}
+				}
+			}
+		}
 	}
 
 	// 转为切片并按 CPU 请求降序排序
