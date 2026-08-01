@@ -13,8 +13,6 @@ func registerPublicAuthRoutes(rg *gin.RouterGroup) {
 
 // registerAuthRoutes 注册需要认证的用户路由
 func registerAuthRoutes(rg *gin.RouterGroup) {
-	rg.GET("auth/me", authApi.Auth.GetMe)
-
 	// Users
 	users := rg.Group("users")
 	{

@@ -97,31 +97,3 @@ func (h *authHandler) Refresh(c *gin.Context) {
 		"refreshToken": tokenPair.RefreshToken,
 	})
 }
-
-// GetMe
-//
-//	@Description: 获取当前用户信息
-//	@receiver h
-//	@param c
-func (h *authHandler) GetMe(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		response.Fail(c, "未获取到用户信息")
-		return
-	}
-
-	var user model.User
-	if err := database.DB.Where("id = ?", userID).First(&user).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("查询用户失败:%s", err.Error()))
-		return
-	}
-
-	response.Success(c, "获取成功", gin.H{
-		"id":           user.ID,
-		"username":     user.Username,
-		"email":        user.Email,
-		"display_name": user.DisplayName,
-		"status":       user.Status,
-		"created_at":   user.CreatedAt,
-	})
-}

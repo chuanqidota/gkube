@@ -26,7 +26,7 @@ const form = reactive({
   username: '',
   password: '',
   email: '',
-  nickname: '',
+  displayName: '',
 })
 
 const rules: FormRules = {
@@ -53,7 +53,7 @@ const filteredList = computed(() => {
   return userList.value.filter(
     (u) =>
       u.username?.toLowerCase().includes(keyword) ||
-      u.nickname?.toLowerCase().includes(keyword) ||
+      u.display_name?.toLowerCase().includes(keyword) ||
       u.email?.toLowerCase().includes(keyword)
   )
 })
@@ -85,7 +85,7 @@ function openCreate() {
   form.username = ''
   form.password = ''
   form.email = ''
-  form.nickname = ''
+  form.displayName = ''
   dialogVisible.value = true
 }
 
@@ -95,7 +95,7 @@ function openEdit(row: any) {
   form.username = row.username || ''
   form.password = ''
   form.email = row.email || ''
-  form.nickname = row.nickname || ''
+  form.displayName = row.display_name || ''
   dialogVisible.value = true
 }
 
@@ -108,7 +108,7 @@ async function handleSave() {
     const payload: any = {
       username: form.username,
       email: form.email,
-      nickname: form.nickname,
+      displayName: form.displayName,
     }
     if (form.password) {
       payload.password = form.password
@@ -218,9 +218,9 @@ onMounted(fetchUsers)
         <el-table-column type="selection" width="45" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="username" label="用户名" min-width="140" />
-        <el-table-column prop="nickname" label="昵称" min-width="140" />
+        <el-table-column prop="display_name" label="昵称" min-width="140" />
         <el-table-column prop="email" label="邮箱" min-width="200" />
-        <el-table-column prop="createdAt" label="创建时间" min-width="180" />
+        <el-table-column prop="created_at" label="创建时间" min-width="180" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="openEdit(row)">编辑</el-button>
@@ -254,8 +254,8 @@ onMounted(fetchUsers)
             :placeholder="editingId ? '留空保持不变' : ''"
           />
         </el-form-item>
-        <el-form-item label="昵称" prop="nickname">
-          <el-input v-model="form.nickname" />
+        <el-form-item label="昵称" prop="displayName">
+          <el-input v-model="form.displayName" />
         </el-form-item>
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="form.email" />
