@@ -7,10 +7,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Hardcoded JWT secret key for development.
-// In production, this should be read from configuration.
-var jwtSecret = []byte("gkube-jwt-secret-key-change-in-production")
-
 // Claims represents the JWT claims structure.
 type Claims struct {
 	UserID   uint   `json:"user_id"`
@@ -41,7 +37,7 @@ func GenerateToken(userID uint, username string) (*TokenPair, error) {
 	}
 
 	accessSigningKey := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	accessToken, err := accessSigningKey.SignedString(jwtSecret)
+	accessToken, err := accessSigningKey.SignedString(JWTSecret())
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +55,7 @@ func GenerateToken(userID uint, username string) (*TokenPair, error) {
 	}
 
 	refreshSigningKey := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshToken, err := refreshSigningKey.SignedString(jwtSecret)
+	refreshToken, err := refreshSigningKey.SignedString(JWTSecret())
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +72,7 @@ func ParseToken(tokenString string) (*Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}
-		return jwtSecret, nil
+		return JWTSecret(), nil
 	})
 	if err != nil {
 		return nil, err

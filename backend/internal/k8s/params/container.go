@@ -2,7 +2,7 @@ package params
 
 
 type ContainerQueryParams struct {
-    ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+    ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
     Container   string `form:"container" json:"container" label:"容器名称"`
     Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
     PodName     string `form:"podName" json:"podName" label:"Pod名称"`
@@ -10,7 +10,7 @@ type ContainerQueryParams struct {
 
 
 type ContainerLogQueryParams struct {
-    ClusterName string `form:"clusterName" json:"clusterName" label:"集群名称"`
+    ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
     Container   string `form:"container" json:"container" label:"容器名称"`
     Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
     PodName     string `form:"podName" json:"podName" label:"Pod名称"`

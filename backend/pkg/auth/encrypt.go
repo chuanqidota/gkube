@@ -9,15 +9,10 @@ import (
 	"io"
 )
 
-// aesKey is the 32-byte key used for AES-256-GCM encryption.
-// In production, this should be loaded from a secure configuration source
-// (e.g. environment variable, secret manager) — never hardcoded.
-var aesKey = []byte("gkube-aes-256-gcm-secret-key-32b") // exactly 32 bytes
-
-// EncryptAES encrypts plaintext using AES-256-GCM and returns a base64-encoded
-// string containing the nonce prepended to the ciphertext.
+// EncryptAES encrypts plaintext using AES-256-GCM with the active config key
+// and returns a base64-encoded string containing the nonce prepended to the ciphertext.
 func EncryptAES(plaintext string) (string, error) {
-	block, err := aes.NewCipher(aesKey)
+	block, err := aes.NewCipher(ActiveAESKey())
 	if err != nil {
 		return "", err
 	}
@@ -36,15 +31,14 @@ func EncryptAES(plaintext string) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-// DecryptAES decodes a base64-encoded string produced by EncryptAES and
-// decrypts it using AES-256-GCM.
-func DecryptAES(encoded string) (string, error) {
+// decryptWithKey 尝试用指定密钥解密。
+func decryptWithKey(encoded string, key []byte) (string, error) {
 	data, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
 		return "", err
 	}
 
-	block, err := aes.NewCipher(aesKey)
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
 	}
@@ -66,4 +60,15 @@ func DecryptAES(encoded string) (string, error) {
 	}
 
 	return string(plaintext), nil
+}
+
+// DecryptAES decodes a base64-encoded string produced by EncryptAES and
+// decrypts it using AES-256-GCM.优先用当前配置密钥,失败再回退到旧硬编码密钥,
+// 以兼容历史已加密的 kubeconfig,不破坏现有数据。
+func DecryptAES(encoded string) (string, error) {
+	if plaintext, err := decryptWithKey(encoded, ActiveAESKey()); err == nil {
+		return plaintext, nil
+	}
+	// 回退到旧密钥(仅用于历史数据)
+	return decryptWithKey(encoded, []byte(legacyAESKey))
 }

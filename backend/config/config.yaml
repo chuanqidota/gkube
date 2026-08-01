@@ -3,7 +3,8 @@ server:
   port: 8080
 database:
   user: root
-  password: jinang123
+  # 生产环境通过环境变量或外部注入,勿提交真实口令
+  password: ${DB_PASSWORD}
   host: 127.0.0.1
   port: 3306
   name: gkube
@@ -18,5 +19,15 @@ s3:
   endpoint: ""
   accessKeyID: ""
   secretAccessKey: ""
-  useSSL: ""
+  useSSL: false
   bucket: ""
+security:
+  # JWT 签名密钥(必填,生产环境通过环境变量 JWT_SECRET 覆盖)
+  jwt_secret: "change-me-in-production-via-JWT_SECRET-env"
+  # AES-256-GCM 加密密钥,必须为 32 字节(必填,生产环境通过 AES_KEY 环境变量覆盖)
+  aes_key: "change-me-32-bytes-aes-key-xxxxxxxx"
+  # CORS 允许来源白名单,留空仅允许同源
+  cors_origins: []
+  # 管理员用户名白名单
+  admin_users:
+    - admin

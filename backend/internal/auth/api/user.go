@@ -1,29 +1,27 @@
 package api
 
 import (
-	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gkube/internal/auth/model"
 	"gkube/internal/auth/params"
 	"gkube/pkg/auth"
 	"gkube/pkg/database"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
+	"gorm.io/gorm"
 )
 
 type userHandler struct{}
 
 var User = new(userHandler)
 
-// List
-//
-//	@Description: 获取用户列表（分页）
-//	@receiver u
-//	@param c
+// List 获取用户列表（分页）
 func (u *userHandler) List(c *gin.Context) {
 	var query params.UserQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
@@ -32,6 +30,9 @@ func (u *userHandler) List(c *gin.Context) {
 	}
 	if query.Size <= 0 {
 		query.Size = 10
+	}
+	if query.Size > 100 {
+		query.Size = 100
 	}
 
 	db := database.DB.Model(&model.User{})
@@ -42,9 +43,11 @@ func (u *userHandler) List(c *gin.Context) {
 		db = db.Where("status = ?", *query.Status)
 	}
 
+	// Count 用独立 Session,避免污染后续 Find
 	var total int64
-	if err := db.Count(&total).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("查询用户总数失败:%s", err.Error()))
+	if err := db.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "查询用户总数失败")
 		return
 	}
 
@@ -53,7 +56,8 @@ func (u *userHandler) List(c *gin.Context) {
 		Limit(query.Size).
 		Order("id DESC").
 		Find(&users).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("查询用户列表失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "查询用户列表失败")
 		return
 	}
 
@@ -63,22 +67,19 @@ func (u *userHandler) List(c *gin.Context) {
 	})
 }
 
-// Create
-//
-//	@Description: 创建用户
-//	@receiver u
-//	@param c
+// Create 创建用户
 func (u *userHandler) Create(c *gin.Context) {
 	var p params.CreateUserParams
 	if err := c.ShouldBindJSON(&p); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
 	// 检查用户名唯一性
 	var count int64
 	if err := database.DB.Model(&model.User{}).Where("username = ?", p.Username).Count(&count).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("查询用户名失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "查询用户名失败")
 		return
 	}
 	if count > 0 {
@@ -89,7 +90,8 @@ func (u *userHandler) Create(c *gin.Context) {
 	// 密码哈希
 	hashedPassword, err := auth.HashPassword(p.Password)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("密码加密失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "密码加密失败")
 		return
 	}
 
@@ -102,22 +104,19 @@ func (u *userHandler) Create(c *gin.Context) {
 	}
 
 	if err := database.DB.Create(&user).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("创建用户失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "创建用户失败")
 		return
 	}
 
 	response.Success(c, "创建用户成功", user)
 }
 
-// Update
-//
-//	@Description: 更新用户
-//	@receiver u
-//	@param c
+// Update 更新用户
 func (u *userHandler) Update(c *gin.Context) {
 	var p params.UpdateUserParams
 	if err := c.ShouldBindJSON(&p); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
@@ -141,7 +140,8 @@ func (u *userHandler) Update(c *gin.Context) {
 
 	if len(updates) > 0 {
 		if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
-			response.Fail(c, fmt.Sprintf("更新用户失败:%s", err.Error()))
+			logger.Error(err.Error())
+			response.FailWithStatus(c, http.StatusInternalServerError, "更新用户失败")
 			return
 		}
 	}
@@ -150,23 +150,28 @@ func (u *userHandler) Update(c *gin.Context) {
 	response.Success(c, "更新用户成功", user)
 }
 
-// Delete
-//
-//	@Description: 删除用户（软删除）
-//	@receiver u
-//	@param c
+// Delete 删除用户（软删除）
 func (u *userHandler) Delete(c *gin.Context) {
 	var body struct {
 		ID uint `json:"id" binding:"required" label:"用户ID"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
 	// 防止删除自己
 	currentUserID, exists := c.Get("userID")
-	if exists && currentUserID.(uint) == body.ID {
+	if !exists {
+		response.FailWithStatus(c, http.StatusUnauthorized, "未获取到当前用户信息")
+		return
+	}
+	uid, ok := currentUserID.(uint)
+	if !ok {
+		response.FailWithStatus(c, http.StatusUnauthorized, "未获取到当前用户信息")
+		return
+	}
+	if uid == body.ID {
 		response.Fail(c, "不能删除当前登录用户")
 		return
 	}
@@ -178,28 +183,30 @@ func (u *userHandler) Delete(c *gin.Context) {
 	}
 
 	if err := database.DB.Delete(&user).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("删除用户失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "删除用户失败")
 		return
 	}
 
 	response.Success(c, "删除用户成功", nil)
 }
 
-// ChangePassword
-//
-//	@Description: 修改密码
-//	@receiver u
-//	@param c
+// ChangePassword 修改密码
 func (u *userHandler) ChangePassword(c *gin.Context) {
 	var p params.ChangePasswordParams
 	if err := c.ShouldBindJSON(&p); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
-	userID, exists := c.Get("userID")
+	userIDVal, exists := c.Get("userID")
 	if !exists {
-		response.Fail(c, "未获取到当前用户信息")
+		response.FailWithStatus(c, http.StatusUnauthorized, "未获取到当前用户信息")
+		return
+	}
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		response.FailWithStatus(c, http.StatusUnauthorized, "未获取到当前用户信息")
 		return
 	}
 
@@ -218,12 +225,14 @@ func (u *userHandler) ChangePassword(c *gin.Context) {
 	// 哈希新密码
 	hashedPassword, err := auth.HashPassword(p.NewPassword)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("密码加密失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "密码加密失败")
 		return
 	}
 
 	if err := database.DB.Model(&user).Update("password_hash", hashedPassword).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("修改密码失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "修改密码失败")
 		return
 	}
 

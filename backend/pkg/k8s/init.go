@@ -5,9 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"gkube/internal/k8s/model"
+	clustermodel "gkube/internal/cluster/model"
 	"gkube/pkg/auth"
 	"gkube/pkg/database"
+	"gkube/pkg/logger"
 
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/dynamic"
@@ -39,34 +40,46 @@ var (
 	dynamicClientCacheMu sync.RWMutex
 )
 
+// buildRestConfig 从 kubeconfig 字符串构造 rest.Config。
+// 不再自动降级 Insecure:无 CA 证书时让 clientcmd 走默认行为(失败即报错),
+// 避免静默跳过 TLS 校验带来的中间人风险。
+func buildRestConfig(kubeConf string) (*rest.Config, error) {
+	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeConf))
+	if err != nil {
+		return nil, fmt.Errorf("初始化客户端配置错误:%w", err)
+	}
+	// 限流与超时,避免单个慢集群拖垮服务
+	config.QPS = 50
+	config.Burst = 100
+	config.Timeout = 30 * time.Second
+	return config, nil
+}
+
 // getCachedKubeConfig retrieves the kubeconfig for a cluster, using DB lookup
 func getCachedKubeConfig(name string) (string, error) {
-	var k8sCluster model.K8SCluster
-	if err := database.DB.Model(&model.K8SCluster{}).
+	var k8sCluster clustermodel.K8SCluster
+	if err := database.DB.Model(&clustermodel.K8SCluster{}).
 		Where(map[string]any{"cluster_name": name}).
 		Scan(&k8sCluster).Error; err != nil {
 		return "", err
 	}
 	kubeConfig, err := auth.DecryptAES(k8sCluster.KubeConfig)
 	if err != nil {
-		return "", fmt.Errorf("解密集群凭证失败:%s", err.Error())
+		logger.Error(fmt.Sprintf("解密集群 %s 凭证失败:%s", name, err.Error()))
+		return "", fmt.Errorf("解密集群凭证失败")
 	}
 	return kubeConfig, nil
 }
 
 // GetK8sClient creates a k8s client from kubeconfig string
 func GetK8sClient(k8sConf string) (*kubernetes.Clientset, error) {
-	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(k8sConf))
+	config, err := buildRestConfig(k8sConf)
 	if err != nil {
-		return nil, fmt.Errorf("初始化客户端配置错误:%s", err.Error())
-	}
-	// 仅在 kubeconfig 未配置 CA 证书时启用 Insecure 跳过 TLS 验证
-	if config.TLSClientConfig.CAFile == "" && len(config.TLSClientConfig.CAData) == 0 {
-		config.TLSClientConfig.Insecure = true
+		return nil, err
 	}
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("初始化客户端错误:%s", err.Error())
+		return nil, fmt.Errorf("初始化客户端错误:%w", err)
 	}
 	return clientSet, nil
 }
@@ -121,16 +134,13 @@ func GetApiExtensionsClientByName(name string) (*apiextensionsclientset.Clientse
 	if err != nil {
 		return nil, err
 	}
-	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeConfig))
+	config, err := buildRestConfig(kubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("初始化客户端配置错误:%s", err.Error())
-	}
-	if config.TLSClientConfig.CAFile == "" && len(config.TLSClientConfig.CAData) == 0 {
-		config.TLSClientConfig.Insecure = true
+		return nil, err
 	}
 	clientSet, err := apiextensionsclientset.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("初始化apiextensions客户端错误:%s", err.Error())
+		return nil, fmt.Errorf("初始化apiextensions客户端错误:%w", err)
 	}
 
 	aeClientCacheMu.Lock()
@@ -158,12 +168,9 @@ func GetRestConfigByName(name string) (*rest.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeConfig))
+	config, err := buildRestConfig(kubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("初始化客户端配置错误:%s", err.Error())
-	}
-	if config.TLSClientConfig.CAFile == "" && len(config.TLSClientConfig.CAData) == 0 {
-		config.TLSClientConfig.Insecure = true
+		return nil, err
 	}
 
 	restConfigCacheMu.Lock()
@@ -193,7 +200,7 @@ func GetDynamicClientByName(name string) (dynamic.Interface, error) {
 	}
 	client, err := dynamic.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("初始化dynamic客户端错误:%s", err.Error())
+		return nil, fmt.Errorf("初始化dynamic客户端错误:%w", err)
 	}
 
 	dynamicClientCacheMu.Lock()
@@ -204,4 +211,26 @@ func GetDynamicClientByName(name string) (dynamic.Interface, error) {
 	dynamicClientCacheMu.Unlock()
 
 	return client, nil
+}
+
+// InvalidateClient 删除指定集群的全部缓存项(client/ae/rest/dynamic)。
+// 在集群更新或删除后调用,确保后续请求重建客户端。
+func InvalidateClient(name string) {
+	cacheKey := "name:" + name
+
+	clientCacheMu.Lock()
+	delete(clientCache, cacheKey)
+	clientCacheMu.Unlock()
+
+	aeClientCacheMu.Lock()
+	delete(aeClientCache, cacheKey)
+	aeClientCacheMu.Unlock()
+
+	restConfigCacheMu.Lock()
+	delete(restConfigCache, cacheKey)
+	restConfigCacheMu.Unlock()
+
+	dynamicClientCacheMu.Lock()
+	delete(dynamicClientCache, cacheKey)
+	dynamicClientCacheMu.Unlock()
 }

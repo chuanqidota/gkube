@@ -2,7 +2,7 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -13,22 +13,20 @@ import (
 	"gkube/pkg/database"
 	"gkube/pkg/k8s"
 	k8sCluster "gkube/pkg/k8s/cluster"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
+	"gorm.io/gorm"
 )
 
 type clusterHandler struct{}
 
 var Cluster = new(clusterHandler)
 
-// List
-//
-//	@Description: 获取集群列表（分页）
-//	@receiver cl
-//	@param c
+// List 获取集群列表（分页）
 func (cl *clusterHandler) List(c *gin.Context) {
 	var query params.ClusterQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
@@ -52,9 +50,11 @@ func (cl *clusterHandler) List(c *gin.Context) {
 			"%"+keyword+"%", "%"+keyword+"%")
 	}
 
+	// Count 用独立 Session,避免污染后续 Find 的条件
 	var total int64
-	if err := db.Count(&total).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("查询集群总数失败:%s", err.Error()))
+	if err := db.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "查询集群总数失败")
 		return
 	}
 
@@ -63,7 +63,8 @@ func (cl *clusterHandler) List(c *gin.Context) {
 		Limit(query.Size).
 		Order("id DESC").
 		Find(&clusters).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("查询集群列表失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "查询集群列表失败")
 		return
 	}
 
@@ -73,22 +74,19 @@ func (cl *clusterHandler) List(c *gin.Context) {
 	})
 }
 
-// Create
-//
-//	@Description: 创建集群
-//	@receiver cl
-//	@param c
+// Create 创建集群
 func (cl *clusterHandler) Create(c *gin.Context) {
 	var p params.CreateClusterParams
 	if err := c.ShouldBindJSON(&p); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
 	// 检查集群名称唯一性
 	var count int64
 	if err := database.DB.Model(&model.K8SCluster{}).Where("cluster_name = ?", p.ClusterName).Count(&count).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("查询集群名称失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "查询集群名称失败")
 		return
 	}
 	if count > 0 {
@@ -99,21 +97,24 @@ func (cl *clusterHandler) Create(c *gin.Context) {
 	// 验证kubeconfig连通性
 	client, err := k8s.GetK8sClient(p.KubeConfig)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("kubeconfig验证失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "kubeconfig验证失败")
 		return
 	}
 
 	// 获取集群版本
 	version, err := k8sCluster.GetClusterVersion(client)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取集群版本失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群版本失败")
 		return
 	}
 
 	// 获取节点数量
 	nodes, err := k8sCluster.GetClusterNodesInfo(client)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取集群节点信息失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群节点信息失败")
 		return
 	}
 	nodeCount := len(nodes)
@@ -121,7 +122,8 @@ func (cl *clusterHandler) Create(c *gin.Context) {
 	// 加密kubeconfig
 	encryptedConfig, err := auth.EncryptAES(p.KubeConfig)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("加密kubeconfig失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "加密kubeconfig失败")
 		return
 	}
 
@@ -146,22 +148,19 @@ func (cl *clusterHandler) Create(c *gin.Context) {
 	}
 
 	if err := database.DB.Create(&cluster).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("创建集群失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "创建集群失败")
 		return
 	}
 
 	response.Success(c, "创建集群成功", cluster)
 }
 
-// Detail
-//
-//	@Description: 获取集群详情
-//	@receiver cl
-//	@param c
+// Detail 获取集群详情
 func (cl *clusterHandler) Detail(c *gin.Context) {
 	var p params.ClusterIDParams
 	if err := c.ShouldBindUri(&p); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
@@ -174,21 +173,17 @@ func (cl *clusterHandler) Detail(c *gin.Context) {
 	response.Success(c, "获取集群详情成功", cluster)
 }
 
-// Update
-//
-//	@Description: 更新集群
-//	@receiver cl
-//	@param c
+// Update 更新集群
 func (cl *clusterHandler) Update(c *gin.Context) {
 	var uriParams params.ClusterIDParams
 	if err := c.ShouldBindUri(&uriParams); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
 	var p params.UpdateClusterParams
 	if err := c.ShouldBindJSON(&p); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
@@ -209,34 +204,36 @@ func (cl *clusterHandler) Update(c *gin.Context) {
 		if b, err := json.Marshal(*p.Labels); err == nil {
 			updates["labels"] = string(b)
 		} else {
-			response.Fail(c, fmt.Sprintf("序列化标签失败:%s", err.Error()))
+			logger.Error(err.Error())
+			response.FailWithStatus(c, http.StatusInternalServerError, "序列化标签失败")
 			return
 		}
 	}
 
 	if len(updates) > 0 {
 		if err := database.DB.Model(&cluster).Updates(updates).Error; err != nil {
-			response.Fail(c, fmt.Sprintf("更新集群失败:%s", err.Error()))
+			logger.Error(err.Error())
+			response.FailWithStatus(c, http.StatusInternalServerError, "更新集群失败")
 			return
 		}
 	}
 
+	// 集群信息变更后失效客户端缓存
+	k8s.InvalidateClient(cluster.ClusterName)
+
 	if err := database.DB.First(&cluster, cluster.ID).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("获取更新后集群失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "获取更新后集群失败")
 		return
 	}
 	response.Success(c, "更新集群成功", cluster)
 }
 
-// Delete
-//
-//	@Description: 删除集群（软删除）
-//	@receiver cl
-//	@param c
+// Delete 删除集群（软删除）
 func (cl *clusterHandler) Delete(c *gin.Context) {
 	var p params.ClusterIDParams
 	if err := c.ShouldBindUri(&p); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
@@ -247,22 +244,22 @@ func (cl *clusterHandler) Delete(c *gin.Context) {
 	}
 
 	if err := database.DB.Delete(&cluster).Error; err != nil {
-		response.Fail(c, fmt.Sprintf("删除集群失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "删除集群失败")
 		return
 	}
+
+	// 删除后失效客户端缓存,释放连接
+	k8s.InvalidateClient(cluster.ClusterName)
 
 	response.Success(c, "删除集群成功", nil)
 }
 
-// Check
-//
-//	@Description: 检查集群连通性
-//	@receiver cl
-//	@param c
+// Check 检查集群连通性
 func (cl *clusterHandler) Check(c *gin.Context) {
 	var p params.ClusterIDParams
 	if err := c.ShouldBindUri(&p); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 
@@ -275,7 +272,8 @@ func (cl *clusterHandler) Check(c *gin.Context) {
 	// 解密kubeconfig
 	kubeConfig, err := auth.DecryptAES(cluster.KubeConfig)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("解密kubeconfig失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "解密kubeconfig失败")
 		return
 	}
 
@@ -284,34 +282,36 @@ func (cl *clusterHandler) Check(c *gin.Context) {
 	// 测试连通性
 	client, err := k8s.GetK8sClient(kubeConfig)
 	if err != nil {
-		// 更新状态为offline
+		logger.Error(err.Error())
 		database.DB.Model(&cluster).Updates(map[string]interface{}{
 			"status":            "offline",
 			"last_health_check": time.Now(),
 		})
-		response.Fail(c, fmt.Sprintf("集群连接失败:%s", err.Error()))
+		response.FailWithStatus(c, http.StatusBadGateway, "集群连接失败")
 		return
 	}
 
 	// 获取集群版本
 	version, err := k8sCluster.GetClusterVersion(client)
 	if err != nil {
+		logger.Error(err.Error())
 		database.DB.Model(&cluster).Updates(map[string]interface{}{
 			"status":            "offline",
 			"last_health_check": time.Now(),
 		})
-		response.Fail(c, fmt.Sprintf("获取集群版本失败:%s", err.Error()))
+		response.FailWithStatus(c, http.StatusBadGateway, "获取集群版本失败")
 		return
 	}
 
 	// 获取节点数量
 	nodes, err := k8sCluster.GetClusterNodesInfo(client)
 	if err != nil {
+		logger.Error(err.Error())
 		database.DB.Model(&cluster).Updates(map[string]interface{}{
 			"status":            "offline",
 			"last_health_check": time.Now(),
 		})
-		response.Fail(c, fmt.Sprintf("获取集群节点信息失败:%s", err.Error()))
+		response.FailWithStatus(c, http.StatusBadGateway, "获取集群节点信息失败")
 		return
 	}
 	nodeCount := len(nodes)

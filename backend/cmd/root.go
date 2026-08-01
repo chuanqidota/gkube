@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"gkube/config"
+	"gkube/pkg/auth"
 	"gkube/pkg/database"
 	"gkube/pkg/es"
 	"gkube/pkg/logger"
@@ -21,6 +22,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var configPath string
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "gkube",
@@ -31,8 +34,15 @@ examples and usage of using your application. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
+	// PersistentPreRunE 在所有子命令执行前运行,完成启动链:logger → config → keys → database。
+	// migrate/seed 子命令也会触发,但不会初始化 ES(仅 server Run 需要)。
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		logger.Init()   // 初始化日志(最先)
+		config.Init(configPath)
+		auth.InitKeys() // 校验密钥,缺失即 Fatal
+		database.Init() // 初始化数据库,失败 Fatal
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		Run()
 	},
@@ -48,23 +58,14 @@ func Execute() {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.webcontainer-go.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
+	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "配置文件路径(默认工作目录 config/config.yaml,可用 GKUBE_CONFIG 环境变量覆盖)")
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	config.Init()   // 初始化配置文件
-	logger.Init()   // 初始化日志
-	database.Init() // 初始化数据库
-	es.Init()       // 初始化es
-
 }
 
 func Run() {
+	// ES 仅 server 运行时初始化
+	es.Init()
+
 	addr := fmt.Sprintf("%s:%s", config.Conf.Server.Ip, config.Conf.Server.Port)
 	server := &http.Server{
 		Addr:           addr,
@@ -81,19 +82,18 @@ func Run() {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			fmt.Println(err.Error())
+			logger.Error(fmt.Sprintf("服务器启动失败:%s", err.Error()))
 		}
 	}()
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	fmt.Println("Shutdown Server ...")
+	logger.Info("Shutdown Server ...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
-		fmt.Println(err.Error())
+		logger.Error(fmt.Sprintf("服务器关闭失败:%s", err.Error()))
 	}
-	fmt.Println("Server exiting")
-
+	logger.Info("Server exiting")
 }

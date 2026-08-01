@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,9 @@ var Audit = new(auditHandler)
 
 const auditFile = "config/audit-logs.json"
 const auditIndex = "gkube-audit-logs"
+
+// auditFileMu 保护文件回退的读写,避免并发写损坏 JSON。
+var auditFileMu sync.Mutex
 
 type AuditLog struct {
 	ID        string            `json:"id"`
@@ -173,6 +177,8 @@ func clearElasticsearchAuditLogs() error {
 
 // File-based fallback functions
 func loadAuditLogs() *AuditStore {
+	auditFileMu.Lock()
+	defer auditFileMu.Unlock()
 	store := &AuditStore{Logs: []AuditLog{}}
 	data, err := os.ReadFile(auditFile)
 	if err == nil {
@@ -182,6 +188,8 @@ func loadAuditLogs() *AuditStore {
 }
 
 func saveAuditLogs(store *AuditStore) error {
+	auditFileMu.Lock()
+	defer auditFileMu.Unlock()
 	data, err := json.MarshalIndent(store, "", "  ")
 	if err != nil {
 		return err

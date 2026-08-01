@@ -50,3 +50,8 @@ func Info(args ...interface{}) {
 func Error(args ...interface{}) {
 	logger.Error(args...)
 }
+
+// Fatal 记录致命错误后调用 os.Exit(1)。用于启动阶段不可恢复的初始化失败。
+func Fatal(args ...interface{}) {
+	logger.Fatal(args...)
+}

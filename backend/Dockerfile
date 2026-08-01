@@ -13,7 +13,7 @@ FROM alpine:3
 RUN mkdir -p /opt
 WORKDIR /opt
 COPY --from=builder /opt/gkube /opt/gkube
-COPY --from=builder /opt/config/config.yaml /opt/config/config.yaml
+# 不再 COPY 生产 config.yaml,配置通过环境变量/挂载注入,避免镜像泄露密钥
 RUN chmod +x gkube
 EXPOSE 8080
 

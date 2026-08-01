@@ -24,8 +24,7 @@ func Init() {
 		elastic.SetSniff(false), // 用于关闭 Sniff 不然会出现no active connection found: no Elasticsearch node available
 	)
 	if err != nil {
-		logger.Error(fmt.Sprintf("es连接失败-%s", err.Error()))
-		return
+		logger.Fatal(fmt.Sprintf("es连接失败-%s", err.Error()))
 	}
 	ElasticSearch = client
 	logger.Info(fmt.Sprintf("es连接成功"))
