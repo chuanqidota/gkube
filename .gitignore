@@ -25,6 +25,10 @@ go.work.sum
 .env
 .idea
 
+# 真实配置文件(含密钥,不提交;从 config.example.yaml 复制)
+backend/config/config.yaml
+backend/config/config.docker.yaml
+
 # Superpowers brainstorm
 .superpowers/
 

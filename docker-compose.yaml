@@ -1,0 +1,53 @@
+services:
+  # mysql
+  mysql:
+    image: docker.1ms.run/library/mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: jinang123
+      MYSQL_DATABASE: gkube
+    ports:
+      - "3307:3306"          # 宿主 3307,避免本地 3306 冲突
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # 解决中文乱码
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  # 后端
+  gkube:
+    restart: always
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: gkube:latest
+    container_name: gkube
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      # 挂载本地真实配置(不提交仓库,从 config.example.yaml 复制后改 host 为 mysql)
+      - ./backend/config/config.yaml:/opt/config/config.yaml
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: sh -c "./gkube migrate && ./gkube"
+
+  # 前端
+  gkube-web:
+    restart: always
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: gkube-web:latest
+    container_name: gkube-web
+    ports:
+      - "80:80"
+
+volumes:
+  mysql_data:
