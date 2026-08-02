@@ -40,11 +40,14 @@ docker-compose up           # Start all services including the app
 
 **Startup chain** (`cmd/root.go`): config.Init() → logger.Init() → database.Init() (MySQL/GORM) → es.Init() → HTTP server on :8080 → cluster health checker goroutine.
 
-**Module pattern** — each domain under `app/<module>/`:
-- `api/` — Gin HTTP handlers (receives request, calls service, returns response)
-- `params/` — Request parameter structs (bound from query/body)
-- `model/` — GORM database models
-- `service/` — Business logic (used by some modules like cluster)
+**Module pattern** — each domain lives under `internal/<module>/` as a single Go package. Param structs are inlined into the handler file that binds them (no standalone `params/` folder). A sub-package is created only when it earns its keep:
+- `auth/` — flat package: `auth.go` (login/refresh handlers + params), `user.go` (`User` model + user params + user handlers).
+- `cluster/` — `cluster.go` (cluster params + handlers), `health.go` (`HealthChecker` background loop); keeps a `model/` sub-package because `K8SCluster` is shared with `pkg/k8s`, `dashboard`, and `cmd/migrate`, and separating it breaks an import cycle (`cluster` imports `pkg/k8s`, which imports `cluster/model`).
+- `dashboard/` — flat package: `dashboard.go` (handlers + params), reuses `internal/cluster/model`.
+- `k8s/` — `api/` split into group sub-packages (`workload/`, `network/`, `storage/`, `config/`, `core/`, `crd/`) mirroring K8s API groups; one shared `params/` package (one file per resource) imported by all handlers; one shared `model/` package (`BaseModel`, `CustomTime`, `TerminalRecord`).
+- `router/` — route registration per module.
+
+Handler packages expose singleton vars (e.g. `auth.Auth`, `auth.UserHandler`, `cluster.Cluster`, `dashboard.Dashboard`) that `router/` wires to routes.
 
 **Shared packages** under `pkg/`:
 - `k8s/` — One sub-package per K8s resource type (deployment/, pod/, service/, etc.), each with functions that call `client-go`. Initialized in `pkg/k8s/init.go`.

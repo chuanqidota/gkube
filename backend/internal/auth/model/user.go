@@ -1,12 +1,12 @@
 package model
 
 import (
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 )
 
-// User
-// @Description: 用户表
+// User 用户表
 type User struct {
 	ID           uint           `gorm:"column:id;primaryKey;autoIncrement;comment:主键ID" json:"id"`
 	Username     string         `gorm:"column:username;type:varchar(100);uniqueIndex;not null;comment:用户名" json:"username"`

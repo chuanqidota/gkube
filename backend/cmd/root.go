@@ -17,7 +17,7 @@ import (
 	"os/signal"
 	"time"
 
-	clusterService "gkube/internal/cluster/service"
+	cluster "gkube/internal/cluster"
 
 	"github.com/spf13/cobra"
 )
@@ -76,7 +76,7 @@ func Run() {
 	}
 
 	// Start health checker for clusters
-	healthChecker := clusterService.NewHealthChecker(30 * time.Second)
+	healthChecker := cluster.NewHealthChecker(30 * time.Second)
 	healthChecker.Start()
 	defer healthChecker.Stop()
 

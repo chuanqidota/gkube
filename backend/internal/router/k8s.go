@@ -1,13 +1,7 @@
 package router
 
 import (
-	k8sApi "gkube/internal/k8s/api"
-	k8sConfig "gkube/internal/k8s/api/config"
-	k8sCore "gkube/internal/k8s/api/core"
-	k8sCrd "gkube/internal/k8s/api/crd"
-	k8sNetwork "gkube/internal/k8s/api/network"
-	k8sStorage "gkube/internal/k8s/api/storage"
-	k8sWorkload "gkube/internal/k8s/api/workload"
+	k8s "gkube/internal/k8s"
 	"gkube/pkg/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -15,294 +9,294 @@ import (
 
 // registerK8sRoutes 注册所有K8s资源路由
 func registerK8sRoutes(rg *gin.RouterGroup) {
-	k8s := rg.Group("k8s")
+	grp := rg.Group("k8s")
 	{
 		// ---- Core ----
-		registerCoreRoutes(k8s)
+		registerCoreRoutes(grp)
 		// ---- Workload ----
-		registerWorkloadRoutes(k8s)
+		registerWorkloadRoutes(grp)
 		// ---- Network ----
-		registerNetworkRoutes(k8s)
+		registerNetworkRoutes(grp)
 		// ---- Storage ----
-		registerStorageRoutes(k8s)
+		registerStorageRoutes(grp)
 		// ---- Config ----
-		registerConfigRoutes(k8s)
+		registerConfigRoutes(grp)
 		// ---- CRD ----
-		registerCrdRoutes(k8s)
+		registerCrdRoutes(grp)
 		// ---- Audit ----
-		registerAuditRoutes(k8s)
+		registerAuditRoutes(grp)
 	}
 }
 
-func registerCoreRoutes(k8s *gin.RouterGroup) {
+func registerCoreRoutes(rg *gin.RouterGroup) {
 	// Cluster
-	k8s.GET("cluster/version", k8sCore.Cluster.GetClusterVersion)
-	k8s.GET("cluster/nodes", k8sCore.Cluster.GetClusterNodesInfo)
+	rg.GET("cluster/version", k8s.Cluster.GetClusterVersion)
+	rg.GET("cluster/nodes", k8s.Cluster.GetClusterNodesInfo)
 
 	// Node
-	k8s.GET("node/detail", k8sCore.Node.GetNodeDetail)
-	k8s.GET("node/get-yaml", k8sCore.Node.GetNodeYaml)
-	k8s.GET("node/pods", k8sCore.Node.GetNodePods)
-	k8s.GET("node/events", k8sCore.Node.GetNodeEvents)
-	k8s.PUT("node/cordon", k8sCore.Node.CordonNode)
-	k8s.PUT("node/taint", k8sCore.Node.SetTaintNode)
-	k8s.PUT("node/taints", k8sCore.Node.UpdateNodeTaints)
-	k8s.PUT("node/labels", k8sCore.Node.UpdateNodeLabels)
-	k8s.PUT("node/drain", k8sCore.Node.DrainNode)
-	k8s.PUT("node/update-yaml", k8sCore.Node.UpdateNodeYaml)
-	k8s.DELETE("node/delete", k8sCore.Node.DeleteNode)
+	rg.GET("node/detail", k8s.Node.GetNodeDetail)
+	rg.GET("node/get-yaml", k8s.Node.GetNodeYaml)
+	rg.GET("node/pods", k8s.Node.GetNodePods)
+	rg.GET("node/events", k8s.Node.GetNodeEvents)
+	rg.PUT("node/cordon", k8s.Node.CordonNode)
+	rg.PUT("node/taint", k8s.Node.SetTaintNode)
+	rg.PUT("node/taints", k8s.Node.UpdateNodeTaints)
+	rg.PUT("node/labels", k8s.Node.UpdateNodeLabels)
+	rg.PUT("node/drain", k8s.Node.DrainNode)
+	rg.PUT("node/update-yaml", k8s.Node.UpdateNodeYaml)
+	rg.DELETE("node/delete", k8s.Node.DeleteNode)
 
 	// Namespace
-	k8s.GET("namespace/list", k8sCore.Namespace.GetNamespaceList)
-	k8s.GET("namespace/detail", k8sCore.Namespace.GetNamespaceDetail)
-	k8s.GET("namespace/get-yaml", k8sCore.Namespace.GetNamespaceYaml)
-	k8s.POST("namespace/create", k8sCore.Namespace.CreateNamespace)
-	k8s.PUT("namespace/update", k8sCore.Namespace.UpdateNamespace)
-	k8s.PUT("namespace/labels", k8sCore.Namespace.UpdateNamespaceLabels)
-	k8s.DELETE("namespace/delete", k8sCore.Namespace.DeleteNamespace)
+	rg.GET("namespace/list", k8s.Namespace.GetNamespaceList)
+	rg.GET("namespace/detail", k8s.Namespace.GetNamespaceDetail)
+	rg.GET("namespace/get-yaml", k8s.Namespace.GetNamespaceYaml)
+	rg.POST("namespace/create", k8s.Namespace.CreateNamespace)
+	rg.PUT("namespace/update", k8s.Namespace.UpdateNamespace)
+	rg.PUT("namespace/labels", k8s.Namespace.UpdateNamespaceLabels)
+	rg.DELETE("namespace/delete", k8s.Namespace.DeleteNamespace)
 
 	// Pod
-	k8s.GET("pod/list", k8sCore.Pod.GetPodList)
-	k8s.GET("pod/detail", k8sCore.Pod.GetPodByName)
-	k8s.GET("pod/get-yaml", k8sCore.Pod.GetPodYaml)
-	k8s.GET("pod/events", k8sCore.Pod.WatchPodEvent)
-	k8s.POST("pod/create", k8sCore.Pod.CreatePod)
-	k8s.PUT("pod/update", k8sCore.Pod.UpdatePod)
-	k8s.PUT("pod/update-yaml", k8sCore.Pod.UpdatePod)
-	k8s.DELETE("pod/delete", k8sCore.Pod.DeletePodByName)
+	rg.GET("pod/list", k8s.Pod.GetPodList)
+	rg.GET("pod/detail", k8s.Pod.GetPodByName)
+	rg.GET("pod/get-yaml", k8s.Pod.GetPodYaml)
+	rg.GET("pod/events", k8s.Pod.WatchPodEvent)
+	rg.POST("pod/create", k8s.Pod.CreatePod)
+	rg.PUT("pod/update", k8s.Pod.UpdatePod)
+	rg.PUT("pod/update-yaml", k8s.Pod.UpdatePod)
+	rg.DELETE("pod/delete", k8s.Pod.DeletePodByName)
 
 	// Event
-	k8s.GET("event/list", k8sApi.Event.ListEvents)
-	k8s.GET("event/watch", k8sApi.Event.WatchEvents)
+	rg.GET("event/list", k8s.Event.ListEvents)
+	rg.GET("event/watch", k8s.Event.WatchEvents)
 	// Container
-	k8s.GET("container/exec", k8sCore.HandleWebSocket)
-	k8s.GET("container/record/list", k8sCore.RecordList)
-	k8s.GET("container/record/url", k8sCore.RecordUrl)
-	k8s.GET("log", k8sCore.PodContainerLog)
-	k8s.GET("log/stream", k8sCore.StreamPodContainerLogs)
+	rg.GET("container/exec", k8s.HandleWebSocket)
+	rg.GET("container/record/list", k8s.RecordList)
+	rg.GET("container/record/url", k8s.RecordUrl)
+	rg.GET("log", k8s.PodContainerLog)
+	rg.GET("log/stream", k8s.StreamPodContainerLogs)
 }
 
-func registerWorkloadRoutes(k8s *gin.RouterGroup) {
+func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	// Deployment
-	k8s.GET("deployment/list", k8sWorkload.Deployment.GetDeploymentList)
-	k8s.GET("deployment/detail", k8sWorkload.Deployment.GetDeploymentDetail)
-	k8s.GET("deployment/get-yaml", k8sWorkload.Deployment.GetDeploymentYaml)
-	k8s.GET("deployment/events", k8sWorkload.Deployment.GetDeploymentEvents)
-	k8s.POST("deployment/create", k8sWorkload.Deployment.CreateDeployment)
-	k8s.PUT("deployment/update", k8sWorkload.Deployment.UpdateDeployment)
-	k8s.PUT("deployment/update-yaml", k8sWorkload.Deployment.UpdateDeployment)
-	k8s.DELETE("deployment/delete", k8sWorkload.Deployment.DeleteDeployment)
-	k8s.PUT("deployment/scale", k8sWorkload.Deployment.ScaleDeployment)
-	k8s.POST("deployment/restart", k8sWorkload.Deployment.RestartDeployment)
-	k8s.POST("deployment/rollback", k8sWorkload.Deployment.RollbackDeployment)
-	k8s.PUT("deployment/update-image", k8sWorkload.Deployment.UpdateDeploymentImage)
-	k8s.GET("deployment/pods", k8sWorkload.Deployment.DeploymentPodList)
-	k8s.GET("deployment/replicasets", k8sWorkload.Deployment.GetDeploymentReplicaSets)
+	rg.GET("deployment/list", k8s.Deployment.GetDeploymentList)
+	rg.GET("deployment/detail", k8s.Deployment.GetDeploymentDetail)
+	rg.GET("deployment/get-yaml", k8s.Deployment.GetDeploymentYaml)
+	rg.GET("deployment/events", k8s.Deployment.GetDeploymentEvents)
+	rg.POST("deployment/create", k8s.Deployment.CreateDeployment)
+	rg.PUT("deployment/update", k8s.Deployment.UpdateDeployment)
+	rg.PUT("deployment/update-yaml", k8s.Deployment.UpdateDeployment)
+	rg.DELETE("deployment/delete", k8s.Deployment.DeleteDeployment)
+	rg.PUT("deployment/scale", k8s.Deployment.ScaleDeployment)
+	rg.POST("deployment/restart", k8s.Deployment.RestartDeployment)
+	rg.POST("deployment/rollback", k8s.Deployment.RollbackDeployment)
+	rg.PUT("deployment/update-image", k8s.Deployment.UpdateDeploymentImage)
+	rg.GET("deployment/pods", k8s.Deployment.DeploymentPodList)
+	rg.GET("deployment/replicasets", k8s.Deployment.GetDeploymentReplicaSets)
 
 	// StatefulSet
-	k8s.GET("statefulset/list", k8sWorkload.StatefulSet.GetStatefulSetList)
-	k8s.GET("statefulset/detail", k8sWorkload.StatefulSet.GetStatefulSetByName)
-	k8s.GET("statefulset/get-yaml", k8sWorkload.StatefulSet.GetStatefulSetYaml)
-	k8s.GET("statefulset/events", k8sWorkload.StatefulSet.GetStatefulSetEvents)
-	k8s.GET("statefulset/pods", k8sWorkload.StatefulSet.StatefulSetPodList)
-	k8s.POST("statefulset/create", k8sWorkload.StatefulSet.CreateStatefulSet)
-	k8s.PUT("statefulset/update", k8sWorkload.StatefulSet.UpdateStatefulSet)
-	k8s.DELETE("statefulset/delete", k8sWorkload.StatefulSet.DeleteStatefulSetByName)
-	k8s.PUT("statefulset/scale", k8sWorkload.StatefulSet.ScaleStatefulSet)
-	k8s.PUT("statefulset/restart", k8sWorkload.StatefulSet.RestartStatefulSet)
-	k8s.POST("statefulset/rollback", k8sWorkload.StatefulSet.RollbackStatefulSet)
-	k8s.PUT("statefulset/update-image", k8sWorkload.StatefulSet.UpdateStatefulSetImage)
+	rg.GET("statefulset/list", k8s.StatefulSet.GetStatefulSetList)
+	rg.GET("statefulset/detail", k8s.StatefulSet.GetStatefulSetByName)
+	rg.GET("statefulset/get-yaml", k8s.StatefulSet.GetStatefulSetYaml)
+	rg.GET("statefulset/events", k8s.StatefulSet.GetStatefulSetEvents)
+	rg.GET("statefulset/pods", k8s.StatefulSet.StatefulSetPodList)
+	rg.POST("statefulset/create", k8s.StatefulSet.CreateStatefulSet)
+	rg.PUT("statefulset/update", k8s.StatefulSet.UpdateStatefulSet)
+	rg.DELETE("statefulset/delete", k8s.StatefulSet.DeleteStatefulSetByName)
+	rg.PUT("statefulset/scale", k8s.StatefulSet.ScaleStatefulSet)
+	rg.PUT("statefulset/restart", k8s.StatefulSet.RestartStatefulSet)
+	rg.POST("statefulset/rollback", k8s.StatefulSet.RollbackStatefulSet)
+	rg.PUT("statefulset/update-image", k8s.StatefulSet.UpdateStatefulSetImage)
 
 	// DaemonSet
-	k8s.GET("daemonset/list", k8sWorkload.DaemonSet.GetDaemonSetList)
-	k8s.GET("daemonset/detail", k8sWorkload.DaemonSet.GetDaemonSetByName)
-	k8s.GET("daemonset/get-yaml", k8sWorkload.DaemonSet.GetDaemonSetYaml)
-	k8s.GET("daemonset/events", k8sWorkload.DaemonSet.GetDaemonSetEvents)
-	k8s.GET("daemonset/pods", k8sWorkload.DaemonSet.DaemonSetPodList)
-	k8s.POST("daemonset/create", k8sWorkload.DaemonSet.CreateDaemonSet)
-	k8s.PUT("daemonset/update", k8sWorkload.DaemonSet.UpdateDaemonSet)
-	k8s.DELETE("daemonset/delete", k8sWorkload.DaemonSet.DeleteDaemonSetByName)
-	k8s.POST("daemonset/restart", k8sWorkload.DaemonSet.RestartDaemonSet)
-	k8s.POST("daemonset/rollback", k8sWorkload.DaemonSet.RollbackDaemonSet)
-	k8s.PUT("daemonset/update-image", k8sWorkload.DaemonSet.UpdateDaemonSetImage)
+	rg.GET("daemonset/list", k8s.DaemonSet.GetDaemonSetList)
+	rg.GET("daemonset/detail", k8s.DaemonSet.GetDaemonSetByName)
+	rg.GET("daemonset/get-yaml", k8s.DaemonSet.GetDaemonSetYaml)
+	rg.GET("daemonset/events", k8s.DaemonSet.GetDaemonSetEvents)
+	rg.GET("daemonset/pods", k8s.DaemonSet.DaemonSetPodList)
+	rg.POST("daemonset/create", k8s.DaemonSet.CreateDaemonSet)
+	rg.PUT("daemonset/update", k8s.DaemonSet.UpdateDaemonSet)
+	rg.DELETE("daemonset/delete", k8s.DaemonSet.DeleteDaemonSetByName)
+	rg.POST("daemonset/restart", k8s.DaemonSet.RestartDaemonSet)
+	rg.POST("daemonset/rollback", k8s.DaemonSet.RollbackDaemonSet)
+	rg.PUT("daemonset/update-image", k8s.DaemonSet.UpdateDaemonSetImage)
 
 	// Job
-	k8s.GET("job/list", k8sWorkload.Job.GetJobList)
-	k8s.GET("job/detail", k8sWorkload.Job.GetJobByName)
-	k8s.GET("job/get-yaml", k8sWorkload.Job.GetJobYaml)
-	k8s.GET("job/events", k8sWorkload.Job.GetJobEvents)
-	k8s.GET("job/pods", k8sWorkload.Job.JobPodList)
-	k8s.POST("job/create", k8sWorkload.Job.CreateJob)
-	k8s.PUT("job/update", k8sWorkload.Job.UpdateJob)
-	k8s.DELETE("job/delete", k8sWorkload.Job.DeleteJob)
+	rg.GET("job/list", k8s.Job.GetJobList)
+	rg.GET("job/detail", k8s.Job.GetJobByName)
+	rg.GET("job/get-yaml", k8s.Job.GetJobYaml)
+	rg.GET("job/events", k8s.Job.GetJobEvents)
+	rg.GET("job/pods", k8s.Job.JobPodList)
+	rg.POST("job/create", k8s.Job.CreateJob)
+	rg.PUT("job/update", k8s.Job.UpdateJob)
+	rg.DELETE("job/delete", k8s.Job.DeleteJob)
 
 	// CronJob
-	k8s.GET("cronjob/list", k8sWorkload.Cronjob.GetCronJobList)
-	k8s.GET("cronjob/detail", k8sWorkload.Cronjob.GetCronJobByName)
-	k8s.GET("cronjob/get-yaml", k8sWorkload.Cronjob.GetCronJobYaml)
-	k8s.GET("cronjob/events", k8sWorkload.Cronjob.GetCronJobEvents)
-	k8s.GET("cronjob/jobs", k8sWorkload.Cronjob.CronJobJobsList)
-	k8s.POST("cronjob/create", k8sWorkload.Cronjob.CreateCronJob)
-	k8s.PUT("cronjob/update", k8sWorkload.Cronjob.UpdateCronJob)
-	k8s.DELETE("cronjob/delete", k8sWorkload.Cronjob.DeleteCronJobByName)
+	rg.GET("cronjob/list", k8s.Cronjob.GetCronJobList)
+	rg.GET("cronjob/detail", k8s.Cronjob.GetCronJobByName)
+	rg.GET("cronjob/get-yaml", k8s.Cronjob.GetCronJobYaml)
+	rg.GET("cronjob/events", k8s.Cronjob.GetCronJobEvents)
+	rg.GET("cronjob/jobs", k8s.Cronjob.CronJobJobsList)
+	rg.POST("cronjob/create", k8s.Cronjob.CreateCronJob)
+	rg.PUT("cronjob/update", k8s.Cronjob.UpdateCronJob)
+	rg.DELETE("cronjob/delete", k8s.Cronjob.DeleteCronJobByName)
 
-	k8s.PUT("cronjob/suspend", k8sWorkload.Cronjob.SuspendCronJob)
-	k8s.PUT("cronjob/resume", k8sWorkload.Cronjob.ResumeCronJob)
-	k8s.POST("cronjob/trigger", k8sWorkload.Cronjob.TriggerCronJob)
+	rg.PUT("cronjob/suspend", k8s.Cronjob.SuspendCronJob)
+	rg.PUT("cronjob/resume", k8s.Cronjob.ResumeCronJob)
+	rg.POST("cronjob/trigger", k8s.Cronjob.TriggerCronJob)
 
 	// ReplicaSet
-	k8s.GET("replicaset/list", k8sWorkload.ReplicaSet.GetReplicaSetList)
-	k8s.GET("replicaset/get-yaml", k8sWorkload.ReplicaSet.GetReplicaSetYaml)
-	k8s.GET("replicaset/detail", k8sWorkload.ReplicaSet.GetReplicaSetDetail)
-	k8s.GET("replicaset/pods", k8sWorkload.ReplicaSet.GetReplicaSetPodList)
-	k8s.GET("replicaset/events", k8sWorkload.ReplicaSet.GetReplicaSetEvents)
-	k8s.DELETE("replicaset/delete", k8sWorkload.ReplicaSet.DeleteReplicaSet)
+	rg.GET("replicaset/list", k8s.ReplicaSet.GetReplicaSetList)
+	rg.GET("replicaset/get-yaml", k8s.ReplicaSet.GetReplicaSetYaml)
+	rg.GET("replicaset/detail", k8s.ReplicaSet.GetReplicaSetDetail)
+	rg.GET("replicaset/pods", k8s.ReplicaSet.GetReplicaSetPodList)
+	rg.GET("replicaset/events", k8s.ReplicaSet.GetReplicaSetEvents)
+	rg.DELETE("replicaset/delete", k8s.ReplicaSet.DeleteReplicaSet)
 
 	// HPA
-	k8s.GET("hpa/list", k8sWorkload.Hpa.GetHPAList)
-	k8s.GET("hpa/detail", k8sWorkload.Hpa.GetHPADetail)
-	k8s.GET("hpa/get-yaml", k8sWorkload.Hpa.GetHPAYaml)
-	k8s.POST("hpa/create", k8sWorkload.Hpa.CreateHPA)
-	k8s.PUT("hpa/update", k8sWorkload.Hpa.UpdateHPA)
-	k8s.DELETE("hpa/delete", k8sWorkload.Hpa.DeleteHPA)
+	rg.GET("hpa/list", k8s.Hpa.GetHPAList)
+	rg.GET("hpa/detail", k8s.Hpa.GetHPADetail)
+	rg.GET("hpa/get-yaml", k8s.Hpa.GetHPAYaml)
+	rg.POST("hpa/create", k8s.Hpa.CreateHPA)
+	rg.PUT("hpa/update", k8s.Hpa.UpdateHPA)
+	rg.DELETE("hpa/delete", k8s.Hpa.DeleteHPA)
 
 	// PDB
-	k8s.GET("pdb/list", k8sWorkload.Pdb.GetPDBList)
-	k8s.GET("pdb/detail", k8sWorkload.Pdb.GetPDBDetail)
-	k8s.GET("pdb/get-yaml", k8sWorkload.Pdb.GetPDBYaml)
-	k8s.POST("pdb/create", k8sWorkload.Pdb.CreatePDB)
-	k8s.PUT("pdb/update", k8sWorkload.Pdb.UpdatePDB)
-	k8s.DELETE("pdb/delete", k8sWorkload.Pdb.DeletePDB)
+	rg.GET("pdb/list", k8s.Pdb.GetPDBList)
+	rg.GET("pdb/detail", k8s.Pdb.GetPDBDetail)
+	rg.GET("pdb/get-yaml", k8s.Pdb.GetPDBYaml)
+	rg.POST("pdb/create", k8s.Pdb.CreatePDB)
+	rg.PUT("pdb/update", k8s.Pdb.UpdatePDB)
+	rg.DELETE("pdb/delete", k8s.Pdb.DeletePDB)
 }
 
-func registerNetworkRoutes(k8s *gin.RouterGroup) {
+func registerNetworkRoutes(rg *gin.RouterGroup) {
 	// Service
-	k8s.GET("service/list", k8sNetwork.Service.GetServicesList)
-	k8s.GET("service/detail", k8sNetwork.Service.GetServicesByName)
-	k8s.GET("service/get-yaml", k8sNetwork.Service.GetServicesYaml)
-	k8s.GET("service/events", k8sNetwork.Service.GetServiceEvents)
-	k8s.GET("service/pods", k8sNetwork.Service.ServicePodList)
-	k8s.POST("service/create", k8sNetwork.Service.CreateService)
-	k8s.PUT("service/update", k8sNetwork.Service.UpdateService)
-	k8s.DELETE("service/delete", k8sNetwork.Service.DeleteService)
+	rg.GET("service/list", k8s.Service.GetServicesList)
+	rg.GET("service/detail", k8s.Service.GetServicesByName)
+	rg.GET("service/get-yaml", k8s.Service.GetServicesYaml)
+	rg.GET("service/events", k8s.Service.GetServiceEvents)
+	rg.GET("service/pods", k8s.Service.ServicePodList)
+	rg.POST("service/create", k8s.Service.CreateService)
+	rg.PUT("service/update", k8s.Service.UpdateService)
+	rg.DELETE("service/delete", k8s.Service.DeleteService)
 
 	// Ingress
-	k8s.GET("ingress/list", k8sNetwork.Ingress.GetIngressList)
-	k8s.GET("ingress/detail", k8sNetwork.Ingress.GetIngressByName)
-	k8s.GET("ingress/get-yaml", k8sNetwork.Ingress.GetIngressYaml)
-	k8s.GET("ingress/events", k8sNetwork.Ingress.GetIngressEvents)
-	k8s.POST("ingress/create", k8sNetwork.Ingress.CreateIngress)
-	k8s.PUT("ingress/update", k8sNetwork.Ingress.UpdateIngress)
-	k8s.DELETE("ingress/delete", k8sNetwork.Ingress.DeleteIngressByName)
+	rg.GET("ingress/list", k8s.Ingress.GetIngressList)
+	rg.GET("ingress/detail", k8s.Ingress.GetIngressByName)
+	rg.GET("ingress/get-yaml", k8s.Ingress.GetIngressYaml)
+	rg.GET("ingress/events", k8s.Ingress.GetIngressEvents)
+	rg.POST("ingress/create", k8s.Ingress.CreateIngress)
+	rg.PUT("ingress/update", k8s.Ingress.UpdateIngress)
+	rg.DELETE("ingress/delete", k8s.Ingress.DeleteIngressByName)
 
 	// NetworkPolicy
-	k8s.GET("networkpolicy/list", k8sNetwork.NetworkPolicy.GetNetworkPolicyList)
-	k8s.GET("networkpolicy/detail", k8sNetwork.NetworkPolicy.GetNetworkPolicyDetail)
-	k8s.GET("networkpolicy/get-yaml", k8sNetwork.NetworkPolicy.GetNetworkPolicyYaml)
-	k8s.GET("networkpolicy/events", k8sNetwork.NetworkPolicy.GetNetworkPolicyEvents)
-	k8s.GET("networkpolicy/pods", k8sNetwork.NetworkPolicy.GetNetworkPolicyPods)
-	k8s.POST("networkpolicy/create", k8sNetwork.NetworkPolicy.CreateNetworkPolicy)
-	k8s.PUT("networkpolicy/update", k8sNetwork.NetworkPolicy.UpdateNetworkPolicy)
-	k8s.DELETE("networkpolicy/delete", k8sNetwork.NetworkPolicy.DeleteNetworkPolicy)
+	rg.GET("networkpolicy/list", k8s.NetworkPolicy.GetNetworkPolicyList)
+	rg.GET("networkpolicy/detail", k8s.NetworkPolicy.GetNetworkPolicyDetail)
+	rg.GET("networkpolicy/get-yaml", k8s.NetworkPolicy.GetNetworkPolicyYaml)
+	rg.GET("networkpolicy/events", k8s.NetworkPolicy.GetNetworkPolicyEvents)
+	rg.GET("networkpolicy/pods", k8s.NetworkPolicy.GetNetworkPolicyPods)
+	rg.POST("networkpolicy/create", k8s.NetworkPolicy.CreateNetworkPolicy)
+	rg.PUT("networkpolicy/update", k8s.NetworkPolicy.UpdateNetworkPolicy)
+	rg.DELETE("networkpolicy/delete", k8s.NetworkPolicy.DeleteNetworkPolicy)
 }
 
-func registerStorageRoutes(k8s *gin.RouterGroup) {
+func registerStorageRoutes(rg *gin.RouterGroup) {
 	// PV
-	k8s.GET("pv/list", k8sStorage.Pv.GetPVList)
-	k8s.GET("pv/detail", k8sStorage.Pv.GetPVByName)
-	k8s.GET("pv/get-yaml", k8sStorage.Pv.GetPVYaml)
-	k8s.POST("pv/create", k8sStorage.Pv.CreatePV)
-	k8s.PUT("pv/update", k8sStorage.Pv.UpdatePV)
-	k8s.DELETE("pv/delete", k8sStorage.Pv.DeletePVByName)
+	rg.GET("pv/list", k8s.Pv.GetPVList)
+	rg.GET("pv/detail", k8s.Pv.GetPVByName)
+	rg.GET("pv/get-yaml", k8s.Pv.GetPVYaml)
+	rg.POST("pv/create", k8s.Pv.CreatePV)
+	rg.PUT("pv/update", k8s.Pv.UpdatePV)
+	rg.DELETE("pv/delete", k8s.Pv.DeletePVByName)
 
 	// PVC
-	k8s.GET("pvc/list", k8sStorage.Pvc.GetPVCList)
-	k8s.GET("pvc/detail", k8sStorage.Pvc.GetPVCByName)
-	k8s.GET("pvc/get-yaml", k8sStorage.Pvc.GetPVCYaml)
-	k8s.POST("pvc/create", k8sStorage.Pvc.CreatePVC)
-	k8s.PUT("pvc/update", k8sStorage.Pvc.UpdatePVC)
-	k8s.DELETE("pvc/delete", k8sStorage.Pvc.DeletePVCByName)
+	rg.GET("pvc/list", k8s.Pvc.GetPVCList)
+	rg.GET("pvc/detail", k8s.Pvc.GetPVCByName)
+	rg.GET("pvc/get-yaml", k8s.Pvc.GetPVCYaml)
+	rg.POST("pvc/create", k8s.Pvc.CreatePVC)
+	rg.PUT("pvc/update", k8s.Pvc.UpdatePVC)
+	rg.DELETE("pvc/delete", k8s.Pvc.DeletePVCByName)
 
 	// StorageClass
-	k8s.GET("storageclass/list", k8sStorage.StorageClass.GetStorageClassList)
-	k8s.GET("storageclass/detail", k8sStorage.StorageClass.GetStorageClassByName)
-	k8s.GET("storageclass/get-yaml", k8sStorage.StorageClass.GetStorageClassYaml)
-	k8s.POST("storageclass/create", k8sStorage.StorageClass.CreateStorageClass)
-	k8s.PUT("storageclass/update", k8sStorage.StorageClass.UpdateStorageClass)
-	k8s.DELETE("storageclass/delete", k8sStorage.StorageClass.DeleteStorageClassByName)
-	k8s.GET("storageclass/events", k8sStorage.StorageClass.GetStorageClassEvents)
+	rg.GET("storageclass/list", k8s.StorageClass.GetStorageClassList)
+	rg.GET("storageclass/detail", k8s.StorageClass.GetStorageClassByName)
+	rg.GET("storageclass/get-yaml", k8s.StorageClass.GetStorageClassYaml)
+	rg.POST("storageclass/create", k8s.StorageClass.CreateStorageClass)
+	rg.PUT("storageclass/update", k8s.StorageClass.UpdateStorageClass)
+	rg.DELETE("storageclass/delete", k8s.StorageClass.DeleteStorageClassByName)
+	rg.GET("storageclass/events", k8s.StorageClass.GetStorageClassEvents)
 
 	// VolumeSnapshot
-	k8s.GET("volumesnapshot/list", k8sStorage.VolumeSnapshot.GetVolumeSnapshotList)
-	k8s.GET("volumesnapshot/detail", k8sStorage.VolumeSnapshot.GetVolumeSnapshotByName)
-	k8s.GET("volumesnapshot/get-yaml", k8sStorage.VolumeSnapshot.GetVolumeSnapshotYaml)
-	k8s.POST("volumesnapshot/create", k8sStorage.VolumeSnapshot.CreateVolumeSnapshot)
-	k8s.PUT("volumesnapshot/update", k8sStorage.VolumeSnapshot.UpdateVolumeSnapshot)
-	k8s.DELETE("volumesnapshot/delete", k8sStorage.VolumeSnapshot.DeleteVolumeSnapshotByName)
+	rg.GET("volumesnapshot/list", k8s.VolumeSnapshot.GetVolumeSnapshotList)
+	rg.GET("volumesnapshot/detail", k8s.VolumeSnapshot.GetVolumeSnapshotByName)
+	rg.GET("volumesnapshot/get-yaml", k8s.VolumeSnapshot.GetVolumeSnapshotYaml)
+	rg.POST("volumesnapshot/create", k8s.VolumeSnapshot.CreateVolumeSnapshot)
+	rg.PUT("volumesnapshot/update", k8s.VolumeSnapshot.UpdateVolumeSnapshot)
+	rg.DELETE("volumesnapshot/delete", k8s.VolumeSnapshot.DeleteVolumeSnapshotByName)
 
 	// VolumeSnapshotClass
-	k8s.GET("volumesnapshotclass/list", k8sStorage.VolumeSnapshotClass.GetVolumeSnapshotClassList)
-	k8s.GET("volumesnapshotclass/detail", k8sStorage.VolumeSnapshotClass.GetVolumeSnapshotClassByName)
-	k8s.GET("volumesnapshotclass/get-yaml", k8sStorage.VolumeSnapshotClass.GetVolumeSnapshotClassYaml)
-	k8s.POST("volumesnapshotclass/create", k8sStorage.VolumeSnapshotClass.CreateVolumeSnapshotClass)
-	k8s.PUT("volumesnapshotclass/update", k8sStorage.VolumeSnapshotClass.UpdateVolumeSnapshotClass)
-	k8s.DELETE("volumesnapshotclass/delete", k8sStorage.VolumeSnapshotClass.DeleteVolumeSnapshotClassByName)
+	rg.GET("volumesnapshotclass/list", k8s.VolumeSnapshotClass.GetVolumeSnapshotClassList)
+	rg.GET("volumesnapshotclass/detail", k8s.VolumeSnapshotClass.GetVolumeSnapshotClassByName)
+	rg.GET("volumesnapshotclass/get-yaml", k8s.VolumeSnapshotClass.GetVolumeSnapshotClassYaml)
+	rg.POST("volumesnapshotclass/create", k8s.VolumeSnapshotClass.CreateVolumeSnapshotClass)
+	rg.PUT("volumesnapshotclass/update", k8s.VolumeSnapshotClass.UpdateVolumeSnapshotClass)
+	rg.DELETE("volumesnapshotclass/delete", k8s.VolumeSnapshotClass.DeleteVolumeSnapshotClassByName)
 }
 
-func registerConfigRoutes(k8s *gin.RouterGroup) {
+func registerConfigRoutes(rg *gin.RouterGroup) {
 	// ConfigMap
-	k8s.GET("configmap/list", k8sConfig.ConfigMap.GetConfigMapList)
-	k8s.GET("configmap/detail", k8sConfig.ConfigMap.GetConfigMapByName)
-	k8s.GET("configmap/get-yaml", k8sConfig.ConfigMap.GetConfigMapYaml)
-	k8s.POST("configmap/create", k8sConfig.ConfigMap.CreateConfigMapFromYaml)
-	k8s.PUT("configmap/update", k8sConfig.ConfigMap.UpdateConfigMapFromYaml)
-	k8s.DELETE("configmap/delete", k8sConfig.ConfigMap.DeleteConfigMapByName)
+	rg.GET("configmap/list", k8s.ConfigMap.GetConfigMapList)
+	rg.GET("configmap/detail", k8s.ConfigMap.GetConfigMapByName)
+	rg.GET("configmap/get-yaml", k8s.ConfigMap.GetConfigMapYaml)
+	rg.POST("configmap/create", k8s.ConfigMap.CreateConfigMapFromYaml)
+	rg.PUT("configmap/update", k8s.ConfigMap.UpdateConfigMapFromYaml)
+	rg.DELETE("configmap/delete", k8s.ConfigMap.DeleteConfigMapByName)
 
 	// Secret
-	k8s.GET("secret/list", k8sConfig.Secret.GetSecretsList)
-	k8s.GET("secret/detail", k8sConfig.Secret.GetSecretByName)
-	k8s.GET("secret/get-yaml", k8sConfig.Secret.GetSecretYaml)
-	k8s.POST("secret/create", k8sConfig.Secret.CreateSecretFromYaml)
-	k8s.PUT("secret/update", k8sConfig.Secret.UpdateSecretFromYaml)
-	k8s.DELETE("secret/delete", k8sConfig.Secret.DeleteSecret)
+	rg.GET("secret/list", k8s.Secret.GetSecretsList)
+	rg.GET("secret/detail", k8s.Secret.GetSecretByName)
+	rg.GET("secret/get-yaml", k8s.Secret.GetSecretYaml)
+	rg.POST("secret/create", k8s.Secret.CreateSecretFromYaml)
+	rg.PUT("secret/update", k8s.Secret.UpdateSecretFromYaml)
+	rg.DELETE("secret/delete", k8s.Secret.DeleteSecret)
 
 	// ResourceQuota
-	k8s.GET("resourcequota/list", k8sConfig.ResourceQuota.GetResourceQuotaList)
-	k8s.GET("resourcequota/detail", k8sConfig.ResourceQuota.GetResourceQuotaDetail)
-	k8s.GET("resourcequota/get-yaml", k8sConfig.ResourceQuota.GetResourceQuotaYaml)
-	k8s.POST("resourcequota/create", k8sConfig.ResourceQuota.CreateResourceQuota)
-	k8s.PUT("resourcequota/update", k8sConfig.ResourceQuota.UpdateResourceQuota)
-	k8s.DELETE("resourcequota/delete", k8sConfig.ResourceQuota.DeleteResourceQuota)
+	rg.GET("resourcequota/list", k8s.ResourceQuota.GetResourceQuotaList)
+	rg.GET("resourcequota/detail", k8s.ResourceQuota.GetResourceQuotaDetail)
+	rg.GET("resourcequota/get-yaml", k8s.ResourceQuota.GetResourceQuotaYaml)
+	rg.POST("resourcequota/create", k8s.ResourceQuota.CreateResourceQuota)
+	rg.PUT("resourcequota/update", k8s.ResourceQuota.UpdateResourceQuota)
+	rg.DELETE("resourcequota/delete", k8s.ResourceQuota.DeleteResourceQuota)
 
 	// LimitRange
-	k8s.GET("limitrange/list", k8sConfig.LimitRange.GetLimitRangeList)
-	k8s.GET("limitrange/detail", k8sConfig.LimitRange.GetLimitRangeDetail)
-	k8s.GET("limitrange/get-yaml", k8sConfig.LimitRange.GetLimitRangeYaml)
-	k8s.POST("limitrange/create", k8sConfig.LimitRange.CreateLimitRange)
-	k8s.PUT("limitrange/update", k8sConfig.LimitRange.UpdateLimitRange)
-	k8s.DELETE("limitrange/delete", k8sConfig.LimitRange.DeleteLimitRange)
+	rg.GET("limitrange/list", k8s.LimitRange.GetLimitRangeList)
+	rg.GET("limitrange/detail", k8s.LimitRange.GetLimitRangeDetail)
+	rg.GET("limitrange/get-yaml", k8s.LimitRange.GetLimitRangeYaml)
+	rg.POST("limitrange/create", k8s.LimitRange.CreateLimitRange)
+	rg.PUT("limitrange/update", k8s.LimitRange.UpdateLimitRange)
+	rg.DELETE("limitrange/delete", k8s.LimitRange.DeleteLimitRange)
 }
 
-func registerCrdRoutes(k8s *gin.RouterGroup) {
-	k8s.GET("crd/list", k8sCrd.Crd.GetCRDList)
-	k8s.GET("crd/detail", k8sCrd.Crd.GetCRDDetail)
-	k8s.GET("crd/get-yaml", k8sCrd.Crd.GetCRDYaml)
-	k8s.POST("crd/create", k8sCrd.Crd.CreateCRD)
-	k8s.PUT("crd/update", k8sCrd.Crd.UpdateCRD)
-	k8s.DELETE("crd/delete", k8sCrd.Crd.DeleteCRD)
-	k8s.GET("crd/resources", k8sCrd.Crd.GetCustomResourceList)
-	k8s.GET("crd/resource/yaml", k8sCrd.Crd.GetCustomResourceYaml)
-	k8s.POST("crd/resource/create", k8sCrd.Crd.CreateCustomResource)
-	k8s.DELETE("crd/resource", k8sCrd.Crd.DeleteCustomResource)
-	k8s.PUT("crd/resource/update", k8sCrd.Crd.UpdateCustomResource)
-	k8s.PATCH("crd/resource/patch", k8sCrd.Crd.PatchCustomResource)
+func registerCrdRoutes(rg *gin.RouterGroup) {
+	rg.GET("crd/list", k8s.Crd.GetCRDList)
+	rg.GET("crd/detail", k8s.Crd.GetCRDDetail)
+	rg.GET("crd/get-yaml", k8s.Crd.GetCRDYaml)
+	rg.POST("crd/create", k8s.Crd.CreateCRD)
+	rg.PUT("crd/update", k8s.Crd.UpdateCRD)
+	rg.DELETE("crd/delete", k8s.Crd.DeleteCRD)
+	rg.GET("crd/resources", k8s.Crd.GetCustomResourceList)
+	rg.GET("crd/resource/yaml", k8s.Crd.GetCustomResourceYaml)
+	rg.POST("crd/resource/create", k8s.Crd.CreateCustomResource)
+	rg.DELETE("crd/resource", k8s.Crd.DeleteCustomResource)
+	rg.PUT("crd/resource/update", k8s.Crd.UpdateCustomResource)
+	rg.PATCH("crd/resource/patch", k8s.Crd.PatchCustomResource)
 }
 
-func registerAuditRoutes(k8s *gin.RouterGroup) {
-	k8s.GET("audit/list", k8sCore.Audit.ListAuditLogs)
-	k8s.GET("audit/detail", k8sCore.Audit.GetAuditLog)
-	k8s.POST("audit/create", k8sCore.Audit.CreateAuditLog)
-	k8s.GET("audit/stats", k8sCore.Audit.GetAuditStats)
+func registerAuditRoutes(rg *gin.RouterGroup) {
+	rg.GET("audit/list", k8s.Audit.ListAuditLogs)
+	rg.GET("audit/detail", k8s.Audit.GetAuditLog)
+	rg.POST("audit/create", k8s.Audit.CreateAuditLog)
+	rg.GET("audit/stats", k8s.Audit.GetAuditStats)
 	// 审计清除属高危操作,需管理员
-	k8s.DELETE("audit/clear", middleware.RequireAdmin(), k8sCore.Audit.ClearAuditLogs)
+	rg.DELETE("audit/clear", middleware.RequireAdmin(), k8s.Audit.ClearAuditLogs)
 }

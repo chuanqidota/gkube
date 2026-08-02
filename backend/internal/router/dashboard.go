@@ -2,18 +2,18 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
-	dashboardApi "gkube/internal/dashboard/api"
+	dashboard "gkube/internal/dashboard"
 )
 
 // registerDashboardRoutes 注册仪表盘路由
 func registerDashboardRoutes(rg *gin.RouterGroup) {
-	dashboard := rg.Group("dashboard")
+	dash := rg.Group("dashboard")
 	{
-		dashboard.GET("overview", dashboardApi.Dashboard.Overview)
-		dashboard.GET("resources", dashboardApi.Dashboard.Resources)
-		dashboard.GET("workloads", dashboardApi.Dashboard.Workloads)
-		dashboard.GET("namespaces", dashboardApi.Dashboard.Namespaces)
-		dashboard.GET("health", dashboardApi.Dashboard.Health)
-		dashboard.GET("events", dashboardApi.Dashboard.Events)
+		dash.GET("overview", dashboard.Dashboard.Overview)
+		dash.GET("resources", dashboard.Dashboard.Resources)
+		dash.GET("workloads", dashboard.Dashboard.Workloads)
+		dash.GET("namespaces", dashboard.Dashboard.Namespaces)
+		dash.GET("health", dashboard.Dashboard.Health)
+		dash.GET("events", dashboard.Dashboard.Events)
 	}
 }
