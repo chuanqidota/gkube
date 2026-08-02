@@ -14,7 +14,7 @@ import {
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
-import WorkloadForm from '@/views/workload/components/WorkloadForm.vue'
+import StatefulSetForm from '@/views/workload/components/StatefulSetForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useResizable } from '@/composables/useResizable'
 
@@ -462,9 +462,8 @@ onMounted(() => {
         </div>
       </template>
       <div style="height: calc(100vh - 52px); overflow-y: auto;">
-        <WorkloadForm
+        <StatefulSetForm
           v-if="editDialogVisible && statefulSet"
-          kind="StatefulSet"
           :is-edit="true"
           :initial-data="statefulSet"
           @success="handleEditSuccess"

@@ -13,7 +13,7 @@ import {
 } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
-import WorkloadForm from '@/views/workload/components/WorkloadForm.vue'
+import DaemonSetForm from '@/views/workload/components/DaemonSetForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useResizable } from '@/composables/useResizable'
 
@@ -390,9 +390,8 @@ onMounted(() => {
         </div>
       </template>
       <div style="height: calc(100vh - 52px); overflow-y: auto;">
-        <WorkloadForm
+        <DaemonSetForm
           v-if="editDialogVisible && daemonSet"
-          kind="DaemonSet"
           :is-edit="true"
           :initial-data="daemonSet"
           @success="handleEditSuccess"

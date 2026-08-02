@@ -17,7 +17,7 @@ import {
 } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
-import WorkloadForm from '@/views/workload/components/WorkloadForm.vue'
+import DeploymentForm from '@/views/workload/components/DeploymentForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useResizable } from '@/composables/useResizable'
 import { formatAge } from '@/utils/time'
@@ -569,9 +569,8 @@ onMounted(() => {
         </div>
       </template>
       <div style="height: calc(100vh - 52px); overflow-y: auto;">
-        <WorkloadForm
+        <DeploymentForm
           v-if="editDialogVisible && deployment"
-          kind="Deployment"
           :is-edit="true"
           :initial-data="deployment"
           @success="handleEditSuccess"

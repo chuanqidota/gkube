@@ -4,7 +4,19 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import { getNamespaceList, extractNamespaceNames, createCronJob } from '@/api/resource'
+import { getNamespaceList, extractNamespaceNames, createCronJob, updateCronJobYaml } from '@/api/resource'
+
+const props = withDefaults(defineProps<{
+  isEdit?: boolean
+  initialData?: any
+  onSubmit?: (yaml: string) => Promise<void>
+}>(), {
+  isEdit: false,
+  initialData: undefined,
+  onSubmit: undefined,
+})
+
+const emit = defineEmits<{ success: []; cancel: [] }>()
 
 const router = useRouter()
 const submitting = ref(false)
@@ -104,7 +116,10 @@ async function fetchNamespaces() {
   finally { namespaceLoading.value = false }
 }
 
-onMounted(fetchNamespaces)
+onMounted(() => {
+  fetchNamespaces()
+  if (props.isEdit && props.initialData) parseInitialData(props.initialData)
+})
 
 function addLabel() { form.labels.push({ key: '', value: '' }) }
 function removeLabel(i: number) { form.labels.splice(i, 1) }
@@ -200,6 +215,185 @@ function buildContainer(c: Container): Record<string, any> {
   if (Object.keys(caps).length > 0) sc.capabilities = caps
   if (Object.keys(sc).length > 0) container.securityContext = sc
   return container
+}
+
+function parseEnvVar(e: any): EnvVar {
+  if (e.valueFrom?.configMapKeyRef) {
+    return { name: e.name, value: '', type: 'configMapKeyRef', configMapName: e.valueFrom.configMapKeyRef.name || '', configMapKey: e.valueFrom.configMapKeyRef.key || '', secretName: '', secretKey: '', fieldPath: '' }
+  }
+  if (e.valueFrom?.secretKeyRef) {
+    return { name: e.name, value: '', type: 'secretKeyRef', configMapName: '', configMapKey: '', secretName: e.valueFrom.secretKeyRef.name || '', secretKey: e.valueFrom.secretKeyRef.key || '', fieldPath: '' }
+  }
+  if (e.valueFrom?.fieldRef) {
+    return { name: e.name, value: '', type: 'fieldRef', configMapName: '', configMapKey: '', secretName: '', secretKey: '', fieldPath: e.valueFrom.fieldRef.fieldPath || '' }
+  }
+  return { name: e.name, value: e.value || '', type: 'plain', configMapName: '', configMapKey: '', secretName: '', secretKey: '', fieldPath: '' }
+}
+
+function parseContainer(c: any): Container {
+  return {
+    name: c.name || '',
+    image: c.image || '',
+    imagePullPolicy: c.imagePullPolicy || 'IfNotPresent',
+    ports: (c.ports || []).map((p: any) => ({ name: p.name || '', containerPort: p.containerPort || null, protocol: p.protocol || 'TCP' })),
+    env: (c.env || []).map(parseEnvVar),
+    resources: {
+      requests: { cpu: c.resources?.requests?.cpu || '', memory: c.resources?.requests?.memory || '' },
+      limits: { cpu: c.resources?.limits?.cpu || '', memory: c.resources?.limits?.memory || '' },
+    },
+    volumeMounts: (c.volumeMounts || []).map((m: any) => ({ name: m.name || '', mountPath: m.mountPath || '', subPath: m.subPath || '', readOnly: m.readOnly || false })),
+    livenessProbe: parseProbe(c.livenessProbe),
+    readinessProbe: parseProbe(c.readinessProbe),
+    startupProbe: parseProbe(c.startupProbe),
+    command: c.command?.join('\n') || '',
+    args: c.args?.join('\n') || '',
+    lifecycle: { preStop: parseLifecycleHandler(c.lifecycle?.preStop), postStart: parseLifecycleHandler(c.lifecycle?.postStart) },
+    securityContext: {
+      runAsUser: c.securityContext?.runAsUser ?? null,
+      runAsNonRoot: c.securityContext?.runAsNonRoot || false,
+      readOnlyRootFilesystem: c.securityContext?.readOnlyRootFilesystem || false,
+      privileged: c.securityContext?.privileged || false,
+      capabilitiesAdd: c.securityContext?.capabilities?.add || [],
+      capabilitiesDrop: c.securityContext?.capabilities?.drop || [],
+    },
+  }
+}
+
+function parseProbe(probeData: any): Probe | null {
+  if (!probeData) return null
+  return {
+    type: probeData.httpGet ? 'httpGet' : probeData.tcpSocket ? 'tcpSocket' : 'exec',
+    httpGetPath: probeData.httpGet?.path || '/',
+    httpGetPort: probeData.httpGet?.port || 80,
+    tcpSocketPort: probeData.tcpSocket?.port || null,
+    execCommand: probeData.exec?.command?.join(' ') || '',
+    initialDelaySeconds: probeData.initialDelaySeconds || 15,
+    periodSeconds: probeData.periodSeconds || 10,
+    timeoutSeconds: probeData.timeoutSeconds || 5,
+    failureThreshold: probeData.failureThreshold || 3,
+  }
+}
+
+function parseLifecycleHandler(data: any): LifecycleHandler | null {
+  if (!data) return null
+  return {
+    type: data.exec ? 'exec' : data.httpGet ? 'httpGet' : 'tcpSocket',
+    execCommand: data.exec?.command?.join(' ') || '',
+    httpGetPath: data.httpGet?.path || '/',
+    httpGetPort: data.httpGet?.port || 80,
+    tcpSocketPort: data.tcpSocket?.port || null,
+  }
+}
+
+function parseInitialData(data: any) {
+  if (!data) return
+
+  const metadata = data.metadata || {}
+  const spec = data.spec || {}
+  const template = spec.jobTemplate?.spec?.template || {}
+  const podSpec = template.spec || {}
+
+  // Basic info
+  form.name = metadata.name || ''
+  form.namespace = metadata.namespace || 'default'
+
+  // Labels
+  const labels = metadata.labels || {}
+  form.labels = Object.entries(labels).map(([key, value]) => ({ key, value: value as string }))
+  if (form.labels.length === 0) form.labels.push({ key: 'app', value: '' })
+
+  // Annotations
+  const annotations = template.metadata?.annotations || {}
+  form.annotations = Object.entries(annotations).map(([key, value]) => ({ key, value: value as string }))
+
+  // CronJob-specific fields
+  form.schedule = spec.schedule || ''
+  form.concurrencyPolicy = spec.concurrencyPolicy || 'Allow'
+  form.suspend = spec.suspend || false
+  form.startingDeadlineSeconds = spec.startingDeadlineSeconds || null
+  form.timeZone = spec.timeZone || ''
+  form.successfulJobsHistoryLimit = spec.successfulJobsHistoryLimit || 3
+  form.failedJobsHistoryLimit = spec.failedJobsHistoryLimit || 1
+
+  // Job template fields
+  const jobSpec = spec.jobTemplate?.spec || {}
+  form.completions = jobSpec.completions || 1
+  form.parallelism = jobSpec.parallelism || 1
+  form.backoffLimit = jobSpec.backoffLimit ?? 6
+
+  // Containers
+  const containers = podSpec.containers || []
+  form.containers = containers.map(parseContainer)
+  if (form.containers.length === 0) form.containers.push(createEmptyContainer())
+
+  // Init Containers
+  const initContainers = podSpec.initContainers || []
+  form.initContainers = initContainers.map(parseContainer)
+
+  // Volumes
+  const volumes = podSpec.volumes || []
+  form.volumes = volumes.map((v: any) => ({
+    name: v.name || '',
+    type: v.emptyDir ? 'emptyDir' : v.hostPath ? 'hostPath' : v.configMap ? 'configMap' : v.secret ? 'secret' : v.persistentVolumeClaim ? 'pvc' : 'emptyDir',
+    hostPath: v.hostPath?.path || '',
+    hostPathType: v.hostPath?.type || 'DirectoryOrCreate',
+    configMapName: v.configMap?.name || '',
+    secretName: v.secret?.secretName || '',
+    pvcName: v.persistentVolumeClaim?.claimName || '',
+  }))
+
+  // Node selector
+  const nodeSelector = podSpec.nodeSelector || {}
+  form.nodeSelector = Object.entries(nodeSelector).map(([key, value]) => ({ key, value: value as string }))
+
+  // Tolerations
+  const tolerations = podSpec.tolerations || []
+  form.tolerations = tolerations.map((t: any) => ({
+    key: t.key || '',
+    operator: t.operator || 'Equal',
+    value: t.value || '',
+    effect: t.effect || 'NoSchedule',
+    tolerationSeconds: t.tolerationSeconds || null,
+  }))
+
+  // Service account
+  form.serviceAccountName = podSpec.serviceAccountName || ''
+
+  // Termination grace period
+  form.terminationGracePeriodSeconds = podSpec.terminationGracePeriodSeconds || null
+
+  // Image pull secrets
+  const imagePullSecrets = podSpec.imagePullSecrets || []
+  form.imagePullSecrets = imagePullSecrets.map((s: any) => s.name || '')
+
+  // Pod Affinity
+  const affinity = podSpec.affinity || {}
+  const parseAffinityRules = (rules: any[]): AffinityRule[] => {
+    return (rules || []).map((r: any) => ({
+      weight: r.weight || 1,
+      topologyKey: r.podAffinityTerm?.topologyKey || r.topologyKey || '',
+      namespaces: r.namespaces?.join(', ') || '',
+      labelKey: r.labelSelector?.matchExpressions?.[0]?.key || '',
+      labelValue: r.labelSelector?.matchExpressions?.[0]?.values?.[0] || '',
+    }))
+  }
+  form.podAffinityRules = parseAffinityRules(affinity.podAffinity?.preferredDuringSchedulingIgnoredDuringExecution || [])
+  if (affinity.podAffinity?.requiredDuringSchedulingIgnoredDuringExecution) {
+    form.podAffinityRules.push(...affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution.map((r: any) => ({ ...parseAffinityRules([r])[0], weight: 0 })))
+  }
+  form.podAntiAffinityRules = parseAffinityRules(affinity.podAntiAffinity?.preferredDuringSchedulingIgnoredDuringExecution || [])
+  if (affinity.podAntiAffinity?.requiredDuringSchedulingIgnoredDuringExecution) {
+    form.podAntiAffinityRules.push(...affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution.map((r: any) => ({ ...parseAffinityRules([r])[0], weight: 0 })))
+  }
+
+  // Topology Spread Constraints
+  form.topologySpreadConstraints = (podSpec.topologySpreadConstraints || []).map((t: any) => ({
+    maxSkew: t.maxSkew || 1,
+    topologyKey: t.topologyKey || '',
+    whenUnsatisfiable: t.whenUnsatisfiable || 'DoNotSchedule',
+    labelKey: t.labelSelector?.matchExpressions?.[0]?.key || '',
+    labelValue: t.labelSelector?.matchExpressions?.[0]?.values?.[0] || '',
+  }))
 }
 
 function buildAffinity(rules: AffinityRule[]): any {
@@ -325,14 +519,25 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    await createCronJob({ namespace: form.namespace, yaml: generatedYaml.value })
-    ElMessage.success('CronJob 创建成功')
-    router.push('/workloads/cronjobs')
-  } catch (e: any) { ElMessage.error(e?.message || '创建失败') }
+    if (props.onSubmit) {
+      await props.onSubmit(generatedYaml.value)
+    } else if (props.isEdit) {
+      await updateCronJobYaml({ namespace: form.namespace, name: form.name, yaml: generatedYaml.value })
+      ElMessage.success('CronJob 更新成功')
+      emit('success')
+    } else {
+      await createCronJob({ namespace: form.namespace, yaml: generatedYaml.value })
+      ElMessage.success('CronJob 创建成功')
+      router.push('/workloads/cronjobs')
+    }
+  } catch (e: any) { ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败')) }
   finally { submitting.value = false }
 }
 
-function handleCancel() { router.push('/workloads/cronjobs') }
+function handleCancel() {
+  if (props.isEdit) emit('cancel')
+  else router.push('/workloads/cronjobs')
+}
 </script>
 
 <template>

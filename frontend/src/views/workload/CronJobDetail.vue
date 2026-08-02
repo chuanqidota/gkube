@@ -10,7 +10,7 @@ import {
 } from '@/api/resource'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
-import WorkloadForm from '@/views/workload/components/WorkloadForm.vue'
+import CronJobForm from '@/views/workload/components/CronJobForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { formatAge } from '@/utils/time'
 
@@ -383,9 +383,8 @@ onMounted(() => {
         </div>
       </template>
       <div style="height: calc(100vh - 52px); overflow-y: auto;">
-        <WorkloadForm
+        <CronJobForm
           v-if="editDialogVisible && cronJob"
-          kind="CronJob"
           :is-edit="true"
           :initial-data="cronJob"
           @success="handleEditSuccess"

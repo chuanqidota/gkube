@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { FullScreen } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
-import WorkloadForm from '@/views/workload/components/WorkloadForm.vue'
+import DeploymentForm from '@/views/workload/components/DeploymentForm.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { createDeployment } from '@/api/resource'
 
@@ -80,7 +80,7 @@ function handleMaximize() {
       <el-segmented v-model="mode" :options="[{ label: t('common.formCreate'), value: 'form' }, { label: t('common.yamlCreate'), value: 'yaml' }]" size="small" />
     </div>
 
-    <WorkloadForm v-if="mode === 'form'" kind="Deployment" />
+    <DeploymentForm v-if="mode === 'form'" />
 
     <div v-else class="yaml-mode">
       <div class="yaml-card">

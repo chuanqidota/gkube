@@ -12,7 +12,7 @@ import {
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
-import WorkloadForm from '@/views/workload/components/WorkloadForm.vue'
+import JobForm from '@/views/workload/components/JobForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const route = useRoute()
@@ -411,9 +411,8 @@ onMounted(() => {
         </div>
       </template>
       <div style="height: calc(100vh - 52px); overflow-y: auto;">
-        <WorkloadForm
+        <JobForm
           v-if="editDialogVisible && job"
-          kind="Job"
           :is-edit="true"
           :initial-data="job"
           @success="handleEditSuccess"

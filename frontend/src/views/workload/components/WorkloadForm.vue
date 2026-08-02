@@ -5,10 +5,10 @@ import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getNamespaceList, extractNamespaceNames } from '@/api/resource'
-import { createDeployment, createStatefulSet, createDaemonSet, updateDeploymentYaml, updateStatefulSetYaml, updateDaemonSetYaml, updateJobYaml, updateCronJobYaml } from '@/api/resource'
+import { createDeployment, createStatefulSet, createDaemonSet, updateDeploymentYaml, updateStatefulSetYaml, updateDaemonSetYaml } from '@/api/resource'
 
 const props = withDefaults(defineProps<{
-  kind: 'Deployment' | 'StatefulSet' | 'DaemonSet' | 'Job' | 'CronJob'
+  kind: 'Deployment' | 'StatefulSet' | 'DaemonSet'
   isEdit?: boolean
   initialData?: any
   onSubmit?: (yaml: string) => Promise<void>
@@ -570,8 +570,6 @@ async function handleSubmit() {
       const updateFn = props.kind === 'Deployment' ? updateDeploymentYaml
         : props.kind === 'StatefulSet' ? updateStatefulSetYaml
         : props.kind === 'DaemonSet' ? updateDaemonSetYaml
-        : props.kind === 'Job' ? updateJobYaml
-        : props.kind === 'CronJob' ? updateCronJobYaml
         : null
       if (!updateFn) {
         ElMessage.error(`不支持的资源类型: ${props.kind}`)
