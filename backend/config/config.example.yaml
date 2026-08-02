@@ -1,0 +1,42 @@
+# gkube 配置示例
+# 使用方法:
+#   1. cp backend/config/config.example.yaml backend/config/config.yaml
+#   2. 按本机/部署环境修改 config.yaml(此文件不提交仓库,已在 .gitignore)
+#  3. 启动:本地 go run main.go 直接读取;docker compose 挂载 ./backend/config/config.yaml
+#
+# database.host 说明:
+#   - 本地开发(go run):127.0.0.1
+#   - docker compose 部署:mysql(docker 网络内服务名)
+server:
+  ip: 0.0.0.0
+  port: 8080
+database:
+  user: root
+  password: CHANGE_ME            # 数据库密码,本地开发或生产环境均需替换
+  host: 127.0.0.1                # 本地开发:127.0.0.1  docker 部署:mysql
+  port: 3306
+  name: gkube
+elasticSearch:
+  enable: false                  # 不启用则跳过连接,docker 部署默认关闭
+  url: http://localhost:9200
+  username: ""
+  password: ""
+audit:
+  record_audit: "audit"
+s3:
+  endpoint: ""
+  accessKeyID: ""
+  secretAccessKey: ""
+  useSSL: false
+  bucket: ""
+security:
+  # JWT 签名密钥(必填),生产环境务必替换为随机长串
+  jwt_secret: "CHANGE_ME_JWT_SECRET"
+  # AES-256-GCM 加密密钥,必须为 32 字节(必填),用于加密集群 kubeconfig
+  # 生成新密钥: openssl rand -hex 16
+  aes_key: "CHANGE_ME_AES_KEY_32_BYTES"
+  # CORS 允许来源白名单,留空允许所有来源(生产环境请显式配置)
+  cors_origins: []
+  # 管理员用户名白名单,登录响应据此标记 isAdmin
+  admin_users:
+    - admin

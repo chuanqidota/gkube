@@ -1,0 +1,5 @@
+log/
+*.log
+docker-compose.yaml
+.git
+.gitignore

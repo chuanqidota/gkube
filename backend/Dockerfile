@@ -1,19 +1,20 @@
-FROM golang:1.23.0 AS builder
+FROM docker.1ms.run/library/golang:1.26 AS builder
 RUN go env -w GO111MODULE=on \
     && go env -w CGO_ENABLED=0 \
     && go env -w GOOS=linux \
+    && go env -w GOARCH=amd64 \
     && go env -w GOPROXY=https://goproxy.cn,direct
-RUN mkdir -p /opt
 WORKDIR /opt
+COPY go.mod go.sum ./
+RUN go mod download
 COPY . .
-RUN go mod tidy
 RUN go build -o gkube main.go
 
-FROM alpine:3
-RUN mkdir -p /opt
+FROM docker.1ms.run/library/alpine:3.22
+RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /opt
-COPY --from=builder /opt/gkube /opt/gkube
-# 不再 COPY 生产 config.yaml,配置通过环境变量/挂载注入,避免镜像泄露密钥
+COPY --from=builder /opt/gkube .
+# 不 COPY 生产 config.yaml,配置通过挂载 config.docker.yaml 注入,避免镜像泄露密钥
 RUN chmod +x gkube
 EXPOSE 8080
 
