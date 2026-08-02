@@ -68,7 +68,7 @@ const scaleLoading = ref(false)
 
 function handleQuickScale(row: any) {
   scaleTarget.value = { namespace: row.namespace, name: row.name }
-  scaleReplicas.value = row.ready_replicas ?? 1
+  scaleReplicas.value = row.replicas ?? row.ready_replicas ?? 1
   scaleDialogVisible.value = true
 }
 

@@ -40,7 +40,7 @@ const submitting = ref(false)
 
 async function handleYamlSubmit() {
   if (!yamlContent.value.trim()) {
-    ElMessage.error('YAML content is required')
+    ElMessage.error('YAML 内容不能为空')
     return
   }
   submitting.value = true
@@ -48,10 +48,10 @@ async function handleYamlSubmit() {
     const parsed = yaml.load(yamlContent.value) as any
     const ns = parsed?.metadata?.namespace || 'default'
     await createDeployment({ namespace: ns, yaml: yamlContent.value })
-    ElMessage.success('Deployment created successfully')
+    ElMessage.success('Deployment 创建成功')
     router.push('/workloads/deployments')
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Create failed')
+    ElMessage.error(e?.message || '创建失败')
   } finally {
     submitting.value = false
   }
@@ -88,7 +88,7 @@ function handleMaximize() {
           <div class="yaml-card-left">
             <span class="yaml-card-title">YAML 配置</span>
             <el-button-group>
-              <el-button size="small" @click="handleFormat">Format</el-button>
+              <el-button size="small" @click="handleFormat">格式化</el-button>
               <el-button size="small" @click="handleCopy">复制</el-button>
             </el-button-group>
             <el-tooltip content="最大化" placement="top">

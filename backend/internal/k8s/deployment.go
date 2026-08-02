@@ -1,13 +1,11 @@
 package k8s
 
 import (
-	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sDeployment "gkube/pkg/k8s/deployment"
 	"gkube/pkg/response"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type deployment struct {
@@ -32,29 +30,17 @@ func (dp *deployment) GetDeploymentList(c *gin.Context) {
 	}
 
 	limit, continueToken := k8sclient.GetPaginationParams(c)
-	if limit > 0 {
-		// Paginated mode
-		deploymentList, err := k8sDeployment.ListDeployments(client, query.Namespace, limit, continueToken)
-		if err != nil {
-			response.Fail(c, fmt.Sprintf("获取deployment列表失败:%s", err.Error()))
-			return
-		}
-		remaining := int64(0)
-		if deploymentList.RemainingItemCount != nil {
-			remaining = *deploymentList.RemainingItemCount
-		}
-		data := k8sclient.BuildPaginatedData(deploymentList.Items, deploymentList.Continue, remaining, limit)
-		data.Total = len(deploymentList.Items)
-		response.Success(c, "执行成功", data)
-	} else {
-		// Legacy mode: return all items
-		deployments, err := k8sDeployment.GetDeploymentList(client, query.Namespace)
-		if err != nil {
-			response.Fail(c, fmt.Sprintf("获取deployment列表失败:%s", err.Error()))
-			return
-		}
-		response.Success(c, "执行成功", deployments)
+	deploymentList, err := k8sDeployment.ListDeployments(client, query.Namespace, limit, continueToken)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取deployment列表失败:%s", err.Error()))
+		return
 	}
+	remaining := int64(0)
+	if deploymentList.RemainingItemCount != nil {
+		remaining = *deploymentList.RemainingItemCount
+	}
+	data := k8sclient.BuildPaginatedData(deploymentList.Items, deploymentList.Continue, remaining, limit)
+	response.Success(c, "执行成功", data)
 }
 
 // GetDeploymentDetail
@@ -63,7 +49,7 @@ func (dp *deployment) GetDeploymentList(c *gin.Context) {
 //	@receiver dp
 //	@param c
 func (dp *deployment) GetDeploymentDetail(c *gin.Context) {
-	var query DeploymentDeleteParams
+	var query DeploymentNamespacedParams
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
@@ -87,7 +73,7 @@ func (dp *deployment) GetDeploymentDetail(c *gin.Context) {
 //	@receiver dp
 //	@param c
 func (dp *deployment) GetDeploymentYaml(c *gin.Context) {
-	var query DeploymentDeleteParams
+	var query DeploymentNamespacedParams
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
@@ -121,13 +107,8 @@ func (dp *deployment) RollbackDeployment(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	ok, err := k8sDeployment.RollbackDeployment(client, body.Namespace, body.Name, body.Revision)
-	if err != nil {
+	if err := k8sDeployment.RollbackDeployment(client, body.Namespace, body.Name, body.Revision); err != nil {
 		response.Fail(c, fmt.Sprintf("回滚deployment失败:%s", err.Error()))
-		return
-	}
-	if !ok {
-		response.Fail(c, "回滚deployment失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -146,16 +127,11 @@ func (dp *deployment) CreateDeployment(c *gin.Context) {
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
 
-	ok, err := k8sDeployment.CreateDeployment(client, body.Namespace, body.Yaml)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("创建deployment失败:%s", err.Error()))
-		return
-	}
-	if !ok {
+	if err := k8sDeployment.CreateDeployment(client, body.Namespace, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("创建deployment失败:%s", err.Error()))
 		return
 	}
@@ -175,15 +151,10 @@ func (dp *deployment) UpdateDeployment(c *gin.Context) {
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	ok, err := k8sDeployment.UpdateDeployment(client, body.Namespace, body.Yaml)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("更新deployment失败:%s", err.Error()))
-		return
-	}
-	if !ok {
+	if err := k8sDeployment.UpdateDeployment(client, body.Namespace, body.Name, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新deployment失败:%s", err.Error()))
 		return
 	}
@@ -196,22 +167,17 @@ func (dp *deployment) UpdateDeployment(c *gin.Context) {
 //	@receiver dp
 //	@param c
 func (dp *deployment) DeleteDeployment(c *gin.Context) {
-	var body DeploymentDeleteParams
+	var body DeploymentNamespacedParams
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	ok, err := k8sDeployment.DeleteDeployment(client, body.Namespace, body.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("删除deployment失败:%s", err.Error()))
-		return
-	}
-	if !ok {
+	if err := k8sDeployment.DeleteDeployment(client, body.Namespace, body.Name); err != nil {
 		response.Fail(c, fmt.Sprintf("删除deployment失败:%s", err.Error()))
 		return
 	}
@@ -231,15 +197,10 @@ func (dp *deployment) ScaleDeployment(c *gin.Context) {
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	ok, err := k8sDeployment.ScaleDeployment(client, body.Namespace, body.Name, body.Replicas)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("缩容deployment失败:%s", err.Error()))
-		return
-	}
-	if !ok {
+	if err := k8sDeployment.ScaleDeployment(client, body.Namespace, body.Name, body.Replicas); err != nil {
 		response.Fail(c, fmt.Sprintf("缩容deployment失败:%s", err.Error()))
 		return
 	}
@@ -259,15 +220,10 @@ func (dp *deployment) RestartDeployment(c *gin.Context) {
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	ok, err := k8sDeployment.RestartDeployment(client, body.Namespace, body.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("重启deployment失败:%s", err.Error()))
-		return
-	}
-	if !ok {
+	if err := k8sDeployment.RestartDeployment(client, body.Namespace, body.Name); err != nil {
 		response.Fail(c, fmt.Sprintf("重启deployment失败:%s", err.Error()))
 		return
 	}
@@ -287,15 +243,10 @@ func (dp *deployment) UpdateDeploymentImage(c *gin.Context) {
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	ok, err := k8sDeployment.UpdateDeploymentImage(client, body.Namespace, body.Name, body.ContainerName, body.Image)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("更新deployment镜像失败:%s", err.Error()))
-		return
-	}
-	if !ok {
+	if err := k8sDeployment.UpdateDeploymentImage(client, body.Namespace, body.Name, body.ContainerName, body.Image); err != nil {
 		response.Fail(c, fmt.Sprintf("更新deployment镜像失败:%s", err.Error()))
 		return
 	}
@@ -315,10 +266,10 @@ func (dp *deployment) DeploymentPodList(c *gin.Context) {
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	podList, err := k8sDeployment.DpPodList(client, query.Namespace, query.Name)
+	podList, err := k8sDeployment.GetDeploymentPods(client, query.Namespace, query.Name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取deployment pod列表失败:%s", err.Error()))
 		return
@@ -356,7 +307,7 @@ func (dp *deployment) GetDeploymentReplicaSets(c *gin.Context) {
 //	@receiver dp
 //	@param c
 func (dp *deployment) GetDeploymentEvents(c *gin.Context) {
-	var query DeploymentDeleteParams
+	var query DeploymentNamespacedParams
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
@@ -366,25 +317,10 @@ func (dp *deployment) GetDeploymentEvents(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	events, err := client.CoreV1().Events(query.Namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Deployment", query.Name),
-	})
+	result, err := k8sDeployment.GetDeploymentEvents(client, query.Namespace, query.Name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取deployment事件失败:%s", err.Error()))
 		return
-	}
-	var result []map[string]any
-	for _, event := range events.Items {
-		lastSeen := ""
-		if !event.LastTimestamp.IsZero() {
-			lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
-		}
-		result = append(result, map[string]any{
-			"type":      event.Type,
-			"reason":    event.Reason,
-			"message":   event.Message,
-			"last_seen": lastSeen,
-		})
 	}
 	response.Success(c, "执行成功", result)
 }
@@ -403,10 +339,12 @@ type DeploymentCreateParams struct {
 type DeploymentUpdateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Yaml        string `form:"yaml" json:"yaml" label:"yaml"`
+	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
+	Yaml        string `form:"yaml" json:"yaml" binding:"required" label:"yaml"`
 }
 
-type DeploymentDeleteParams struct {
+// DeploymentNamespacedParams 按 命名空间+名称 定位 Deployment，供 detail/yaml/events/delete 等多个 handler 复用
+type DeploymentNamespacedParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
 	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
@@ -442,14 +380,14 @@ type DeploymentRollbackParams struct {
 type DeploymentReplicaSetParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" label:"Deployment名称"`
+	Name        string `form:"name" json:"name" binding:"required" label:"Deployment名称"`
 }
 
 // DeploymentImageUpdateParams 更新 Deployment 容器镜像
 type DeploymentImageUpdateParams struct {
 	ClusterName   string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Namespace     string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name          string `form:"name" json:"name" label:"Deployment名称"`
-	ContainerName string `form:"containerName" json:"containerName" label:"容器名称"`
-	Image         string `form:"image" json:"image" label:"镜像"`
+	Name          string `form:"name" json:"name" binding:"required" label:"Deployment名称"`
+	ContainerName string `form:"containerName" json:"containerName" binding:"required" label:"容器名称"`
+	Image         string `form:"image" json:"image" binding:"required" label:"镜像"`
 }

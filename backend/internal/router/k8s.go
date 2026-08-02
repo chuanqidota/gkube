@@ -83,7 +83,6 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.GET("deployment/get-yaml", k8s.Deployment.GetDeploymentYaml)
 	rg.GET("deployment/events", k8s.Deployment.GetDeploymentEvents)
 	rg.POST("deployment/create", k8s.Deployment.CreateDeployment)
-	rg.PUT("deployment/update", k8s.Deployment.UpdateDeployment)
 	rg.PUT("deployment/update-yaml", k8s.Deployment.UpdateDeployment)
 	rg.DELETE("deployment/delete", k8s.Deployment.DeleteDeployment)
 	rg.PUT("deployment/scale", k8s.Deployment.ScaleDeployment)

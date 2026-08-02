@@ -16,6 +16,8 @@ export interface Deployment {
   name: string
   namespace: string
   ready: string
+  replicas: number
+  ready_replicas: number
   up_to_date: number
   available: number
   age: string
@@ -128,6 +130,8 @@ export function transformDeployments(items: any[]): Deployment[] {
     name: d.metadata?.name || '',
     namespace: d.metadata?.namespace || '',
     ready: `${d.status?.readyReplicas || 0}/${d.spec?.replicas || 0}`,
+    replicas: d.spec?.replicas || 0,
+    ready_replicas: d.status?.readyReplicas || 0,
     up_to_date: d.status?.updatedReplicas || 0,
     available: d.status?.availableReplicas || 0,
     age: calcAge(d.metadata?.creationTimestamp),
@@ -526,12 +530,12 @@ export function deleteDeployment(data: { namespace: string; name: string }) {
 }
 
 // 获取 Deployment 关联的 ReplicaSet 列表
-export const getDeploymentReplicaSets = (params: { namespace: string; name: string }) => {
+export function getDeploymentReplicaSets(params: { namespace: string; name: string }) {
   return request.get('/k8s/deployment/replicasets', { params })
 }
 
 // 获取 Deployment 关联的 Pod 列表
-export const getDeploymentPodList = (params: { namespace: string; name: string }) => {
+export function getDeploymentPodList(params: { namespace: string; name: string }) {
   return request.get('/k8s/deployment/pods', { params })
 }
 

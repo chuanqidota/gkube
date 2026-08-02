@@ -73,10 +73,10 @@ const statusTagType = computed(() => {
 const statusText = computed(() => {
   const conditions = deployment.value?.status?.conditions || []
   const available = conditions.find((c: any) => c.type === 'Available')
-  if (available?.status === 'True') return 'Available'
+  if (available?.status === 'True') return '可用'
   const progressing = conditions.find((c: any) => c.type === 'Progressing')
-  if (progressing?.status === 'True') return 'Progressing'
-  return 'Unavailable'
+  if (progressing?.status === 'True') return '滚动更新中'
+  return '不可用'
 })
 
 async function fetchDetail() {
@@ -85,7 +85,7 @@ async function fetchDetail() {
     const res: any = await getDeploymentDetail({ namespace, name })
     deployment.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load deployment detail')
+    ElMessage.error(e?.message || '加载 Deployment 详情失败')
   } finally {
     loading.value = false
   }
@@ -98,7 +98,7 @@ async function fetchEvents() {
     events.value = res.data || []
   } catch (e) {
     console.error('Failed to fetch events:', e)
-    ElMessage.error('Failed to load events')
+    ElMessage.error('加载事件失败')
   } finally {
     eventsLoading.value = false
   }
@@ -111,7 +111,7 @@ async function fetchReplicaSets() {
     replicasets.value = res.data?.items || res.data || []
   } catch (e) {
     console.error('Failed to fetch replicasets:', e)
-    ElMessage.error('Failed to load ReplicaSets')
+    ElMessage.error('加载 ReplicaSet 失败')
   } finally {
     replicasetsLoading.value = false
   }
@@ -139,7 +139,7 @@ async function fetchAllPods() {
     rsPods.value = allPods.value
   } catch (e) {
     console.error("Failed to fetch pods:", e)
-    ElMessage.error("Failed to load pods")
+    ElMessage.error("加载 Pod 失败")
   } finally {
     rsPodsLoading.value = false
   }
@@ -159,17 +159,17 @@ async function handleReplicasetRollback(rs: any) {
   if (!revision) return
   try {
     await ElMessageBox.confirm(
-      `Are you sure you want to rollback to revision ${revision}?`,
-      'Confirm Rollback',
+      `确定要回滚到 revision ${revision} 吗？`,
+      '确认回滚',
       { type: 'warning' }
     )
     await rollbackDeployment({ namespace, name, revision: parseInt(revision, 10) })
-    ElMessage.success('Rollback successful')
+    ElMessage.success('回滚成功')
     fetchDetail()
     fetchReplicaSets()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('Rollback failed')
+      ElMessage.error('回滚失败')
     }
   }
 }
@@ -198,18 +198,18 @@ function handlePodExec(pod: any) {
 async function handlePodDelete(pod: any) {
   try {
     await ElMessageBox.confirm(
-      `Are you sure you want to delete pod ${pod.metadata.name}?`,
-      'Confirm Delete',
+      `确定要删除 Pod "${pod.metadata.name}" 吗？`,
+      '确认删除',
       { type: 'warning' }
     )
-    await deletePod({ namespace, name: pod.metadata.name })
-    ElMessage.success('Pod deleted')
+    await deletePod({ namespace: pod.metadata.namespace || namespace, name: pod.metadata.name })
+    ElMessage.success('Pod 已删除')
     if (selectedReplicaset.value) {
       handleReplicasetSelect(selectedReplicaset.value)
     }
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('Delete failed')
+      ElMessage.error('删除失败')
     }
   }
 }
@@ -265,18 +265,12 @@ async function handleScaleConfirm() {
   scaleLoading.value = true
   try {
     await scaleDeployment({ namespace, name, replicas: scaleReplicas.value })
-    ElMessage.success(`Deployment scaled to ${scaleReplicas.value} replicas`)
+    ElMessage.success(`已扩缩容至 ${scaleReplicas.value} 副本`)
     scaleDialogVisible.value = false
     await fetchDetail()
-    // Poll for pod list update (K8s needs time to create/delete pods)
-    const expectedPods = scaleReplicas.value
-    for (let i = 0; i < 10; i++) {
-      await new Promise(r => setTimeout(r, 1000))
-      await fetchReplicaSets()
-      if (allPods.value.length === expectedPods) break
-    }
+    await fetchReplicaSets()
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to scale deployment')
+    ElMessage.error(e?.message || '扩缩容失败')
   } finally {
     scaleLoading.value = false
   }
@@ -335,7 +329,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
   fetchDetail()
   fetchReplicaSets()
   fetchEvents()
-}, { autoStart: false })
+}, { autoStart: true })
 
 onMounted(() => {
   fetchDetail().then(() => {

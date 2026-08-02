@@ -135,7 +135,7 @@ function parseProbe(probeData: any): Probe | null {
     httpGetPath: probeData.httpGet?.path || '/',
     httpGetPort: probeData.httpGet?.port || 80,
     tcpSocketPort: probeData.tcpSocket?.port || null,
-    execCommand: probeData.exec?.command?.join(' ') || '',
+    execCommand: probeData.exec?.command?.join('\n') || '',
     initialDelaySeconds: probeData.initialDelaySeconds || 15,
     periodSeconds: probeData.periodSeconds || 10,
     timeoutSeconds: probeData.timeoutSeconds || 5,
@@ -147,7 +147,7 @@ function parseLifecycleHandler(data: any): LifecycleHandler | null {
   if (!data) return null
   return {
     type: data.exec ? 'exec' : data.httpGet ? 'httpGet' : 'tcpSocket',
-    execCommand: data.exec?.command?.join(' ') || '',
+    execCommand: data.exec?.command?.join('\n') || '',
     httpGetPath: data.httpGet?.path || '/',
     httpGetPort: data.httpGet?.port || 80,
     tcpSocketPort: data.tcpSocket?.port || null,
@@ -182,8 +182,8 @@ function parseContainer(c: any): Container {
     livenessProbe: parseProbe(c.livenessProbe),
     readinessProbe: parseProbe(c.readinessProbe),
     startupProbe: parseProbe(c.startupProbe),
-    command: c.command?.join(' ') || '',
-    args: c.args?.join(' ') || '',
+    command: c.command?.join('\n') || '',
+    args: c.args?.join('\n') || '',
     lifecycle: { preStop: parseLifecycleHandler(c.lifecycle?.preStop), postStart: parseLifecycleHandler(c.lifecycle?.postStart) },
     securityContext: {
       runAsUser: c.securityContext?.runAsUser ?? null,
@@ -379,7 +379,7 @@ function buildProbe(probe: Probe | null): any {
   const p: any = { initialDelaySeconds: probe.initialDelaySeconds, periodSeconds: probe.periodSeconds, timeoutSeconds: probe.timeoutSeconds, failureThreshold: probe.failureThreshold }
   if (probe.type === 'httpGet') { p.httpGet = { path: probe.httpGetPath, port: probe.httpGetPort } }
   else if (probe.type === 'tcpSocket') { p.tcpSocket = { port: probe.tcpSocketPort } }
-  else if (probe.type === 'exec') { p.exec = { command: probe.execCommand.split(' ').filter(Boolean) } }
+  else if (probe.type === 'exec') { p.exec = { command: probe.execCommand.split('\n').map(s => s.trim()).filter(Boolean) } }
   return p
 }
 
@@ -387,10 +387,15 @@ function buildK8sResource(): Record<string, any> {
   const labels: Record<string, string> = {}
   form.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
 
+  // spec.selector 创建后不可变：编辑模式沿用初始 selector，避免改标签时 selector 随之变化被 K8s 拒绝（field is immutable）
+  const selectorLabels: Record<string, string> = props.isEdit && props.initialData?.spec?.selector?.matchLabels
+    ? { ...props.initialData.spec.selector.matchLabels }
+    : { ...labels }
+
   function buildContainer(c: Container): Record<string, any> {
     const container: Record<string, any> = { name: c.name, image: c.image, imagePullPolicy: c.imagePullPolicy }
-    if (c.command) container.command = c.command.split(/\s+/).filter(Boolean)
-    if (c.args) container.args = c.args.split(/\s+/).filter(Boolean)
+    if (c.command) container.command = c.command.split('\n').map(s => s.trim()).filter(Boolean)
+    if (c.args) container.args = c.args.split('\n').map(s => s.trim()).filter(Boolean)
     const ports = c.ports.filter(p => p.containerPort).map(p => { const port: any = { containerPort: p.containerPort, protocol: p.protocol }; if (p.name) port.name = p.name; return port })
     if (ports.length > 0) container.ports = ports
     const env = c.env.filter(e => e.name.trim()).map(e => {
@@ -419,12 +424,12 @@ function buildK8sResource(): Record<string, any> {
     if (c.lifecycle.preStop || c.lifecycle.postStart) {
       container.lifecycle = {}
       if (c.lifecycle.preStop) {
-        if (c.lifecycle.preStop.type === 'exec') container.lifecycle.preStop = { exec: { command: c.lifecycle.preStop.execCommand.split(/\s+/).filter(Boolean) } }
+        if (c.lifecycle.preStop.type === 'exec') container.lifecycle.preStop = { exec: { command: c.lifecycle.preStop.execCommand.split('\n').map(s => s.trim()).filter(Boolean) } }
         else if (c.lifecycle.preStop.type === 'httpGet') container.lifecycle.preStop = { httpGet: { path: c.lifecycle.preStop.httpGetPath, port: c.lifecycle.preStop.httpGetPort } }
         else if (c.lifecycle.preStop.type === 'tcpSocket') container.lifecycle.preStop = { tcpSocket: { port: c.lifecycle.preStop.tcpSocketPort } }
       }
       if (c.lifecycle.postStart) {
-        if (c.lifecycle.postStart.type === 'exec') container.lifecycle.postStart = { exec: { command: c.lifecycle.postStart.execCommand.split(/\s+/).filter(Boolean) } }
+        if (c.lifecycle.postStart.type === 'exec') container.lifecycle.postStart = { exec: { command: c.lifecycle.postStart.execCommand.split('\n').map(s => s.trim()).filter(Boolean) } }
         else if (c.lifecycle.postStart.type === 'httpGet') container.lifecycle.postStart = { httpGet: { path: c.lifecycle.postStart.httpGetPath, port: c.lifecycle.postStart.httpGetPort } }
         else if (c.lifecycle.postStart.type === 'tcpSocket') container.lifecycle.postStart = { tcpSocket: { port: c.lifecycle.postStart.tcpSocketPort } }
       }
@@ -520,13 +525,18 @@ function buildK8sResource(): Record<string, any> {
   const podTemplate: any = { metadata: { labels: { ...labels } }, spec: podSpec }
   if (Object.keys(annotations).length > 0) podTemplate.metadata.annotations = annotations
 
-  const resource: any = { apiVersion: 'apps/v1', kind: props.kind, metadata: { name: form.name, namespace: form.namespace, labels: { ...labels } }, spec: {} }
+  // 编辑模式保留资源级 annotations（全量 PUT 替换，否则会被清空）；表单的"注解"栏只编辑 template 级 annotations
+  const metadata: any = { name: form.name, namespace: form.namespace, labels: { ...labels } }
+  if (props.isEdit && props.initialData?.metadata?.annotations) {
+    metadata.annotations = { ...props.initialData.metadata.annotations }
+  }
+  const resource: any = { apiVersion: 'apps/v1', kind: props.kind, metadata, spec: {} }
 
   if (props.kind === 'Deployment') {
-    resource.spec = { replicas: form.replicas, selector: { matchLabels: { ...labels } }, template: podTemplate, strategy: { type: form.strategyType } }
+    resource.spec = { replicas: form.replicas, selector: { matchLabels: selectorLabels }, template: podTemplate, strategy: { type: form.strategyType } }
     if (form.strategyType === 'RollingUpdate') resource.spec.strategy.rollingUpdate = { maxSurge: form.maxSurge, maxUnavailable: form.maxUnavailable }
   } else if (props.kind === 'StatefulSet') {
-    resource.spec = { replicas: form.replicas, selector: { matchLabels: { ...labels } }, template: podTemplate, serviceName: form.serviceName || form.name, updateStrategy: { type: form.updateStrategy } }
+    resource.spec = { replicas: form.replicas, selector: { matchLabels: selectorLabels }, template: podTemplate, serviceName: form.serviceName || form.name, updateStrategy: { type: form.updateStrategy } }
     const vcts = form.volumeClaimTemplates.filter(v => v.name).map(v => {
       const vct: any = { metadata: { name: v.name }, spec: { accessModes: v.accessModes, resources: { requests: { storage: v.storageSize } } } }
       if (v.storageClassName) vct.spec.storageClassName = v.storageClassName
@@ -534,7 +544,7 @@ function buildK8sResource(): Record<string, any> {
     })
     if (vcts.length > 0) resource.spec.volumeClaimTemplates = vcts
   } else if (props.kind === 'DaemonSet') {
-    resource.spec = { selector: { matchLabels: { ...labels } }, template: podTemplate, updateStrategy: { type: form.dsUpdateStrategy } }
+    resource.spec = { selector: { matchLabels: selectorLabels }, template: podTemplate, updateStrategy: { type: form.dsUpdateStrategy } }
   }
 
   return resource
@@ -689,10 +699,10 @@ function handleCancel() {
                 </el-select>
               </el-form-item>
               <el-form-item label="启动命令 (command)">
-                <el-input v-model="container.command" placeholder="多个参数用空格分隔，如: /bin/sh -c" />
+                <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.command" placeholder="每行一个参数，如: /bin/sh" />
               </el-form-item>
               <el-form-item label="启动参数 (args)" class="full-width">
-                <el-input v-model="container.args" placeholder="多个参数用空格分隔，如: echo hello" />
+                <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.args" placeholder="每行一个参数，如: -c echo hello" />
               </el-form-item>
             </div>
 
@@ -792,10 +802,10 @@ function handleCancel() {
                 <el-input v-model="container.image" placeholder="busybox:1.36" />
               </el-form-item>
               <el-form-item label="启动命令">
-                <el-input v-model="container.command" placeholder="多个参数用空格分隔" />
+                <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.command" placeholder="每行一个参数" />
               </el-form-item>
               <el-form-item label="启动参数">
-                <el-input v-model="container.args" placeholder="多个参数用空格分隔" />
+                <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.args" placeholder="每行一个参数" />
               </el-form-item>
             </div>
             <!-- Env for init container -->
@@ -994,7 +1004,7 @@ function handleCancel() {
                     <el-input-number v-model="container.livenessProbe.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
                   </el-form-item>
                   <el-form-item v-if="container.livenessProbe.type === 'exec'" label="命令">
-                    <el-input v-model="container.livenessProbe.execCommand" placeholder="cat /tmp/healthy" />
+                    <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.livenessProbe.execCommand" placeholder="每行一个参数，如: cat /tmp/healthy" />
                   </el-form-item>
                   <el-form-item label="初始延迟(秒)">
                     <el-input-number v-model="container.livenessProbe.initialDelaySeconds" :min="0" style="width: 100%;" />
@@ -1034,7 +1044,7 @@ function handleCancel() {
                     <el-input-number v-model="container.readinessProbe.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
                   </el-form-item>
                   <el-form-item v-if="container.readinessProbe.type === 'exec'" label="命令">
-                    <el-input v-model="container.readinessProbe.execCommand" placeholder="cat /tmp/healthy" />
+                    <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.readinessProbe.execCommand" placeholder="每行一个参数，如: cat /tmp/healthy" />
                   </el-form-item>
                   <el-form-item label="初始延迟(秒)">
                     <el-input-number v-model="container.readinessProbe.initialDelaySeconds" :min="0" style="width: 100%;" />
@@ -1074,7 +1084,7 @@ function handleCancel() {
                     <el-input-number v-model="container.startupProbe.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
                   </el-form-item>
                   <el-form-item v-if="container.startupProbe.type === 'exec'" label="命令">
-                    <el-input v-model="container.startupProbe.execCommand" placeholder="cat /tmp/healthy" />
+                    <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.startupProbe.execCommand" placeholder="每行一个参数，如: cat /tmp/healthy" />
                   </el-form-item>
                   <el-form-item label="初始延迟(秒)">
                     <el-input-number v-model="container.startupProbe.initialDelaySeconds" :min="0" style="width: 100%;" />
@@ -1113,7 +1123,7 @@ function handleCancel() {
                         </el-select>
                       </el-form-item>
                       <el-form-item v-if="container.lifecycle.postStart.type === 'exec'" label="命令">
-                        <el-input v-model="container.lifecycle.postStart.execCommand" placeholder="多个参数用空格分隔" />
+                        <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.lifecycle.postStart.execCommand" placeholder="每行一个参数" />
                       </el-form-item>
                       <el-form-item v-if="container.lifecycle.postStart.type === 'httpGet'" label="路径">
                         <el-input v-model="container.lifecycle.postStart.httpGetPath" placeholder="/" />
@@ -1142,7 +1152,7 @@ function handleCancel() {
                         </el-select>
                       </el-form-item>
                       <el-form-item v-if="container.lifecycle.preStop.type === 'exec'" label="命令">
-                        <el-input v-model="container.lifecycle.preStop.execCommand" placeholder="多个参数用空格分隔" />
+                        <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.lifecycle.preStop.execCommand" placeholder="每行一个参数" />
                       </el-form-item>
                       <el-form-item v-if="container.lifecycle.preStop.type === 'httpGet'" label="路径">
                         <el-input v-model="container.lifecycle.preStop.httpGetPath" placeholder="/" />
