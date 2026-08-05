@@ -10,7 +10,7 @@ import { getNodeList, type NodeInfo } from '@/api/resource'
 import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
-import { usagePercent } from '@/utils/helpers'
+import { usagePercent, progressColor } from '@/utils/helpers'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -26,7 +26,7 @@ const workloadsLoading = ref(false)
 const nodesLoading = ref(false)
 const nsLoading = ref(false)
 const healthLoading = ref(false)
-const loading = computed(() => resourcesLoading.value || nodesLoading.value || nsLoading.value || healthLoading.value)
+const loading = computed(() => overviewLoading.value || resourcesLoading.value || workloadsLoading.value || nodesLoading.value || nsLoading.value || healthLoading.value)
 
 // ---- state ----
 const overview = ref<Overview>({ cluster_count: 0, node_count: 0, pod_count: 0, namespace_count: 0 })
@@ -34,7 +34,6 @@ const resources = ref<ResourceMetrics>({ cpu: { used: 0, total: 0 }, memory: { u
 const workloads = ref<WorkloadSummary>({ deployments: 0, statefulsets: 0, daemonsets: 0, jobs: 0, cronjobs: 0, ingresses: 0 })
 const nodeList = ref<NodeInfo[]>([])
 const nsList = ref<NamespaceUsage[]>([])
-const nsTotal = ref({ cpu: 0, mem: 0 })
 const sortKey = ref<'cpu' | 'mem'>('cpu')
 const health = ref<ClusterHealth | null>(null)
 
@@ -45,11 +44,7 @@ function fmtMem(n: number) { return (n || 0).toFixed(1) }
 function tk(name: string) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }
-function threshColor(pct: number) {
-  if (pct >= 90) return tk('--gk-color-danger')
-  if (pct >= 70) return tk('--gk-color-warning')
-  return tk('--gk-color-primary')
-}
+function threshColor(pct: number) { return tk(progressColor(pct)) }
 function readyColor(pct: number) {
   if (pct >= 90) return tk('--gk-color-success')
   if (pct >= 70) return tk('--gk-color-warning')
@@ -147,8 +142,8 @@ async function fetchWorkloads() {
 }
 async function fetchNodes() {
   nodesLoading.value = true
-  try { const res: any = await getNodeList(); nodeList.value = res.data || [] }
-  catch { /* 节点不可达时静默处理 */ }
+  try { const res: any = await getNodeList({ clusterName: clusterName.value }); nodeList.value = res.data || [] }
+  catch (e) { console.error('Failed to fetch nodes:', e) }
   finally { nodesLoading.value = false }
 }
 async function fetchNamespaces() {
@@ -156,14 +151,13 @@ async function fetchNamespaces() {
   try {
     const res = await getNamespaceResources({ clusterId: clusterId.value })
     nsList.value = res.data.namespaces || []
-    nsTotal.value = { cpu: res.data.total_cpu, mem: res.data.total_mem }
-  } catch { nsList.value = []; nsTotal.value = { cpu: 0, mem: 0 } }
+  } catch (e) { console.error('Failed to fetch namespace resources:', e); nsList.value = [] }
   finally { nsLoading.value = false }
 }
 async function fetchHealth() {
   healthLoading.value = true
   try { const res = await getHealth({ clusterId: clusterId.value }); health.value = res.data }
-  catch { health.value = null }
+  catch (e) { console.error('Failed to fetch health:', e); health.value = null }
   finally { healthLoading.value = false }
 }
 
@@ -279,8 +273,8 @@ function initCharts() {
 function handleResize() { Object.values(charts).forEach((c) => c?.resize()) }
 
 onMounted(() => {
-  if (clusterId.value) fetchAll()
   nextTick(initCharts)
+  if (clusterId.value) fetchAll()
   window.addEventListener('resize', handleResize)
   themeObserver = new MutationObserver(() => nextTick(updateAllCharts))
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })

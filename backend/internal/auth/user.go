@@ -175,6 +175,16 @@ func (u *userHandler) Update(c *gin.Context) {
 	response.Success(c, "更新用户成功", user)
 }
 
+// getUserID 从 context 中提取当前用户 ID，未认证时返回 (0, false)。
+func getUserID(c *gin.Context) (uint, bool) {
+	v, exists := c.Get("userID")
+	if !exists {
+		return 0, false
+	}
+	uid, ok := v.(uint)
+	return uid, ok
+}
+
 // Delete 删除用户（软删除）
 func (u *userHandler) Delete(c *gin.Context) {
 	var body struct {
@@ -185,13 +195,7 @@ func (u *userHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	// 防止删除自己
-	currentUserID, exists := c.Get("userID")
-	if !exists {
-		response.FailWithStatus(c, http.StatusUnauthorized, "未获取到当前用户信息")
-		return
-	}
-	uid, ok := currentUserID.(uint)
+	uid, ok := getUserID(c)
 	if !ok {
 		response.FailWithStatus(c, http.StatusUnauthorized, "未获取到当前用户信息")
 		return
@@ -224,12 +228,7 @@ func (u *userHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	userIDVal, exists := c.Get("userID")
-	if !exists {
-		response.FailWithStatus(c, http.StatusUnauthorized, "未获取到当前用户信息")
-		return
-	}
-	userID, ok := userIDVal.(uint)
+	userID, ok := getUserID(c)
 	if !ok {
 		response.FailWithStatus(c, http.StatusUnauthorized, "未获取到当前用户信息")
 		return

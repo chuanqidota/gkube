@@ -345,7 +345,7 @@ export interface NodeDetail {
   age: string
 }
 
-export function getNodeList(params?: { cluster_id?: number }) {
+export function getNodeList(params?: { clusterName?: string }) {
   return request.get('/k8s/cluster/nodes', { params })
 }
 

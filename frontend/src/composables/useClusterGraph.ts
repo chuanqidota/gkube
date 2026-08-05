@@ -314,6 +314,10 @@ export function useClusterGraph(canvasRef: Ref<HTMLCanvasElement | undefined>) {
     }
     errorWash = Math.max(0, errorWash - dt * 1.4)
 
+    // Apply field highlight as soon as activeField changes (focus). Mouse hover
+    // will layer on top later; we let it override only when actually hovered.
+    if (graphState.activeField) applyFieldHighlight()
+
     // If no field is active and no hover, ensure targets reset.
     if (!graphState.activeField && lastNearest === null) {
       for (const n of NODES) if (n.hiTarget !== 0) n.hiTarget = 0

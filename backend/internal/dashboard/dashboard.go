@@ -42,6 +42,8 @@ var Dashboard = new(dashboard)
 const (
 	dashboardTimeout      = 30 * time.Second
 	maxConcurrentClusters = 5
+	// maxHealthEntities 每集群最多返回的异常实体条目数(abnormalPods/restartingPods/abnormalPVCs)
+	maxHealthEntities = 5
 )
 
 // dashboardCtx 派生请求级带超时的 context。
@@ -49,14 +51,14 @@ func dashboardCtx(c *gin.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(c.Request.Context(), dashboardTimeout)
 }
 
-// forEachCluster 并发(信号量限流)遍历集群执行 fn,fn 内对共享状态的写操作需自行加锁(mu)。
+// forEachCluster 并发(信号量限流)遍历集群执行 fn。
+// fn 内对共享状态的写操作需自行加锁——调用方负责声明并传递自己的 sync.Mutex。
 // 单个集群出错被忽略,与既有行为一致(返回可得的聚合结果)。
-func forEachCluster(c *gin.Context, clusters []model.K8SCluster, fn func(ctx context.Context, cluster model.K8SCluster, mu *sync.Mutex)) {
+func forEachCluster(c *gin.Context, clusters []model.K8SCluster, fn func(ctx context.Context, cluster model.K8SCluster)) {
 	ctx, cancel := dashboardCtx(c)
 	defer cancel()
 	sem := make(chan struct{}, maxConcurrentClusters)
 	var wg sync.WaitGroup
-	var mu sync.Mutex
 	for _, cl := range clusters {
 		cl := cl
 		wg.Add(1)
@@ -64,7 +66,7 @@ func forEachCluster(c *gin.Context, clusters []model.K8SCluster, fn func(ctx con
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			fn(ctx, cl, &mu)
+			fn(ctx, cl)
 		}()
 	}
 	wg.Wait()
@@ -89,6 +91,32 @@ func getTargetClusters(clusterID *uint) ([]model.K8SCluster, error) {
 	return clusters, nil
 }
 
+// sumNodeAllocatable 累加节点列表的 Allocatable CPU 和内存总量。
+func sumNodeAllocatable(nodes []corev1.Node) (cpu, mem resource.Quantity) {
+	for _, node := range nodes {
+		if allocCPU, ok := node.Status.Allocatable[corev1.ResourceCPU]; ok {
+			cpu.Add(allocCPU)
+		}
+		if allocMem, ok := node.Status.Allocatable[corev1.ResourceMemory]; ok {
+			mem.Add(allocMem)
+		}
+	}
+	return
+}
+
+// sumNodeStorage 累加节点列表的存储总量(Allocatable 优先,回退到 Capacity)。
+func sumNodeStorage(nodes []corev1.Node) resource.Quantity {
+	var total resource.Quantity
+	for _, node := range nodes {
+		if stor, ok := node.Status.Allocatable[corev1.ResourceEphemeralStorage]; ok {
+			total.Add(stor)
+		} else if stor, ok := node.Status.Capacity[corev1.ResourceEphemeralStorage]; ok {
+			total.Add(stor)
+		}
+	}
+	return total
+}
+
 // Overview 获取仪表盘概览数据
 func (d *dashboard) Overview(c *gin.Context) {
 	var query DashboardQueryParams
@@ -106,8 +134,9 @@ func (d *dashboard) Overview(c *gin.Context) {
 
 	clusterCount := len(clusters)
 	var nodeCount, podCount, namespaceCount int
+	var mu sync.Mutex
 
-	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster, mu *sync.Mutex) {
+	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster) {
 		mu.Lock()
 		nodeCount += cluster.NodeCount
 		mu.Unlock()
@@ -131,9 +160,7 @@ func (d *dashboard) Overview(c *gin.Context) {
 		}
 		mu.Lock()
 		podCount += localPod
-		if localNS > namespaceCount {
-			namespaceCount = localNS
-		}
+		namespaceCount += localNS
 		mu.Unlock()
 	})
 
@@ -166,7 +193,7 @@ func (d *dashboard) Resources(c *gin.Context) {
 	var totalMemUsed, totalMemTotal resource.Quantity
 	var totalStorageUsed, totalStorageTotal resource.Quantity
 
-	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster, _ *sync.Mutex) {
+	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster) {
 		if cluster.Status != "online" {
 			return
 		}
@@ -180,21 +207,17 @@ func (d *dashboard) Resources(c *gin.Context) {
 		if err != nil {
 			return
 		}
-		var cpuTotal, memTotal, storTotal resource.Quantity
+		cpuTotal, memTotal := sumNodeAllocatable(nodeList.Items)
+		storTotal := sumNodeStorage(nodeList.Items)
+
+		// 先登记集群容量(即使后续 podList 失败也不丢失总量)
+		mu.Lock()
+		totalCPUTotal.Add(cpuTotal)
+		totalMemTotal.Add(memTotal)
+		totalStorageTotal.Add(storTotal)
+		mu.Unlock()
+
 		var cpuUsed, memUsed, storUsed resource.Quantity
-		for _, node := range nodeList.Items {
-			if allocCPU, ok := node.Status.Allocatable[corev1.ResourceCPU]; ok {
-				cpuTotal.Add(allocCPU)
-			}
-			if allocMem, ok := node.Status.Allocatable[corev1.ResourceMemory]; ok {
-				memTotal.Add(allocMem)
-			}
-			if allocStor := node.Status.Allocatable.StorageEphemeral(); !allocStor.IsZero() {
-				storTotal.Add(*allocStor)
-			} else if storageCap := node.Status.Capacity.StorageEphemeral(); !storageCap.IsZero() {
-				storTotal.Add(*storageCap)
-			}
-		}
 
 		// Sum pod resource requests as "used"
 		podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(ctx, metav1.ListOptions{})
@@ -219,11 +242,8 @@ func (d *dashboard) Resources(c *gin.Context) {
 		}
 		mu.Lock()
 		totalCPUUsed.Add(cpuUsed)
-		totalCPUTotal.Add(cpuTotal)
 		totalMemUsed.Add(memUsed)
-		totalMemTotal.Add(memTotal)
 		totalStorageUsed.Add(storUsed)
-		totalStorageTotal.Add(storTotal)
 		mu.Unlock()
 	})
 
@@ -262,7 +282,7 @@ func (d *dashboard) Workloads(c *gin.Context) {
 	var mu sync.Mutex
 	var totalDeployments, totalStatefulSets, totalDaemonSets, totalJobs, totalCronJobs, totalIngresses int
 
-	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster, _ *sync.Mutex) {
+	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster) {
 		if cluster.Status != "online" {
 			return
 		}
@@ -337,7 +357,7 @@ func (d *dashboard) Namespaces(c *gin.Context) {
 	var mu sync.Mutex
 	var totalCPU, totalMem resource.Quantity
 
-	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster, _ *sync.Mutex) {
+	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster) {
 		if cluster.Status != "online" {
 			return
 		}
@@ -349,14 +369,7 @@ func (d *dashboard) Namespaces(c *gin.Context) {
 		// 集群总量 = 所有节点 Allocatable 之和
 		var localCPU, localMem resource.Quantity
 		if nodeList, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{}); err == nil {
-			for _, node := range nodeList.Items {
-				if allocCPU, ok := node.Status.Allocatable[corev1.ResourceCPU]; ok {
-					localCPU.Add(allocCPU)
-				}
-				if allocMem, ok := node.Status.Allocatable[corev1.ResourceMemory]; ok {
-					localMem.Add(allocMem)
-				}
-			}
+			localCPU, localMem = sumNodeAllocatable(nodeList.Items)
 		}
 
 		// 按命名空间累加
@@ -445,7 +458,7 @@ func (d *dashboard) Namespaces(c *gin.Context) {
 // 重启异常阈值:restartCount 达到此值视为异常
 const restartThreshold = 10
 
-// 异常容器 waiting reason 集合
+// 异常容器 waiting reason 集合（不包含过渡态 ContainerCreating，避免假阳性）。
 var abnormalWaitingReasons = map[string]bool{
 	"CrashLoopBackOff":           true,
 	"ImagePullBackOff":           true,
@@ -454,7 +467,6 @@ var abnormalWaitingReasons = map[string]bool{
 	"CreateContainerConfigError": true,
 	"CreateContainerError":       true,
 	"RunContainerError":          true,
-	"ContainerCreating":          true,
 	"OOMKilled":                  true,
 }
 
@@ -507,7 +519,7 @@ func (d *dashboard) Health(c *gin.Context) {
 	readyNodes, notReadyNodeCount := 0, 0
 	boundPVCs, abnormalPVCCount := 0, 0
 
-	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster, _ *sync.Mutex) {
+	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster) {
 		if cluster.Status != "online" {
 			return
 		}
@@ -544,18 +556,20 @@ func (d *dashboard) Health(c *gin.Context) {
 						}
 					}
 					if cs.RestartCount >= restartThreshold {
-						lRestartPods = append(lRestartPods, restartingPod{
-							Name:         pod.Name,
-							Namespace:    pod.Namespace,
-							RestartCount: int(cs.RestartCount),
-							Node:         pod.Spec.NodeName,
-						})
+						if len(lRestartPods) < maxHealthEntities {
+							lRestartPods = append(lRestartPods, restartingPod{
+								Name:         pod.Name,
+								Namespace:    pod.Namespace,
+								RestartCount: int(cs.RestartCount),
+								Node:         pod.Spec.NodeName,
+							})
+						}
 					}
 				}
 
 				if abnormal {
 					lAbnPod++
-					if len(lAbnPods) < 5 {
+					if len(lAbnPods) < maxHealthEntities {
 						lAbnPods = append(lAbnPods, abnormalPod{
 							Name: pod.Name, Namespace: pod.Namespace, Phase: phase, Reason: reason, Node: pod.Spec.NodeName,
 						})
@@ -601,7 +615,7 @@ func (d *dashboard) Health(c *gin.Context) {
 					lBound++
 				} else {
 					lAbnPVC++
-					if len(lAbnPVCs) < 5 {
+					if len(lAbnPVCs) < maxHealthEntities {
 						lAbnPVCs = append(lAbnPVCs, abnormalPVC{Name: pvc.Name, Namespace: pvc.Namespace, Phase: phase})
 					}
 				}
@@ -623,11 +637,6 @@ func (d *dashboard) Health(c *gin.Context) {
 		mu.Unlock()
 	})
 
-	// 截断重启 Pod 清单到 5 条
-	if len(restartingPods) > 5 {
-		restartingPods = restartingPods[:5]
-	}
-
 	data := map[string]any{
 		"summary": map[string]any{
 			"healthy_pods":    healthyPods,
@@ -646,7 +655,57 @@ func (d *dashboard) Health(c *gin.Context) {
 	response.Success(c, "获取集群健康快照成功", data)
 }
 
-// Events 获取集群事件列表（支持分页）
+// eventInfo 从 K8s Event 提取的展示字段
+type eventInfo struct {
+	Type               string `json:"type"`
+	Reason             string `json:"reason"`
+	Message            string `json:"message"`
+	Namespace          string `json:"namespace"`
+	InvolvedObject     string `json:"involved_object"`
+	InvolvedObjectKind string `json:"involved_object_kind"`
+	InvolvedObjectName string `json:"involved_object_name"`
+	FirstSeen          string `json:"first_seen"`
+	LastSeen           string `json:"last_seen"`
+	Count              int32  `json:"count"`
+	ReportingComponent string `json:"reporting_component"`
+	ReportingInstance  string `json:"reporting_instance"`
+	Action             string `json:"action"`
+	ClusterName        string `json:"cluster_name"`
+	eventName          string // 内部排序键,不导出到 JSON
+}
+
+// toEventInfo 将 K8s Event 转为展示结构
+func toEventInfo(event corev1.Event, clusterName string) eventInfo {
+	firstSeen := ""
+	if !event.FirstTimestamp.IsZero() {
+		firstSeen = event.FirstTimestamp.Time.Format("2006-01-02 15:04:05")
+	}
+	lastSeen := ""
+	if !event.LastTimestamp.IsZero() {
+		lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
+	} else if !event.EventTime.IsZero() {
+		lastSeen = event.EventTime.Time.Format("2006-01-02 15:04:05")
+	}
+	return eventInfo{
+		Type:               event.Type,
+		Reason:             event.Reason,
+		Message:            event.Message,
+		Namespace:          event.Namespace,
+		InvolvedObject:     fmt.Sprintf("%s/%s", event.InvolvedObject.Kind, event.InvolvedObject.Name),
+		InvolvedObjectKind: event.InvolvedObject.Kind,
+		InvolvedObjectName: event.InvolvedObject.Name,
+		FirstSeen:          firstSeen,
+		LastSeen:           lastSeen,
+		Count:              event.Count,
+		ReportingComponent: event.ReportingController,
+		ReportingInstance:  event.ReportingInstance,
+		Action:             event.Action,
+		ClusterName:        clusterName,
+		eventName:          event.Name,
+	}
+}
+
+// Events 获取集群事件列表（支持分页，使用 K8s 原生 continue token 避免全量拉取）
 func (d *dashboard) Events(c *gin.Context) {
 	var query EventQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
@@ -663,25 +722,90 @@ func (d *dashboard) Events(c *gin.Context) {
 	}
 
 	// 获取要查询的集群列表
-	var clusters []model.K8SCluster
-	if query.ClusterID != nil {
-		if err := database.DB.Where("id = ?", *query.ClusterID).Find(&clusters).Error; err != nil {
-			logger.Error(err.Error())
-			response.FailWithStatus(c, http.StatusInternalServerError, "获取集群信息失败")
-			return
-		}
-	} else {
-		if err := database.DB.Where("status = ?", "online").Find(&clusters).Error; err != nil {
-			logger.Error(err.Error())
-			response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
-			return
-		}
+	clusters, err := getTargetClusters(query.ClusterID)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
+		return
+	}
+	if len(clusters) == 0 {
+		response.Success(c, "获取事件列表成功", map[string]any{
+			"items":    []eventInfo{},
+			"total":    0,
+			"continue": "",
+			"has_more": false,
+		})
+		return
 	}
 
-	var mu sync.Mutex
-	var allEvents []map[string]any
+	namespace := query.Namespace
+	if namespace == "" {
+		namespace = corev1.NamespaceAll
+	}
 
-	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster, _ *sync.Mutex) {
+	// 单集群模式:直接查询该集群,支持 K8s 原生 continue 分页。
+	if query.ClusterID != nil {
+		cluster := clusters[0]
+		if cluster.Status != "online" {
+			response.Success(c, "获取事件列表成功", map[string]any{
+				"items": []eventInfo{}, "total": 0, "continue": "", "has_more": false,
+			})
+			return
+		}
+		client, err := k8s.GetK8sClientByName(cluster.ClusterName)
+		if err != nil {
+			logger.Error(err.Error())
+			response.FailWithStatus(c, http.StatusInternalServerError, "获取事件列表失败")
+			return
+		}
+
+		listOpts := metav1.ListOptions{Limit: int64(query.Limit)}
+		if query.FieldSelector != "" {
+			listOpts.FieldSelector = query.FieldSelector
+		}
+		if query.Continue != "" {
+			listOpts.Continue = query.Continue
+		}
+
+		ctx, cancel := dashboardCtx(c)
+		defer cancel()
+		eventList, err := client.CoreV1().Events(namespace).List(ctx, listOpts)
+		if err != nil {
+			response.FailWithStatus(c, http.StatusInternalServerError, "获取事件列表失败")
+			return
+		}
+
+		var items []eventInfo
+		for _, event := range eventList.Items {
+			if query.Type != "" && event.Type != query.Type {
+				continue
+			}
+			items = append(items, toEventInfo(event, cluster.ClusterName))
+		}
+
+		// 稳定排序(时间相同时按事件名做第二键)
+		sort.SliceStable(items, func(i, j int) bool {
+			if items[i].LastSeen != items[j].LastSeen {
+				return items[i].LastSeen > items[j].LastSeen
+			}
+			return items[i].eventName > items[j].eventName
+		})
+
+		k8sContinue := eventList.ListMeta.Continue
+		response.Success(c, "获取事件列表成功", map[string]any{
+			"items":    items,
+			"total":    len(items),
+			"continue": k8sContinue,
+			"has_more": k8sContinue != "",
+		})
+		return
+	}
+
+	// 多集群模式:各集群取最近 limit 条,合并后排序。
+	var mu sync.Mutex
+	var allEvents []eventInfo
+
+	forEachCluster(c, clusters, func(ctx context.Context, cluster model.K8SCluster) {
 		if cluster.Status != "online" {
 			return
 		}
@@ -690,12 +814,7 @@ func (d *dashboard) Events(c *gin.Context) {
 			return
 		}
 
-		namespace := query.Namespace
-		if namespace == "" {
-			namespace = corev1.NamespaceAll
-		}
-
-		listOpts := metav1.ListOptions{}
+		listOpts := metav1.ListOptions{Limit: int64(query.Limit)}
 		if query.FieldSelector != "" {
 			listOpts.FieldSelector = query.FieldSelector
 		}
@@ -705,78 +824,29 @@ func (d *dashboard) Events(c *gin.Context) {
 			return
 		}
 
-		var local []map[string]any
+		var local []eventInfo
 		for _, event := range eventList.Items {
 			if query.Type != "" && event.Type != query.Type {
 				continue
 			}
-
-			firstSeen := ""
-			if !event.FirstTimestamp.IsZero() {
-				firstSeen = event.FirstTimestamp.Time.Format("2006-01-02 15:04:05")
-			}
-			lastSeen := ""
-			if !event.LastTimestamp.IsZero() {
-				lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
-			} else if !event.EventTime.IsZero() {
-				lastSeen = event.EventTime.Time.Format("2006-01-02 15:04:05")
-			}
-
-			local = append(local, map[string]any{
-				"type":                 event.Type,
-				"reason":               event.Reason,
-				"message":              event.Message,
-				"namespace":            event.Namespace,
-				"involved_object":      fmt.Sprintf("%s/%s", event.InvolvedObject.Kind, event.InvolvedObject.Name),
-				"involved_object_kind": event.InvolvedObject.Kind,
-				"involved_object_name": event.InvolvedObject.Name,
-				"first_seen":           firstSeen,
-				"last_seen":            lastSeen,
-				"count":                event.Count,
-				"reporting_component":  event.ReportingController,
-				"reporting_instance":   event.ReportingInstance,
-				"action":               event.Action,
-				"cluster_name":         cluster.ClusterName,
-			})
+			local = append(local, toEventInfo(event, cluster.ClusterName))
 		}
 		mu.Lock()
 		allEvents = append(allEvents, local...)
 		mu.Unlock()
 	})
 
-	// 按最后时间倒序排序
-	sort.Slice(allEvents, func(i, j int) bool {
-		return allEvents[i]["last_seen"].(string) > allEvents[j]["last_seen"].(string)
+	sort.SliceStable(allEvents, func(i, j int) bool {
+		if allEvents[i].LastSeen != allEvents[j].LastSeen {
+			return allEvents[i].LastSeen > allEvents[j].LastSeen
+		}
+		return allEvents[i].eventName > allEvents[j].eventName
 	})
 
-	total := len(allEvents)
-
-	offset := 0
-	if query.Continue != "" {
-		fmt.Sscanf(query.Continue, "%d", &offset)
-	}
-
-	end := offset + query.Limit
-	if end > total {
-		end = total
-	}
-	if offset > total {
-		offset = total
-	}
-
-	pagedEvents := allEvents[offset:end]
-
-	continueToken := ""
-	if end < total {
-		continueToken = fmt.Sprintf("%d", end)
-	}
-
-	data := map[string]any{
-		"items":    pagedEvents,
-		"total":    total,
-		"continue": continueToken,
-		"has_more": continueToken != "",
-	}
-
-	response.Success(c, "获取事件列表成功", data)
+	response.Success(c, "获取事件列表成功", map[string]any{
+		"items":    allEvents,
+		"total":    len(allEvents),
+		"continue": "",
+		"has_more": false,
+	})
 }

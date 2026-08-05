@@ -86,7 +86,15 @@ export interface K8sEvent {
   message: string
   namespace: string
   involved_object: string
+  involved_object_kind: string
+  involved_object_name: string
+  first_seen: string
   last_seen: string
+  count: number
+  reporting_component: string
+  reporting_instance: string
+  action: string
+  cluster_name: string
 }
 
 export function getOverview(params?: { clusterId?: number }) {
@@ -116,6 +124,13 @@ export interface EventsResponse {
   has_more: boolean
 }
 
-export function getEvents() {
-  return request.get<EventsResponse>('/dashboard/events')
+export function getEvents(params?: {
+  clusterId?: number
+  namespace?: string
+  type?: string
+  fieldSelector?: string
+  limit?: number
+  continue?: string
+}) {
+  return request.get<EventsResponse>('/dashboard/events', { params })
 }

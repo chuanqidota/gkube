@@ -100,12 +100,12 @@ request.interceptors.response.use(
 
         // 使用独立的 axios 实例发送刷新请求，避免携带过期的 Authorization header
         const refreshClient = axios.create({ baseURL: '/api/v1', timeout: 15000 })
-        const { data } = await refreshClient.post('/auth/refresh', {
-          refreshToken: refreshToken,
-        })
+        const res = await refreshClient.post('/auth/refresh', { refreshToken })
+        const data = res.data as any
+        if (data?.code !== 200) throw new Error(data?.msg || '刷新Token失败')
 
-        const newToken = data.data?.accessToken
-        const newRefreshToken = data.data?.refreshToken
+        const newToken = data?.accessToken
+        const newRefreshToken = data?.refreshToken
 
         if (newToken) {
           setToken(newToken)
