@@ -63,12 +63,15 @@ func decryptWithKey(encoded string, key []byte) (string, error) {
 }
 
 // DecryptAES decodes a base64-encoded string produced by EncryptAES and
-// decrypts it using AES-256-GCM.优先用当前配置密钥,失败再回退到旧硬编码密钥,
+// decrypts it using AES-256-GCM.优先用当前配置密钥,若配置了旧版密钥则回退尝试,
 // 以兼容历史已加密的 kubeconfig,不破坏现有数据。
 func DecryptAES(encoded string) (string, error) {
 	if plaintext, err := decryptWithKey(encoded, ActiveAESKey()); err == nil {
 		return plaintext, nil
 	}
-	// 回退到旧密钥(仅用于历史数据)
-	return decryptWithKey(encoded, []byte(legacyAESKey))
+	// 回退到旧密钥(仅用于历史数据),未配置则直接返回错误
+	if legacy := LegacyAESKey(); legacy != nil {
+		return decryptWithKey(encoded, legacy)
+	}
+	return "", errors.New("decryption failed with active key and no legacy key configured")
 }

@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -66,9 +67,17 @@ func (cl *clusterHandler) List(c *gin.Context) {
 
 	db := database.DB.Model(&model.K8SCluster{})
 	if query.Status != "" {
+		if query.Status != "online" && query.Status != "offline" {
+			response.Fail(c, "无效的状态参数,仅支持 online/offline")
+			return
+		}
 		db = db.Where("status = ?", query.Status)
 	}
 	if query.Keyword != "" {
+		if len(query.Keyword) > 200 {
+			response.Fail(c, "关键词过长,最多200个字符")
+			return
+		}
 		keyword := escapeLike(query.Keyword)
 		db = db.Where("cluster_name LIKE ? OR display_name LIKE ?",
 			"%"+keyword+"%", "%"+keyword+"%")
@@ -106,15 +115,9 @@ func (cl *clusterHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// 检查集群名称唯一性
-	var count int64
-	if err := database.DB.Model(&model.K8SCluster{}).Where("cluster_name = ?", p.ClusterName).Count(&count).Error; err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusInternalServerError, "查询集群名称失败")
-		return
-	}
-	if count > 0 {
-		response.Fail(c, "集群名称已存在")
+	// 校验 kubeconfig 大小, 防止入过大被 DB 截断
+	if len(p.KubeConfig) > 12800 {
+		response.Fail(c, "kubeconfig 内容超出最大长度(12.8KB)")
 		return
 	}
 
@@ -154,9 +157,13 @@ func (cl *clusterHandler) Create(c *gin.Context) {
 	// 序列化标签为JSON字符串
 	labelsJSON := ""
 	if len(p.Labels) > 0 {
-		if b, err := json.Marshal(p.Labels); err == nil {
-			labelsJSON = string(b)
+		b, err := json.Marshal(p.Labels)
+		if err != nil {
+			logger.Error(err.Error())
+			response.FailWithStatus(c, http.StatusInternalServerError, "序列化标签失败")
+			return
 		}
+		labelsJSON = string(b)
 	}
 
 	cluster := model.K8SCluster{
@@ -173,6 +180,10 @@ func (cl *clusterHandler) Create(c *gin.Context) {
 
 	if err := database.DB.Create(&cluster).Error; err != nil {
 		logger.Error(err.Error())
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			response.Fail(c, "集群名称已存在")
+			return
+		}
 		response.FailWithStatus(c, http.StatusInternalServerError, "创建集群失败")
 		return
 	}
@@ -253,7 +264,7 @@ func (cl *clusterHandler) Update(c *gin.Context) {
 	response.Success(c, "更新集群成功", cluster)
 }
 
-// Delete 删除集群（软删除）
+// Delete 删除集群
 func (cl *clusterHandler) Delete(c *gin.Context) {
 	var p ClusterIDParams
 	if err := c.ShouldBindUri(&p); err != nil {
@@ -307,10 +318,7 @@ func (cl *clusterHandler) Check(c *gin.Context) {
 	client, err := k8s.GetK8sClient(kubeConfig)
 	if err != nil {
 		logger.Error(err.Error())
-		database.DB.Model(&cluster).Updates(map[string]interface{}{
-			"status":            "offline",
-			"last_health_check": time.Now(),
-		})
+		markOffline(&cluster, "")
 		response.FailWithStatus(c, http.StatusBadGateway, "集群连接失败")
 		return
 	}
@@ -319,10 +327,7 @@ func (cl *clusterHandler) Check(c *gin.Context) {
 	version, err := k8sCluster.GetClusterVersion(client)
 	if err != nil {
 		logger.Error(err.Error())
-		database.DB.Model(&cluster).Updates(map[string]interface{}{
-			"status":            "offline",
-			"last_health_check": time.Now(),
-		})
+		markOffline(&cluster, "")
 		response.FailWithStatus(c, http.StatusBadGateway, "获取集群版本失败")
 		return
 	}
@@ -331,10 +336,7 @@ func (cl *clusterHandler) Check(c *gin.Context) {
 	nodes, err := k8sCluster.GetClusterNodesInfo(client)
 	if err != nil {
 		logger.Error(err.Error())
-		database.DB.Model(&cluster).Updates(map[string]interface{}{
-			"status":            "offline",
-			"last_health_check": time.Now(),
-		})
+		markOffline(&cluster, version)
 		response.FailWithStatus(c, http.StatusBadGateway, "获取集群节点信息失败")
 		return
 	}
@@ -343,12 +345,14 @@ func (cl *clusterHandler) Check(c *gin.Context) {
 	responseTimeMs := time.Since(start).Milliseconds()
 
 	// 更新集群状态
-	database.DB.Model(&cluster).Updates(map[string]interface{}{
+	if err := database.DB.Model(&cluster).Updates(map[string]interface{}{
 		"status":            "online",
 		"cluster_version":   version,
 		"node_count":        nodeCount,
 		"last_health_check": time.Now(),
-	})
+	}).Error; err != nil {
+		logger.Error(err.Error())
+	}
 
 	response.Success(c, "集群连通性检查成功", gin.H{
 		"status":         "online",
@@ -356,6 +360,20 @@ func (cl *clusterHandler) Check(c *gin.Context) {
 		"nodeCount":      nodeCount,
 		"responseTimeMs": responseTimeMs,
 	})
+}
+
+// markOffline 将集群标记为离线,保留已获取的版本信息。
+func markOffline(cluster *model.K8SCluster, version string) {
+	updates := map[string]interface{}{
+		"status":            "offline",
+		"last_health_check": time.Now(),
+	}
+	if version != "" {
+		updates["cluster_version"] = version
+	}
+	if err := database.DB.Model(cluster).Updates(updates).Error; err != nil {
+		logger.Error(err.Error())
+	}
 }
 
 // escapeLike escapes SQL LIKE metacharacters (%, _, \) in user input.

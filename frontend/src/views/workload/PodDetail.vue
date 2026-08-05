@@ -5,7 +5,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
 import { getPodDetail, deletePod, getPodEvents, calcAge } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
+import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+
+const clusterStore = useClusterStore()
 
 const route = useRoute()
 const router = useRouter()
@@ -190,14 +193,7 @@ function handleYamlSaved() {
 }
 
 function getClusterName(): string {
-  try {
-    const saved = localStorage.getItem('gkube_cluster')
-    if (saved) {
-      const c = JSON.parse(saved)
-      return c?.clusterName || c?.cluster_name || c?.name || ''
-    }
-  } catch { /* ignore */ }
-  return ''
+  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.cluster_name || clusterStore.currentCluster?.name || ''
 }
 
 function handleLogs() {

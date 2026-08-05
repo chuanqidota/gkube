@@ -604,6 +604,10 @@ export default {
     keyPlaceholder: 'Key',
     valuePlaceholder: 'Value',
     loadFailed: 'Failed to load clusters',
+    displayNameMax: 'Display name cannot exceed 200 characters',
+    descriptionMax: 'Description cannot exceed 500 characters',
+    labelKeyRequired: 'Label key cannot be empty',
+    noSearchResults: 'No matching clusters found',
   },
   sidebar: {
     overview: 'Overview',

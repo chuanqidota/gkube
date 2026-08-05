@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, onMounted, onUnmounted, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Edit, CircleCheck } from '@element-plus/icons-vue'
+import type { FormInstance, FormRules } from 'element-plus'
 import { getClusterList, deleteCluster, checkCluster, updateCluster } from '@/api/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
@@ -25,24 +26,26 @@ const viewMode = ref<'card' | 'table'>(storedView === 'table' || storedView === 
 const editVisible = ref(false)
 const editLoading = ref(false)
 const editClusterId = ref(0)
+const editFormRef = ref<FormInstance>()
 const editForm = reactive({
   displayName: '',
   description: '',
   labels: [] as Array<{ key: string; value: string }>,
 })
 
-const filteredList = computed(() => {
-  if (!searchName.value) return clusterList.value
-  const keyword = searchName.value.toLowerCase()
-  return clusterList.value.filter((c: any) =>
-    (c.displayName || c.clusterName || '').toLowerCase().includes(keyword)
-  )
-})
+const editRules: FormRules = {
+  displayName: [{ max: 200, message: t('cluster.displayNameMax'), trigger: 'blur' }],
+  description: [{ max: 500, message: t('cluster.descriptionMax'), trigger: 'blur' }],
+}
+
+let searchDebounce: ReturnType<typeof setTimeout> | undefined
 
 async function fetchClusters() {
   loading.value = true
   try {
-    const res: any = await getClusterList({ page: page.value, size: size.value })
+    const params: Record<string, unknown> = { page: page.value, size: size.value }
+    if (searchName.value) params.keyword = searchName.value
+    const res: any = await getClusterList(params)
     clusterList.value = res.data.items || []
     total.value = res.data.total || 0
   } catch (e: any) {
@@ -52,21 +55,24 @@ async function fetchClusters() {
   }
 }
 
+// Search triggers server-side fetch with debounce
+watch(searchName, () => {
+  page.value = 1
+  clearTimeout(searchDebounce)
+  searchDebounce = setTimeout(fetchClusters, 300)
+})
+
 async function handleCheck(row: any) {
   try {
     const res: any = await checkCluster(row.id)
     const info = res.data
-    if (info.status === 'online') {
-      ElMessage.success(
-        t('cluster.connectedSuccess', {
-          version: info.clusterVersion,
-          nodeCount: info.nodeCount,
-          responseTimeMs: info.responseTimeMs,
-        })
-      )
-    } else {
-      ElMessage.warning(info.message || t('cluster.connectionFailed'))
-    }
+    ElMessage.success(
+      t('cluster.connectedSuccess', {
+        version: info.clusterVersion,
+        nodeCount: info.nodeCount,
+        responseTimeMs: info.responseTimeMs,
+      })
+    )
     fetchClusters()
   } catch (e: any) {
     ElMessage.error(e?.message || t('cluster.checkFailed'))
@@ -120,11 +126,23 @@ function removeEditLabel(index: number) {
 }
 
 async function handleEditSubmit() {
+  // Validate form
+  const valid = await editFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  // Validate labels: key is required when a label row is added
+  for (const l of editForm.labels) {
+    if (l.key.trim() === '' && l.value.trim() !== '') {
+      ElMessage.warning(t('cluster.labelKeyRequired'))
+      return
+    }
+  }
+
   editLoading.value = true
   try {
     const labels: Record<string, string> = {}
     editForm.labels.forEach((l) => {
-      if (l.key.trim()) labels[l.key.trim()] = l.value
+      if (l.key.trim()) labels[l.key.trim()] = l.value.trim()
     })
 
     await updateCluster(editClusterId.value, {
@@ -162,6 +180,7 @@ function statusText(status: string) {
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchClusters)
 
 onMounted(fetchClusters)
+onUnmounted(() => clearTimeout(searchDebounce))
 </script>
 
 <template>
@@ -194,7 +213,7 @@ onMounted(fetchClusters)
     </ResourceListToolbar>
 
     <el-card shadow="never" class="table-card">
-    <el-table v-if="viewMode === 'table'" :data="filteredList" v-loading="loading" stripe>
+    <el-table v-if="viewMode === 'table'" :data="clusterList" v-loading="loading" stripe>
       <el-table-column label="状态" width="100" align="center">
         <template #default="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag></template>
       </el-table-column>
@@ -224,8 +243,8 @@ onMounted(fetchClusters)
       </el-table-column>
     </el-table>
 
-    <el-row :gutter="16" v-else-if="viewMode === 'card' && filteredList.length > 0">
-      <el-col :span="8" v-for="cluster in filteredList" :key="cluster.id" style="margin-bottom: 16px;">
+    <el-row :gutter="16" v-else-if="viewMode === 'card' && clusterList.length > 0">
+      <el-col :span="8" v-for="cluster in clusterList" :key="cluster.id" style="margin-bottom: 16px;">
         <el-card shadow="hover" class="cluster-card">
           <template #header>
             <div class="cluster-header">
@@ -262,7 +281,7 @@ onMounted(fetchClusters)
       </el-col>
     </el-row>
 
-    <el-empty v-if="!loading && filteredList.length === 0" :description="t('cluster.noClusters')">
+    <el-empty v-if="!loading && clusterList.length === 0" :description="searchName ? t('cluster.noSearchResults') : t('cluster.noClusters')">
       <el-button type="primary" @click="router.push('/clusters/create')"><el-icon><Plus /></el-icon> {{ t('cluster.add') }}</el-button>
     </el-empty>
     </el-card>
@@ -280,7 +299,7 @@ onMounted(fetchClusters)
 
     <!-- 编辑集群对话框 -->
     <el-dialog v-model="editVisible" :title="t('cluster.edit')" width="560px" destroy-on-close>
-      <el-form :model="editForm" label-width="100px">
+      <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="100px">
         <el-form-item :label="t('cluster.displayName')">
           <el-input v-model="editForm.displayName" :placeholder="t('cluster.displayNamePlaceholder')" />
         </el-form-item>

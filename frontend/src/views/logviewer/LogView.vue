@@ -234,20 +234,11 @@ async function initWithQueryParams() {
   const clusterStore = useClusterStore()
   if (cluster) {
     selectedCluster.value = cluster as string
-    // Ensure localStorage has the cluster set so the API interceptor works
-    // The interceptor reads clusterName (camelCase), so we must set that key
-    let clusterObj: any = null
-    try {
-      const saved = localStorage.getItem('gkube_cluster')
-      if (saved) clusterObj = JSON.parse(saved)
-    } catch { /* ignore */ }
-    if (!clusterObj) clusterObj = {}
-    clusterObj.clusterName = cluster as string
-    clusterObj.cluster_name = cluster as string
-    clusterObj.name = cluster as string
-    localStorage.setItem('gkube_cluster', JSON.stringify(clusterObj))
-    // Also update Pinia store so it stays in sync
-    clusterStore.setCurrentCluster(clusterObj)
+    clusterStore.setCurrentCluster({
+      clusterName: cluster as string,
+      cluster_name: cluster as string,
+      name: cluster as string,
+    })
   } else if (clusterStore.currentCluster) {
     selectedCluster.value = clusterStore.currentCluster.cluster_name || clusterStore.currentCluster.name || ''
   }

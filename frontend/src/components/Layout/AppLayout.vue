@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useClusterStore } from '@/stores/cluster'
 import Sidebar from './Sidebar.vue'
 import Header from './Header.vue'
@@ -26,12 +26,9 @@ import Header from './Header.vue'
 const clusterStore = useClusterStore()
 const isCollapse = ref(false)
 
-// 仅在切换集群时强制重挂当前路由页面，触发各页面 refetch 新集群数据。
-// 不再对每次路由 fullPath 变化都重挂（原 viewKey 行为已移除），避免无谓的重渲染。
-const reloadKey = ref(0)
-watch(() => clusterStore.currentCluster, () => {
-  reloadKey.value++
-})
+// 使用稳定的集群标识作为 router-view key,仅在不同集群间切换时强制重挂。
+// 同集群属性更新(如健康检查状态)不会触发页面重挂。
+const reloadKey = computed(() => clusterStore.currentCluster?.id ?? 0)
 </script>
 
 <style scoped>

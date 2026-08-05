@@ -1,5 +1,6 @@
 import axios, { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { getToken, removeToken, getRefreshToken, setToken, setRefreshToken } from '@/utils/auth'
+import { useClusterStore } from '@/stores/cluster'
 
 const request = axios.create({
   baseURL: '/api/v1',
@@ -24,22 +25,19 @@ request.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    // Inject cluster name from localStorage for all K8s API requests
+    // Inject cluster name from store for all K8s API requests
     try {
-      const saved = localStorage.getItem('gkube_cluster')
-      if (saved) {
-        const cluster = JSON.parse(saved)
-        const clusterName = cluster?.clusterName
-        if (clusterName && config.url?.startsWith('/k8s/')) {
-          if (!config.params) config.params = {}
-          if (!config.params.clusterName && !(isPlainObject(config.data) && config.data.clusterName)) {
-            config.params.clusterName = clusterName
-          }
-          // POST/PUT/DELETE requests: also inject into body so ShouldBindJSON can read it.
-          // 仅当 body 是普通对象时写入，避免对 FormData/Blob/字符串等抛错。
-          if (config.method !== 'get' && isPlainObject(config.data) && !config.data.clusterName) {
-            config.data.clusterName = clusterName
-          }
+      const clusterStore = useClusterStore()
+      const clusterName = clusterStore.currentCluster?.clusterName
+      if (clusterName && config.url?.startsWith('/k8s/')) {
+        if (!config.params) config.params = {}
+        if (!config.params.clusterName && !(isPlainObject(config.data) && config.data.clusterName)) {
+          config.params.clusterName = clusterName
+        }
+        // POST/PUT/DELETE requests: also inject into body so ShouldBindJSON can read it.
+        // 仅当 body 是普通对象时写入，避免对 FormData/Blob/字符串等抛错。
+        if (config.method !== 'get' && isPlainObject(config.data) && !config.data.clusterName) {
+          config.data.clusterName = clusterName
         }
       }
     } catch {

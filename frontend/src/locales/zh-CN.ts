@@ -629,6 +629,10 @@ export default {
     keyPlaceholder: '键',
     valuePlaceholder: '值',
     loadFailed: '加载集群列表失败',
+    displayNameMax: '显示名称不能超过200个字符',
+    descriptionMax: '描述不能超过500个字符',
+    labelKeyRequired: '标签键不能为空',
+    noSearchResults: '未找到匹配的集群',
   },
   sidebar: {
     overview: '概览',

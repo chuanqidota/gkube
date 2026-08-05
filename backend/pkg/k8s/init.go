@@ -17,13 +17,13 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// cachedClient wraps a kubernetes.Clientset with an expiration time
+// cachedClient wraps a generic client with an expiration time.
 type cachedClient[T any] struct {
 	client    T
 	expiresAt time.Time
 }
 
-// Client cache with TTL
+// Client cache TTL.
 const clientCacheTTL = 5 * time.Minute
 
 var (
@@ -40,6 +40,47 @@ var (
 	dynamicClientCacheMu sync.RWMutex
 )
 
+// getOrCreateCached is a generic cache lookup with double-checked locking,
+// eliminating duplicate client creation under concurrent cache misses.
+func getOrCreateCached[T any](
+	cache map[string]cachedClient[T],
+	mu *sync.RWMutex,
+	name string,
+	builder func() (T, error),
+) (T, error) {
+	cacheKey := "name:" + name
+
+	// Fast path: read lock only.
+	mu.RLock()
+	if cached, ok := cache[cacheKey]; ok && time.Now().Before(cached.expiresAt) {
+		defer mu.RUnlock()
+		return cached.client, nil
+	}
+	mu.RUnlock()
+
+	// Slow path: acquire write lock and double-check.
+	mu.Lock()
+	if cached, ok := cache[cacheKey]; ok && time.Now().Before(cached.expiresAt) {
+		defer mu.Unlock()
+		return cached.client, nil
+	}
+
+	client, err := builder()
+	if err != nil {
+		mu.Unlock()
+		var zero T
+		return zero, err
+	}
+
+	cache[cacheKey] = cachedClient[T]{
+		client:    client,
+		expiresAt: time.Now().Add(clientCacheTTL),
+	}
+	mu.Unlock()
+
+	return client, nil
+}
+
 // buildRestConfig 从 kubeconfig 字符串构造 rest.Config。
 // 不再自动降级 Insecure:无 CA 证书时让 clientcmd 走默认行为(失败即报错),
 // 避免静默跳过 TLS 校验带来的中间人风险。
@@ -55,12 +96,12 @@ func buildRestConfig(kubeConf string) (*rest.Config, error) {
 	return config, nil
 }
 
-// getCachedKubeConfig retrieves the kubeconfig for a cluster, using DB lookup
+// getCachedKubeConfig retrieves the kubeconfig for a cluster, using DB lookup.
 func getCachedKubeConfig(name string) (string, error) {
 	var k8sCluster clustermodel.K8SCluster
 	if err := database.DB.Model(&clustermodel.K8SCluster{}).
 		Where(map[string]any{"cluster_name": name}).
-		Scan(&k8sCluster).Error; err != nil {
+		First(&k8sCluster).Error; err != nil {
 		return "", err
 	}
 	kubeConfig, err := auth.DecryptAES(k8sCluster.KubeConfig)
@@ -71,7 +112,7 @@ func getCachedKubeConfig(name string) (string, error) {
 	return kubeConfig, nil
 }
 
-// GetK8sClient creates a k8s client from kubeconfig string
+// GetK8sClient creates a k8s client from kubeconfig string.
 func GetK8sClient(k8sConf string) (*kubernetes.Clientset, error) {
 	config, err := buildRestConfig(k8sConf)
 	if err != nil {
@@ -84,133 +125,65 @@ func GetK8sClient(k8sConf string) (*kubernetes.Clientset, error) {
 	return clientSet, nil
 }
 
-// GetK8sClientByName retrieves a k8s client by cluster name with caching
+// GetK8sClientByName retrieves a k8s client by cluster name with caching.
 func GetK8sClientByName(name string) (*kubernetes.Clientset, error) {
-	cacheKey := "name:" + name
-
-	clientCacheMu.RLock()
-	if cached, ok := clientCache[cacheKey]; ok && time.Now().Before(cached.expiresAt) {
-		clientCacheMu.RUnlock()
-		return cached.client, nil
-	}
-	clientCacheMu.RUnlock()
-
-	kubeConfig, err := getCachedKubeConfig(name)
-	if err != nil {
-		return nil, err
-	}
-	clientSet, err := GetK8sClient(kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	clientCacheMu.Lock()
-	clientCache[cacheKey] = cachedClient[*kubernetes.Clientset]{
-		client:    clientSet,
-		expiresAt: time.Now().Add(clientCacheTTL),
-	}
-	clientCacheMu.Unlock()
-
-	return clientSet, nil
+	return getOrCreateCached(clientCache, &clientCacheMu, name, func() (*kubernetes.Clientset, error) {
+		kubeConfig, err := getCachedKubeConfig(name)
+		if err != nil {
+			return nil, err
+		}
+		return GetK8sClient(kubeConfig)
+	})
 }
 
-// GetK8sConf retrieves the kubeconfig string by cluster name
+// GetK8sConf retrieves the kubeconfig string by cluster name.
 func GetK8sConf(name string) (string, error) {
 	return getCachedKubeConfig(name)
 }
 
-// GetApiExtensionsClientByName retrieves an apiextensions client by cluster name with caching
+// GetApiExtensionsClientByName retrieves an apiextensions client by cluster name with caching.
 func GetApiExtensionsClientByName(name string) (*apiextensionsclientset.Clientset, error) {
-	cacheKey := "name:" + name
-
-	aeClientCacheMu.RLock()
-	if cached, ok := aeClientCache[cacheKey]; ok && time.Now().Before(cached.expiresAt) {
-		aeClientCacheMu.RUnlock()
-		return cached.client, nil
-	}
-	aeClientCacheMu.RUnlock()
-
-	kubeConfig, err := getCachedKubeConfig(name)
-	if err != nil {
-		return nil, err
-	}
-	config, err := buildRestConfig(kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	clientSet, err := apiextensionsclientset.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("初始化apiextensions客户端错误:%w", err)
-	}
-
-	aeClientCacheMu.Lock()
-	aeClientCache[cacheKey] = cachedClient[*apiextensionsclientset.Clientset]{
-		client:    clientSet,
-		expiresAt: time.Now().Add(clientCacheTTL),
-	}
-	aeClientCacheMu.Unlock()
-
-	return clientSet, nil
+	return getOrCreateCached(aeClientCache, &aeClientCacheMu, name, func() (*apiextensionsclientset.Clientset, error) {
+		kubeConfig, err := getCachedKubeConfig(name)
+		if err != nil {
+			return nil, err
+		}
+		config, err := buildRestConfig(kubeConfig)
+		if err != nil {
+			return nil, err
+		}
+		clientSet, err := apiextensionsclientset.NewForConfig(config)
+		if err != nil {
+			return nil, fmt.Errorf("初始化apiextensions客户端错误:%w", err)
+		}
+		return clientSet, nil
+	})
 }
 
-// GetRestConfigByName retrieves the REST config by cluster name with caching
+// GetRestConfigByName retrieves the REST config by cluster name with caching.
 func GetRestConfigByName(name string) (*rest.Config, error) {
-	cacheKey := "name:" + name
-
-	restConfigCacheMu.RLock()
-	if cached, ok := restConfigCache[cacheKey]; ok && time.Now().Before(cached.expiresAt) {
-		restConfigCacheMu.RUnlock()
-		return cached.client, nil
-	}
-	restConfigCacheMu.RUnlock()
-
-	kubeConfig, err := getCachedKubeConfig(name)
-	if err != nil {
-		return nil, err
-	}
-	config, err := buildRestConfig(kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	restConfigCacheMu.Lock()
-	restConfigCache[cacheKey] = cachedClient[*rest.Config]{
-		client:    config,
-		expiresAt: time.Now().Add(clientCacheTTL),
-	}
-	restConfigCacheMu.Unlock()
-
-	return config, nil
+	return getOrCreateCached(restConfigCache, &restConfigCacheMu, name, func() (*rest.Config, error) {
+		kubeConfig, err := getCachedKubeConfig(name)
+		if err != nil {
+			return nil, err
+		}
+		return buildRestConfig(kubeConfig)
+	})
 }
 
-// GetDynamicClientByName retrieves a dynamic client by cluster name with caching
+// GetDynamicClientByName retrieves a dynamic client by cluster name with caching.
 func GetDynamicClientByName(name string) (dynamic.Interface, error) {
-	cacheKey := "name:" + name
-
-	dynamicClientCacheMu.RLock()
-	if cached, ok := dynamicClientCache[cacheKey]; ok && time.Now().Before(cached.expiresAt) {
-		dynamicClientCacheMu.RUnlock()
-		return cached.client, nil
-	}
-	dynamicClientCacheMu.RUnlock()
-
-	config, err := GetRestConfigByName(name)
-	if err != nil {
-		return nil, err
-	}
-	client, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("初始化dynamic客户端错误:%w", err)
-	}
-
-	dynamicClientCacheMu.Lock()
-	dynamicClientCache[cacheKey] = cachedClient[dynamic.Interface]{
-		client:    client,
-		expiresAt: time.Now().Add(clientCacheTTL),
-	}
-	dynamicClientCacheMu.Unlock()
-
-	return client, nil
+	return getOrCreateCached(dynamicClientCache, &dynamicClientCacheMu, name, func() (dynamic.Interface, error) {
+		config, err := GetRestConfigByName(name)
+		if err != nil {
+			return nil, err
+		}
+		client, err := dynamic.NewForConfig(config)
+		if err != nil {
+			return nil, fmt.Errorf("初始化dynamic客户端错误:%w", err)
+		}
+		return client, nil
+	})
 }
 
 // InvalidateClient 删除指定集群的全部缓存项(client/ae/rest/dynamic)。

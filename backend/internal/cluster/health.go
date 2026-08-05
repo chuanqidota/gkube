@@ -136,10 +136,28 @@ func (hc *HealthChecker) checkOne(cluster model.K8SCluster) {
 		return
 	}
 
-	// Get server version.
-	version, err := clientset.Discovery().ServerVersion()
-	if err != nil {
+	// Get server version with context-bound timeout.
+	versionCh := make(chan string, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		v, err := clientset.Discovery().ServerVersion()
+		if err != nil {
+			errCh <- err
+			return
+		}
+		versionCh <- v.GitVersion
+	}()
+
+	var version string
+	select {
+	case v := <-versionCh:
+		version = v
+	case err := <-errCh:
 		logrus.Errorf("HealthChecker: cluster %s get server version failed: %v", cluster.ClusterName, err)
+		hc.updateStatus(cluster.ID, "offline", "", 0, now)
+		return
+	case <-ctx.Done():
+		logrus.Errorf("HealthChecker: cluster %s get server version timed out", cluster.ClusterName)
 		hc.updateStatus(cluster.ID, "offline", "", 0, now)
 		return
 	}
@@ -152,8 +170,8 @@ func (hc *HealthChecker) checkOne(cluster model.K8SCluster) {
 		return
 	}
 
-	logrus.Infof("HealthChecker: cluster %s is online (version=%s, nodes=%d)", cluster.ClusterName, version.GitVersion, len(nodes.Items))
-	hc.updateStatus(cluster.ID, "online", version.GitVersion, len(nodes.Items), now)
+	logrus.Infof("HealthChecker: cluster %s is online (version=%s, nodes=%d)", cluster.ClusterName, version, len(nodes.Items))
+	hc.updateStatus(cluster.ID, "online", version, len(nodes.Items), now)
 }
 
 // updateStatus writes the health-check result to the database.

@@ -15,7 +15,10 @@ import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
 import StatefulSetForm from '@/views/workload/components/StatefulSetForm.vue'
+import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+
+const clusterStore = useClusterStore()
 import { useResizable } from '@/composables/useResizable'
 
 const route = useRoute()
@@ -178,14 +181,7 @@ function handleEditCancel() {
 }
 
 function getClusterName(): string {
-  try {
-    const saved = localStorage.getItem('gkube_cluster')
-    if (saved) {
-      const c = JSON.parse(saved)
-      return c?.clusterName || c?.cluster_name || c?.name || ''
-    }
-  } catch { /* ignore */ }
-  return ''
+  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.cluster_name || clusterStore.currentCluster?.name || ''
 }
 
 function handlePodLogs(pod: any) {

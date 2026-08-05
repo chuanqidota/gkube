@@ -12,7 +12,10 @@ import {
 } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
+import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+
+const clusterStore = useClusterStore()
 import { useResizable } from '@/composables/useResizable'
 import { formatAge } from '@/utils/time'
 
@@ -100,14 +103,7 @@ async function fetchEvents() {
 }
 
 function getClusterName(): string {
-  try {
-    const saved = localStorage.getItem('gkube_cluster')
-    if (saved) {
-      const c = JSON.parse(saved)
-      return c?.clusterName || c?.cluster_name || c?.name || ''
-    }
-  } catch { /* ignore */ }
-  return ''
+  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.cluster_name || clusterStore.currentCluster?.name || ''
 }
 
 function handlePodLogs(pod: any) {
