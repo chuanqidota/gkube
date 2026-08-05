@@ -196,7 +196,7 @@ function initRing(el: HTMLElement): echarts.ECharts {
       axisTick: { show: false },
       axisLabel: { show: false },
       data: [{ value: 0 }],
-      detail: { valueAnimation: true, formatter: '{value}%', fontSize: 22, fontWeight: 700, offsetCenter: [0, '5%'], color: tk('--gk-color-primary'), fontFamily: 'JetBrains Mono, monospace' },
+      detail: { valueAnimation: true, formatter: '{value}%', fontSize: 26, fontWeight: 500, offsetCenter: [0, '5%'], color: tk('--gk-color-primary'), fontFamily: 'JetBrains Mono, monospace', textShadowBlur: 12, textShadowColor: tk('--gk-color-primary') + '40' },
     }],
   })
   return chart
@@ -211,7 +211,7 @@ function updateRing(key: string, pct: number, colorFn: (p: number) => string) {
       progress: { itemStyle: { color, shadowBlur: 10, shadowColor: color } },
       axisLine: { lineStyle: { color: [[1, tk('--gk-color-border-light')]] } },
       data: [{ value: pct }],
-      detail: { color },
+      detail: { color, textShadowColor: color + '40' },
     }],
   })
 }
