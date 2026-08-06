@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import { updateNodeTaints } from '@/api/resource'
+import { validateQualifiedName, validateTaintEffect } from '@/utils/resource'
 
 interface Taint { key: string; value: string; effect: string }
 
@@ -24,7 +25,28 @@ function open(name: string, current: Taint[]) {
 function addTaint() { taints.value.push({ key: '', value: '', effect: 'NoSchedule' }) }
 function removeTaint(index: number) { taints.value.splice(index, 1) }
 
+// 校验所有 taint：key 格式 + effect 枚举 + key+effect 唯一。返回首个错误提示。
+function validate(): string {
+  const seen = new Set<string>()
+  for (const t of taints.value) {
+    if (!t.key) continue // 空 key 行视为待删除，保存时过滤
+    const keyErr = validateQualifiedName(t.key)
+    if (keyErr) return `污点 ${t.key}：${keyErr}`
+    const effErr = validateTaintEffect(t.effect)
+    if (effErr) return `污点 ${t.key}：${effErr}`
+    const dedupKey = `${t.key}/${t.effect}`
+    if (seen.has(dedupKey)) return `污点重复：${t.key} (${t.effect}) 已存在，同一 key+effect 只能有一条`
+    seen.add(dedupKey)
+  }
+  return ''
+}
+
 async function handleSave() {
+  const err = validate()
+  if (err) {
+    ElMessage.error(err)
+    return
+  }
   try {
     await updateNodeTaints({ name: nodeName.value, taints: taints.value.filter(t => t.key) })
     ElMessage.success('污点已更新')
@@ -41,7 +63,7 @@ defineExpose({ open })
 <template>
   <el-dialog v-model="visible" title="管理污点" width="600px">
     <div v-for="(taint, index) in taints" :key="index" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
-      <el-input v-model="taint.key" placeholder="Key" style="flex: 2;" />
+      <el-input v-model="taint.key" placeholder="Key（如 node-role.kubernetes.io/master）" style="flex: 2;" />
       <el-input v-model="taint.value" placeholder="Value" style="flex: 1;" />
       <el-select v-model="taint.effect" style="flex: 1.5;">
         <el-option v-for="eff in EFFECTS" :key="eff" :label="eff" :value="eff" />

@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
 )
@@ -28,11 +30,14 @@ const roleLabelPrefix = "node-role.kubernetes.io/"
 
 // protectedLabelPrefixes 下的标签受保护：替换式更新标签时不会被删除或覆盖，
 // 避免 frontend 漏传导致 kubernetes.io/hostname 等节点身份标签丢失、调度异常。
+// 涵盖核心前缀 + 历史保留前缀（beta/alpha）。
 var protectedLabelPrefixes = []string{
 	"kubernetes.io/",
 	"node-role.kubernetes.io/",
 	"node.kubernetes.io/",
 	"k8s.io/",
+	"beta.kubernetes.io/",
+	"node.alpha.kubernetes.io/",
 }
 
 func isProtectedLabel(key string) bool {
@@ -185,6 +190,9 @@ func GetNodeYaml(client *kubernetes.Clientset, nodeName string) (string, error) 
 }
 
 // UpdateNodeYaml 通过 YAML 更新节点：保留服务端 resourceVersion 防止版本冲突。
+// 强制 YAML 内 metadata.name 与目标节点一致，避免 name 不匹配导致晦涩的 409 Conflict。
+// 用服务端对象的 uid/creationTimestamp/status 覆盖用户编辑值，避免用户改这些
+// immutable/服务端管理字段时 K8s 返回晦涩的 400（field is immutable）。
 func UpdateNodeYaml(client *kubernetes.Clientset, nodeName, yamlStr string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
@@ -197,6 +205,13 @@ func UpdateNodeYaml(client *kubernetes.Clientset, nodeName, yamlStr string) erro
 	if err := yaml.Unmarshal([]byte(yamlStr), &nodeObj); err != nil {
 		return fmt.Errorf("%w: %s", ErrYamlParse, err.Error())
 	}
+	if nodeObj.Name != nodeName {
+		return fmt.Errorf("YAML 中 metadata.name(%q) 与目标节点(%q)不一致", nodeObj.Name, nodeName)
+	}
+	// 覆盖 immutable / 服务端管理字段
+	nodeObj.UID = current.UID
+	nodeObj.CreationTimestamp = current.CreationTimestamp
+	nodeObj.Status = current.Status // status 走 status subresource，Update 时应保持原值
 	nodeObj.ResourceVersion = current.ResourceVersion
 	_, err = client.CoreV1().Nodes().Update(ctx, &nodeObj, metav1.UpdateOptions{})
 	return err
@@ -225,60 +240,80 @@ func GetNodePods(client *kubernetes.Clientset, nodeName string) ([]PodView, erro
 }
 
 // CordonNode 封锁或解除封锁节点。返回当前封锁状态。
+// 用 strategic merge patch 直接改 spec.unschedulable，不读全量对象，
+// 避免节点高频更新（kubelet 心跳）导致的 read-modify-write 409 冲突。
 func CordonNode(client *kubernetes.Clientset, nodeName string, cordon bool) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
-	node, err := client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
-	if err != nil {
-		return false, err
-	}
-	node.Spec.Unschedulable = cordon
-	if _, err := client.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{}); err != nil {
+	patch := fmt.Sprintf(`{"spec":{"unschedulable":%t}}`, cordon)
+	if _, err := client.CoreV1().Nodes().Patch(ctx, nodeName, types.StrategicMergePatchType, []byte(patch), metav1.PatchOptions{}); err != nil {
 		return false, err
 	}
 	return cordon, nil
 }
 
+// drainOverallTimeout drain 整体超时（evict 循环）。
+// 超过则停止后续 evict，已提交的 eviction 仍在集群侧继续终止。
+const drainOverallTimeout = 5 * time.Minute
+
 // DrainOptions 驱逐选项
 type DrainOptions struct {
 	IgnoreDaemonSets bool `json:"ignoreDaemonSets"` // 是否忽略 DaemonSet 管理的 Pod
-	DeleteLocalData  bool `json:"deleteLocalData"`  // 是否删除使用 emptyDir 等本地存储的 Pod
+	DeleteLocalData  bool `json:"deleteLocalData"`  // 是否删除使用本地存储（emptyDir/hostPath）的 Pod
 	GracePeriod      int  `json:"gracePeriod"`      // 优雅终止超时秒数，-1 使用 Pod 默认值
-	Force            bool `json:"force"`            // 是否强制驱逐 kube-system 下的 Pod
+	Force            bool `json:"force"`            // 与 kubectl 一致：驱逐不被控制器管理的 standalone Pod
+}
+
+// hasControllerOwner 判断 pod 是否被某控制器（Deployment/StatefulSet/DaemonSet/Job 等）管理。
+// 无控制器 ownerRef 的 pod 为 standalone，kubectl drain 默认拒绝驱逐，需 --force。
+func hasControllerOwner(pod corev1.Pod) bool {
+	for _, ref := range pod.OwnerReferences {
+		if ref.Controller != nil && *ref.Controller {
+			return true
+		}
+	}
+	return false
+}
+
+// hasLocalStorage 判断 pod 是否使用本地存储（emptyDir 或 hostPath）。
+// 与 kubectl drain 一致：这类 pod 默认阻塞 drain，需显式允许删除本地数据。
+func hasLocalStorage(pod corev1.Pod) bool {
+	for _, vol := range pod.Spec.Volumes {
+		if vol.EmptyDir != nil || vol.HostPath != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // DrainNode 驱逐节点上的所有 pod（先封锁再驱逐）。
 // 返回被驱逐/被跳过/驱逐失败的 pod 列表。
-// cordon 与 list pods 是短调用，用显式 30s 超时；evict 循环是长操作，
-// 保留 context.TODO()，逐次驱逐受 rest.Config.Timeout 约束。
+// Step 1 复用 CordonNode（patch 实现，无 409）；list pods 用 30s 短超时；
+// evict 循环受 drainOverallTimeout 整体约束。
 // 与 kubectl drain 一致：单个 pod 驱逐失败不中断，继续尝试其余 pod，最后汇总失败列表。
+// 注意：EvictV1 返回 nil 只代表驱逐请求被 API server 接受，pod 进入 terminating，
+// 并不保证已终止——前端应据此提示"已提交驱逐请求"而非"已驱逐"。
 func DrainNode(client *kubernetes.Clientset, nodeName string, opts DrainOptions) (evicted []string, skipped []string, failed []string, err error) {
-	// Step 1: Cordon the node first（短调用，显式超时）
-	cordonCtx, cordonCancel := context.WithTimeout(context.Background(), requestTimeout)
-	defer cordonCancel()
-	node, err := client.CoreV1().Nodes().Get(cordonCtx, nodeName, metav1.GetOptions{})
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("获取节点失败:%s", err.Error())
-	}
-	if !node.Spec.Unschedulable {
-		node.Spec.Unschedulable = true
-		if _, err := client.CoreV1().Nodes().Update(cordonCtx, node, metav1.UpdateOptions{}); err != nil {
-			return nil, nil, nil, fmt.Errorf("封锁节点失败:%s", err.Error())
-		}
+	// Step 1: Cordon the node first（复用 patch 实现，避免 read-modify-write 409 冲突）
+	if _, err := CordonNode(client, nodeName, true); err != nil {
+		return nil, nil, nil, fmt.Errorf("封锁节点失败:%s", err.Error())
 	}
 
 	// Step 2: List all pods on the node（短调用，显式超时）
+	listCtx, listCancel := context.WithTimeout(context.Background(), requestTimeout)
+	defer listCancel()
 	selector := fields.OneTermEqualSelector("spec.nodeName", nodeName)
-	pods, err := client.CoreV1().Pods(corev1.NamespaceAll).List(cordonCtx, metav1.ListOptions{
+	pods, err := client.CoreV1().Pods(corev1.NamespaceAll).List(listCtx, metav1.ListOptions{
 		FieldSelector: selector.String(),
 	})
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("获取节点pod列表失败:%s", err.Error())
 	}
 
-	// Step 3: Filter and evict
-	const systemNamespace = "kube-system"
+	// Step 3: Filter and evict（整体超时约束 evict 循环）
+	drainCtx, drainCancel := context.WithTimeout(context.Background(), drainOverallTimeout)
+	defer drainCancel()
 	for _, pod := range pods.Items {
 		// Skip mirror pods (static pods)
 		if _, isMirror := pod.Annotations["kubernetes.io/config.mirror"]; isMirror {
@@ -292,13 +327,7 @@ func DrainNode(client *kubernetes.Clientset, nodeName string, opts DrainOptions)
 			continue
 		}
 
-		// Skip kube-system pods (unless forced)
-		if pod.Namespace == systemNamespace && !opts.Force {
-			skipped = append(skipped, fmt.Sprintf("%s/%s (kube-system)", pod.Namespace, pod.Name))
-			continue
-		}
-
-		// Skip DaemonSet-managed pods if option is set
+		// Skip DaemonSet-managed pods if option is set（DaemonSet pod 通常会随节点恢复重新调度，无需驱逐）
 		if opts.IgnoreDaemonSets {
 			isDaemonSet := false
 			for _, ownerRef := range pod.OwnerReferences {
@@ -313,19 +342,16 @@ func DrainNode(client *kubernetes.Clientset, nodeName string, opts DrainOptions)
 			}
 		}
 
+		// Standalone pod（无控制器管理）：kubectl drain 默认拒绝，需 Force 才驱逐
+		if !hasControllerOwner(pod) && !opts.Force {
+			skipped = append(skipped, fmt.Sprintf("%s/%s (standalone, need force)", pod.Namespace, pod.Name))
+			continue
+		}
+
 		// Skip pods with local storage unless DeleteLocalData is set
-		if !opts.DeleteLocalData {
-			hasLocalStorage := false
-			for _, vol := range pod.Spec.Volumes {
-				if vol.EmptyDir != nil {
-					hasLocalStorage = true
-					break
-				}
-			}
-			if hasLocalStorage {
-				skipped = append(skipped, fmt.Sprintf("%s/%s (local storage)", pod.Namespace, pod.Name))
-				continue
-			}
+		if !opts.DeleteLocalData && hasLocalStorage(pod) {
+			skipped = append(skipped, fmt.Sprintf("%s/%s (local storage)", pod.Namespace, pod.Name))
+			continue
 		}
 
 		// Evict the pod — 失败不中断，记录到 failed 列表后继续下一个
@@ -341,7 +367,7 @@ func DrainNode(client *kubernetes.Clientset, nodeName string, opts DrainOptions)
 				GracePeriodSeconds: &gracePeriod,
 			}
 		}
-		if err := client.CoreV1().Pods(pod.Namespace).EvictV1(context.TODO(), eviction); err != nil {
+		if err := client.CoreV1().Pods(pod.Namespace).EvictV1(drainCtx, eviction); err != nil {
 			failed = append(failed, fmt.Sprintf("%s/%s (%s)", pod.Namespace, pod.Name, err.Error()))
 			continue
 		}
@@ -361,44 +387,47 @@ func DeleteNode(client *kubernetes.Clientset, nodeName string) error {
 // UpdateNodeLabels 更新节点标签：保留受保护的系统标签，仅替换用户标签。
 // 传入的 labels 作为用户标签的完整期望集——不在其中的用户标签会被删除，
 // 受保护前缀（kubernetes.io/ 等）下的标签保持原值不被改动。
+// 用 patch 而非 Update：不携带 resourceVersion，避免节点高频更新导致的 409 冲突。
 func UpdateNodeLabels(client *kubernetes.Clientset, nodeName string, labels map[string]string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
-	node, err := client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	// 只读一次当前标签用于保留系统标签；patch 不带 resourceVersion，Get 与 Patch 间
+	// 即使 labels 被并发改动也不会 409（patch 整体替换 labels，语义上即覆盖）。
+	current, err := client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
-
 	merged := make(map[string]string)
-	// 保留受保护的系统标签（节点身份/角色等）
-	for k, v := range node.Labels {
+	for k, v := range current.Labels {
 		if isProtectedLabel(k) {
 			merged[k] = v
 		}
 	}
-	// 合并用户标签：非受保护的 key 按传入 map 覆盖/新增
 	for k, v := range labels {
 		if !isProtectedLabel(k) {
 			merged[k] = v
 		}
 	}
-	node.Labels = merged
-	_, err = client.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
+	patchBytes, err := json.Marshal(map[string]any{"metadata": map[string]any{"labels": merged}})
+	if err != nil {
+		return fmt.Errorf("构造 patch 失败:%s", err.Error())
+	}
+	_, err = client.CoreV1().Nodes().Patch(ctx, nodeName, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	return err
 }
 
 // UpdateNodeTaints 替换式更新节点污点（传入完整污点列表）。
+// 用 patch 而非 Update：不携带 resourceVersion，避免 409 冲突。
 func UpdateNodeTaints(client *kubernetes.Clientset, nodeName string, taints []corev1.Taint) error {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
-	node, err := client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	patchBytes, err := json.Marshal(map[string]any{"spec": map[string]any{"taints": taints}})
 	if err != nil {
-		return err
+		return fmt.Errorf("构造 patch 失败:%s", err.Error())
 	}
-	node.Spec.Taints = taints
-	_, err = client.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
+	_, err = client.CoreV1().Nodes().Patch(ctx, nodeName, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	return err
 }
 

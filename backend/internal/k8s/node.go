@@ -292,9 +292,9 @@ type DrainNodeParams struct {
 	ClusterName      string `json:"clusterName"`
 	Name             string `json:"name" binding:"required" label:"节点名称"`
 	IgnoreDaemonSets bool   `json:"ignoreDaemonSets"` // 是否忽略 DaemonSet
-	DeleteLocalData  bool   `json:"deleteLocalData"`  // 是否删除本地数据
+	DeleteLocalData  bool   `json:"deleteLocalData"`  // 是否删除本地数据（emptyDir/hostPath）
 	GracePeriod      int    `json:"gracePeriod"`      // 优雅终止秒数，-1=默认
-	Force            bool   `json:"force"`            // 是否强制驱逐
+	Force            bool   `json:"force"`            // 驱逐不被控制器管理的 standalone Pod（与 kubectl --force 一致）
 }
 
 // DeleteNodeParams 删除节点参数

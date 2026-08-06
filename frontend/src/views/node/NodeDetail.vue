@@ -203,7 +203,10 @@ watch(nodeName, () => {
           <el-button type="info" @click="handleLabels">标签</el-button>
           <el-button @click="handleOpenYaml">YAML</el-button>
           <el-button type="danger" @click="handleDrain">驱逐</el-button>
-          <el-button type="danger" plain @click="handleDelete(nodeName, () => router.push('/nodes'))">删除</el-button>
+          <el-tooltip v-if="node?.status === 'Ready'" content="节点在线，删除后会重新注册（需先停止 kubelet）" placement="top">
+            <span><el-button type="danger" plain disabled>删除</el-button></span>
+          </el-tooltip>
+          <el-button v-else type="danger" plain @click="handleDelete(nodeName, node?.status === 'Ready', () => router.push('/nodes'))">删除</el-button>
         </el-button-group>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="hover">
@@ -521,7 +524,20 @@ watch(nodeName, () => {
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 4px;
+}
+
+.header-actions .el-button {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.header-actions .el-button:first-child {
+  border-radius: 4px 0 0 4px;
+  margin-left: 0;
+}
+
+.header-actions .el-button:last-of-type {
+  border-radius: 0 4px 4px 0;
 }
 
 .action-divider {

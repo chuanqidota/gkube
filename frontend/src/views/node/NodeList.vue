@@ -138,7 +138,10 @@ onMounted(() => fetchNodes())
               <el-button size="small" type="primary" @click="handleTaints(row)">污点</el-button>
               <el-button size="small" type="info" @click="handleLabels(row)">标签</el-button>
               <el-button size="small" type="danger" @click="handleDrain(row)">驱逐</el-button>
-              <el-button size="small" type="danger" plain @click="handleDelete(row.name)">删除</el-button>
+              <el-tooltip v-if="row.status === 'Ready'" content="节点在线，删除后会重新注册（需先停止 kubelet）" placement="top">
+                <span><el-button size="small" type="danger" plain disabled>删除</el-button></span>
+              </el-tooltip>
+              <el-button v-else size="small" type="danger" plain @click="handleDelete(row.name, row.status === 'Ready')">删除</el-button>
             </div>
           </template>
         </el-table-column>
@@ -184,7 +187,10 @@ onMounted(() => fetchNodes())
               <el-button size="small" type="primary" @click="handleTaints(node)">污点</el-button>
               <el-button size="small" type="info" @click="handleLabels(node)">标签</el-button>
               <el-button size="small" type="danger" @click="handleDrain(node)">驱逐</el-button>
-              <el-button size="small" type="danger" plain @click="handleDelete(node.name)">删除</el-button>
+              <el-tooltip v-if="node.status === 'Ready'" content="节点在线，删除后会重新注册（需先停止 kubelet）" placement="top">
+                <span><el-button size="small" type="danger" plain disabled>删除</el-button></span>
+              </el-tooltip>
+              <el-button v-else size="small" type="danger" plain @click="handleDelete(node.name, node.status === 'Ready')">删除</el-button>
             </div>
           </el-card>
         </el-col>

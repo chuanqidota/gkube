@@ -1,4 +1,51 @@
 /**
+ * K8s qualified name 校验（label key、taint key 等均遵循此规则）。
+ * 规则：可选 prefix/（DNS 子域名，≤253 字符）+ name（≤63 字符，字母数字开头结尾，中间可含 -_.）。
+ * 与 K8s apimachinery IsQualifiedName 对齐。
+ */
+const QUALIFIED_NAME_RE = /^(?:(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\/)?[A-Za-z0-9](?:[-A-Za-z0-9_.]*[A-Za-z0-9])?$/
+
+/**
+ * 校验 K8s qualified name（label/taint key）。返回错误提示，合法时返回空字符串。
+ */
+export function validateQualifiedName(key: string, maxLen = 63): string {
+  if (!key) return 'Key 不能为空'
+  // 拆分 prefix/name 分别校验
+  const slashIdx = key.indexOf('/')
+  if (slashIdx >= 0) {
+    const prefix = key.slice(0, slashIdx)
+    const name = key.slice(slashIdx + 1)
+    if (prefix.length > 253) return 'prefix 部分长度不能超过 253'
+    if (name.length > maxLen) return `name 部分长度不能超过 ${maxLen}`
+  } else if (key.length > maxLen) {
+    return `Key 长度不能超过 ${maxLen}`
+  }
+  if (!QUALIFIED_NAME_RE.test(key)) return 'Key 格式不合法（需字母数字开头结尾，仅含 -_.，可选 prefix/）'
+  return ''
+}
+
+/**
+ * 校验 K8s label value（可为空，非空时 ≤63 字符，字母数字开头结尾，中间可含 -_.）。
+ * 返回错误提示，合法时返回空字符串。
+ */
+const LABEL_VALUE_RE = /^[A-Za-z0-9](?:[-A-Za-z0-9_.]*[A-Za-z0-9])?$/
+export function validateLabelValue(value: string): string {
+  if (value === '') return ''
+  if (value.length > 63) return 'Value 长度不能超过 63'
+  if (!LABEL_VALUE_RE.test(value)) return 'Value 格式不合法（需字母数字开头结尾，仅含 -_.）'
+  return ''
+}
+
+/**
+ * 校验 taint effect 是否为合法枚举值。返回错误提示，合法时返回空字符串。
+ */
+const VALID_TAINT_EFFECTS = ['NoSchedule', 'PreferNoSchedule', 'NoExecute']
+export function validateTaintEffect(effect: string): string {
+  if (!VALID_TAINT_EFFECTS.includes(effect)) return 'Effect 必须为 NoSchedule/PreferNoSchedule/NoExecute'
+  return ''
+}
+
+/**
  * K8s resource quantity 格式化工具。
  *
  * K8s 的 CPU/内存数量有多种后缀表示（m 毫核、Ki/Mi/Gi/Ti 二进制后缀、裸数值），

@@ -311,7 +311,7 @@ function nodePipClass(n: NodeInfo) {
         <span class="pip" :class="`pip-${clusterStatusType(String(clusterStore.currentCluster?.status || ''))}`">
           <i class="pip-dot" />{{ clusterStatusText(String(clusterStore.currentCluster?.status || '')) }}
         </span>
-        <span v-if="clusterStore.currentCluster?.clusterVersion" class="chip-mono">v{{ clusterStore.currentCluster.clusterVersion }}</span>
+        <span v-if="clusterStore.currentCluster?.clusterVersion" class="chip-mono">{{ clusterStore.currentCluster.clusterVersion }}</span>
       </div>
       <div class="cmd-stats">
         <button v-for="s in stats" :key="s.label" class="stat-pill" @click="goto(s.route)">
