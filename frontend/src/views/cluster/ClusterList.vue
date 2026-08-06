@@ -6,12 +6,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Edit, CircleCheck } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getClusterList, deleteCluster, checkCluster, updateCluster } from '@/api/cluster'
+import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import ViewModeToggle from '@/components/ViewModeToggle.vue'
 const { t } = useI18n()
 const router = useRouter()
+const clusterStore = useClusterStore()
 const loading = ref(false)
 const clusterList = ref<any[]>([])
 const searchName = ref('')
@@ -93,6 +95,7 @@ async function handleDelete(row: any) {
     await deleteCluster(row.id)
     ElMessage.success(t('cluster.deleted'))
     fetchClusters()
+    clusterStore.fetchClusters()
   } catch (e: any) {
     ElMessage.error(e?.message || t('common.deleteFailed'))
   }

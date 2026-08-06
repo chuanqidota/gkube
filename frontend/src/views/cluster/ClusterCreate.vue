@@ -4,10 +4,12 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { createCluster } from '@/api/cluster'
+import { useClusterStore } from '@/stores/cluster'
 import type { FormInstance, FormRules } from 'element-plus'
 
 const { t } = useI18n()
 const router = useRouter()
+const clusterStore = useClusterStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 
@@ -51,6 +53,7 @@ async function handleSubmit() {
       labels,
     })
     ElMessage.success(t('cluster.clusterCreated'))
+    clusterStore.fetchClusters()
     router.push('/clusters')
   } catch (e: any) {
     ElMessage.error(e?.message || t('cluster.createFailed'))
