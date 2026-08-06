@@ -8,6 +8,7 @@ export interface Cluster {
   clusterName?: string
   cluster_name?: string
   name?: string
+  displayName?: string
   display_name?: string
   [key: string]: unknown
 }

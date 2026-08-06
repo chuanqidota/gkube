@@ -1,4 +1,5 @@
 import request from './request'
+import type { AxiosResponse } from 'axios'
 import { formatAge } from '@/utils/helpers'
 
 export interface Pod {
@@ -308,14 +309,10 @@ export interface NodeInfo {
   labels: Record<string, string>
   taints: { key: string; value: string; effect: string }[]
   is_ready: boolean
-  capacity_cpu: string
-  capacity_memory: string
-  allocatable_cpu: string
-  allocatable_mem: string
   os_image: string
   kernel_version: string
   container_runtime: string
-  age: string
+  creationTimestamp: string
   // 资源使用（口径：已请求 / 可分配，非真实负载）
   cpu_used: number
   cpu_total: number
@@ -342,34 +339,61 @@ export interface NodeDetail {
   conditions: { type: string; status: string; reason: string; message: string; lastTransitionTime: string }[]
   capacity: Record<string, string>
   allocatable: Record<string, string>
-  age: string
+  creationTimestamp: string
 }
 
-export function getNodeList(params?: { clusterName?: string }) {
+export interface NodeEvent {
+  type: string
+  reason: string
+  message: string
+  last_seen: string
+}
+
+export interface DrainResult {
+  evicted: string[]
+  skipped: string[]
+  failed: string[]
+}
+
+// 原始 K8s Pod（getNodePods 返回完整 Pod 对象，前端按需取字段）
+// getNodePods 返回的 Pod 视图，与后端 pkg/k8s/node.PodView 对齐（仅暴露前端所需字段）
+export interface K8sPod {
+  name: string
+  namespace: string
+  creationTimestamp: string
+  status: {
+    phase: string
+    podIP: string
+    conditions: { type: string; status: string }[]
+    containerStatuses: { restartCount: number }[]
+  }
+}
+
+export function getNodeList(params?: { clusterName?: string }): Promise<AxiosResponse<NodeInfo[]>> {
   return request.get('/k8s/cluster/nodes', { params })
 }
 
-export function getNodeDetail(params: { name: string }) {
+export function getNodeDetail(params: { name: string }): Promise<AxiosResponse<NodeDetail>> {
   return request.get('/k8s/node/detail', { params })
 }
 
-export function getNodeYaml(params: { name: string }) {
+export function getNodeYaml(params: { name: string }): Promise<AxiosResponse<{ yaml: string }>> {
   return request.get('/k8s/node/get-yaml', { params })
 }
 
-export function updateNodeYaml(data: { name: string; yaml: string }) {
+export function updateNodeYaml(data: { name: string; yaml: string }): Promise<AxiosResponse<null>> {
   return request.put('/k8s/node/update-yaml', data)
 }
 
-export function cordonNode(data: { name: string; cordon: boolean }) {
+export function cordonNode(data: { name: string; cordon: boolean }): Promise<AxiosResponse<{ isCordon: boolean }>> {
   return request.put('/k8s/node/cordon', data)
 }
 
-export function updateNodeTaints(data: { name: string; taints: { key: string; value: string; effect: string }[] }) {
+export function updateNodeTaints(data: { name: string; taints: { key: string; value: string; effect: string }[] }): Promise<AxiosResponse<null>> {
   return request.put('/k8s/node/taints', data)
 }
 
-export function updateNodeLabels(data: { name: string; labels: Record<string, string> }) {
+export function updateNodeLabels(data: { name: string; labels: Record<string, string> }): Promise<AxiosResponse<null>> {
   return request.put('/k8s/node/labels', data)
 }
 
@@ -379,19 +403,19 @@ export function drainNode(data: {
   deleteLocalData?: boolean
   gracePeriod?: number
   force?: boolean
-}) {
+}): Promise<AxiosResponse<DrainResult>> {
   return request.put('/k8s/node/drain', data)
 }
 
-export function deleteNode(data: { name: string }) {
+export function deleteNode(data: { name: string }): Promise<AxiosResponse<null>> {
   return request.delete('/k8s/node/delete', { data })
 }
 
-export function getNodePods(params: { name: string }) {
+export function getNodePods(params: { name: string }): Promise<AxiosResponse<K8sPod[]>> {
   return request.get('/k8s/node/pods', { params })
 }
 
-export function getNodeEvents(params: { name: string }) {
+export function getNodeEvents(params: { name: string }): Promise<AxiosResponse<NodeEvent[]>> {
   return request.get('/k8s/node/events', { params })
 }
 

@@ -2,7 +2,12 @@ package cluster
 
 import (
 	"context"
+	"fmt"
+	"time"
+
 	clusterModel "gkube/internal/cluster/model"
+	k8sNode "gkube/pkg/k8s/node"
+	"gkube/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,8 +47,12 @@ func GetClusterNodesInfo(client *kubernetes.Clientset) ([]clusterModel.NodeInfo,
 		mem resource.Quantity
 	}
 	nodeReqs := make(map[string]nodeRequests)
-	pods, err := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-	if err == nil {
+	pods, podListErr := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+	if podListErr != nil {
+		// 不静默吞掉：失败时记日志，下游 PodCount/CPUUsed/MemUsed 保持 0，
+		// 调用方/前端至少能从日志查到根因，而非误以为节点真的空闲。
+		logger.Error(fmt.Sprintf("获取集群 Pod 列表失败，节点使用量统计将为 0: %s", podListErr.Error()))
+	} else {
 		for _, pod := range pods.Items {
 			if pod.Spec.NodeName == "" {
 				continue
@@ -70,31 +79,8 @@ func GetClusterNodesInfo(client *kubernetes.Clientset) ([]clusterModel.NodeInfo,
 	var nodesInfo []clusterModel.NodeInfo
 
 	for _, node := range nodes.Items {
-		// Determine status
-		status := "Unknown"
-		isReady := false
-		for _, condition := range node.Status.Conditions {
-			if condition.Type == corev1.NodeReady {
-				if condition.Status == corev1.ConditionTrue {
-					status = "Ready"
-					isReady = true
-				} else {
-					status = "NotReady"
-				}
-				break
-			}
-		}
-
-		// Get roles from labels
-		var roles string
-		for label := range node.Labels {
-			if len(label) > 24 && label[:24] == "node-role.kubernetes.io/" {
-				if roles != "" {
-					roles += ", "
-				}
-				roles += label[24:]
-			}
-		}
+		status, isReady := k8sNode.NodeStatus(node.Status.Conditions)
+		roles := k8sNode.NodeRoles(node.Labels)
 
 		// Get addresses
 		var internalIP, externalIP string
@@ -124,21 +110,7 @@ func GetClusterNodesInfo(client *kubernetes.Clientset) ([]clusterModel.NodeInfo,
 			OSImage:          node.Status.NodeInfo.OSImage,
 			KernelVersion:    node.Status.NodeInfo.KernelVersion,
 			ContainerRuntime: node.Status.NodeInfo.ContainerRuntimeVersion,
-			Age:              node.CreationTimestamp.Time.Format("2006-01-02 15:04:05"),
-		}
-
-		// 提取资源容量和可分配资源
-		if cpu, ok := node.Status.Capacity[corev1.ResourceCPU]; ok {
-			nodeInfo.CapacityCPU = cpu.String()
-		}
-		if mem, ok := node.Status.Capacity[corev1.ResourceMemory]; ok {
-			nodeInfo.CapacityMemory = formatMemory(mem)
-		}
-		if cpu, ok := node.Status.Allocatable[corev1.ResourceCPU]; ok {
-			nodeInfo.AllocatableCPU = cpu.String()
-		}
-		if mem, ok := node.Status.Allocatable[corev1.ResourceMemory]; ok {
-			nodeInfo.AllocatableMem = formatMemory(mem)
+			CreationTimestamp: node.CreationTimestamp.Format(time.RFC3339),
 		}
 
 		// 进度条用数字字段：已请求 / 可分配（口径为调度压力，非真实负载）

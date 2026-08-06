@@ -39,7 +39,6 @@ func registerCoreRoutes(rg *gin.RouterGroup) {
 	rg.GET("node/pods", k8s.Node.GetNodePods)
 	rg.GET("node/events", k8s.Node.GetNodeEvents)
 	rg.PUT("node/cordon", k8s.Node.CordonNode)
-	rg.PUT("node/taint", k8s.Node.SetTaintNode)
 	rg.PUT("node/taints", k8s.Node.UpdateNodeTaints)
 	rg.PUT("node/labels", k8s.Node.UpdateNodeLabels)
 	rg.PUT("node/drain", k8s.Node.DrainNode)

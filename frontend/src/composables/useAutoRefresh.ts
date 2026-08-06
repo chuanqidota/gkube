@@ -7,6 +7,12 @@ export interface AutoRefreshOptions {
   autoStart?: boolean
   /** Available interval options in seconds */
   intervalOptions?: number[]
+  /**
+   * 手动刷新时调用的 fetch 函数。默认回退到 fetchFn。
+   * 自动刷新通常走 silent（不显示遮罩），手动刷新需显示遮罩——
+   * 传入此参数可解耦两者，避免手动刷新也静默。
+   */
+  manualFetch?: () => Promise<void>
 }
 
 const DEFAULT_INTERVAL_OPTIONS = [5, 10, 15, 30, 60]
@@ -16,6 +22,7 @@ export function useAutoRefresh(fetchFn: () => Promise<void>, options: AutoRefres
     interval = 15000,
     autoStart = false,
     intervalOptions = DEFAULT_INTERVAL_OPTIONS,
+    manualFetch,
   } = typeof options === 'number' ? { interval: options } : options
 
   const isRunning = ref(autoStart)
@@ -71,7 +78,9 @@ export function useAutoRefresh(fetchFn: () => Promise<void>, options: AutoRefres
   }
 
   function refresh() {
-    fetchFn()
+    // 手动刷新优先用 manualFetch（可显示遮罩），否则回退到 fetchFn
+    const fn = manualFetch || fetchFn
+    fn()
     if (isRunning.value) {
       stop()
       start()

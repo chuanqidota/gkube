@@ -11,6 +11,7 @@ import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { usagePercent, progressColor } from '@/utils/helpers'
+import { formatCpuCores as fmtCpu, formatMemGiB as fmtMem } from '@/utils/resource'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -37,8 +38,7 @@ const nsList = ref<NamespaceUsage[]>([])
 const sortKey = ref<'cpu' | 'mem'>('cpu')
 const health = ref<ClusterHealth | null>(null)
 
-function fmtCpu(n: number) { return (n || 0).toFixed(2) }
-function fmtMem(n: number) { return (n || 0).toFixed(1) }
+
 
 // 读取 CSS token(ECharts 需具体色值,运行时读取保证主题一致)
 function tk(name: string) {
@@ -142,7 +142,7 @@ async function fetchWorkloads() {
 }
 async function fetchNodes() {
   nodesLoading.value = true
-  try { const res: any = await getNodeList({ clusterName: clusterName.value }); nodeList.value = res.data || [] }
+  try { const res = await getNodeList({ clusterName: clusterName.value }); nodeList.value = res.data || [] }
   catch (e) { console.error('Failed to fetch nodes:', e) }
   finally { nodesLoading.value = false }
 }

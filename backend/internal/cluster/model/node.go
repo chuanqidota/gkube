@@ -18,14 +18,10 @@ type NodeInfo struct {
 	Taints           []corev1.Taint       `json:"taints" label:"污点"`
 	IsReady          bool                 `json:"is_ready" label:"是否就绪"`
 	Addresses        []corev1.NodeAddress `json:"addresses" label:"地址"`
-	CapacityCPU      string               `json:"capacity_cpu" label:"总cpu"`
-	CapacityMemory   string               `json:"capacity_memory" label:"总内存"`
-	AllocatableCPU   string               `json:"allocatable_cpu" label:"可用cpu"`
-	AllocatableMem   string               `json:"allocatable_mem" label:"可用内存"`
 	OSImage          string               `json:"os_image" label:"操作系统"`
 	KernelVersion    string               `json:"kernel_version" label:"内核版本"`
 	ContainerRuntime string               `json:"container_runtime" label:"容器运行时"`
-	Age              string               `json:"age" label:"年龄"`
+	CreationTimestamp string             `json:"creationTimestamp" label:"创建时间"`
 
 	// 资源使用（口径：已请求 / 可分配，非真实负载）
 	// CPU 单位为核，内存单位为 GiB；PodTotal 来自 Status.Capacity[pods]

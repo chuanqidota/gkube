@@ -89,7 +89,9 @@ export function formatAge(creationTimestamp: string, suffix: boolean = true): st
   if (!creationTimestamp) return '-'
   const created = new Date(creationTimestamp).getTime()
   const now = Date.now()
-  const diff = Math.floor((now - created) / 1000)
+  let diff = Math.floor((now - created) / 1000)
+  // 时钟偏移/回拨可能导致负值，钳制为 0，避免显示 "-5s" 这类负年龄
+  if (diff < 0) diff = 0
   const ago = suffix ? ' ago' : ''
   if (diff < 60) return `${diff}s${ago}`
   if (diff < 3600) return `${Math.floor(diff / 60)}m${ago}`
