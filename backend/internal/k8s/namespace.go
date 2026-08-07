@@ -5,6 +5,7 @@ import (
 	"maps"
 
 	"github.com/gin-gonic/gin"
+	corev1 "k8s.io/api/core/v1"
 	k8sclient "gkube/pkg/k8s"
 	k8sNamespace "gkube/pkg/k8s/namespace"
 	"gkube/pkg/response"
@@ -14,6 +15,18 @@ type namespace struct {
 }
 
 var Namespace = new(namespace)
+
+// namespaceStatus returns a user-friendly status string from a K8s NamespacePhase.
+func namespaceStatus(phase corev1.NamespacePhase) string {
+	switch phase {
+	case corev1.NamespaceActive:
+		return "Active"
+	case corev1.NamespaceTerminating:
+		return "Terminating"
+	default:
+		return "Unknown"
+	}
+}
 
 // GetNamespaceList
 //
@@ -39,22 +52,13 @@ func (n *namespace) GetNamespaceList(c *gin.Context) {
 	// 返回完整的命名空间对象列表
 	var result []map[string]any
 	for _, ns := range namespaces.Items {
-		status := "Unknown"
-		if ns.Status.Phase == "Active" {
-			status = "Active"
-		} else if ns.Status.Phase == "Terminating" {
-			status = "Terminating"
-		}
-
 		labels := make(map[string]string)
 		maps.Copy(labels, ns.Labels)
-
 		annotations := make(map[string]string)
 		maps.Copy(annotations, ns.Annotations)
-
 		result = append(result, map[string]any{
 			"name":        ns.Name,
-			"status":      status,
+			"status":      namespaceStatus(ns.Status.Phase),
 			"labels":      labels,
 			"annotations": annotations,
 			"age":         ns.CreationTimestamp.Time.Format("2006-01-02 15:04:05"),
@@ -98,6 +102,10 @@ func (n *namespace) UpdateNamespaceLabels(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
 		return
 	}
+	if body.Namespace == "" {
+		response.Fail(c, "namespace参数不能为空")
+		return
+	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
@@ -122,6 +130,10 @@ func (n *namespace) GetNamespaceDetail(c *gin.Context) {
 		response.Fail(c, "name参数不能为空")
 		return
 	}
+	if clusterName == "" {
+		response.Fail(c, "clusterName参数不能为空")
+		return
+	}
 	client, err := k8sclient.GetK8sClientByName(clusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
@@ -132,23 +144,13 @@ func (n *namespace) GetNamespaceDetail(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取命名空间详情失败:%s", err.Error()))
 		return
 	}
-
-	status := "Unknown"
-	if ns.Status.Phase == "Active" {
-		status = "Active"
-	} else if ns.Status.Phase == "Terminating" {
-		status = "Terminating"
-	}
-
 	labels := make(map[string]string)
 	maps.Copy(labels, ns.Labels)
-
 	annotations := make(map[string]string)
 	maps.Copy(annotations, ns.Annotations)
-
 	result := map[string]any{
 		"name":        ns.Name,
-		"status":      status,
+		"status":      namespaceStatus(ns.Status.Phase),
 		"labels":      labels,
 		"annotations": annotations,
 		"age":         ns.CreationTimestamp.Time.Format("2006-01-02 15:04:05"),
@@ -166,6 +168,10 @@ func (n *namespace) GetNamespaceYaml(c *gin.Context) {
 	clusterName := c.Query("clusterName")
 	if name == "" {
 		response.Fail(c, "name参数不能为空")
+		return
+	}
+	if clusterName == "" {
+		response.Fail(c, "clusterName参数不能为空")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(clusterName)
@@ -217,6 +223,10 @@ func (n *namespace) DeleteNamespace(c *gin.Context) {
 	clusterName := c.Query("clusterName")
 	if name == "" {
 		response.Fail(c, "name参数不能为空")
+		return
+	}
+	if clusterName == "" {
+		response.Fail(c, "clusterName参数不能为空")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(clusterName)

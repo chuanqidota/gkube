@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import {
   getNamespaceList,
   createNamespace,
@@ -19,6 +20,7 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const namespaceStore = useNamespaceStore()
 const loading = ref(false)
@@ -70,6 +72,20 @@ function statusType(status: string) {
   return 'info'
 }
 
+// Shared YAML loader used by both handleViewYaml and @cancel handler
+async function loadYaml(ns: Namespace) {
+  yamlLoading.value = true
+  try {
+    const res: any = await getNamespaceYaml({ name: ns.name })
+    yamlContent.value = res.data?.yaml || res.data || ''
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('namespace.loadingYamlFailed'))
+    yamlDialogVisible.value = false
+  } finally {
+    yamlLoading.value = false
+  }
+}
+
 // Create
 function addLabel() { createForm.value.labels.push({ key: '', value: '' }) }
 function removeLabel(i: number) { createForm.value.labels.splice(i, 1) }
@@ -78,7 +94,7 @@ function removeAnnotation(i: number) { createForm.value.annotations.splice(i, 1)
 
 async function handleCreate() {
   if (!createForm.value.name.trim()) {
-    ElMessage.warning('请输入命名空间名称')
+    ElMessage.warning(t('namespace.enterNamespaceName'))
     return
   }
   creating.value = true
@@ -96,13 +112,13 @@ async function handleCreate() {
       labels: Object.keys(labels).length > 0 ? labels : undefined,
       annotations: Object.keys(annotations).length > 0 ? annotations : undefined,
     })
-    ElMessage.success('命名空间已创建')
+    ElMessage.success(t('namespace.namespaceCreated'))
     createDialogVisible.value = false
     createForm.value = { name: '', labels: [], annotations: [] }
     namespaceStore.clearCache()
     fetchNamespaces()
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建命名空间失败')
+    ElMessage.error(e?.message || t('namespace.createNamespaceFailed'))
   } finally {
     creating.value = false
   }
@@ -112,12 +128,12 @@ async function handleCreate() {
 async function handleDelete(row: Namespace) {
   try {
     await ElMessageBox.confirm(
-      `确定要删除命名空间 "${row.name}" 吗？该命名空间下的所有资源将被删除。`,
-      '确认删除',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+      t('namespace.deleteConfirm', { name: row.name }),
+      t('namespace.confirmDelete'),
+      { type: 'warning', confirmButtonText: t('namespace.deleteBtn'), cancelButtonText: t('namespace.cancelButton') }
     )
     await deleteNamespace({ name: row.name })
-    ElMessage.success('命名空间已删除')
+    ElMessage.success(t('namespace.deleteSuccess'))
     namespaceStore.clearCache()
     fetchNamespaces()
   } catch {
@@ -129,30 +145,7 @@ async function handleDelete(row: Namespace) {
 async function handleViewYaml(row: Namespace) {
   yamlTarget.value = row
   yamlDialogVisible.value = true
-  yamlLoading.value = true
-  yamlContent.value = ''
-  try {
-    const res: any = await getNamespaceYaml({ name: row.name })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 YAML 失败')
-    yamlDialogVisible.value = false
-  } finally {
-    yamlLoading.value = false
-  }
-}
-
-async function fetchYaml() {
-  if (!yamlTarget.value) return
-  yamlLoading.value = true
-  try {
-    const res: any = await getNamespaceYaml({ name: yamlTarget.value.name })
-    yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 YAML 失败')
-  } finally {
-    yamlLoading.value = false
-  }
+  await loadYaml(row)
 }
 
 async function handleSaveYaml() {
@@ -160,10 +153,10 @@ async function handleSaveYaml() {
   yamlSaving.value = true
   try {
     await updateNamespace({ yaml: yamlContent.value })
-    ElMessage.success('YAML 已保存')
+    ElMessage.success(t('namespace.yamlSaved'))
     fetchNamespaces()
   } catch (e: any) {
-    ElMessage.error(e?.message || '保存 YAML 失败')
+    ElMessage.error(e?.message || t('namespace.saveYamlFailed'))
   } finally {
     yamlSaving.value = false
   }
@@ -188,11 +181,11 @@ async function handleSaveLabels() {
       if (l.key.trim()) labels[l.key.trim()] = l.value
     })
     await updateNamespaceLabels({ namespace: labelsTarget.value.name, labels })
-    ElMessage.success('标签已更新')
+    ElMessage.success(t('namespace.labelsUpdated'))
     labelsDialogVisible.value = false
     fetchNamespaces()
   } catch (e: any) {
-    ElMessage.error(e?.message || '更新标签失败')
+    ElMessage.error(e?.message || t('namespace.labelsUpdateFailed'))
   }
 }
 
@@ -211,12 +204,12 @@ onMounted(fetchNamespaces)
       :search-value="searchName"
       :total-count="namespaceList.length"
       :show-namespace="false"
-      search-placeholder="搜索命名空间名称"
+      :search-placeholder="t('namespace.searchPlaceholder')"
       @search-input="searchName = $event"
     >
       <template #actions>
         <el-button type="success" @click="createDialogVisible = true">
-          <el-icon><Plus /></el-icon> 创建
+          <el-icon><Plus /></el-icon> {{ t('namespace.createBtn') }}
         </el-button>
       </template>
       <template #extra>
@@ -235,17 +228,17 @@ onMounted(fetchNamespaces)
 
     <el-card shadow="never" class="table-card">
       <el-table :data="filteredList" v-loading="loading" stripe>
-        <el-table-column label="状态" width="100" align="center">
+        <el-table-column :label="t('namespace.statusLabel')" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)" size="small" effect="dark">{{ row.status || 'Unknown' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column :prop=" 'name' " :label="t('namespace.nameLabel')" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column label="标签" min-width="250" show-overflow-tooltip>
+        <el-table-column :label="t('common.labels')" min-width="250" show-overflow-tooltip>
           <template #default="{ row }">
             <el-tag
               v-for="(v, k) in (row.labels || {})"
@@ -256,73 +249,73 @@ onMounted(fetchNamespaces)
             <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: var(--el-text-color-secondary);">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="age" label="创建时间" width="180" />
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column :prop=" 'age' " :label="t('namespace.ageLabel')" width="180" />
+        <el-table-column :label="t('common.actions')" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="primary" @click="handleLabels(row)">标签</el-button>
-            <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
+            <el-button size="small" @click="handleViewYaml(row)">{{ t('namespace.yamlBtn') }}</el-button>
+            <el-button size="small" type="primary" @click="handleLabels(row)">{{ t('namespace.labelBtn') }}</el-button>
+            <el-button size="small" type="danger" plain @click="handleDelete(row)">{{ t('namespace.deleteBtn') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     <!-- Create Namespace Dialog -->
-    <el-dialog v-model="createDialogVisible" title="创建命名空间" width="580px" destroy-on-close>
+    <el-dialog v-model="createDialogVisible" :title="t('namespace.createDialogTitle')" width="580px" destroy-on-close>
       <el-form label-width="100px">
-        <el-form-item label="名称" required>
-          <el-input v-model="createForm.name" placeholder="my-namespace" />
+        <el-form-item :label="t('common.name')" required>
+          <el-input v-model="createForm.name" :placeholder="t('namespace.createNamePlaceholder')" />
         </el-form-item>
-        <el-form-item label="标签">
+        <el-form-item :label="t('namespace.labels')">
           <div style="width: 100%;">
             <div v-for="(label, i) in createForm.labels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <el-input v-model="label.key" placeholder="Key" style="flex: 1;" />
-              <el-input v-model="label.value" placeholder="Value" style="flex: 1;" />
+              <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 1;" />
+              <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 1;" />
               <el-button type="danger" circle size="small" @click="removeLabel(i)"><el-icon><Delete /></el-icon></el-button>
             </div>
-            <el-button size="small" @click="addLabel"><el-icon><Plus /></el-icon> 添加标签</el-button>
+            <el-button size="small" @click="addLabel"><el-icon><Plus /></el-icon> {{ t('namespace.addLabel') }}</el-button>
           </div>
         </el-form-item>
-        <el-form-item label="注解">
+        <el-form-item :label="t('namespace.annotations')">
           <div style="width: 100%;">
             <div v-for="(anno, i) in createForm.annotations" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <el-input v-model="anno.key" placeholder="Key" style="flex: 1;" />
-              <el-input v-model="anno.value" placeholder="Value" style="flex: 1;" />
+              <el-input v-model="anno.key" :placeholder="t('namespace.key')" style="flex: 1;" />
+              <el-input v-model="anno.value" :placeholder="t('namespace.value')" style="flex: 1;" />
               <el-button type="danger" circle size="small" @click="removeAnnotation(i)"><el-icon><Delete /></el-icon></el-button>
             </div>
-            <el-button size="small" @click="addAnnotation"><el-icon><Plus /></el-icon> 添加注解</el-button>
+            <el-button size="small" @click="addAnnotation"><el-icon><Plus /></el-icon> {{ t('namespace.addAnnotation') }}</el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleCreate" :loading="creating">创建</el-button>
+        <el-button @click="createDialogVisible = false">{{ t('namespace.cancelButton') }}</el-button>
+        <el-button type="primary" @click="handleCreate" :loading="creating">{{ t('namespace.createBtn') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- YAML Drawer -->
-    <el-drawer v-model="yamlDialogVisible" :title="`命名空间 YAML: ${yamlTarget?.name}`" size="85%" direction="rtl" class="yaml-drawer"
+    <el-drawer v-model="yamlDialogVisible" :title="`${t('namespace.yamlTitle')}: ${yamlTarget?.name}`" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
       <div v-loading="yamlLoading" style="height: calc(100vh - 56px);">
-        <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="fetchYaml" />
+        <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="yamlTarget ? loadYaml(yamlTarget) : null" />
       </div>
     </el-drawer>
 
     <!-- Labels Dialog -->
-    <el-dialog v-model="labelsDialogVisible" :title="`管理标签: ${labelsTarget?.name}`" width="600px" destroy-on-close>
+    <el-dialog v-model="labelsDialogVisible" :title="`${t('namespace.labelsTitle')}: ${labelsTarget?.name}`" width="600px" destroy-on-close>
       <div v-for="(label, i) in labelsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
-        <el-input v-model="label.key" placeholder="Key" style="flex: 2;" />
-        <el-input v-model="label.value" placeholder="Value" style="flex: 2;" />
+        <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 2;" />
+        <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 2;" />
         <el-button type="danger" circle size="small" @click="removeEditLabel(i)">
           <el-icon><Delete /></el-icon>
         </el-button>
       </div>
       <el-button @click="addEditLabel" style="margin-top: 8px;">
-        <el-icon><Plus /></el-icon> 添加标签
+        <el-icon><Plus /></el-icon> {{ t('namespace.addLabel') }}
       </el-button>
       <template #footer>
-        <el-button @click="labelsDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveLabels">保存</el-button>
+        <el-button @click="labelsDialogVisible = false">{{ t('namespace.cancelButton') }}</el-button>
+        <el-button type="primary" @click="handleSaveLabels">{{ t('namespace.saveBtn') }}</el-button>
       </template>
     </el-dialog>
   </div>

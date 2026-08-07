@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import {
   getNamespaceDetail,
   getNamespaceYaml,
@@ -19,6 +20,7 @@ import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import yaml from 'js-yaml'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const namespaceStore = useNamespaceStore()
@@ -80,7 +82,8 @@ async function fetchDetail() {
     const res: any = await getNamespaceDetail({ name })
     namespace.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载命名空间详情失败')
+    ElMessage.error(e?.message || t('namespace.loadDetailFailed'))
+    namespace.value = null
   } finally {
     loading.value = false
   }
@@ -123,7 +126,7 @@ function showCreateRqDialog() {
 
 async function handleCreateRq() {
   if (!rqForm.name) {
-    ElMessage.warning('请输入名称')
+    ElMessage.warning(t('namespace.pleaseEnterName'))
     return
   }
   const hard: Record<string, string> = {}
@@ -136,24 +139,24 @@ async function handleCreateRq() {
   if (rqForm.pvcs) hard['persistentvolumeclaims'] = rqForm.pvcs
 
   if (Object.keys(hard).length === 0) {
-    ElMessage.warning('请至少填写一项资源限制')
+    ElMessage.warning(t('namespace.atLeastOneLimit'))
     return
   }
 
   rqCreating.value = true
   try {
-    const yaml = JSON.stringify({
+    const yamlContent = JSON.stringify({
       apiVersion: 'v1',
       kind: 'ResourceQuota',
       metadata: { name: rqForm.name, namespace: name },
       spec: { hard },
     }, null, 2)
-    await createResourceQuota({ namespace: name, yaml })
-    ElMessage.success('ResourceQuota 创建成功')
+    await createResourceQuota({ namespace: name, yaml: yamlContent })
+    ElMessage.success(t('namespace.rqCreated'))
     rqDialogVisible.value = false
     fetchResourceQuotas()
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || t('namespace.createFailed'))
   } finally {
     rqCreating.value = false
   }
@@ -188,7 +191,7 @@ function removeLrLimit(i: number) {
 
 async function handleCreateLr() {
   if (!lrForm.name) {
-    ElMessage.warning('请输入名称')
+    ElMessage.warning(t('namespace.pleaseEnterName'))
     return
   }
 
@@ -212,18 +215,18 @@ async function handleCreateLr() {
 
   lrCreating.value = true
   try {
-    const yaml = JSON.stringify({
+    const yamlContent = JSON.stringify({
       apiVersion: 'v1',
       kind: 'LimitRange',
       metadata: { name: lrForm.name, namespace: name },
       spec: { limits },
     }, null, 2)
-    await createLimitRange({ namespace: name, yaml })
-    ElMessage.success('LimitRange 创建成功')
+    await createLimitRange({ namespace: name, yaml: yamlContent })
+    ElMessage.success(t('namespace.lrCreated'))
     lrDialogVisible.value = false
     fetchLimitRanges()
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || t('namespace.createFailed'))
   } finally {
     lrCreating.value = false
   }
@@ -232,12 +235,12 @@ async function handleCreateLr() {
 async function handleDelete() {
   try {
     await ElMessageBox.confirm(
-      `确定要删除命名空间 "${name}" 吗？该命名空间下的所有资源将被删除。`,
-      '确认删除',
-      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
+      t('namespace.deleteConfirm', { name }),
+      t('namespace.confirmDelete'),
+      { type: 'error', confirmButtonText: t('namespace.deleteBtn'), cancelButtonText: t('namespace.cancelButton') }
     )
     await deleteNamespace({ name })
-    ElMessage.success('命名空间已删除')
+    ElMessage.success(t('namespace.deleteSuccess'))
     namespaceStore.clearCache()
     router.push('/namespaces')
   } catch { /* cancelled */ }
@@ -260,11 +263,11 @@ async function handleSaveLabels() {
       if (l.key.trim()) labels[l.key.trim()] = l.value
     })
     await updateNamespaceLabels({ namespace: name, labels })
-    ElMessage.success('标签已更新')
+    ElMessage.success(t('namespace.labelsUpdated'))
     labelsDialogVisible.value = false
     fetchDetail()
   } catch (e: any) {
-    ElMessage.error(e?.message || '更新标签失败')
+    ElMessage.error(e?.message || t('namespace.labelsUpdateFailed'))
   }
 }
 
@@ -287,22 +290,28 @@ async function handleSaveAnnotations() {
   })
   annotationsSaving.value = true
   try {
-    // 后端无专门的注解更新接口，通过全量 YAML 更新实现：拉取当前 YAML → 覆盖 annotations → 提交
+    // Backend has no dedicated annotation update API, so load YAML → overwrite annotations → submit
     const res: any = await getNamespaceYaml({ name })
     const raw = res.data?.yaml ?? res.data ?? ''
-    const doc: any = yaml.load(raw) || {}
-    if (!doc.metadata) doc.metadata = {}
+    let doc: any
+    try {
+      doc = yaml.load(raw)
+    } catch {
+      ElMessage.error(t('namespace.yamlLoadError'))
+      return
+    }
+    if (!doc?.metadata) doc.metadata = {}
     if (Object.keys(annotations).length > 0) {
       doc.metadata.annotations = annotations
     } else {
       delete doc.metadata.annotations
     }
     await updateNamespace({ yaml: yaml.dump(doc) })
-    ElMessage.success('注解已更新')
+    ElMessage.success(t('namespace.annotationsUpdated'))
     annotationsDialogVisible.value = false
     fetchDetail()
   } catch (e: any) {
-    ElMessage.error(e?.message || '更新注解失败')
+    ElMessage.error(e?.message || t('namespace.annotationsUpdateFailed'))
   } finally {
     annotationsSaving.value = false
   }
@@ -378,9 +387,9 @@ onMounted(() => {
         </div>
       </div>
       <div class="header-actions">
-        <el-button type="primary" @click="handleEditLabels">标签</el-button>
-        <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" plain @click="handleDelete">删除</el-button>
+        <el-button type="primary" @click="handleEditLabels">{{ t('namespace.labelBtn') }}</el-button>
+        <el-button @click="handleOpenYaml">{{ t('common.yaml') }}</el-button>
+        <el-button type="danger" plain @click="handleDelete">{{ t('namespace.deleteBtn') }}</el-button>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="hover">
           <template #reference>
@@ -392,7 +401,7 @@ onMounted(() => {
           </template>
           <div class="auto-refresh-popover">
             <div class="popover-title">
-              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
+              {{ isRunning ? t('common.autoRefreshOn', { n: countdown }) : t('common.autoRefresh') }}
             </div>
             <el-select
               :model-value="currentInterval / 1000"
@@ -404,15 +413,15 @@ onMounted(() => {
                 v-for="sec in availableIntervals"
                 :key="sec"
                 :value="sec"
-                :label="`每 ${sec} 秒刷新`"
+                :label="`${t('namespace.autoRefreshEvery')} ${sec} ${t('namespace.seconds')}`"
               />
             </el-select>
           </div>
         </el-popover>
-        <el-tooltip content="刷新" placement="top">
+        <el-tooltip :content="t('common.refresh')" placement="top">
           <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
         </el-tooltip>
-        <el-tooltip content="返回列表" placement="top">
+        <el-tooltip :content="t('common.back')" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/namespaces')" />
         </el-tooltip>
       </div>
@@ -423,21 +432,21 @@ onMounted(() => {
 
         <!-- 左侧：基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
-          <div class="panel-title">基本信息</div>
+          <div class="panel-title">{{ t('namespace.detail') }}</div>
           <div class="info-body">
             <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="名称">{{ namespace.name }}</el-descriptions-item>
-              <el-descriptions-item label="状态">
+              <el-descriptions-item :label="t('namespace.nameLabel')">{{ namespace.name }}</el-descriptions-item>
+              <el-descriptions-item :label="t('common.status')">
                 <el-tag :type="statusTagType" size="small" effect="dark">{{ namespace.status }}</el-tag>
               </el-descriptions-item>
-              <el-descriptions-item label="创建时间">{{ namespace.age }}</el-descriptions-item>
+              <el-descriptions-item :label="t('namespace.ageLabel')">{{ namespace.age }}</el-descriptions-item>
             </el-descriptions>
 
             <!-- Labels -->
             <div style="margin-top: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; font-size: 13px;">Labels</h4>
-                <el-button size="small" @click="handleEditLabels">编辑</el-button>
+                <h4 style="margin: 0; font-size: 13px;">{{ t('namespace.labels') }}</h4>
+                <el-button size="small" @click="handleEditLabels">{{ t('common.edit') }}</el-button>
               </div>
               <div v-if="namespace.labels && Object.keys(namespace.labels).length > 0">
                 <el-tag
@@ -449,21 +458,21 @@ onMounted(() => {
                   {{ k }}={{ v }}
                 </el-tag>
               </div>
-              <span v-else style="color: #909399; font-size: 12px;">无标签</span>
+              <span v-else style="color: #909399; font-size: 12px;">{{ t('namespace.noLabels') }}</span>
             </div>
 
             <!-- Annotations -->
             <div style="margin-top: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; font-size: 13px;">Annotations</h4>
-                <el-button size="small" @click="handleEditAnnotations">编辑</el-button>
+                <h4 style="margin: 0; font-size: 13px;">{{ t('namespace.annotations') }}</h4>
+                <el-button size="small" @click="handleEditAnnotations">{{ t('common.edit') }}</el-button>
               </div>
               <div v-if="namespace.annotations && Object.keys(namespace.annotations).length > 0">
                 <div v-for="(v, k) in namespace.annotations" :key="k" style="margin-bottom: 4px; font-size: 12px;">
                   <span style="font-weight: 600;">{{ k }}:</span> {{ v }}
                 </div>
               </div>
-              <span v-else style="color: #909399; font-size: 12px;">无注解</span>
+              <span v-else style="color: #909399; font-size: 12px;">{{ t('namespace.noAnnotations') }}</span>
             </div>
           </div>
         </div>
@@ -474,30 +483,30 @@ onMounted(() => {
           <!-- Resource Quotas -->
           <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
             <div class="panel-title">
-              资源配额
-              <span class="count-badge">{{ resourceQuotas.length }} 个</span>
+              {{ t('namespace.resourceQuotas') }}
+              <span class="count-badge">{{ resourceQuotas.length }} {{ t('namespace.count') }}</span>
               <el-button size="small" type="primary" @click="showCreateRqDialog" style="margin-left: auto;">
-                <el-icon><Plus /></el-icon> 创建
+                <el-icon><Plus /></el-icon> {{ t('namespace.createBtn') }}
               </el-button>
             </div>
             <div class="table-body">
               <el-table v-if="resourceQuotas.length > 0" :data="resourceQuotas" size="small" stripe>
-                <el-table-column prop="name" label="名称" min-width="200" />
-                <el-table-column label="硬限制" min-width="250">
+                <el-table-column prop="name" :label="t('namespace.nameLabel')" min-width="200" />
+                <el-table-column :label="t('namespace.hardLimit')" min-width="250">
                   <template #default="{ row }">
                     <div v-for="(v, k) in (row.hard || {})" :key="k" style="font-size: 12px;">{{ k }}: {{ v }}</div>
                   </template>
                 </el-table-column>
-                <el-table-column label="已使用" min-width="250">
+                <el-table-column :label="t('namespace.used')" min-width="250">
                   <template #default="{ row }">
                     <div v-for="(v, k) in (row.used || {})" :key="k" style="font-size: 12px;">{{ k }}: {{ v }}</div>
                   </template>
                 </el-table-column>
-                <el-table-column prop="age" label="创建时间" width="180" />
+                <el-table-column prop="age" :label="t('namespace.ageLabel')" width="180" />
               </el-table>
               <div v-else class="empty-hint">
-                暂无资源配额
-                <el-button type="primary" size="small" @click="showCreateRqDialog" style="margin-top: 8px;">创建资源配额</el-button>
+                {{ t('namespace.noResourceQuotas') }}
+                <el-button type="primary" size="small" @click="showCreateRqDialog" style="margin-top: 8px;">{{ t('namespace.setQuotaBtn') }}</el-button>
               </div>
             </div>
           </div>
@@ -508,16 +517,16 @@ onMounted(() => {
           <!-- Limit Ranges -->
           <div class="right-section">
             <div class="panel-title">
-              资源限制
-              <span class="count-badge">{{ limitRanges.length }} 个</span>
+              {{ t('namespace.limitRanges') }}
+              <span class="count-badge">{{ limitRanges.length }} {{ t('namespace.count') }}</span>
               <el-button size="small" type="primary" @click="showCreateLrDialog" style="margin-left: auto;">
-                <el-icon><Plus /></el-icon> 创建
+                <el-icon><Plus /></el-icon> {{ t('namespace.createBtn') }}
               </el-button>
             </div>
             <div class="table-body">
               <el-table v-if="limitRanges.length > 0" :data="limitRanges" size="small" stripe>
-                <el-table-column prop="name" label="名称" min-width="200" />
-                <el-table-column label="限制" min-width="300">
+                <el-table-column prop="name" :label="t('namespace.nameLabel')" min-width="200" />
+                <el-table-column :label="t('namespace.limit')" min-width="300">
                   <template #default="{ row }">
                     <div v-for="(limit, i) in (row.limits || [])" :key="i" style="font-size: 12px; margin-bottom: 4px;">
                       <el-tag size="small" style="margin-right: 4px;">{{ limit.type }}</el-tag>
@@ -526,11 +535,11 @@ onMounted(() => {
                     </div>
                   </template>
                 </el-table-column>
-                <el-table-column prop="age" label="创建时间" width="180" />
+                <el-table-column prop="age" :label="t('namespace.ageLabel')" width="180" />
               </el-table>
               <div v-else class="empty-hint">
-                暂无资源限制
-                <el-button type="primary" size="small" @click="showCreateLrDialog" style="margin-top: 8px;">创建资源限制</el-button>
+                {{ t('namespace.noLimitRanges') }}
+                <el-button type="primary" size="small" @click="showCreateLrDialog" style="margin-top: 8px;">{{ t('namespace.setLimitBtn') }}</el-button>
               </div>
             </div>
           </div>
@@ -556,108 +565,124 @@ onMounted(() => {
     />
 
     <!-- Labels Dialog -->
-    <el-dialog v-model="labelsDialogVisible" title="管理标签" width="600px" destroy-on-close>
+    <el-dialog v-model="labelsDialogVisible" :title="t('namespace.labelsTitle')" width="600px" destroy-on-close>
       <div v-for="(label, i) in labelsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
-        <el-input v-model="label.key" placeholder="Key" style="flex: 2;" />
-        <el-input v-model="label.value" placeholder="Value" style="flex: 2;" />
+        <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 2;" />
+        <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 2;" />
         <el-button type="danger" circle size="small" @click="removeLabel(i)">
           <el-icon><Delete /></el-icon>
         </el-button>
       </div>
       <el-button @click="addLabel" style="margin-top: 8px;">
-        <el-icon><Plus /></el-icon> 添加标签
+        <el-icon><Plus /></el-icon> {{ t('namespace.addLabel') }}
       </el-button>
       <template #footer>
-        <el-button @click="labelsDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveLabels">保存</el-button>
+        <el-button @click="labelsDialogVisible = false">{{ t('namespace.cancelButton') }}</el-button>
+        <el-button type="primary" @click="handleSaveLabels">{{ t('namespace.saveBtn') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- Annotations Dialog -->
-    <el-dialog v-model="annotationsDialogVisible" title="管理注解" width="650px" destroy-on-close>
+    <el-dialog v-model="annotationsDialogVisible" :title="t('namespace.annotationsDialogTitle')" width="650px" destroy-on-close>
       <div v-for="(anno, i) in annotationsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
-        <el-input v-model="anno.key" placeholder="Key" style="flex: 2;" />
-        <el-input v-model="anno.value" placeholder="Value" style="flex: 2;" />
+        <el-input v-model="anno.key" :placeholder="t('namespace.key')" style="flex: 2;" />
+        <el-input v-model="anno.value" :placeholder="t('namespace.value')" style="flex: 2;" />
         <el-button type="danger" circle size="small" @click="removeAnnotation(i)">
           <el-icon><Delete /></el-icon>
         </el-button>
       </div>
       <el-button @click="addAnnotation" style="margin-top: 8px;">
-        <el-icon><Plus /></el-icon> 添加注解
+        <el-icon><Plus /></el-icon> {{ t('namespace.addAnnotation') }}
       </el-button>
       <template #footer>
-        <el-button @click="annotationsDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="annotationsSaving" @click="handleSaveAnnotations">保存</el-button>
+        <el-button @click="annotationsDialogVisible = false">{{ t('namespace.cancelButton') }}</el-button>
+        <el-button type="primary" :loading="annotationsSaving" @click="handleSaveAnnotations">{{ t('namespace.saveBtn') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- Create ResourceQuota Drawer -->
-    <el-drawer v-model="rqDialogVisible" title="创建资源配额" direction="rtl" size="500px" destroy-on-close>
+    <el-drawer v-model="rqDialogVisible" :title="t('namespace.setQuota')" direction="rtl" size="500px" destroy-on-close>
       <el-form label-width="160px">
-        <el-form-item label="名称" required>
-          <el-input v-model="rqForm.name" placeholder="my-resource-quota" />
+        <el-form-item :label="t('common.name')" required>
+          <el-input v-model="rqForm.name" :placeholder="t('namespace.createNamePlaceholder')" />
         </el-form-item>
-        <el-divider>资源限制</el-divider>
-        <el-form-item label="CPU 请求上限">
-          <el-input v-model="rqForm.requestsCpu" placeholder="例如: 4" />
+        <el-divider>{{ t('namespace.resourceLimits') }}</el-divider>
+        <el-form-item :label="t('namespace.requestsCpu')">
+          <el-input v-model="rqForm.requestsCpu" :placeholder="t('namespace.exampleCpu')" />
         </el-form-item>
-        <el-form-item label="内存请求上限">
-          <el-input v-model="rqForm.requestsMemory" placeholder="例如: 8Gi" />
+        <el-form-item :label="t('namespace.requestsMemory')">
+          <el-input v-model="rqForm.requestsMemory" :placeholder="t('namespace.exampleMemory')" />
         </el-form-item>
-        <el-form-item label="CPU 限制上限">
-          <el-input v-model="rqForm.limitsCpu" placeholder="例如: 8" />
+        <el-form-item :label="t('namespace.limitsCpu')">
+          <el-input v-model="rqForm.limitsCpu" :placeholder="t('namespace.exampleCpu')" />
         </el-form-item>
-        <el-form-item label="内存限制上限">
-          <el-input v-model="rqForm.limitsMemory" placeholder="例如: 16Gi" />
+        <el-form-item :label="t('namespace.limitsMemory')">
+          <el-input v-model="rqForm.limitsMemory" :placeholder="t('namespace.exampleMemory')" />
         </el-form-item>
-        <el-form-item label="Pod 数量上限">
-          <el-input v-model="rqForm.pods" placeholder="例如: 20" />
+        <el-form-item :label="t('namespace.podCount')">
+          <el-input v-model="rqForm.pods" :placeholder="t('namespace.exampleNumber')" />
         </el-form-item>
-        <el-form-item label="Service 数量上限">
-          <el-input v-model="rqForm.services" placeholder="例如: 10" />
+        <el-form-item :label="t('namespace.serviceCount')">
+          <el-input v-model="rqForm.services" :placeholder="t('namespace.exampleNumber')" />
         </el-form-item>
-        <el-form-item label="PVC 数量上限">
-          <el-input v-model="rqForm.pvcs" placeholder="例如: 5" />
+        <el-form-item :label="t('namespace.pvcCount')">
+          <el-input v-model="rqForm.pvcs" :placeholder="t('namespace.exampleNumber')" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rqDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="rqCreating" @click="handleCreateRq">创建</el-button>
+        <el-button @click="rqDialogVisible = false">{{ t('namespace.cancelButton') }}</el-button>
+        <el-button type="primary" :loading="rqCreating" @click="handleCreateRq">{{ t('namespace.createBtn') }}</el-button>
       </template>
     </el-drawer>
 
     <!-- Create LimitRange Drawer -->
-    <el-drawer v-model="lrDialogVisible" title="创建资源限制" direction="rtl" size="550px" destroy-on-close>
+    <el-drawer v-model="lrDialogVisible" :title="t('namespace.setLimit')" direction="rtl" size="550px" destroy-on-close>
       <el-form label-width="140px">
-        <el-form-item label="名称" required>
-          <el-input v-model="lrForm.name" placeholder="my-limit-range" />
+        <el-form-item :label="t('common.name')" required>
+          <el-input v-model="lrForm.name" :placeholder="t('namespace.createNamePlaceholder')" />
         </el-form-item>
 
         <div v-for="(limit, i) in lrForm.limits" :key="i" style="border: 1px solid var(--el-border-color); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
             <el-select v-model="limit.type" style="width: 200px;">
-              <el-option label="容器 (Container)" value="Container" />
-              <el-option label="Pod" value="Pod" />
-              <el-option label="持久卷声明 (PVC)" value="PersistentVolumeClaim" />
+              <el-option :label="t('namespace.containerType')" value="Container" />
+              <el-option :label="t('namespace.podType')" value="Pod" />
+              <el-option :label="t('namespace.pvcType')" value="PersistentVolumeClaim" />
             </el-select>
-            <el-button v-if="lrForm.limits.length > 1" type="danger" size="small" @click="removeLrLimit(i)">移除</el-button>
+            <el-button v-if="lrForm.limits.length > 1" type="danger" size="small" @click="removeLrLimit(i)">{{ t('namespace.removeLimit') }}</el-button>
           </div>
-          <el-form-item label="CPU 最大值"><el-input v-model="limit.maxCpu" placeholder="例如: 4" /></el-form-item>
-          <el-form-item label="内存最大值"><el-input v-model="limit.maxMemory" placeholder="例如: 8Gi" /></el-form-item>
-          <el-form-item label="CPU 最小值"><el-input v-model="limit.minCpu" placeholder="例如: 100m" /></el-form-item>
-          <el-form-item label="内存最小值"><el-input v-model="limit.minMemory" placeholder="例如: 128Mi" /></el-form-item>
-          <el-form-item label="默认 CPU 值"><el-input v-model="limit.defaultCpu" placeholder="例如: 500m" /></el-form-item>
-          <el-form-item label="默认内存值"><el-input v-model="limit.defaultMemory" placeholder="例如: 512Mi" /></el-form-item>
-          <el-form-item label="默认 CPU 请求值"><el-input v-model="limit.defaultRequestCpu" placeholder="例如: 100m" /></el-form-item>
-          <el-form-item label="默认内存请求值"><el-input v-model="limit.defaultRequestMemory" placeholder="例如: 128Mi" /></el-form-item>
+          <el-form-item :label="t('namespace.maxCpu')">
+            <el-input v-model="limit.maxCpu" :placeholder="t('namespace.exampleCpu')" />
+          </el-form-item>
+          <el-form-item :label="t('namespace.maxMemory')">
+            <el-input v-model="limit.maxMemory" :placeholder="t('namespace.exampleMemory')" />
+          </el-form-item>
+          <el-form-item :label="t('namespace.minCpu')">
+            <el-input v-model="limit.minCpu" :placeholder="t('namespace.exampleCpu')" />
+          </el-form-item>
+          <el-form-item :label="t('namespace.minMemory')">
+            <el-input v-model="limit.minMemory" :placeholder="t('namespace.exampleMemory')" />
+          </el-form-item>
+          <el-form-item :label="t('namespace.defaultCpu')">
+            <el-input v-model="limit.defaultCpu" :placeholder="t('namespace.exampleCpu')" />
+          </el-form-item>
+          <el-form-item :label="t('namespace.defaultMemory')">
+            <el-input v-model="limit.defaultMemory" :placeholder="t('namespace.exampleMemory')" />
+          </el-form-item>
+          <el-form-item :label="t('namespace.defaultRequestCpu')">
+            <el-input v-model="limit.defaultRequestCpu" :placeholder="t('namespace.exampleCpu')" />
+          </el-form-item>
+          <el-form-item :label="t('namespace.defaultRequestMemory')">
+            <el-input v-model="limit.defaultRequestMemory" :placeholder="t('namespace.exampleMemory')" />
+          </el-form-item>
         </div>
         <el-button @click="addLrLimit" style="margin-bottom: 16px;">
-          <el-icon><Plus /></el-icon> 添加限制
+          <el-icon><Plus /></el-icon> {{ t('namespace.addLimit') }}
         </el-button>
       </el-form>
       <template #footer>
-        <el-button @click="lrDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="lrCreating" @click="handleCreateLr">创建</el-button>
+        <el-button @click="lrDialogVisible = false">{{ t('namespace.cancelButton') }}</el-button>
+        <el-button type="primary" :loading="lrCreating" @click="handleCreateLr">{{ t('namespace.createBtn') }}</el-button>
       </template>
     </el-drawer>
   </div>
