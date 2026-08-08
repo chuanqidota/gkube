@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useClusterStore } from '@/stores/cluster'
@@ -30,6 +30,9 @@ const selectedCluster = ref('')
 const selectedNamespace = ref('')
 const selectedPod = ref('')
 const selectedContainer = ref('')
+const containers = ref<{ name: string; isInit: boolean }[]>([])
+const appContainers = computed(() => containers.value.filter((c) => !c.isInit))
+const initContainers = computed(() => containers.value.filter((c) => c.isInit))
 const skipWatchers = ref(false)
 
 const terminalRef = ref<HTMLDivElement>()
@@ -60,21 +63,18 @@ async function initWithQueryParams() {
   selectedNamespace.value = namespace as string
   selectedPod.value = pod as string
 
-  // Fetch pod detail to get container list
-  if (!container) {
-    try {
-      const res: any = await getPodDetail({ namespace: namespace as string, name: pod as string })
-      const containers = res.data?.spec?.containers || []
-      if (containers.length > 0) {
-        selectedContainer.value = containers[0].name
-      } else {
-        ElMessage.warning('Pod has no containers')
-      }
-    } catch (e: any) {
-      ElMessage.error('Failed to get pod detail: ' + (e?.message || 'unknown error'))
-    }
-  } else {
+  // Fetch container list (app + init) for the pod, then pick the target container
+  const ok = await fetchContainers()
+  if (!ok) {
+    // 获取失败已报错,选择器保持空,不误报"Pod 无容器"
+  } else if (container) {
     selectedContainer.value = container as string
+  } else if (appContainers.value.length > 0) {
+    selectedContainer.value = appContainers.value[0].name
+  } else if (initContainers.value.length > 0) {
+    selectedContainer.value = initContainers.value[0].name
+  } else {
+    ElMessage.warning('Pod has no containers')
   }
 
   skipWatchers.value = false
@@ -83,6 +83,8 @@ async function initWithQueryParams() {
 let terminal: Terminal | null = null
 let fitAddon: FitAddon | null = null
 let ws: WebSocket | null = null
+// 连接代际:每次 connectTerminal 自增,异步等待 ticket 期间若被更新的连接取代则放弃
+let connectGen = 0
 
 async function fetchClusters() {
   try {
@@ -124,12 +126,30 @@ async function fetchPods() {
   }
 }
 
+async function fetchContainers(): Promise<boolean> {
+  containers.value = []
+  if (!selectedPod.value) return false
+  try {
+    const res: any = await getPodDetail({ namespace: selectedNamespace.value, name: selectedPod.value })
+    const spec = res.data?.spec || {}
+    const app = (spec.containers || []).map((c: any) => ({ name: c.name as string, isInit: false }))
+    const init = (spec.initContainers || []).map((c: any) => ({ name: c.name as string, isInit: true }))
+    containers.value = [...app, ...init]
+    return true
+  } catch (e: any) {
+    // 取容器列表失败时显式报错,避免误报"Pod 无容器"并把选择器卡死
+    ElMessage.error('获取容器列表失败: ' + (e?.message || 'unknown error'))
+    return false
+  }
+}
+
 async function connectTerminal() {
   if (!selectedCluster.value || !selectedNamespace.value || !selectedPod.value || !selectedContainer.value) {
     return
   }
 
   disconnectTerminal()
+  const gen = ++connectGen
 
   // WebSocket 无法设置自定义 header，改用一次性短期 ticket 鉴权（?ticket=），
   // 避免长效 access token 进入 URL 被网关/浏览器历史记录。
@@ -138,13 +158,15 @@ async function connectTerminal() {
     const res: any = await getWsTicket()
     ticket = res.data?.ticket || ''
   } catch (e: any) {
-    ElMessage.error('获取终端鉴权票据失败：' + (e?.message || 'unknown error'))
+    if (gen === connectGen) ElMessage.error('获取终端鉴权票据失败：' + (e?.message || 'unknown error'))
     return
   }
   if (!ticket) {
-    ElMessage.error('获取终端鉴权票据失败')
+    if (gen === connectGen) ElMessage.error('获取终端鉴权票据失败')
     return
   }
+  // 等待 ticket 期间用户又切换了容器:让更新的连接接管,本次放弃
+  if (gen !== connectGen) return
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
@@ -289,6 +311,23 @@ watch(selectedCluster, (val) => {
 watch(selectedNamespace, () => {
   if (!skipWatchers.value) fetchPods()
 })
+
+watch(selectedPod, (val) => {
+  if (skipWatchers.value) return
+  selectedContainer.value = ''
+  containers.value = []
+  if (val) fetchContainers()
+})
+
+watch(selectedContainer, (val) => {
+  if (skipWatchers.value) return
+  if (!val) return
+  // embedded 模式下切换容器自动重连;standalone 模式由用户点"连接"按钮触发。
+  // connectTerminal 内部用代际守卫,快速连续切换时只有最新容器会真正连上。
+  if (isEmbedded.value) {
+    connectTerminal()
+  }
+})
 </script>
 
 <template>
@@ -349,12 +388,30 @@ watch(selectedNamespace, () => {
           />
         </el-select>
 
-        <el-input
+        <el-select
           v-model="selectedContainer"
           :placeholder="t('terminal.containerName')"
           style="width: 180px"
           :disabled="!selectedPod"
-        />
+          filterable
+        >
+          <el-option-group v-if="appContainers.length" :label="t('terminal.container')">
+            <el-option
+              v-for="c in appContainers"
+              :key="c.name"
+              :label="c.name"
+              :value="c.name"
+            />
+          </el-option-group>
+          <el-option-group v-if="initContainers.length" :label="t('terminal.initContainer')">
+            <el-option
+              v-for="c in initContainers"
+              :key="c.name"
+              :label="c.name"
+              :value="c.name"
+            />
+          </el-option-group>
+        </el-select>
 
         <el-button
           type="primary"
@@ -378,7 +435,33 @@ watch(selectedNamespace, () => {
     <!-- Embedded mode: fullscreen terminal with minimal info bar -->
     <div v-else class="terminal-fullscreen">
       <div class="info-bar">
-        <span class="info-text">{{ selectedNamespace }} / {{ selectedPod }} / {{ selectedContainer }}</span>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span class="info-text">{{ selectedNamespace }} / {{ selectedPod }}</span>
+          <el-select
+            v-model="selectedContainer"
+            size="small"
+            style="width: 180px"
+            :disabled="!containers.length"
+            filterable
+          >
+            <el-option-group v-if="appContainers.length" :label="t('terminal.container')">
+              <el-option
+                v-for="c in appContainers"
+                :key="c.name"
+                :label="c.name"
+                :value="c.name"
+              />
+            </el-option-group>
+            <el-option-group v-if="initContainers.length" :label="t('terminal.initContainer')">
+              <el-option
+                v-for="c in initContainers"
+                :key="c.name"
+                :label="c.name"
+                :value="c.name"
+              />
+            </el-option-group>
+          </el-select>
+        </div>
         <div style="display: flex; gap: 8px; align-items: center;">
           <el-tag :type="isConnected ? 'success' : 'danger'" size="small">
             {{ isConnected ? t('terminal.connected') : t('terminal.notConnected') }}

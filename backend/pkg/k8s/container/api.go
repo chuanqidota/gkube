@@ -6,8 +6,33 @@ import (
 	"io"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+// ResolveContainerName 解析目标容器名称。
+// 当 containerName 非空时直接返回;为空时(调用方未指定)则读取 Pod,
+// 默认取第一个 app 容器。allowInitFallback 为 true 时,无 app 容器则退回到
+// 第一个 init 容器(init 容器日志对排查初始化失败有用);为 false 时不退回
+// ——exec 路径不应兜底到通常已完成的 init 容器,否则 exec 会以晦涩方式失败。
+// 这样可避免多容器 Pod 在 container 名缺省时被 K8s API 拒绝
+// ("a container name must be specified for pod ...")。
+func ResolveContainerName(ctx context.Context, client *kubernetes.Clientset, namespace, podName, containerName string, allowInitFallback bool) (string, error) {
+	if containerName != "" {
+		return containerName, nil
+	}
+	pod, err := client.CoreV1().Pods(namespace).Get(ctx, podName, v1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("获取 Pod 失败: %v", err.Error())
+	}
+	if len(pod.Spec.Containers) > 0 {
+		return pod.Spec.Containers[0].Name, nil
+	}
+	if allowInitFallback && len(pod.Spec.InitContainers) > 0 {
+		return pod.Spec.InitContainers[0].Name, nil
+	}
+	return "", fmt.Errorf("Pod %s/%s 没有任何容器", namespace, podName)
+}
 
 // GetPodContainerLog 获取指定命名空间、Pod 和容器的日志。
 // 参数:

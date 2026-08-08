@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useClusterStore } from '@/stores/cluster'
@@ -27,6 +27,9 @@ const selectedCluster = ref('')
 const selectedNamespace = ref('')
 const selectedPod = ref('')
 const selectedContainer = ref('')
+const containers = ref<{ name: string; isInit: boolean }[]>([])
+const appContainers = computed(() => containers.value.filter((c) => !c.isInit))
+const initContainers = computed(() => containers.value.filter((c) => c.isInit))
 
 const skipWatchers = ref(false)
 const logContent = ref('')
@@ -38,6 +41,8 @@ const logContainerRef = ref<HTMLDivElement>()
 const isEmbedded = ref(false)
 
 let abortController: AbortController | null = null
+// 流代际:每次 startLogStream 自增,旧流被 abort 后的异步回调据此跳过,避免覆盖新流状态
+let streamGen = 0
 
 // Cap retained log lines to avoid unbounded memory growth on long-running streams
 const MAX_LOG_LINES = 5000
@@ -115,6 +120,23 @@ function scrollToBottom() {
   }
 }
 
+async function fetchContainers(): Promise<boolean> {
+  containers.value = []
+  if (!selectedPod.value) return false
+  try {
+    const res: any = await getPodDetail({ namespace: selectedNamespace.value, name: selectedPod.value })
+    const spec = res.data?.spec || {}
+    const app = (spec.containers || []).map((c: any) => ({ name: c.name as string, isInit: false }))
+    const init = (spec.initContainers || []).map((c: any) => ({ name: c.name as string, isInit: true }))
+    containers.value = [...app, ...init]
+    return true
+  } catch (e: any) {
+    // 取容器列表失败时显式报错,避免误报"Pod 无容器"并把选择器卡死
+    ElMessage.error('获取容器列表失败: ' + (e?.message || 'unknown error'))
+    return false
+  }
+}
+
 async function startLogStream() {
   if (!selectedCluster.value || !selectedNamespace.value || !selectedPod.value || !selectedContainer.value) {
     return
@@ -122,6 +144,7 @@ async function startLogStream() {
 
   stopLogStream()
   status.value = 'connecting'
+  const gen = ++streamGen
 
   const token = getToken()
   const params = new URLSearchParams({
@@ -133,7 +156,9 @@ async function startLogStream() {
   })
   const url = `/v1/k8s/log/stream?${params.toString()}`
 
-  abortController = new AbortController()
+  // 用局部 controller 引用,避免被下一次 startLogStream 覆盖后误 abort
+  const myController = new AbortController()
+  abortController = myController
 
   try {
     const response = await fetch(url, {
@@ -142,8 +167,11 @@ async function startLogStream() {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         Accept: 'text/event-stream',
       },
-      signal: abortController.signal,
+      signal: myController.signal,
     })
+
+    // 等待 fetch 期间用户切换了容器:旧流放弃,不覆盖新流的 connecting 状态
+    if (gen !== streamGen) return
 
     if (!response.ok) {
       status.value = 'error'
@@ -165,6 +193,7 @@ async function startLogStream() {
 
     while (true) {
       const { done, value } = await reader.read()
+      if (gen !== streamGen) return
       if (done) break
 
       buffer += decoder.decode(value, { stream: true })
@@ -185,13 +214,16 @@ async function startLogStream() {
       scrollToBottom()
     }
 
-    status.value = 'disconnected'
+    if (gen === streamGen) status.value = 'disconnected'
   } catch (err: any) {
     if (err.name === 'AbortError') {
-      status.value = 'disconnected'
+      // 仅当仍是当前流时才置为 disconnected;被新流取代的旧流静默退出
+      if (gen === streamGen) status.value = 'disconnected'
     } else {
-      status.value = 'error'
-      appendLog(`[Error] ${err.message}\n`)
+      if (gen === streamGen) {
+        status.value = 'error'
+        appendLog(`[Error] ${err.message}\n`)
+      }
     }
   }
 }
@@ -201,6 +233,9 @@ function stopLogStream() {
     abortController.abort()
     abortController = null
   }
+  // 同步置 disconnected 覆盖"用户主动停止"场景;若是 startLogStream 内部重连调用,
+  // 紧接着的 status='connecting' 会立即覆盖此值。旧流被 abort 后的异步 catch
+  // 由代际守卫跳过,不会回写状态,因此不会覆盖新流的 connecting。
   status.value = 'disconnected'
 }
 
@@ -230,21 +265,18 @@ async function initWithQueryParams() {
   selectedNamespace.value = namespace as string
   selectedPod.value = pod as string
 
-  // Fetch pod detail to get container list
-  if (!container) {
-    try {
-      const res: any = await getPodDetail({ namespace: namespace as string, name: pod as string })
-      const containers = res.data?.spec?.containers || []
-      if (containers.length > 0) {
-        selectedContainer.value = containers[0].name
-      } else {
-        ElMessage.warning('Pod has no containers')
-      }
-    } catch (e: any) {
-      ElMessage.error('Failed to get pod detail: ' + (e?.message || 'unknown error'))
-    }
-  } else {
+  // Fetch container list (app + init) for the pod, then pick the target container
+  const ok = await fetchContainers()
+  if (!ok) {
+    // 获取失败已报错,选择器保持空,不误报"Pod 无容器"
+  } else if (container) {
     selectedContainer.value = container as string
+  } else if (appContainers.value.length > 0) {
+    selectedContainer.value = appContainers.value[0].name
+  } else if (initContainers.value.length > 0) {
+    selectedContainer.value = initContainers.value[0].name
+  } else {
+    ElMessage.warning('Pod has no containers')
   }
 
   skipWatchers.value = false
@@ -275,6 +307,23 @@ watch(selectedCluster, (val) => {
 
 watch(selectedNamespace, () => {
   if (!skipWatchers.value) fetchPods()
+})
+
+watch(selectedPod, (val) => {
+  if (skipWatchers.value) return
+  selectedContainer.value = ''
+  containers.value = []
+  if (val) fetchContainers()
+})
+
+watch(selectedContainer, (val) => {
+  if (skipWatchers.value) return
+  if (!val) return
+  // embedded 模式下切换容器自动重启日志流;standalone 模式由用户点"开始监听"触发。
+  // startLogStream 内部会停掉旧流并用代际守卫,快速连续切换时只有最新容器会真正接管状态。
+  if (isEmbedded.value) {
+    startLogStream()
+  }
 })
 </script>
 
@@ -336,12 +385,30 @@ watch(selectedNamespace, () => {
           />
         </el-select>
 
-        <el-input
+        <el-select
           v-model="selectedContainer"
           :placeholder="t('log.containerName')"
           style="width: 180px"
           :disabled="!selectedPod"
-        />
+          filterable
+        >
+          <el-option-group v-if="appContainers.length" :label="t('log.container')">
+            <el-option
+              v-for="c in appContainers"
+              :key="c.name"
+              :label="c.name"
+              :value="c.name"
+            />
+          </el-option-group>
+          <el-option-group v-if="initContainers.length" :label="t('log.initContainer')">
+            <el-option
+              v-for="c in initContainers"
+              :key="c.name"
+              :label="c.name"
+              :value="c.name"
+            />
+          </el-option-group>
+        </el-select>
 
         <el-button
           type="primary"
@@ -378,7 +445,33 @@ watch(selectedNamespace, () => {
     <!-- Embedded mode: fullscreen log with minimal info bar -->
     <div v-else class="log-fullscreen">
       <div class="info-bar">
-        <span class="info-text">{{ selectedNamespace }} / {{ selectedPod }} / {{ selectedContainer }}</span>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span class="info-text">{{ selectedNamespace }} / {{ selectedPod }}</span>
+          <el-select
+            v-model="selectedContainer"
+            size="small"
+            style="width: 180px"
+            :disabled="!containers.length"
+            filterable
+          >
+            <el-option-group v-if="appContainers.length" :label="t('log.container')">
+              <el-option
+                v-for="c in appContainers"
+                :key="c.name"
+                :label="c.name"
+                :value="c.name"
+              />
+            </el-option-group>
+            <el-option-group v-if="initContainers.length" :label="t('log.initContainer')">
+              <el-option
+                v-for="c in initContainers"
+                :key="c.name"
+                :label="c.name"
+                :value="c.name"
+              />
+            </el-option-group>
+          </el-select>
+        </div>
         <div style="display: flex; gap: 8px; align-items: center;">
           <el-tag :type="statusType[status] as any" size="small">
             {{ statusTextMap[status]() }}

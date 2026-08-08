@@ -55,7 +55,7 @@ func HandleWebSocket(c *gin.Context) {
 	// 获取Pod参数
 	var reqQueryParams ContainerQueryParams
 	if err = c.ShouldBindQuery(&reqQueryParams); err != nil {
-		_ = conn.WriteMessage(websocket.CloseMessage, []byte("参数缺失:必须提供pod/namespace/container参数"))
+		_ = conn.WriteMessage(websocket.CloseMessage, []byte("参数缺失:必须提供 clusterName 参数"))
 		return
 	}
 	clusterName := reqQueryParams.ClusterName
@@ -66,6 +66,21 @@ func HandleWebSocket(c *gin.Context) {
 	command := reqQueryParams.Command
 	if command == "" {
 		command = "/bin/sh"
+	}
+
+	// 容器名缺省时兜底到 Pod 的首个容器,避免多容器 Pod 被 K8s API 拒绝
+	if containerName == "" {
+		resolveClient, rerr := k8sclient.GetK8sClientByName(clusterName)
+		if rerr != nil {
+			_ = conn.WriteMessage(websocket.CloseMessage, []byte("获取k8s客户端失败"))
+			return
+		}
+		// exec 路径不兜底到 init 容器(通常已完成,exec 会失败)
+		containerName, rerr = container.ResolveContainerName(c.Request.Context(), resolveClient, namespace, podName, containerName, false)
+		if rerr != nil {
+			_ = conn.WriteMessage(websocket.CloseMessage, []byte("解析容器失败: "+rerr.Error()))
+			return
+		}
 	}
 
 	// 接受第一次消息（窗口大小）
@@ -189,6 +204,13 @@ func PodContainerLog(c *gin.Context) {
 		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
+	// 容器名缺省时兜底到 Pod 的首个容器(日志路径允许退回 init 容器,其日志对排查初始化失败有用)
+	query.Container, err = container.ResolveContainerName(c.Request.Context(), client, query.Namespace, query.PodName, query.Container, true)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "解析容器失败")
+		return
+	}
 	log, err := container.GetPodContainerLog(c.Request.Context(), client, query.Namespace, query.PodName, query.Container, query.TailLines)
 	if err != nil {
 		logger.Error(err.Error())
@@ -214,6 +236,15 @@ func StreamPodContainerLogs(c *gin.Context) {
 
 	// 使用请求的context，客户端断开时自动取消K8s流
 	ctx := c.Request.Context()
+
+	// 容器名缺省时兜底到 Pod 的首个容器(日志路径允许退回 init 容器,其日志对排查初始化失败有用)
+	query.Container, err = container.ResolveContainerName(ctx, client, query.Namespace, query.PodName, query.Container, true)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "解析容器失败")
+		return
+	}
+
 	stream, err := container.GetPodContainerLogStream(ctx, client, query.Namespace, query.PodName, query.Container, query.TailLines)
 	if err != nil {
 		logger.Error(err.Error())
