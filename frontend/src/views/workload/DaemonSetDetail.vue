@@ -16,9 +16,11 @@ import PodListPanel from '@/components/PodListPanel.vue'
 import DaemonSetForm from '@/views/workload/components/DaemonSetForm.vue'
 import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useClusterNameRef } from '@/composables/useClusterName'
+import { useResizable } from '@/composables/useResizable'
 
 const clusterStore = useClusterStore()
-import { useResizable } from '@/composables/useResizable'
+const clusterName = useClusterNameRef()
 
 const route = useRoute()
 const router = useRouter()
@@ -155,17 +157,13 @@ async function handleRestart() {
   }
 }
 
-function getClusterName(): string {
-  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.cluster_name || clusterStore.currentCluster?.name || ''
-}
-
 function handlePodLogs(pod: any) {
-  const cluster = getClusterName()
+  const cluster = clusterName
   window.open(`/fullscreen/logs?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function handlePodExec(pod: any) {
-  const cluster = getClusterName()
+  const cluster = clusterName
   window.open(`/fullscreen/terminal?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 

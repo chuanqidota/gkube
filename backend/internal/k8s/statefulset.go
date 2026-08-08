@@ -197,7 +197,7 @@ func (s *statefulSet) GetStatefulSetEvents(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	events, err := client.CoreV1().Events(query.Namespace).List(context.TODO(), metav1.ListOptions{
+	events, err := client.CoreV1().Events(query.Namespace).List(context.Background(), metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=StatefulSet", query.Name),
 	})
 	if err != nil {

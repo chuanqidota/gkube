@@ -100,7 +100,7 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.PUT("statefulset/update", k8s.StatefulSet.UpdateStatefulSet)
 	rg.DELETE("statefulset/delete", k8s.StatefulSet.DeleteStatefulSetByName)
 	rg.PUT("statefulset/scale", k8s.StatefulSet.ScaleStatefulSet)
-	rg.PUT("statefulset/restart", k8s.StatefulSet.RestartStatefulSet)
+	rg.POST("statefulset/restart", k8s.StatefulSet.RestartStatefulSet)
 	rg.POST("statefulset/rollback", k8s.StatefulSet.RollbackStatefulSet)
 	rg.PUT("statefulset/update-image", k8s.StatefulSet.UpdateStatefulSetImage)
 

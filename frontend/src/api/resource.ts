@@ -1015,7 +1015,7 @@ export function scaleStatefulSet(data: { namespace: string; name: string; replic
 }
 
 export function restartStatefulSet(data: { namespace: string; name: string }) {
-  return request.put('/k8s/statefulset/restart', data)
+  return request.post('/k8s/statefulset/restart', data)
 }
 
 export function getStatefulSetEvents(params: { namespace: string; name: string }) {

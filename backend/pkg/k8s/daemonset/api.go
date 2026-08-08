@@ -107,7 +107,7 @@ func GetDaemonSetByField(client *kubernetes.Clientset, namespace string, fieldMa
 //	@return []appsv1.DaemonSet
 //	@return error
 func GetDaemonSetByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]appsv1.DaemonSet, error) {
-	labelSelector := fields.SelectorFromSet(labelMap)
+	labelSelector := labels.Set(labelMap).AsSelectorPreValidated()
 	daemonSetList, err := client.AppsV1().DaemonSets(namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
@@ -130,6 +130,7 @@ func CreateDaemonSet(client *kubernetes.Clientset, namespace, daemonSetYaml stri
 	if err != nil {
 		return err
 	}
+	daemonSet.Namespace = namespace
 	_, err = client.AppsV1().DaemonSets(namespace).Create(context.Background(), daemonSet, metav1.CreateOptions{})
 	if err != nil {
 		return err
@@ -198,7 +199,7 @@ func DeleteDaemonSetByField(client *kubernetes.Clientset, namespace string, fiel
 //	@param labelMap
 //	@return error
 func DeleteDaemonSetByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
-	labelSelector := fields.SelectorFromSet(labelMap)
+	labelSelector := labels.Set(labelMap).AsSelectorPreValidated()
 	err := client.AppsV1().DaemonSets(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
@@ -256,7 +257,7 @@ func RestartDaemonSet(client *kubernetes.Clientset, namespace, name string) (boo
 }
 
 func UpdateDaemonSetImage(client *kubernetes.Clientset, namespace, name, containerName, image string) (*appsv1.DaemonSet, error) {
-	ctx := context.TODO()
+	ctx := context.Background()
 	ds, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -271,7 +272,7 @@ func UpdateDaemonSetImage(client *kubernetes.Clientset, namespace, name, contain
 }
 
 func RollbackDaemonSet(client *kubernetes.Clientset, namespace, name string, revision int64) (*appsv1.DaemonSet, error) {
-	ctx := context.TODO()
+	ctx := context.Background()
 	ds, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err

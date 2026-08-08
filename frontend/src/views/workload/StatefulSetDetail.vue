@@ -17,9 +17,11 @@ import PodListPanel from '@/components/PodListPanel.vue'
 import StatefulSetForm from '@/views/workload/components/StatefulSetForm.vue'
 import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useClusterNameRef } from '@/composables/useClusterName'
+import { useResizable } from '@/composables/useResizable'
 
 const clusterStore = useClusterStore()
-import { useResizable } from '@/composables/useResizable'
+const clusterName = useClusterNameRef()
 
 const route = useRoute()
 const router = useRouter()
@@ -152,13 +154,8 @@ async function handleScaleConfirm() {
     ElMessage.success(`StatefulSet 已扩缩容至 ${scaleReplicas.value} 个副本`)
     scaleDialogVisible.value = false
     fetchDetail()
-    // Poll for pod list update
-    const expectedPods = scaleReplicas.value
-    for (let i = 0; i < 10; i++) {
-      await new Promise(r => setTimeout(r, 1000))
-      await fetchPods()
-      if (pods.value.length === expectedPods) break
-    }
+    // Trigger auto-refresh to pick up new pod count instead of a fixed polling loop
+    manualRefresh()
   } catch (e: any) {
     ElMessage.error(e?.message || '扩缩容失败')
   } finally {
@@ -180,17 +177,13 @@ function handleEditCancel() {
   editDialogVisible.value = false
 }
 
-function getClusterName(): string {
-  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.cluster_name || clusterStore.currentCluster?.name || ''
-}
-
 function handlePodLogs(pod: any) {
-  const cluster = getClusterName()
+  const cluster = clusterName
   window.open(`/fullscreen/logs?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function handlePodExec(pod: any) {
-  const cluster = getClusterName()
+  const cluster = clusterName
   window.open(`/fullscreen/terminal?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 

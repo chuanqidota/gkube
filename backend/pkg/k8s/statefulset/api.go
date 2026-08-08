@@ -106,7 +106,7 @@ func GetStatefulSetByField(client *kubernetes.Clientset, namespace string, field
 //	@return []appsv1.StatefulSet
 //	@return error
 func GetStatefulSetByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]appsv1.StatefulSet, error) {
-	labelSelector := fields.SelectorFromSet(labelMap)
+	labelSelector := labels.Set(labelMap).AsSelectorPreValidated()
 	statefulSetList, err := client.AppsV1().StatefulSets(namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
@@ -128,6 +128,7 @@ func CreateStatefulSet(client *kubernetes.Clientset, namespace, statefulSetYaml 
 	if err := yaml.Unmarshal([]byte(statefulSetYaml), &statefulSet); err != nil {
 		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
+	statefulSet.Namespace = namespace
 	_, err := client.AppsV1().StatefulSets(namespace).Create(context.Background(), &statefulSet, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("创建statefulSet资源失败:%s", err.Error())
@@ -178,7 +179,7 @@ func DeleteStatefulSetByName(client *kubernetes.Clientset, namespace, name strin
 //	@param labelMap
 //	@return error
 func DeleteStatefulSetByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
-	labelSelector := fields.SelectorFromSet(labelMap)
+	labelSelector := labels.Set(labelMap).AsSelectorPreValidated()
 	err := client.AppsV1().StatefulSets(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
@@ -239,12 +240,12 @@ func StatefulSetPodList(client *kubernetes.Clientset, namespace, name string) (*
 //	@return bool
 //	@return error
 func ScaleStatefulSet(client *kubernetes.Clientset, namespace, name string, replicas int32) (bool, error) {
-	statefulSet, err := client.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	statefulSet, err := client.AppsV1().StatefulSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		return false, fmt.Errorf("获取statefulSet资源失败:%s", err.Error())
 	}
 	statefulSet.Spec.Replicas = &replicas
-	_, err = client.AppsV1().StatefulSets(namespace).Update(context.TODO(), statefulSet, metav1.UpdateOptions{})
+	_, err = client.AppsV1().StatefulSets(namespace).Update(context.Background(), statefulSet, metav1.UpdateOptions{})
 	if err != nil {
 		return false, fmt.Errorf("更新statefulSet资源失败:%s", err.Error())
 	}
@@ -260,14 +261,15 @@ func ScaleStatefulSet(client *kubernetes.Clientset, namespace, name string, repl
 //	@return bool
 //	@return error
 func RestartStatefulSet(client *kubernetes.Clientset, namespace, name string) (bool, error) {
-	statefulSet, err := client.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	statefulSet, err := client.AppsV1().StatefulSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		return false, fmt.Errorf("获取statefulSet资源失败:%s", err.Error())
 	}
-	statefulSet.Spec.Template.Annotations = map[string]string{
-		"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.DateTime),
+	if statefulSet.Spec.Template.Annotations == nil {
+		statefulSet.Spec.Template.Annotations = make(map[string]string)
 	}
-	_, err = client.AppsV1().StatefulSets(namespace).Update(context.TODO(), statefulSet, metav1.UpdateOptions{})
+	statefulSet.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.DateTime)
+	_, err = client.AppsV1().StatefulSets(namespace).Update(context.Background(), statefulSet, metav1.UpdateOptions{})
 	if err != nil {
 		return false, fmt.Errorf("更新statefulSet资源失败:%s", err.Error())
 	}
@@ -275,7 +277,7 @@ func RestartStatefulSet(client *kubernetes.Clientset, namespace, name string) (b
 }
 
 func UpdateStatefulSetImage(client *kubernetes.Clientset, namespace, name, containerName, image string) (*appsv1.StatefulSet, error) {
-	ctx := context.TODO()
+	ctx := context.Background()
 	sts, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -290,7 +292,7 @@ func UpdateStatefulSetImage(client *kubernetes.Clientset, namespace, name, conta
 }
 
 func RollbackStatefulSet(client *kubernetes.Clientset, namespace, name string, revision int64) (*appsv1.StatefulSet, error) {
-	ctx := context.TODO()
+	ctx := context.Background()
 	sts, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
