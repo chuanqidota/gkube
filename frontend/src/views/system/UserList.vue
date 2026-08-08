@@ -223,8 +223,10 @@ onMounted(fetchUsers)
         <el-table-column prop="created_at" label="创建时间" min-width="180" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
+            <div class="action-buttons">
             <el-button size="small" @click="openEdit(row)">编辑</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -277,6 +279,15 @@ onMounted(fetchUsers)
 }
 .table-card {
   border-radius: 8px;
+}
+.action-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+}
+.action-buttons .el-button + .el-button {
+  margin-left: 0;
 }
 .pagination {
   display: flex;

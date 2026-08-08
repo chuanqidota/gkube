@@ -235,12 +235,12 @@ onUnmounted(() => clearTimeout(searchDebounce))
       <el-table-column label="描述" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">{{ row.description || '-' }}</template>
       </el-table-column>
-      <el-table-column label="操作" min-width="280" fixed="right" align="center">
+      <el-table-column label="操作" width="200" fixed="right" align="center">
         <template #default="{ row }">
-          <div class="table-actions">
-            <el-button size="small" @click="handleCheck(row)"><el-icon><CircleCheck /></el-icon> {{ t('cluster.checkConnection') }}</el-button>
-            <el-button size="small" @click="handleEdit(row)"><el-icon><Edit /></el-icon> {{ t('common.edit') }}</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)"><el-icon><Delete /></el-icon> {{ t('common.delete') }}</el-button>
+          <div class="action-buttons">
+            <el-button size="small" @click="handleCheck(row)">{{ t('cluster.checkConnection') }}</el-button>
+            <el-button size="small" @click="handleEdit(row)">{{ t('common.edit') }}</el-button>
+            <el-button size="small" type="danger" plain @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
           </div>
         </template>
       </el-table-column>
@@ -276,9 +276,9 @@ onUnmounted(() => clearTimeout(searchDebounce))
             </div>
           </div>
           <div class="cluster-footer">
-            <el-button size="small" @click="handleCheck(cluster)"><el-icon><CircleCheck /></el-icon> {{ t('cluster.checkConnection') }}</el-button>
-            <el-button size="small" @click="handleEdit(cluster)"><el-icon><Edit /></el-icon> {{ t('common.edit') }}</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(cluster)"><el-icon><Delete /></el-icon> {{ t('common.delete') }}</el-button>
+            <el-button size="small" @click="handleCheck(cluster)">{{ t('cluster.checkConnection') }}</el-button>
+            <el-button size="small" @click="handleEdit(cluster)">{{ t('common.edit') }}</el-button>
+            <el-button size="small" type="danger" plain @click="handleDelete(cluster)">{{ t('common.delete') }}</el-button>
           </div>
         </el-card>
       </el-col>
@@ -346,7 +346,6 @@ onUnmounted(() => clearTimeout(searchDebounce))
 .cluster-detail { display: flex; margin-bottom: 8px; }
 .cluster-detail .label { color: var(--gk-color-text-secondary); width: 70px; flex-shrink: 0; }
 .cluster-detail .value { color: var(--gk-color-text-primary); }
-.cluster-footer { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
-.table-actions { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 4px; }
-.table-actions .el-button { margin-left: 0 !important; }
+.cluster-footer { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
+.cluster-footer .el-button { margin-left: 0 !important; padding: 5px 8px; font-size: 12px; height: auto; }
 </style>

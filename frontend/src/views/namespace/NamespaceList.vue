@@ -252,9 +252,11 @@ onMounted(fetchNamespaces)
         <el-table-column :prop=" 'age' " :label="t('namespace.ageLabel')" width="180" />
         <el-table-column :label="t('common.actions')" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="handleViewYaml(row)">{{ t('namespace.yamlBtn') }}</el-button>
-            <el-button size="small" type="primary" @click="handleLabels(row)">{{ t('namespace.labelBtn') }}</el-button>
-            <el-button size="small" type="danger" plain @click="handleDelete(row)">{{ t('namespace.deleteBtn') }}</el-button>
+            <div class="action-buttons">
+              <el-button size="small" @click="handleViewYaml(row)">{{ t('namespace.yamlBtn') }}</el-button>
+              <el-button size="small" type="primary" @click="handleLabels(row)">{{ t('namespace.labelBtn') }}</el-button>
+              <el-button size="small" type="danger" plain @click="handleDelete(row)">{{ t('namespace.deleteBtn') }}</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -324,6 +326,16 @@ onMounted(fetchNamespaces)
 <style scoped>
 .page-container { padding: 20px; }
 .table-card { border-radius: 8px; }
+.action-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.action-buttons .el-button + .el-button {
+  margin-left: 0;
+}
 </style>
 
 <style>

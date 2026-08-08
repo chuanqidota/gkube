@@ -129,8 +129,10 @@ onMounted(() => { fetchNamespaces(); fetchLimitRanges() })
         <el-table-column prop="age" label="Age" width="180" />
         <el-table-column label="Actions" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <div class="action-buttons">
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -148,4 +150,13 @@ onMounted(() => { fetchNamespaces(); fetchLimitRanges() })
 <style scoped>
 .page-container { padding: 20px; }
 .table-card { border-radius: 8px; }
+.action-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+}
+.action-buttons .el-button + .el-button {
+  margin-left: 0;
+}
 </style>

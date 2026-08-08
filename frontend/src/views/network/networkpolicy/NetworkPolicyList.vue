@@ -107,8 +107,10 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <el-table-column prop="age" label="存活时间" width="120" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
+            <div class="action-buttons">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>

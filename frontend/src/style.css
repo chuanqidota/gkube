@@ -203,6 +203,18 @@ button:focus-visible,
   padding: var(--gk-space-3) var(--gk-space-4);
 }
 
+/* === Action Buttons Centering === */
+.action-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.action-buttons .el-button + .el-button {
+  margin-left: 0;
+}
+
 .el-table--border .el-table__inner-wrapper::after,
 .el-table--border::after,
 .el-table--border::before,

@@ -146,9 +146,11 @@ onMounted(() => { fetchNamespaces(); fetchSecrets() })
         <el-table-column prop="age" label="创建时间" width="120" />
         <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
+            <div class="action-buttons">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
             <el-button size="small" type="primary" @click="handleViewData(row)">查看数据</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -178,4 +180,13 @@ onMounted(() => { fetchNamespaces(); fetchSecrets() })
 <style scoped>
 .page-container { padding: 20px; }
 .table-card { border-radius: 8px; }
+.action-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+}
+.action-buttons .el-button + .el-button {
+  margin-left: 0;
+}
 </style>

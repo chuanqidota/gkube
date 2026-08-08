@@ -140,6 +140,7 @@ async function handleToggleSuspend(row: any) {
         <el-table-column prop="age" label="Age" width="120" />
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
+            <div class="action-buttons">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
             <el-button
               size="small"
@@ -148,6 +149,7 @@ async function handleToggleSuspend(row: any) {
               @click="handleToggleSuspend(row)"
             >{{ row.suspend ? '恢复' : '暂停' }}</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -186,6 +188,15 @@ async function handleToggleSuspend(row: any) {
 </style>
 
 <style>
+.action-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+}
+.action-buttons .el-button + .el-button {
+  margin-left: 0;
+}
 .yaml-drawer .el-drawer__header {
   padding: 6px 16px;
   margin-bottom: 0;
