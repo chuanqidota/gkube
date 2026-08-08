@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { getClusterList } from '@/api/cluster'
 import { useNamespaceStore } from '@/stores/namespace'
 
@@ -26,6 +26,11 @@ export const useClusterStore = defineStore('cluster', () => {
 
   const clusterList = ref<Cluster[]>([])
   const currentCluster = ref<Cluster | null>(savedCluster)
+
+  // 统一的集群名取值,兼容后端不同字段形态(clusterName / cluster_name / name)
+  const clusterName = computed(() =>
+    currentCluster.value?.clusterName || currentCluster.value?.cluster_name || currentCluster.value?.name || '',
+  )
 
   // Persist to localStorage on change
   watch(currentCluster, (val) => {
@@ -67,5 +72,5 @@ export const useClusterStore = defineStore('cluster', () => {
     }
   }
 
-  return { clusterList, currentCluster, fetchClusters, setCurrentCluster }
+  return { clusterList, currentCluster, clusterName, fetchClusters, setCurrentCluster }
 })

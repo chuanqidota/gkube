@@ -2,6 +2,7 @@
 import { ElTag, ElButton } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { formatAge } from '@/utils/time'
+import { getPodStatusType } from '@/utils/pod'
 
 const router = useRouter()
 
@@ -42,21 +43,6 @@ const emit = defineEmits<{
   delete: [pod: Pod]
 }>()
 
-const getStatusType = (phase: string): 'success' | 'warning' | 'danger' | 'info' => {
-  switch (phase) {
-    case 'Running':
-      return 'success'
-    case 'Pending':
-      return 'warning'
-    case 'Failed':
-      return 'danger'
-    case 'Succeeded':
-      return 'info'
-    default:
-      return 'info'
-  }
-}
-
 const getRestarts = (pod: Pod): number => {
   return pod.status.containerStatuses?.reduce((sum, cs) => sum + cs.restartCount, 0) || 0
 }
@@ -77,7 +63,7 @@ const getRestarts = (pod: Pod): number => {
       </el-table-column>
       <el-table-column label="状态" width="80">
         <template #default="{ row }">
-          <el-tag :type="getStatusType(row.status.phase)" size="small">
+          <el-tag :type="getPodStatusType(row.status.phase)" size="small">
             {{ row.status.phase }}
           </el-tag>
         </template>

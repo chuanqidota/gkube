@@ -58,9 +58,8 @@ func registerCoreRoutes(rg *gin.RouterGroup) {
 	rg.GET("pod/list", k8s.Pod.GetPodList)
 	rg.GET("pod/detail", k8s.Pod.GetPodByName)
 	rg.GET("pod/get-yaml", k8s.Pod.GetPodYaml)
-	rg.GET("pod/events", k8s.Pod.WatchPodEvent)
+	rg.GET("pod/events", k8s.Pod.ListPodEvents)
 	rg.POST("pod/create", k8s.Pod.CreatePod)
-	rg.PUT("pod/update", k8s.Pod.UpdatePod)
 	rg.PUT("pod/update-yaml", k8s.Pod.UpdatePod)
 	rg.DELETE("pod/delete", k8s.Pod.DeletePodByName)
 

@@ -62,18 +62,10 @@ func HandleWebSocket(c *gin.Context) {
 	namespace := reqQueryParams.Namespace
 	podName := reqQueryParams.PodName
 	containerName := reqQueryParams.Container
-
-	// 写入操作记录
-	key := strings.ReplaceAll(uuid.New().String(), "-", "")
-	if err := database.DB.Model(&model.TerminalRecord{}).Create(&model.TerminalRecord{
-		Key:         key,
-		ClusterName: clusterName,
-		Namespace:   namespace,
-		PodName:     podName,
-	}).Error; err != nil {
-		logger.Error(err.Error())
-		_ = conn.WriteMessage(websocket.CloseMessage, []byte("数据库错误"))
-		return
+	// 命令由前端指定(默认 /bin/sh),兼容只有 sh 的 alpine/distroless 镜像
+	command := reqQueryParams.Command
+	if command == "" {
+		command = "/bin/sh"
 	}
 
 	// 接受第一次消息（窗口大小）
@@ -95,14 +87,31 @@ func HandleWebSocket(c *gin.Context) {
 	cols := resizeData[0]
 	rows := resizeData[1]
 
+	// 输入校验通过后再落库,避免首条消息非法时残留孤儿记录
+	key := strings.ReplaceAll(uuid.New().String(), "-", "")
+	if err := database.DB.Model(&model.TerminalRecord{}).Create(&model.TerminalRecord{
+		Key:         key,
+		ClusterName: clusterName,
+		Namespace:   namespace,
+		PodName:     podName,
+	}).Error; err != nil {
+		logger.Error(err.Error())
+		_ = conn.WriteMessage(websocket.CloseMessage, []byte("数据库错误"))
+		return
+	}
+
 	// 记录操作到es中
 	startTime := time.Now()
 	record := audit.NewEsRecord()
 	asciinema.WriteHeader(key, cols, rows, startTime, record)
 
 	// 执行Exec到Pod，传入初始终端尺寸(心跳与并发写由 ExecToPod 内部管理)
-	if err := container.ExecToPod(key, clusterName, namespace, podName, containerName, conn, record, cols, rows); err != nil {
+	if err := container.ExecToPod(key, clusterName, namespace, podName, containerName, command, conn, record, cols, rows); err != nil {
 		logger.Error(err.Error())
+		// exec 失败时清理刚创建的终端记录,避免孤儿数据
+		if delErr := database.DB.Where("key = ?", key).Delete(&model.TerminalRecord{}).Error; delErr != nil {
+			logger.Error(delErr.Error())
+		}
 		_ = conn.WriteMessage(websocket.TextMessage, []byte("终端执行失败"))
 	}
 }
@@ -180,7 +189,7 @@ func PodContainerLog(c *gin.Context) {
 		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	log, err := container.GetPodContainerLog(client, query.Namespace, query.PodName, query.Container, query.TailLines)
+	log, err := container.GetPodContainerLog(c.Request.Context(), client, query.Namespace, query.PodName, query.Container, query.TailLines)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusBadGateway, "获取日志失败")
@@ -208,7 +217,7 @@ func StreamPodContainerLogs(c *gin.Context) {
 	stream, err := container.GetPodContainerLogStream(ctx, client, query.Namespace, query.PodName, query.Container, query.TailLines)
 	if err != nil {
 		logger.Error(err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "日志流创建失败"})
+		response.FailWithStatus(c, http.StatusInternalServerError, "日志流创建失败")
 		return
 	}
 	defer stream.Close()
@@ -264,6 +273,7 @@ type ContainerQueryParams struct {
 	Container   string `form:"container" json:"container" label:"容器名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
 	PodName     string `form:"podName" json:"podName" label:"Pod名称"`
+	Command     string `form:"command" json:"command" label:"执行命令"`
 }
 
 type ContainerLogQueryParams struct {

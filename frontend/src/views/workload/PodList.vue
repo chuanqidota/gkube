@@ -3,6 +3,7 @@ import { Delete } from '@element-plus/icons-vue'
 import { getPodList, getPodYaml, deletePod, transformPods } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import { useClusterStore } from '@/stores/cluster'
+import { getPodStatusType, buildFullscreenUrl } from '@/utils/pod'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
@@ -40,32 +41,16 @@ const {
   detailRoute: '/workloads/pods',
   paginated: true,
   pageSize: 50,
-  autoRefreshInterval: 15000,
 })
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
 
-function getClusterName(): string {
-  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.name || ''
-}
-
 function handleViewLogs(row: any) {
-  const cluster = getClusterName()
-  window.open(`/fullscreen/logs?namespace=${row.namespace}&pod=${row.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(buildFullscreenUrl('logs', { namespace: row.namespace, pod: row.name, cluster: clusterStore.clusterName || undefined }), '_blank')
 }
 
 function handleExec(row: any) {
-  const cluster = getClusterName()
-  window.open(`/fullscreen/terminal?namespace=${row.namespace}&pod=${row.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
-}
-
-function statusType(status: string) {
-  const s = (status || '').toLowerCase()
-  if (s === 'running') return 'success'
-  if (s === 'succeeded') return 'info'
-  if (s === 'pending') return 'warning'
-  if (s === 'failed' || s === 'error') return 'danger'
-  return 'info'
+  window.open(buildFullscreenUrl('terminal', { namespace: row.namespace, pod: row.name, cluster: clusterStore.clusterName || undefined }), '_blank')
 }
 </script>
 
@@ -116,7 +101,7 @@ function statusType(status: string) {
         <el-table-column prop="namespace" label="命名空间" width="140" />
         <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
+            <el-tag :type="getPodStatusType(row.status)" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="ip" label="Pod IP" width="140" />

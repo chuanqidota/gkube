@@ -1,33 +1,20 @@
 package pod
 
 import (
-	"gkube/pkg/yamlutil"
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
+
+	"gkube/pkg/yamlutil"
 )
 
-// GetPodList
-//
-//	@Description: 获取pod列表
-//	@param client
-//	@param namespace
-//	@return []corev1.Pod
-//	@return error
-func GetPodList(client *kubernetes.Clientset, namespace string) ([]corev1.Pod, error) {
-	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return podList.Items, nil
-}
-
-// ListPods returns a paginated pod list with metadata
+// ListPods returns a paginated pod list with metadata.
+// 传 limit<=0 且 continueToken="" 时等价于全量列举(不分页)。
 func ListPods(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*corev1.PodList, error) {
 	listOpts := metav1.ListOptions{}
 	if limit > 0 {
@@ -75,60 +62,22 @@ func GetPodYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 	return yamlStr, nil
 }
 
-// GetPodByField
-//
-//	@Description: 通过字段查询pod
-//	@param client
-//	@param namespace
-//	@param fieldMap
-//	@return []corev1.Pod
-//	@return error
-func GetPodByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]corev1.Pod, error) {
-	fieldSelector := fields.SelectorFromSet(fieldMap)
-	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fieldSelector.String(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return podList.Items, nil
-}
-
-// GetPodByLabel
-//
-//	@Description: 通过标签查询pod
-//	@param client
-//	@param namespace
-//	@param labelMap
-//	@return []corev1.Pod
-//	@return error
-func GetPodByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]corev1.Pod, error) {
-	labelSelector := labels.SelectorFromSet(labelMap)
-	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return podList.Items, nil
-}
-
 // CreatePod
 //
 //	@Description: 创建pod
 //	@param client
-//	@param namespace
+//	@param namespace 以请求参数为准,避免 YAML 内 metadata.namespace 与之不符时静默落到别处
 //	@param podYaml
 //	@return error
-func CreatePod(client *kubernetes.Clientset, podYaml string) error {
+func CreatePod(client *kubernetes.Clientset, namespace, podYaml string) error {
 	pod := &corev1.Pod{}
-	err := yaml.Unmarshal([]byte(podYaml), pod)
-	if err != nil {
-		return err
+	if err := yaml.Unmarshal([]byte(podYaml), pod); err != nil {
+		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
-	_, err = client.CoreV1().Pods(pod.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+	pod.Namespace = namespace
+	_, err := client.CoreV1().Pods(namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("创建pod资源失败:%s", err.Error())
 	}
 	return nil
 }
@@ -137,17 +86,26 @@ func CreatePod(client *kubernetes.Clientset, podYaml string) error {
 //
 //	@Description: 更新pod
 //	@param client
+//	@param namespace 以请求参数为准
+//	@param name 校验与 YAML 中名称一致,避免误更新同名空间下的其他资源
 //	@param podYaml
 //	@return error
-func UpdatePod(client *kubernetes.Clientset, podYaml string) error {
+func UpdatePod(client *kubernetes.Clientset, namespace, name, podYaml string) error {
 	pod := &corev1.Pod{}
-	err := yaml.Unmarshal([]byte(podYaml), pod)
-	if err != nil {
-		return err
+	if err := yaml.Unmarshal([]byte(podYaml), pod); err != nil {
+		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
-	_, err = client.CoreV1().Pods(pod.Namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
-	if err != nil {
+	if pod.Name != name {
+		return fmt.Errorf("资源名称不匹配: 请求指定 %s, YAML 中为 %s", name, pod.Name)
+	}
+	pod.Namespace = namespace
+	// 冲突时自动重试(参照 deployment restart/scale 的 RetryOnConflict 模式),
+	// 闭包返回原始 err 以便识别 409 Conflict
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		_, err := client.CoreV1().Pods(namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
 		return err
+	}); err != nil {
+		return fmt.Errorf("更新pod资源失败:%s", err.Error())
 	}
 	return nil
 }
@@ -162,44 +120,7 @@ func UpdatePod(client *kubernetes.Clientset, podYaml string) error {
 func DeletePodByName(client *kubernetes.Clientset, namespace, name string) error {
 	err := client.CoreV1().Pods(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("删除pod资源失败:%s", err.Error())
 	}
 	return nil
 }
-
-// DeletePodByField
-//
-//	@Description: 删除pod根据字段
-//	@param client
-//	@param namespace
-//	@param fieldMap
-//	@return error
-func DeletePodByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) error {
-	fieldSelector := fields.SelectorFromSet(fieldMap)
-	err := client.CoreV1().Pods(namespace).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
-		FieldSelector: fieldSelector.String(),
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// DeletePodByLabel
-//
-//	@Description: 删除pod根据标签
-//	@param client
-//	@param namespace
-//	@param labelMap
-//	@return error
-func DeletePodByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
-	labelSelector := labels.SelectorFromSet(labelMap)
-	err := client.CoreV1().Pods(namespace).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-

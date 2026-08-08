@@ -11,6 +11,7 @@ import (
 
 // GetPodContainerLog 获取指定命名空间、Pod 和容器的日志。
 // 参数:
+// - ctx: 请求上下文,客户端断开时取消日志读取
 // - client: Kubernetes 客户端集。
 // - namespace: Pod 所在的命名空间。
 // - podName: Pod 的名称。
@@ -19,7 +20,7 @@ import (
 // 返回值:
 // - 日志内容字符串。
 // - 如果发生错误，返回错误信息。
-func GetPodContainerLog(client *kubernetes.Clientset, namespace, podName, containerName string, tailLines int64) (string, error) {
+func GetPodContainerLog(ctx context.Context, client *kubernetes.Clientset, namespace, podName, containerName string, tailLines int64) (string, error) {
 	// 默认获取最后100行日志
 	if tailLines <= 0 {
 		tailLines = 100
@@ -34,7 +35,7 @@ func GetPodContainerLog(client *kubernetes.Clientset, namespace, podName, contai
 	})
 
 	// 执行请求并获取日志流
-	stream, err := req.Stream(context.Background())
+	stream, err := req.Stream(ctx)
 	if err != nil {
 		return "", fmt.Errorf("创建日志流失败: %v", err.Error())
 	}

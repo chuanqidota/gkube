@@ -3,12 +3,14 @@ import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useClusterStore } from '@/stores/cluster'
-import { getPodDetail } from '@/api/resource'
+import { getPodDetail, getPodList, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { getClusterList } from '@/api/cluster'
 import { ElMessage } from 'element-plus'
 import { getToken } from '@/utils/auth'
 
 const { t } = useI18n()
 const route = useRoute()
+const clusterStore = useClusterStore()
 
 interface ClusterOption {
   name: string
@@ -63,15 +65,11 @@ const statusType: Record<ConnectionStatus, string> = {
 
 async function fetchClusters() {
   try {
-    const token = getToken()
-    const res = await fetch('/api/v1/clusters', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-    const json = await res.json()
-    const items = json?.data?.items || json?.data || json?.items || []
+    const res: any = await getClusterList({ page: 1, size: 100 })
+    const items = res.data?.items || []
     clusters.value = items.map((c: any) => ({
-      name: c.cluster_name || c.name,
-      displayName: c.display_name || c.cluster_name || c.name,
+      name: c.clusterName || c.cluster_name || c.name,
+      displayName: c.displayName || c.display_name || c.clusterName || c.name,
     }))
   } catch (e) {
     console.error('[LogView] Failed to load clusters:', e)
@@ -86,14 +84,8 @@ async function fetchNamespaces() {
   selectedPod.value = ''
   selectedContainer.value = ''
   try {
-    const token = getToken()
-    const params = new URLSearchParams({ clusterName: selectedCluster.value })
-    const res = await fetch(`/api/v1/k8s/namespace/list?${params}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-    const json = await res.json()
-    const nsData = json?.data?.namespaces || json?.data || json?.namespaces || []
-    namespaces.value = nsData.map((n: any) => typeof n === 'string' ? n : n.name)
+    const res: any = await getNamespaceList()
+    namespaces.value = extractNamespaceNames(res.data)
   } catch (e: any) {
     ElMessage.error(e?.message || t('common.loadFailed'))
   }
@@ -105,17 +97,9 @@ async function fetchPods() {
   selectedPod.value = ''
   selectedContainer.value = ''
   try {
-    const token = getToken()
-    const params = new URLSearchParams({
-      clusterName: selectedCluster.value,
-      namespace: selectedNamespace.value,
-    })
-    const res = await fetch(`/api/v1/k8s/pod/list?${params}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-    const json = await res.json()
-    const podData = json?.data || json || []
-    pods.value = (Array.isArray(podData) ? podData : []).map((p: any) => typeof p === 'string' ? p : (p.metadata?.name || p.name))
+    const res: any = await getPodList({ namespace: selectedNamespace.value })
+    const items = Array.isArray(res.data) ? res.data : (res.data?.items || [])
+    pods.value = items.map((p: any) => p.metadata?.name || p.name).filter(Boolean)
   } catch (e: any) {
     ElMessage.error(e?.message || t('common.loadFailed'))
   }
@@ -230,17 +214,17 @@ async function initWithQueryParams() {
   isEmbedded.value = true
   skipWatchers.value = true
 
-  // Set cluster from query param or localStorage
-  const clusterStore = useClusterStore()
+  // Set cluster from query param or store
   if (cluster) {
-    selectedCluster.value = cluster as string
+    const name = cluster as string
+    selectedCluster.value = name
     clusterStore.setCurrentCluster({
-      clusterName: cluster as string,
-      cluster_name: cluster as string,
-      name: cluster as string,
+      clusterName: name,
+      cluster_name: name,
+      name,
     })
-  } else if (clusterStore.currentCluster) {
-    selectedCluster.value = clusterStore.currentCluster.cluster_name || clusterStore.currentCluster.name || ''
+  } else if (clusterStore.clusterName) {
+    selectedCluster.value = clusterStore.clusterName
   }
 
   selectedNamespace.value = namespace as string
@@ -280,8 +264,13 @@ onBeforeUnmount(() => {
   stopLogStream()
 })
 
-watch(selectedCluster, () => {
-  if (!skipWatchers.value) fetchNamespaces()
+watch(selectedCluster, (val) => {
+  if (skipWatchers.value) return
+  // 同步 store,使共享 axios 拦截器为后续 namespace/pod 请求注入正确的 clusterName
+  if (val) {
+    clusterStore.setCurrentCluster({ clusterName: val, cluster_name: val, name: val })
+  }
+  fetchNamespaces()
 })
 
 watch(selectedNamespace, () => {

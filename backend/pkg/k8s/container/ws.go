@@ -43,7 +43,11 @@ func (s *safeConn) writeMessage(messageType int, data []byte) error {
 	return s.conn.WriteMessage(messageType, data)
 }
 
-func ExecToPod(key, clusterName, namespace, podName, containerName string, conn *websocket.Conn, record *audit.EsRecord, initCols, initRows int) error {
+func ExecToPod(key, clusterName, namespace, podName, containerName, command string, conn *websocket.Conn, record *audit.EsRecord, initCols, initRows int) error {
+	// command 由调用方指定(HandleWebSocket 已默认 /bin/sh),兼容只有 sh 的 alpine/distroless 镜像
+	if command == "" {
+		command = "/bin/sh"
+	}
 	// 创建Clientset
 	clientset, err := k8s.GetK8sClientByName(clusterName)
 	if err != nil {
@@ -58,7 +62,7 @@ func ExecToPod(key, clusterName, namespace, podName, containerName string, conn 
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: containerName,
-			Command:   []string{"/bin/bash"},
+			Command:   []string{command},
 			Stdin:     true,
 			Stdout:    true,
 			Stderr:    true,

@@ -78,7 +78,6 @@ const router = createRouter({
           path: 'workloads/pods/:namespace/:name',
           name: 'PodDetail',
           component: () => import('@/views/workload/PodDetail.vue'),
-          props: true,
           meta: { title: 'Pod详情', parent: 'PodList' },
         },
         // Workloads - Deployment

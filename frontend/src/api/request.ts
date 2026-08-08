@@ -28,7 +28,9 @@ request.interceptors.request.use(
     // Inject cluster name from store for all K8s API requests
     try {
       const clusterStore = useClusterStore()
-      const clusterName = clusterStore.currentCluster?.clusterName
+      // 用 store 的 clusterName computed(带 clusterName||cluster_name||name fallback),
+      // 与各视图取集群名的逻辑一致,避免 localStorage 旧形态对象时静默不注入
+      const clusterName = clusterStore.clusterName
       if (clusterName && config.url?.startsWith('/k8s/')) {
         if (!config.params) config.params = {}
         if (!config.params.clusterName && !(isPlainObject(config.data) && config.data.clusterName)) {

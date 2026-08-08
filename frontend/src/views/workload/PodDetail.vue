@@ -7,6 +7,7 @@ import { getPodDetail, deletePod, getPodEvents, calcAge } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { getPodStatusType, buildFullscreenUrl } from '@/utils/pod'
 
 const clusterStore = useClusterStore()
 
@@ -127,23 +128,7 @@ function onVResizeStart(e: MouseEvent) {
   document.addEventListener('mouseup', onUp)
 }
 
-const statusTagType = computed(() => {
-  const s = (pod.value?.status || '').toLowerCase()
-  if (s === 'running') return 'success'
-  if (s === 'succeeded') return 'info'
-  if (s === 'pending') return 'warning'
-  if (s === 'failed' || s === 'error') return 'danger'
-  return 'info'
-})
-
-function statusType(status: string) {
-  const s = (status || '').toLowerCase()
-  if (s === 'running') return 'success'
-  if (s === 'succeeded') return 'info'
-  if (s === 'pending') return 'warning'
-  if (s === 'failed' || s === 'error') return 'danger'
-  return 'info'
-}
+const statusTagType = computed(() => getPodStatusType(pod.value?.status || ''))
 
 function containerStateType(state: string) {
   const s = (state || '').toLowerCase()
@@ -192,18 +177,12 @@ function handleYamlSaved() {
   fetchDetail()
 }
 
-function getClusterName(): string {
-  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.cluster_name || clusterStore.currentCluster?.name || ''
-}
-
 function handleLogs() {
-  const cluster = getClusterName()
-  window.open(`/fullscreen/logs?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(buildFullscreenUrl('logs', { namespace, pod: name, cluster: clusterStore.clusterName || undefined }), '_blank')
 }
 
 function handleExec() {
-  const cluster = getClusterName()
-  window.open(`/fullscreen/terminal?namespace=${namespace}&pod=${name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(buildFullscreenUrl('terminal', { namespace, pod: name, cluster: clusterStore.clusterName || undefined }), '_blank')
 }
 
 async function handleDelete() {
@@ -302,7 +281,7 @@ onMounted(() => {
               <el-descriptions-item label="名称">{{ pod.name }}</el-descriptions-item>
               <el-descriptions-item label="命名空间">{{ pod.namespace }}</el-descriptions-item>
               <el-descriptions-item label="状态">
-                <el-tag :type="statusType(pod.status)" size="small">{{ pod.status }}</el-tag>
+                <el-tag :type="getPodStatusType(pod.status)" size="small">{{ pod.status }}</el-tag>
               </el-descriptions-item>
               <el-descriptions-item label="Pod IP">{{ pod.ip || '-' }}</el-descriptions-item>
               <el-descriptions-item label="主机 IP">{{ pod.host_ip || '-' }}</el-descriptions-item>
@@ -470,7 +449,7 @@ onMounted(() => {
                 </el-table-column>
                 <el-table-column prop="reason" label="原因" width="130" />
                 <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="last_seen" label="最后发生" width="150" />
+                <el-table-column prop="lastTimestamp" label="最后发生" width="160" />
               </el-table>
               <div v-else class="empty-hint">暂无事件</div>
             </div>
