@@ -169,7 +169,26 @@ function handlePodExec(pod: any) {
   window.open(`/fullscreen/terminal?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
-async function handlePodDelete(pod: any) {
+async function handlePodDelete(pod: any, force = false) {
+  if (force) {
+    try {
+      await ElMessageBox.confirm(
+        `强制删除 Pod "${pod.metadata.name}" 将跳过优雅终止，控制器管理的 Pod 会被立即重建。确定继续？`,
+        '确认强制删除',
+        { type: 'warning', confirmButtonText: '强制删除', cancelButtonText: '取消' }
+      )
+    } catch {
+      return
+    }
+    try {
+      await deletePod({ namespace, name: pod.metadata.name, force: true })
+      ElMessage.success('Pod 已强制删除')
+      fetchPods()
+    } catch (e: any) {
+      if (e !== 'cancel') ElMessage.error(e?.message || '强制删除失败')
+    }
+    return
+  }
   try {
     await ElMessageBox.confirm(
       `确定删除 Pod ${pod.metadata.name} 吗？`,
@@ -464,7 +483,8 @@ onMounted(() => {
   margin-left: 0;
 }
 
-.header-actions .el-button:last-of-type {
+.header-actions .el-button:last-of-type,
+.header-actions .el-dropdown:last-of-type {
   border-radius: 0 4px 4px 0;
 }
 

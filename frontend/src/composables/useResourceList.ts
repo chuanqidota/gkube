@@ -22,6 +22,8 @@ export interface ResourceListOptions {
   createRoute?: string
   /** Custom confirm message for delete */
   deleteConfirm?: (row: any) => string
+  /** Force-delete a single resource (optional; if set, handleDelete accepts force flag) */
+  forceDeleteResource?: (params: any) => Promise<any>
   /** Enable server-side pagination (default: false) */
   paginated?: boolean
   /** Page size for pagination (default: 50) */
@@ -228,7 +230,23 @@ export function useResourceList(options: ResourceListOptions) {
     }
   }
 
-  async function handleDelete(row: any) {
+  async function handleDelete(row: any, force?: boolean) {
+    if (force && options.forceDeleteResource) {
+      const msg = `强制删除 ${options.resourceName} "${row.name}" 将跳过优雅终止，控制器管理的 Pod 会被立即重建。确定继续？`
+      try {
+        await ElMessageBox.confirm(msg, 'Confirm', { type: 'warning' })
+      } catch {
+        return
+      }
+      try {
+        await options.forceDeleteResource({ namespace: row.namespace, name: row.name })
+        ElMessage.success(`${options.resourceName} deleted (forced)`)
+        fetchResources()
+      } catch (e: any) {
+        ElMessage.error(e?.message || `强制删除${options.resourceName}失败`)
+      }
+      return
+    }
     const msg = options.deleteConfirm
       ? options.deleteConfirm(row)
       : `Delete ${options.resourceName.toLowerCase()} "${row.name}" in namespace "${row.namespace}"?`

@@ -503,7 +503,7 @@ export function updatePodYaml(data: { namespace: string; name: string; yaml: str
   return request.put('/k8s/pod/update-yaml', data)
 }
 
-export function deletePod(data: { namespace: string; name: string }) {
+export function deletePod(data: { namespace: string; name: string; force?: boolean }) {
   return request.delete('/k8s/pod/delete', { data })
 }
 

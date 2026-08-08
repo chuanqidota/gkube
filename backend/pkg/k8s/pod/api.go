@@ -125,9 +125,17 @@ func UpdatePod(client *kubernetes.Clientset, namespace, name, podYaml string) er
 //	@param client
 //	@param namespace
 //	@param name
+//	@param force 强制删除：GracePeriodSeconds=0，PropagationPolicy=Background
 //	@return error
-func DeletePodByName(client *kubernetes.Clientset, namespace, name string) error {
-	err := client.CoreV1().Pods(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+func DeletePodByName(client *kubernetes.Clientset, namespace, name string, force bool) error {
+	deleteOpts := metav1.DeleteOptions{}
+	if force {
+		gracePeriod := int64(0)
+		deleteOpts.GracePeriodSeconds = &gracePeriod
+		prop := metav1.DeletePropagationBackground
+		deleteOpts.PropagationPolicy = &prop
+	}
+	err := client.CoreV1().Pods(namespace).Delete(context.TODO(), name, deleteOpts)
 	if err != nil {
 		return fmt.Errorf("删除pod资源失败:%s", err.Error())
 	}

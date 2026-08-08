@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Delete } from '@element-plus/icons-vue'
+import { ArrowDown } from '@element-plus/icons-vue'
 import { getPodList, getPodYaml, deletePod, transformPods } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import { useClusterStore } from '@/stores/cluster'
@@ -38,6 +38,7 @@ const {
   transform: transformPods,
   getYaml: getPodYaml,
   deleteResource: deletePod,
+  forceDeleteResource: (data: any) => deletePod({ ...data, force: true }),
   detailRoute: '/workloads/pods',
   paginated: true,
   pageSize: 50,
@@ -110,10 +111,22 @@ function handleExec(row: any) {
         <el-table-column prop="age" label="Age" width="120" />
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="primary" @click="handleViewLogs(row)">日志</el-button>
-            <el-button size="small" type="success" @click="handleExec(row)">终端</el-button>
-            <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
+            <div class="action-buttons">
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" type="primary" @click="handleViewLogs(row)">日志</el-button>
+              <el-button size="small" type="success" @click="handleExec(row)">终端</el-button>
+              <el-dropdown @command="(cmd: string) => handleDelete(row, cmd === 'force')" trigger="click">
+                <el-button size="small" type="danger" plain>
+                  删除 <el-icon><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="normal">删除</el-dropdown-item>
+                    <el-dropdown-item command="force" divided>强制删除</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -137,6 +150,17 @@ function handleExec(row: any) {
 </template>
 
 <style scoped>
+.action-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+}
+.action-buttons .el-button + .el-button,
+.action-buttons .el-dropdown + .el-button {
+  margin-left: 0;
+}
+
 .page-container {
   padding: 20px;
 }

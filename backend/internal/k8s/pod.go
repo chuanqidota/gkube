@@ -147,7 +147,7 @@ func (p *pod) DeletePodByName(c *gin.Context) {
 		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	if err := k8sPod.DeletePodByName(client, query.Namespace, query.Name); err != nil {
+	if err := k8sPod.DeletePodByName(client, query.Namespace, query.Name, query.Force); err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusBadGateway, "删除pod失败")
 		return
@@ -208,6 +208,7 @@ type PodDeleteByNameParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	Force       bool   `form:"force" json:"force" label:"是否强制删除"`
 }
 
 type PodEventQueryParams struct {

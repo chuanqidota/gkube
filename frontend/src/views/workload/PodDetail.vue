@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
+import { Refresh, Timer, ArrowLeft, ArrowDown } from '@element-plus/icons-vue'
 import { getPodDetail, deletePod, getPodEvents, calcAge } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useClusterStore } from '@/stores/cluster'
@@ -185,7 +185,26 @@ function handleExec() {
   window.open(buildFullscreenUrl('terminal', { namespace, pod: name, cluster: clusterStore.clusterName || undefined }), '_blank')
 }
 
-async function handleDelete() {
+async function handleDelete(force = false) {
+  if (force) {
+    try {
+      await ElMessageBox.confirm(
+        `强制删除 Pod "${name}" 将跳过优雅终止，控制器管理的 Pod 会被立即重建。确定继续？`,
+        '确认强制删除',
+        { type: 'warning', confirmButtonText: '强制删除', cancelButtonText: '取消' }
+      )
+    } catch {
+      return
+    }
+    try {
+      await deletePod({ namespace, name, force: true })
+      ElMessage.success('Pod 已强制删除')
+      router.push('/workloads/pods')
+    } catch (e: any) {
+      if (e !== 'cancel') ElMessage.error(e?.message || '强制删除失败')
+    }
+    return
+  }
   try {
     await ElMessageBox.confirm(
       `确定要删除 Pod "${name}"（命名空间：${namespace}）吗？`,
@@ -232,7 +251,17 @@ onMounted(() => {
         <el-button type="primary" @click="handleLogs">日志</el-button>
         <el-button type="success" @click="handleExec">终端</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" plain @click="handleDelete">删除</el-button>
+        <el-dropdown @command="(cmd: string) => handleDelete(cmd === 'force')" trigger="click">
+          <el-button type="danger" plain>
+            删除 <el-icon><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="normal">删除</el-dropdown-item>
+              <el-dropdown-item command="force" divided>强制删除</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="hover">
           <template #reference>
@@ -544,7 +573,8 @@ onMounted(() => {
   margin-left: 0;
 }
 
-.header-actions .el-button:last-of-type {
+.header-actions .el-button:last-of-type,
+.header-actions .el-dropdown:last-of-type {
   border-radius: 0 4px 4px 0;
 }
 

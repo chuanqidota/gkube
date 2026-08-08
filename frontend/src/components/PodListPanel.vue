@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ElTag, ElButton } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { formatAge } from '@/utils/time'
 import { getPodStatusType } from '@/utils/pod'
@@ -40,7 +40,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   logs: [pod: Pod]
   exec: [pod: Pod]
-  delete: [pod: Pod]
+  delete: [pod: Pod, force?: boolean]
 }>()
 
 const getRestarts = (pod: Pod): number => {
@@ -90,9 +90,21 @@ const getRestarts = (pod: Pod): number => {
       </el-table-column>
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" type="primary" @click="emit('logs', row)">日志</el-button>
-          <el-button size="small" type="success" @click="emit('exec', row)">终端</el-button>
-          <el-button size="small" type="danger" plain @click="emit('delete', row)">删除</el-button>
+          <div class="action-buttons">
+            <el-button size="small" type="primary" @click="emit('logs', row)">日志</el-button>
+            <el-button size="small" type="success" @click="emit('exec', row)">终端</el-button>
+            <el-dropdown @command="(cmd: string) => emit('delete', row, cmd === 'force')" trigger="click">
+              <el-button size="small" type="danger" plain>
+                删除 <el-icon><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="normal">删除</el-dropdown-item>
+                  <el-dropdown-item command="force" divided>强制删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -101,6 +113,16 @@ const getRestarts = (pod: Pod): number => {
 </template>
 
 <style scoped>
+.action-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+}
+.action-buttons .el-button + .el-button {
+  margin-left: 0;
+}
+
 .pod-list-panel {
   width: 100%;
   height: 100%;
