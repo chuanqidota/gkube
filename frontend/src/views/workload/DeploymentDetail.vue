@@ -20,6 +20,7 @@ import PodListPanel from '@/components/PodListPanel.vue'
 import DeploymentForm from '@/views/workload/components/DeploymentForm.vue'
 import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { buildFullscreenUrl } from '@/utils/pod'
 
 const clusterStore = useClusterStore()
 import { useResizable } from '@/composables/useResizable'
@@ -177,18 +178,14 @@ async function handleReplicasetRollback(rs: any) {
   }
 }
 
-function getClusterName(): string {
-  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.cluster_name || clusterStore.currentCluster?.name || ''
-}
-
 function handlePodLogs(pod: any) {
-  const cluster = getClusterName()
-  window.open(`/fullscreen/logs?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  const podNs = pod.metadata.namespace || namespace
+  window.open(buildFullscreenUrl('logs', { namespace: podNs, pod: pod.metadata.name, cluster: clusterStore.clusterName || undefined }), '_blank')
 }
 
 function handlePodExec(pod: any) {
-  const cluster = getClusterName()
-  window.open(`/fullscreen/terminal?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  const podNs = pod.metadata.namespace || namespace
+  window.open(buildFullscreenUrl('terminal', { namespace: podNs, pod: pod.metadata.name, cluster: clusterStore.clusterName || undefined }), '_blank')
 }
 
 async function handlePodDelete(pod: any) {
@@ -468,7 +465,7 @@ onMounted(() => {
                 </el-table-column>
                 <el-table-column prop="reason" label="原因" width="130" />
                 <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="last_seen" label="最后发生" width="150" />
+                <el-table-column prop="lastTimestamp" label="最后发生" width="160" />
               </el-table>
               <div v-else class="empty-hint">暂无事件</div>
             </div>

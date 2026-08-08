@@ -10,11 +10,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 
+	k8sEvent "gkube/pkg/k8s/event"
 	"gkube/pkg/yamlutil"
 )
 
@@ -89,8 +90,21 @@ func UpdateDeployment(client *kubernetes.Clientset, namespace, name, deploymentY
 		return fmt.Errorf("资源名称不匹配: 请求指定 %s, YAML 中为 %s", name, deployment.Name)
 	}
 	deployment.Namespace = namespace
-	_, err := client.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
-	if err != nil {
+	// 冲突时自动重试(参照 pod UpdatePod / deployment restart/scale 的 RetryOnConflict 模式)。
+	// 闭包内 re-Get 最新对象(带新 resourceVersion),再用用户 YAML 的 spec 覆盖后 Update,
+	// 否则重试会发同一个过期 resourceVersion 持续 409 直到 backoff 耗尽(死重试)。
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("获取deployment资源失败:%s", err.Error())
+		}
+		// 用用户 YAML 的 spec 与可变 metadata 覆盖最新对象,保留最新 resourceVersion
+		latest.Spec = deployment.Spec
+		latest.Labels = deployment.Labels
+		latest.Annotations = deployment.Annotations
+		_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
+		return err
+	}); err != nil {
 		return fmt.Errorf("更新deployment资源失败:%s", err.Error())
 	}
 	return nil
@@ -119,13 +133,13 @@ func DeleteDeployment(client *kubernetes.Clientset, namespace, name string) erro
 //	@param name
 //	@param replicas
 //	@return error
-func ScaleDeployment(client *kubernetes.Clientset, namespace, name string, replicas int32) error {
+func ScaleDeployment(client *kubernetes.Clientset, namespace, name string, replicas *int32) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("获取deployment资源失败:%s", err.Error())
 		}
-		deployment.Spec.Replicas = &replicas
+		deployment.Spec.Replicas = replicas
 		_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
 		// 返回原始 err，以便 RetryOnConflict 识别 409 Conflict 自动重试
 		return err
@@ -217,9 +231,19 @@ func RollbackDeployment(client *kubernetes.Clientset, namespace, name string, re
 		return fmt.Errorf("获取deployment资源失败:%s", err.Error())
 	}
 
-	labelSelector := labels.Set(deployment.Spec.Selector.MatchLabels).String()
+	// 用完整 selector(matchLabels + matchExpressions) 查找 RS,nil/空 selector 时中止避免误列
+	if deployment.Spec.Selector == nil {
+		return fmt.Errorf("deployment selector 为空,无法定位关联 ReplicaSet")
+	}
+	selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
+	if err != nil {
+		return fmt.Errorf("解析deployment selector失败:%s", err.Error())
+	}
+	if selector.Empty() {
+		return fmt.Errorf("deployment selector 为空,无法定位关联 ReplicaSet")
+	}
 	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labelSelector,
+		LabelSelector: selector.String(),
 	})
 	if err != nil {
 		return fmt.Errorf("获取ReplicaSet列表失败:%s", err.Error())
@@ -269,7 +293,17 @@ func GetDeploymentPods(client *kubernetes.Clientset, namespace, name string) (*c
 	if err != nil {
 		return nil, fmt.Errorf("获取deployment资源失败:%s", err.Error())
 	}
-	selector := labels.Set(deployment.Spec.Selector.MatchLabels).AsSelectorPreValidated()
+	// 用完整 selector(matchLabels + matchExpressions),nil/空 selector 时返回空列表避免误列全部 Pod
+	if deployment.Spec.Selector == nil {
+		return &corev1.PodList{Items: []corev1.Pod{}}, nil
+	}
+	selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
+	if err != nil {
+		return nil, fmt.Errorf("解析deployment selector失败:%s", err.Error())
+	}
+	if selector.Empty() {
+		return &corev1.PodList{Items: []corev1.Pod{}}, nil
+	}
 	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: selector.String(),
 	})
@@ -286,7 +320,17 @@ func GetDeploymentReplicaSets(client *kubernetes.Clientset, namespace, name stri
 		return nil, fmt.Errorf("获取deployment资源失败:%s", err.Error())
 	}
 
-	selector := labels.SelectorFromSet(deploy.Spec.Selector.MatchLabels)
+	// 用完整 selector(matchLabels + matchExpressions),nil/空 selector 时返回空列表避免误列全部 RS
+	if deploy.Spec.Selector == nil {
+		return []appsv1.ReplicaSet{}, nil
+	}
+	selector, err := metav1.LabelSelectorAsSelector(deploy.Spec.Selector)
+	if err != nil {
+		return nil, fmt.Errorf("解析deployment selector失败:%s", err.Error())
+	}
+	if selector.Empty() {
+		return []appsv1.ReplicaSet{}, nil
+	}
 	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: selector.String(),
 	})
@@ -314,27 +358,16 @@ func getRevision(rs *appsv1.ReplicaSet) int64 {
 	return rev
 }
 
-// GetDeploymentEvents returns the events associated with a Deployment,
-// mapped to a simplified {type, reason, message, last_seen} shape.
-func GetDeploymentEvents(client *kubernetes.Clientset, namespace, name string) ([]map[string]any, error) {
-	events, err := client.CoreV1().Events(namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Deployment", name),
-	})
+// GetDeploymentEvents returns the events associated with a Deployment.
+// 复用 event 包返回结构化 KubeEvent(与 Pod events 形态一致),用 fields.Selector 防注入。
+func GetDeploymentEvents(client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
+	selector := fields.AndSelectors(
+		fields.OneTermEqualSelector("involvedObject.name", name),
+		fields.OneTermEqualSelector("involvedObject.kind", "Deployment"),
+	).String()
+	events, _, _, err := k8sEvent.ListEvents(client, namespace, selector, 0, "")
 	if err != nil {
 		return nil, fmt.Errorf("获取deployment事件失败:%s", err.Error())
 	}
-	result := make([]map[string]any, 0, len(events.Items))
-	for _, event := range events.Items {
-		lastSeen := ""
-		if !event.LastTimestamp.IsZero() {
-			lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
-		}
-		result = append(result, map[string]any{
-			"type":      event.Type,
-			"reason":    event.Reason,
-			"message":   event.Message,
-			"last_seen": lastSeen,
-		})
-	}
-	return result, nil
+	return events, nil
 }

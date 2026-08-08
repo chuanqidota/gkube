@@ -11,6 +11,7 @@ import {
   scaleDeployment,
   restartDeployment,
   updateDeploymentImage,
+  getDeploymentDetail,
 } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
@@ -53,7 +54,6 @@ const {
   createRoute: '/workloads/deployments/create',
   paginated: true,
   pageSize: 50,
-  autoRefreshInterval: 30000,
 })
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
@@ -113,7 +113,6 @@ async function handleQuickUpdateImage(row: any) {
   imageDialogVisible.value = true
   // Fetch detail to get container list
   try {
-    const { getDeploymentDetail } = await import('@/api/resource')
     const res: any = await getDeploymentDetail({ namespace: row.namespace, name: row.name })
     const containers = res.data?.spec?.template?.spec?.containers || []
     imageContainers.value = containers.map((c: any) => ({ name: c.name, image: c.image || '' }))

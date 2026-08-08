@@ -99,10 +99,19 @@ func UpdatePod(client *kubernetes.Clientset, namespace, name, podYaml string) er
 		return fmt.Errorf("资源名称不匹配: 请求指定 %s, YAML 中为 %s", name, pod.Name)
 	}
 	pod.Namespace = namespace
-	// 冲突时自动重试(参照 deployment restart/scale 的 RetryOnConflict 模式),
-	// 闭包返回原始 err 以便识别 409 Conflict
+	// 冲突时自动重试(参照 deployment restart/scale 的 RetryOnConflict 模式)。
+	// 闭包内 re-Get 最新对象(带新 resourceVersion),再用用户 YAML 的 spec 覆盖后 Update,
+	// 否则重试会发同一个过期 resourceVersion 持续 409 直到 backoff 耗尽(死重试)。
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		_, err := client.CoreV1().Pods(namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
+		latest, err := client.CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("获取pod资源失败:%s", err.Error())
+		}
+		// 用用户 YAML 的 spec 与可变 metadata 覆盖最新对象,保留最新 resourceVersion
+		latest.Spec = pod.Spec
+		latest.Labels = pod.Labels
+		latest.Annotations = pod.Annotations
+		_, err = client.CoreV1().Pods(namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
 		return err
 	}); err != nil {
 		return fmt.Errorf("更新pod资源失败:%s", err.Error())
