@@ -298,6 +298,9 @@ func UpdateDaemonSetImage(client *kubernetes.Clientset, namespace, name, contain
 //	@return *appsv1.DaemonSet
 //	@return error
 func RollbackDaemonSet(client *kubernetes.Clientset, namespace, name string, revision int64) (*appsv1.DaemonSet, error) {
+	if revision <= 0 {
+		return nil, fmt.Errorf("revision must be a positive integer, got %d", revision)
+	}
 	ds, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -361,7 +364,6 @@ func GetDaemonSetRollbacks(client *kubernetes.Clientset, namespace, name string)
 			Name:     rev.Name,
 		})
 	}
-	// Sort descending by revision
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[j].Revision > entries[i].Revision
 	})

@@ -5,10 +5,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
 import {
   getReplicaSetDetail,
-  getReplicaSetPodList,
   getReplicaSetEvents,
   deleteReplicaSet,
   deletePod,
+  calcAge,
 } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
@@ -17,15 +17,12 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const clusterName = useClusterNameRef()
 import { useResizable } from '@/composables/useResizable'
-import { formatAge } from '@/utils/time'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const detail = ref<any>(null)
 const yamlDialogVisible = ref(false)
-const pods = ref<any[]>([])
-const podsLoading = ref(false)
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
 
@@ -67,19 +64,6 @@ async function fetchDetail() {
   }
 }
 
-async function fetchPods() {
-  podsLoading.value = true
-  try {
-    const res: any = await getReplicaSetPodList({ namespace, name })
-    pods.value = res.data?.items || res.data || []
-  } catch (e: any) {
-    console.error('Failed to fetch pods:', e)
-    ElMessage.error('获取 Pod 列表失败')
-  } finally {
-    podsLoading.value = false
-  }
-}
-
 async function fetchEvents() {
   eventsLoading.value = true
   try {
@@ -117,7 +101,7 @@ async function handlePodDelete(pod: any, force = false) {
     try {
       await deletePod({ namespace, name: pod.metadata.name, force: true })
       ElMessage.success('Pod 已强制删除')
-      await fetchPods()
+      await fetchDetail()
     } catch (e: any) {
       if (e !== 'cancel') ElMessage.error(e?.message || '强制删除失败')
     }
@@ -131,7 +115,7 @@ async function handlePodDelete(pod: any, force = false) {
     )
     await deletePod({ namespace, name: pod.metadata.name })
     ElMessage.success('Pod 已删除')
-    await fetchPods()
+    await fetchDetail()
   } catch (error: any) {
     if (error !== 'cancel') {
       ElMessage.error('删除失败')
@@ -170,12 +154,11 @@ function goController() {
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
   fetchDetail()
-  fetchPods()
   fetchEvents()
 }, { autoStart: false })
 
 onMounted(() => {
-  Promise.all([fetchDetail(), fetchPods(), fetchEvents()])
+  Promise.all([fetchDetail(), fetchEvents()])
 })
 </script>
 
@@ -259,7 +242,7 @@ onMounted(() => {
               <div class="info-row"><span class="info-label">当前副本</span><span class="info-value">{{ rs.status?.replicas ?? 0 }}</span></div>
               <div class="info-row"><span class="info-label">就绪副本</span><span class="info-value">{{ rs.status?.readyReplicas ?? 0 }}</span></div>
               <div class="info-row"><span class="info-label">可用副本</span><span class="info-value">{{ rs.status?.availableReplicas ?? 0 }}</span></div>
-              <div class="info-row"><span class="info-label">创建时间</span><span class="info-value">{{ formatAge(rs.metadata?.creationTimestamp) }}</span></div>
+              <div class="info-row"><span class="info-label">创建时间</span><span class="info-value">{{ calcAge(rs.metadata?.creationTimestamp) }}</span></div>
               <div class="info-row" v-if="controllerOf">
                 <span class="info-label">拥有者</span>
                 <span
@@ -297,11 +280,11 @@ onMounted(() => {
           <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
             <div class="panel-title">
               Pod 列表
-              <span class="count-badge">{{ pods.length }} 个</span>
+              <span class="count-badge">{{ (detail?.pods || []).length }} 个</span>
             </div>
             <PodListPanel
-              :pods="pods"
-              :loading="podsLoading"
+              :pods="detail?.pods || []"
+              :loading="loading"
               @logs="handlePodLogs"
               @exec="handlePodExec"
               @delete="handlePodDelete"

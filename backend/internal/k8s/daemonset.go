@@ -44,7 +44,7 @@ func (d *daemonSet) GetDaemonSetList(c *gin.Context) {
 			remaining = *dsList.RemainingItemCount
 		}
 		data := k8sclient.BuildPaginatedData(dsList.Items, dsList.Continue, remaining, limit)
-		data.Total = len(dsList.Items)
+		data.Total = len(dsList.Items) + int(remaining)
 		response.Success(c, "执行成功", data)
 	} else {
 		daemonSets, err := k8sDaemonSet.GetDaemonSetList(client, query.Namespace)
@@ -352,14 +352,14 @@ type DaemonSetQueryByNameParams struct {
 type DaemonSetCreateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
+	Yaml        string `form:"yaml" json:"yaml" binding:"required" label:"Yaml"`
 }
 
 type DaemonSetUpdateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
 	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
+	Yaml        string `form:"yaml" json:"yaml" binding:"required" label:"Yaml"`
 }
 
 type DaemonSetDeleteByNameParams struct {

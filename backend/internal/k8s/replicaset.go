@@ -55,6 +55,10 @@ func (r *replicaset) GetReplicaSetList(c *gin.Context) {
 		if rs.Spec.Replicas != nil {
 			replicas = *rs.Spec.Replicas
 		}
+		var ownerRefs []map[string]string
+		for _, ref := range rs.OwnerReferences {
+			ownerRefs = append(ownerRefs, map[string]string{"kind": ref.Kind, "name": ref.Name})
+		}
 		result = append(result, map[string]any{
 			"name":               rs.Name,
 			"namespace":          rs.Namespace,
@@ -65,7 +69,7 @@ func (r *replicaset) GetReplicaSetList(c *gin.Context) {
 			"fully_labeled":      rs.Status.FullyLabeledReplicas,
 			"creation_timestamp": rs.CreationTimestamp.Time.Format(time.RFC3339),
 			"labels":             rs.Labels,
-			"owner_references":   rs.OwnerReferences,
+			"owner_references":   ownerRefs,
 		})
 	}
 	response.Success(c, "获取ReplicaSet列表成功", result)
@@ -166,8 +170,9 @@ func (r *replicaset) GetReplicaSetEvents(c *gin.Context) {
 		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	events, err := client.CoreV1().Events(query.Namespace).List(context.Background(), metav1.ListOptions{
+	events, err := client.CoreV1().Events(query.Namespace).List(context.TODO(), metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=ReplicaSet", query.Name),
+		Limit:         200,
 	})
 	if err != nil {
 		logger.Error(err.Error())

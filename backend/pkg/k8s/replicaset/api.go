@@ -53,16 +53,6 @@ func GetReplicaSetPodList(client *kubernetes.Clientset, namespace, name string) 
 	return podList, nil
 }
 
-// PodSummary contains a brief summary of a Pod
-type PodSummary struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Status    string `json:"status"`
-	Ready     string `json:"ready"`
-	Node      string `json:"node"`
-	Restarts  int32  `json:"restarts"`
-}
-
 // OwnerRef represents the controller owner of a resource
 type OwnerRef struct {
 	Kind      string `json:"kind"`
@@ -73,7 +63,7 @@ type OwnerRef struct {
 // ReplicaSetDetailDTO contains the ReplicaSet, its controller reference, and related Pods
 type ReplicaSetDetailDTO struct {
 	RS           appsv1.ReplicaSet `json:"rs"`
-	Pods         []PodSummary      `json:"pods"`
+	Pods         []corev1.Pod      `json:"pods"`
 	ControllerOf *OwnerRef         `json:"controllerOf"`
 }
 
@@ -91,28 +81,7 @@ func GetReplicaSetDetail(client *kubernetes.Clientset, namespace, name string) (
 		return nil, err
 	}
 
-	var pods []PodSummary
-	for _, p := range podList.Items {
-		var readyContainers, totalContainers int32
-		for _, cs := range p.Status.ContainerStatuses {
-			totalContainers++
-			if cs.Ready {
-				readyContainers++
-			}
-		}
-		var restarts int32
-		for _, cs := range p.Status.ContainerStatuses {
-			restarts += cs.RestartCount
-		}
-		pods = append(pods, PodSummary{
-			Name:      p.Name,
-			Namespace: p.Namespace,
-			Status:    string(p.Status.Phase),
-			Ready:     fmt.Sprintf("%d/%d", readyContainers, totalContainers),
-			Node:      p.Spec.NodeName,
-			Restarts:  restarts,
-		})
-	}
+	pods := podList.Items
 
 	var controllerOf *OwnerRef
 	for _, ref := range rs.OwnerReferences {

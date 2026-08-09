@@ -90,7 +90,9 @@ async function handleQuickUpdateImage(row: any) {
       imageForm.value.containerName = imageContainers.value[0].name
       imageForm.value.image = imageContainers.value[0].image
     }
-  } catch { /* ignore */ }
+  } catch (e: any) {
+    if (e !== 'cancel') ElMessage.error(e?.message || '获取容器列表失败')
+  }
 }
 
 async function handleImageConfirm() {

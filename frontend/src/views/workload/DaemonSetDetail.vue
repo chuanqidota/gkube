@@ -55,6 +55,11 @@ const rollbackConfirmLoading = ref(false)
 const namespace = route.params.namespace as string
 const name = route.params.name as string
 
+if (!namespace || !name) {
+  ElMessage.error('缺少必需的路由参数')
+  router.push('/workloads/daemonsets')
+}
+
 const statusTagType = computed(() => {
   const desired = daemonSet.value?.status?.desiredNumberScheduled || 0
   const ready = daemonSet.value?.status?.numberReady || 0
@@ -126,8 +131,9 @@ async function fetchRollbacks() {
     if (rollbackList.value.length > 0) {
       selectedRevision.value = rollbackList.value[0].revision
     }
-  } catch (e) {
+  } catch (e: any) {
     rollbackList.value = []
+    if (e !== 'cancel') ElMessage.error(e?.message || '获取回滚版本列表失败')
   } finally {
     rollbackLoading.value = false
   }
