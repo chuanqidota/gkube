@@ -209,7 +209,7 @@ watch(nodeName, () => {
           <el-button v-else type="danger" plain @click="handleDelete(nodeName, node?.status === 'Ready', () => router.push('/nodes'))">删除</el-button>
         </el-button-group>
         <div class="action-divider" />
-        <el-popover placement="bottom" :width="200" trigger="click" :append-to-body="false">
+        <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
             <el-button
               :type="isRunning ? 'success' : 'default'"
@@ -224,6 +224,7 @@ watch(nodeName, () => {
             <el-select
               :model-value="currentInterval / 1000"
               @update:model-value="setIntervalOption"
+              :teleported="false"
               size="small"
               style="width: 100%;"
             >

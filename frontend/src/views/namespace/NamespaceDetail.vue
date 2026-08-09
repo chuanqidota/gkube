@@ -391,7 +391,7 @@ onMounted(() => {
         <el-button @click="handleOpenYaml">{{ t('common.yaml') }}</el-button>
         <el-button type="danger" plain @click="handleDelete">{{ t('namespace.deleteBtn') }}</el-button>
         <div class="action-divider" />
-        <el-popover placement="bottom" :width="200" trigger="click" :append-to-body="false">
+        <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
             <el-button
               :type="isRunning ? 'success' : 'default'"
@@ -406,6 +406,7 @@ onMounted(() => {
             <el-select
               :model-value="currentInterval / 1000"
               @update:model-value="setIntervalOption"
+              :teleported="false"
               size="small"
               style="width: 100%;"
             >

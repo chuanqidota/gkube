@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
 import { Refresh, Timer } from '@element-plus/icons-vue'
 
 interface Props {
@@ -21,38 +20,15 @@ const emit = defineEmits<{
   'interval-change': [seconds: number]
 }>()
 
-const popoverVisible = ref(false)
-
 function handleIntervalChange(seconds: number) {
   emit('interval-change', seconds)
 }
-
-function handleClickOutside(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  if (!target.closest('.auto-refresh-toolbar')) {
-    popoverVisible.value = false
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
 </script>
 
 <template>
   <div class="auto-refresh-toolbar">
     <!-- 自动刷新按钮（图标 + popover） -->
-    <el-popover
-      v-model:visible="popoverVisible"
-      placement="bottom"
-      :width="200"
-      trigger="click"
-      :append-to-body="false"
-    >
+    <el-popover placement="bottom" :width="200" trigger="click">
       <template #reference>
         <el-button
           :type="isRunning ? 'success' : 'default'"
@@ -64,9 +40,12 @@ onUnmounted(() => {
         <div class="popover-title">
           {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
         </div>
+        <!-- teleported=false：选项下拉框留在 popover 内部，
+             避免点击选项时被 popover 的 click-outside 判定为外部而关闭 -->
         <el-select
           :model-value="currentInterval / 1000"
           @update:model-value="handleIntervalChange"
+          :teleported="false"
           size="small"
           style="width: 100%;"
         >
