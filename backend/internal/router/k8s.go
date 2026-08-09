@@ -103,6 +103,8 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.POST("statefulset/restart", k8s.StatefulSet.RestartStatefulSet)
 	rg.POST("statefulset/rollback", k8s.StatefulSet.RollbackStatefulSet)
 	rg.PUT("statefulset/update-image", k8s.StatefulSet.UpdateStatefulSetImage)
+	rg.GET("statefulset/rollbacks", k8s.StatefulSet.GetStatefulSetRollbacks)
+	rg.GET("statefulset/pvcs", k8s.StatefulSet.GetStatefulSetPVCs)
 
 	// DaemonSet
 	rg.GET("daemonset/list", k8s.DaemonSet.GetDaemonSetList)

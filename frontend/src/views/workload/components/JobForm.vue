@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
@@ -114,6 +114,11 @@ async function fetchNamespaces() {
 onMounted(() => {
   fetchNamespaces()
   if (props.isEdit && props.initialData) parseInitialData(props.initialData)
+})
+
+// 克隆流入（创建模式 isEdit=false，onMounted 不会触发 parseInitialData，故用 watch 兜底）
+watch(() => props.initialData, (newData) => {
+  if (newData) parseInitialData(newData)
 })
 
 function addLabel() { form.labels.push({ key: '', value: '' }) }

@@ -3,15 +3,19 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { FullScreen } from '@element-plus/icons-vue'
+import { FullScreen, CopyDocument } from '@element-plus/icons-vue'
+import yaml from 'js-yaml'
 import PVForm from '@/views/storage/components/PVForm.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
-import { createPv } from '@/api/resource'
+import CloneDialog from '@/components/CloneDialog.vue'
+import { useCloneCreate, dumpCloneYaml } from '@/composables/useCloneCreate'
+import { createPv, getPvList, getPvYaml } from '@/api/resource'
 
 const router = useRouter()
 const { t } = useI18n()
 const mode = ref<'form' | 'yaml'>('form')
 const yamlEditorRef = ref()
+const parsedData = ref<any>(null)
 const yamlContent = ref(`apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -28,6 +32,17 @@ spec:
     path: "/mnt/data"
 `)
 const submitting = ref(false)
+
+const {
+  cloneMode, cloneName, cloneNameOptions, cloneNameLoading,
+  cloneLoading, cloneTarget,
+  startClone, cancelClone, handleLoadClone,
+} = useCloneCreate({
+  api: { list: getPvList, yaml: getPvYaml },
+  namespaceScoped: false,
+  onCloneToForm: (parsed) => { parsedData.value = parsed; yamlContent.value = defaultYaml; mode.value = 'form' },
+  onCloneToYaml: (parsed) => { yamlContent.value = dumpCloneYaml(parsed); parsedData.value = null; mode.value = 'yaml' },
+})
 
 async function handleYamlSubmit() {
   if (!yamlContent.value.trim()) {
@@ -67,11 +82,28 @@ function handleMaximize() {
   <div class="pv-create">
     <div class="mode-switcher">
       <el-segmented v-model="mode" :options="[{ label: t('common.formCreate'), value: 'form' }, { label: t('common.yamlCreate'), value: 'yaml' }]" size="small" />
+      <el-button size="small" style="margin-left: 12px;" @click="startClone">
+        <el-icon><CopyDocument /></el-icon> 从现有资源克隆
+      </el-button>
     </div>
 
-    <PVForm v-if="mode === 'form'" />
+    <CloneDialog
+      kind-label="PersistentVolume"
+      :namespace-scoped="false"
+      v-model="cloneMode"
+      v-model:name-value="cloneName"
+      v-model:target="cloneTarget"
+      :name-options="cloneNameOptions"
+      :name-loading="cloneNameLoading"
+      :loading="cloneLoading"
+      @load="handleLoadClone"
+      @cancel="cancelClone"
+    />
 
-    <div v-else class="yaml-mode">
+    <!-- PVForm 始终挂载（v-show），避免克隆后切换 mode 时组件被销毁重建导致数据丢失 -->
+    <PVForm v-show="mode === 'form'" :initial-data="parsedData" />
+
+    <div v-if="mode !== 'form'" class="yaml-mode">
       <div class="yaml-card">
         <div class="yaml-card-header">
           <div class="yaml-card-left">

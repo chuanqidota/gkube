@@ -2,8 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { CopyDocument } from '@element-plus/icons-vue'
 import YamlEditor from '@/components/YamlEditor.vue'
-import { createVolumeSnapshot, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import CloneDialog from '@/components/CloneDialog.vue'
+import { useCloneCreate, dumpCloneYaml } from '@/composables/useCloneCreate'
+import { createVolumeSnapshot, getVolumeSnapshotList, getVolumeSnapshotYaml, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -37,6 +40,19 @@ function handleNamespaceChange() {
   yamlContent.value = doc
 }
 
+const {
+  cloneMode, cloneNamespace, cloneName, cloneNsOptions, cloneNameOptions,
+  cloneNsLoading, cloneNameLoading, cloneLoading,
+  startClone, cancelClone, handleLoadClone,
+} = useCloneCreate({
+  api: { list: getVolumeSnapshotList, yaml: getVolumeSnapshotYaml },
+  hasForm: false,
+  onCloneToYaml: (parsed) => {
+    yamlContent.value = dumpCloneYaml(parsed)
+    namespace.value = parsed.metadata?.namespace || namespace.value
+  },
+})
+
 async function handleSubmit() {
   submitting.value = true
   try {
@@ -61,7 +77,25 @@ onMounted(fetchNamespaces)
   <div class="create-page">
     <div class="form-header">
       <h2>{{ t('common.create') }} {{ t('storage.volumeSnapshot') }}</h2>
+      <el-button size="small" @click="startClone">
+        <el-icon><CopyDocument /></el-icon> 从现有资源克隆
+      </el-button>
     </div>
+
+    <CloneDialog
+      kind-label="VolumeSnapshot"
+      :show-target-choice="false"
+      v-model="cloneMode"
+      v-model:ns-value="cloneNamespace"
+      v-model:name-value="cloneName"
+      :ns-options="cloneNsOptions"
+      :name-options="cloneNameOptions"
+      :ns-loading="cloneNsLoading"
+      :name-loading="cloneNameLoading"
+      :loading="cloneLoading"
+      @load="handleLoadClone"
+      @cancel="cancelClone"
+    />
 
     <el-form label-width="140px" style="max-width: 700px; margin-bottom: 16px;">
       <el-form-item :label="t('common.namespace_label')" required>
@@ -95,6 +129,9 @@ onMounted(fetchNamespaces)
   padding: 20px 0;
 }
 .form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 24px;
 }
 .form-header h2 {

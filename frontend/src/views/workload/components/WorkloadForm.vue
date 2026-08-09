@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
@@ -336,6 +336,15 @@ onMounted(() => {
     parseInitialData(props.initialData)
   }
 })
+
+// 监听 initialData 变化：支持克隆场景下动态填充表单（克隆时 isEdit=false）
+// 不用 deep：克隆是整体引用替换，浅 watch 即可检测，避免递归遍历大 K8s 对象
+watch(
+  () => props.initialData,
+  (newData) => {
+    if (newData) parseInitialData(newData)
+  }
+)
 
 function addLabel() { form.labels.push({ key: '', value: '' }) }
 function removeLabel(i: number) { form.labels.splice(i, 1) }

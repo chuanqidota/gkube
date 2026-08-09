@@ -5,12 +5,14 @@ import (
 	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
+	"strings"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 	"time"
 )
@@ -138,20 +140,35 @@ func CreateStatefulSet(client *kubernetes.Clientset, namespace, statefulSetYaml 
 
 // UpdateStatefulSet
 //
-//	@Description: 更新statefulSet
+//	@Description: 更新statefulset
 //	@param client
 //	@param namespace
+//	@param name
 //	@param statefulSetYaml
-//	@return bool
 //	@return error
-func UpdateStatefulSet(client *kubernetes.Clientset, namespace, statefulSetYaml string) error {
+func UpdateStatefulSet(client *kubernetes.Clientset, namespace, name, statefulSetYaml string) error {
 	var statefulSet appsv1.StatefulSet
 	if err := yaml.Unmarshal([]byte(statefulSetYaml), &statefulSet); err != nil {
 		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
-	_, err := client.AppsV1().StatefulSets(namespace).Update(context.Background(), &statefulSet, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("更新statefulSet资源失败:%s", err.Error())
+	// 校验 YAML 中的名称与请求指定的一致，避免误更新同名空间下的其他资源
+	if statefulSet.Name != name {
+		return fmt.Errorf("资源名称不匹配: 请求指定 %s, YAML 中为 %s", name, statefulSet.Name)
+	}
+	statefulSet.Namespace = namespace
+	// 冲突时自动重试(与 Deployment Update 保持一致的 RetryOnConflict 模式)
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.AppsV1().StatefulSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("获取statefulset资源失败:%s", err.Error())
+		}
+		latest.Spec = statefulSet.Spec
+		latest.Labels = statefulSet.Labels
+		latest.Annotations = statefulSet.Annotations
+		_, err = client.AppsV1().StatefulSets(namespace).Update(context.Background(), latest, metav1.UpdateOptions{})
+		return err
+	}); err != nil {
+		return fmt.Errorf("更新statefulset资源失败:%s", err.Error())
 	}
 	return nil
 }
@@ -278,17 +295,31 @@ func RestartStatefulSet(client *kubernetes.Clientset, namespace, name string) (b
 
 func UpdateStatefulSetImage(client *kubernetes.Clientset, namespace, name, containerName, image string) (*appsv1.StatefulSet, error) {
 	ctx := context.Background()
-	sts, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
+	// 冲突时自动重试(与 UpdateStatefulSet 保持一致)：每次重试都重新获取最新对象再改镜像。
+	// RetryOnConflict 只对 409 重试，"容器不存在"这类错误会立即返回。
+	var result *appsv1.StatefulSet
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("获取statefulset资源失败:%s", err.Error())
+		}
+		found := false
+		for i, c := range latest.Spec.Template.Spec.Containers {
+			if c.Name == containerName {
+				latest.Spec.Template.Spec.Containers[i].Image = image
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("容器 %s 不存在", containerName)
+		}
+		result, err = client.AppsV1().StatefulSets(namespace).Update(ctx, latest, metav1.UpdateOptions{})
+		return err
+	}); err != nil {
 		return nil, err
 	}
-	for i, c := range sts.Spec.Template.Spec.Containers {
-		if c.Name == containerName {
-			sts.Spec.Template.Spec.Containers[i].Image = image
-			return client.AppsV1().StatefulSets(namespace).Update(ctx, sts, metav1.UpdateOptions{})
-		}
-	}
-	return nil, fmt.Errorf("container %s not found", containerName)
+	return result, nil
 }
 
 func RollbackStatefulSet(client *kubernetes.Clientset, namespace, name string, revision int64) (*appsv1.StatefulSet, error) {
@@ -303,16 +334,110 @@ func RollbackStatefulSet(client *kubernetes.Clientset, namespace, name string, r
 	if err != nil {
 		return nil, err
 	}
+	var restored appsv1.StatefulSet
+	found := false
 	for _, rev := range revisions.Items {
 		if rev.Revision == revision {
-			var restored appsv1.StatefulSet
 			if err := json.Unmarshal(rev.Data.Raw, &restored); err != nil {
-				continue
+				return nil, fmt.Errorf("解析 revision %d 失败: %s", revision, err.Error())
 			}
-			restored.ResourceVersion = sts.ResourceVersion
-			restored.UID = sts.UID
-			return client.AppsV1().StatefulSets(namespace).Update(ctx, &restored, metav1.UpdateOptions{})
+			found = true
+			break
 		}
 	}
-	return nil, fmt.Errorf("revision %d not found", revision)
+	if !found {
+		return nil, fmt.Errorf("revision %d 不存在", revision)
+	}
+	// 冲突时自动重试(与 UpdateStatefulSet 保持一致的 RetryOnConflict 模式)：
+	// 重新获取最新 resourceVersion 后再用 revision 的 spec 覆盖，避免并发编辑导致 409。
+	var result *appsv1.StatefulSet
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("获取statefulset资源失败:%s", err.Error())
+		}
+		latest.Spec = restored.Spec
+		result, err = client.AppsV1().StatefulSets(namespace).Update(ctx, latest, metav1.UpdateOptions{})
+		return err
+	}); err != nil {
+		return nil, fmt.Errorf("回滚statefulset失败:%s", err.Error())
+	}
+	return result, nil
+}
+
+// GetStatefulSetRollbacks returns all ControllerRevision entries for a StatefulSet,
+// sorted by revision descending, for UI rollback selection.
+func GetStatefulSetRollbacks(client *kubernetes.Clientset, namespace, name string) ([]map[string]any, error) {
+	ctx := context.Background()
+	sts, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	revisions, err := client.AppsV1().ControllerRevisions(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: metav1.FormatLabelSelector(sts.Spec.Selector),
+	})
+	if err != nil {
+		return nil, err
+	}
+	type revEntry struct {
+		Revision int64  `json:"revision"`
+		Name     string `json:"name"`
+	}
+	var entries []revEntry
+	for _, rev := range revisions.Items {
+		entries = append(entries, revEntry{
+			Revision: rev.Revision,
+			Name:     rev.Name,
+		})
+	}
+	// Sort descending by revision
+	for i := 0; i < len(entries); i++ {
+		for j := i + 1; j < len(entries); j++ {
+			if entries[j].Revision > entries[i].Revision {
+				entries[i], entries[j] = entries[j], entries[i]
+			}
+		}
+	}
+	result := make([]map[string]any, len(entries))
+	for i, e := range entries {
+		result[i] = map[string]any{
+			"revision": e.Revision,
+			"name":     e.Name,
+		}
+	}
+	return result, nil
+}
+
+// GetStatefulSetPVs returns PVCs created by the StatefulSet's volumeClaimTemplates.
+//
+// K8s does NOT label these PVCs with the StatefulSet name; it names them
+// `<volumeClaimTemplate.name>-<sts.name>-<ordinal>`. So we list all PVCs in the
+// namespace and filter by that naming convention for each template.
+func GetStatefulSetPVs(client *kubernetes.Clientset, namespace, name string) (*corev1.PersistentVolumeClaimList, error) {
+	sts, err := client.AppsV1().StatefulSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取StatefulSet失败:%s", err.Error())
+	}
+	allPvcs, err := client.CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取PVC列表失败:%s", err.Error())
+	}
+
+	// Build prefixes: <vctName>-<stsName>- for each volumeClaimTemplate
+	prefixes := make([]string, 0, len(sts.Spec.VolumeClaimTemplates))
+	for _, vct := range sts.Spec.VolumeClaimTemplates {
+		prefixes = append(prefixes, vct.Name+"-"+name+"-")
+	}
+
+	filtered := &corev1.PersistentVolumeClaimList{}
+	for _, pvc := range allPvcs.Items {
+		pvcName := pvc.Name
+		for _, p := range prefixes {
+			if strings.HasPrefix(pvcName, p) {
+				filtered.Items = append(filtered.Items, pvc)
+				break
+			}
+		}
+	}
+	return filtered, nil
 }

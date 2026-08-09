@@ -2,10 +2,12 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { FullScreen } from '@element-plus/icons-vue'
+import { FullScreen, CopyDocument } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import YamlEditor from '@/components/YamlEditor.vue'
-import { createStorageClass } from '@/api/resource'
+import CloneDialog from '@/components/CloneDialog.vue'
+import { useCloneCreate, dumpCloneYaml } from '@/composables/useCloneCreate'
+import { createStorageClass, getStorageClassList, getStorageClassYaml } from '@/api/resource'
 import type { FormInstance, FormRules } from 'element-plus'
 
 const router = useRouter()
@@ -29,13 +31,36 @@ const rules: FormRules = {
   provisioner: [{ required: true, message: '请输入 Provisioner', trigger: 'blur' }],
 }
 
+// 克隆流入：将解析后的 K8s 对象回填到内联表单
+function parseInitialData(data: any) {
+  if (!data) return
+  const meta = data.metadata || {}
+  form.name = meta.name || ''
+  form.provisioner = data.provisioner || ''
+  form.reclaimPolicy = data.reclaimPolicy || 'Delete'
+  form.volumeBindingMode = data.volumeBindingMode || 'Immediate'
+  form.parameters = Object.entries(data.parameters || {}).map(([k, v]) => ({ key: k, value: String(v) }))
+  form.labels = Object.entries(meta.labels || {}).map(([k, v]) => ({ key: k, value: String(v) }))
+}
+
+const {
+  cloneMode, cloneName, cloneNameOptions, cloneNameLoading,
+  cloneLoading, cloneTarget,
+  startClone, cancelClone, handleLoadClone,
+} = useCloneCreate({
+  api: { list: getStorageClassList, yaml: getStorageClassYaml },
+  namespaceScoped: false,
+  onCloneToForm: (parsed) => { parseInitialData(parsed); yamlContent.value = defaultYaml; mode.value = 'form' },
+  onCloneToYaml: (parsed) => { yamlContent.value = dumpCloneYaml(parsed); resetForm(); mode.value = 'yaml' },
+})
+
 function addParam() { form.parameters.push({ key: '', value: '' }) }
 function removeParam(i: number) { form.parameters.splice(i, 1) }
 function addLabel() { form.labels.push({ key: '', value: '' }) }
 function removeLabel(i: number) { form.labels.splice(i, 1) }
 
 // YAML mode state
-const yamlContent = ref(`apiVersion: storage.k8s.io/v1
+const defaultYaml = `apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: my-storage-class
@@ -44,7 +69,18 @@ reclaimPolicy: Delete
 volumeBindingMode: Immediate
 parameters:
   type: gp3
-`)
+`
+const yamlContent = ref(defaultYaml)
+
+// 重置内联表单为初始值(克隆到 YAML 目标时清除表单残留)
+function resetForm() {
+  form.name = ''
+  form.provisioner = ''
+  form.reclaimPolicy = 'Delete'
+  form.volumeBindingMode = 'Immediate'
+  form.parameters = []
+  form.labels = []
+}
 
 function buildYamlFromForm(): string {
   const parameters: Record<string, string> = {}
@@ -121,7 +157,23 @@ function handleMaximize() {
   <div class="sc-create">
     <div class="mode-switcher">
       <el-segmented v-model="mode" :options="[{ label: '表单创建', value: 'form' }, { label: 'YAML 创建', value: 'yaml' }]" size="small" />
+      <el-button size="small" style="margin-left: 12px;" @click="startClone">
+        <el-icon><CopyDocument /></el-icon> 从现有资源克隆
+      </el-button>
     </div>
+
+    <CloneDialog
+      kind-label="StorageClass"
+      :namespace-scoped="false"
+      v-model="cloneMode"
+      v-model:name-value="cloneName"
+      v-model:target="cloneTarget"
+      :name-options="cloneNameOptions"
+      :name-loading="cloneNameLoading"
+      :loading="cloneLoading"
+      @load="handleLoadClone"
+      @cancel="cancelClone"
+    />
 
     <!-- Form Mode -->
     <div v-if="mode === 'form'" class="form-mode">

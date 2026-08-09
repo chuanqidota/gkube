@@ -3,10 +3,16 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { FullScreen } from '@element-plus/icons-vue'
+import { FullScreen, CopyDocument } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import WorkloadForm from './components/WorkloadForm.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
+import CloneDialog from '@/components/CloneDialog.vue'
+import { useCloneCreate, dumpCloneYaml } from '@/composables/useCloneCreate'
+import {
+  getDeploymentYaml, getStatefulSetYaml, getDaemonSetYaml,
+  getDeploymentList, getStatefulSetList, getDaemonSetList,
+} from '@/api/resource'
 
 const props = defineProps<{
   kind: 'Deployment' | 'StatefulSet' | 'DaemonSet'
@@ -19,6 +25,26 @@ const { t } = useI18n()
 const mode = ref<'form' | 'yaml'>('form')
 const yamlEditorRef = ref()
 const submitting = ref(false)
+
+// Clone target parsed data, fed into WorkloadForm via :initial-data
+const parsedData = ref<any>(null)
+
+// Build kind -> { listFn, yamlFn } map once, reused everywhere
+const RESOURCE_API_MAP: Record<string, { list: (params: any) => Promise<any>; yaml: (params: any) => Promise<any> }> = {
+  Deployment: { list: getDeploymentList, yaml: getDeploymentYaml },
+  StatefulSet: { list: getStatefulSetList, yaml: getStatefulSetYaml },
+  DaemonSet: { list: getDaemonSetList, yaml: getDaemonSetYaml },
+}
+
+const {
+  cloneMode, cloneNamespace, cloneName, cloneNsOptions, cloneNameOptions,
+  cloneNsLoading, cloneNameLoading, cloneLoading, cloneTarget,
+  startClone, cancelClone, handleLoadClone,
+} = useCloneCreate({
+  api: RESOURCE_API_MAP[props.kind],
+  onCloneToForm: (parsed) => { parsedData.value = parsed; yamlContent.value = defaultYaml; mode.value = 'form' },
+  onCloneToYaml: (parsed) => { yamlContent.value = dumpCloneYaml(parsed); parsedData.value = null; mode.value = 'yaml' },
+})
 
 const defaultYaml = {
   Deployment: `apiVersion: apps/v1
@@ -145,11 +171,30 @@ function handleMaximize() {
   <div class="workload-create">
     <div class="mode-switcher">
       <el-segmented v-model="mode" :options="[{ label: t('common.formCreate'), value: 'form' }, { label: t('common.yamlCreate'), value: 'yaml' }]" size="small" />
+      <el-button size="small" style="margin-left: 12px;" @click="startClone">
+        <el-icon><CopyDocument /></el-icon> 从现有资源克隆
+      </el-button>
     </div>
 
-    <WorkloadForm v-if="mode === 'form'" :kind="kind" />
+    <CloneDialog
+      :kind-label="kind"
+      v-model="cloneMode"
+      v-model:ns-value="cloneNamespace"
+      v-model:name-value="cloneName"
+      v-model:target="cloneTarget"
+      :ns-options="cloneNsOptions"
+      :name-options="cloneNameOptions"
+      :ns-loading="cloneNsLoading"
+      :name-loading="cloneNameLoading"
+      :loading="cloneLoading"
+      @load="handleLoadClone"
+      @cancel="cancelClone"
+    />
 
-    <div v-else class="yaml-mode">
+    <!-- WorkloadForm 始终挂载，用 v-show 控制显隐，避免克隆后切换 mode 时组件被销毁重建导致数据丢失 -->
+    <WorkloadForm v-show="mode === 'form'" :kind="kind" :initial-data="parsedData" />
+
+    <div v-if="mode !== 'form'" class="yaml-mode">
       <div class="yaml-card">
         <div class="yaml-card-header">
           <div class="yaml-card-left">

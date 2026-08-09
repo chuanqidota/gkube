@@ -1243,6 +1243,14 @@ export function updateStatefulSetImage(data: { namespace: string; name: string; 
   return request.put('/k8s/statefulset/update-image', data)
 }
 
+export function getStatefulSetRollbacks(params: { namespace: string; name: string }) {
+  return request.get('/k8s/statefulset/rollbacks', { params })
+}
+
+export function getStatefulSetPVCs(params: { namespace: string; name: string }) {
+  return request.get('/k8s/statefulset/pvcs', { params })
+}
+
 // DaemonSet rollback + update-image
 export function rollbackDaemonSet(data: { namespace: string; name: string; revision: number }) {
   return request.post('/k8s/daemonset/rollback', data)

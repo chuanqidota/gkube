@@ -2,8 +2,11 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { CopyDocument } from '@element-plus/icons-vue'
 import YamlEditor from '@/components/YamlEditor.vue'
-import { createVolumeSnapshotClass } from '@/api/resource'
+import CloneDialog from '@/components/CloneDialog.vue'
+import { useCloneCreate, dumpCloneYaml } from '@/composables/useCloneCreate'
+import { createVolumeSnapshotClass, getVolumeSnapshotClassList, getVolumeSnapshotClassYaml } from '@/api/resource'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -21,6 +24,16 @@ parameters:
 `
 
 const yamlContent = ref(defaultYaml)
+
+const {
+  cloneMode, cloneName, cloneNameOptions, cloneNameLoading,
+  cloneLoading, startClone, cancelClone, handleLoadClone,
+} = useCloneCreate({
+  api: { list: getVolumeSnapshotClassList, yaml: getVolumeSnapshotClassYaml },
+  namespaceScoped: false,
+  hasForm: false,
+  onCloneToYaml: (parsed) => { yamlContent.value = dumpCloneYaml(parsed) },
+})
 
 async function handleSubmit() {
   submitting.value = true
@@ -44,7 +57,23 @@ function handleCancel() {
   <div class="create-page">
     <div class="form-header">
       <h2>{{ t('common.create') }} {{ t('storage.volumeSnapshotClass') }}</h2>
+      <el-button size="small" @click="startClone">
+        <el-icon><CopyDocument /></el-icon> 从现有资源克隆
+      </el-button>
     </div>
+
+    <CloneDialog
+      kind-label="VolumeSnapshotClass"
+      :namespace-scoped="false"
+      :show-target-choice="false"
+      v-model="cloneMode"
+      v-model:name-value="cloneName"
+      :name-options="cloneNameOptions"
+      :name-loading="cloneNameLoading"
+      :loading="cloneLoading"
+      @load="handleLoadClone"
+      @cancel="cancelClone"
+    />
 
     <el-alert
       :title="t('storage.createSnapshotClassYamlHint')"
@@ -70,6 +99,9 @@ function handleCancel() {
   padding: 20px 0;
 }
 .form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 24px;
 }
 .form-header h2 {

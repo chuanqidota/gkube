@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
@@ -113,6 +113,11 @@ function parseInitialData(data: any) {
 if (props.isEdit && props.initialData) {
   parseInitialData(props.initialData)
 }
+
+// 克隆流入（创建模式 isEdit=false，上面不会触发 parseInitialData，故用 watch 兜底）
+watch(() => props.initialData, (newData) => {
+  if (newData) parseInitialData(newData)
+})
 
 // ---- Validation ----
 
