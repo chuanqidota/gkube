@@ -1068,7 +1068,7 @@ export function getDaemonSetYaml(params: any) {
 export function updateDaemonSetYaml(data: { namespace: string; name: string; yaml: string }) {
   return request.put('/k8s/daemonset/update', data)
 }
-export function deleteDaemonSet(data: any) {
+export function deleteDaemonSet(data: { namespace: string; name: string }) {
   return request.delete('/k8s/daemonset/delete', { data })
 }
 export function getDaemonSetEvents(params: { namespace: string; name: string }) {
@@ -1079,6 +1079,15 @@ export function getDaemonSetPods(params: { namespace: string; name: string }) {
 }
 export function restartDaemonSet(data: { namespace: string; name: string }) {
   return request.post('/k8s/daemonset/restart', data)
+}
+export function updateDaemonSetImage(data: { namespace: string; name: string; containerName: string; image: string }) {
+  return request.put('/k8s/daemonset/update-image', data)
+}
+export function rollbackDaemonSet(data: { namespace: string; name: string; revision: number }) {
+  return request.post('/k8s/daemonset/rollback', data)
+}
+export function getDaemonSetRollbacks(params: { namespace: string; name: string }) {
+  return request.get('/k8s/daemonset/rollbacks', { params })
 }
 
 // Job
@@ -1251,11 +1260,4 @@ export function getStatefulSetPVCs(params: { namespace: string; name: string }) 
   return request.get('/k8s/statefulset/pvcs', { params })
 }
 
-// DaemonSet rollback + update-image
-export function rollbackDaemonSet(data: { namespace: string; name: string; revision: number }) {
-  return request.post('/k8s/daemonset/rollback', data)
-}
-
-export function updateDaemonSetImage(data: { namespace: string; name: string; containerName: string; image: string }) {
-  return request.put('/k8s/daemonset/update-image', data)
-}
+// DaemonSet rollback + update-image (already defined above)

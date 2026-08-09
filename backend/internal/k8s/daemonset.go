@@ -3,9 +3,12 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sDaemonSet "gkube/pkg/k8s/daemonset"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -18,12 +21,13 @@ var DaemonSet = new(daemonSet)
 func (d *daemonSet) GetDaemonSetList(c *gin.Context) {
 	var query DaemonSetQueryListParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 
@@ -31,7 +35,8 @@ func (d *daemonSet) GetDaemonSetList(c *gin.Context) {
 	if limit > 0 {
 		dsList, err := k8sDaemonSet.ListDaemonSets(client, query.Namespace, limit, continueToken)
 		if err != nil {
-			response.Fail(c, fmt.Sprintf("获取DaemonSet列表失败:%v", err.Error()))
+			logger.Error(err.Error())
+			response.FailWithStatus(c, http.StatusBadGateway, "获取DaemonSet列表失败")
 			return
 		}
 		remaining := int64(0)
@@ -44,7 +49,8 @@ func (d *daemonSet) GetDaemonSetList(c *gin.Context) {
 	} else {
 		daemonSets, err := k8sDaemonSet.GetDaemonSetList(client, query.Namespace)
 		if err != nil {
-			response.Fail(c, fmt.Sprintf("获取DaemonSet列表失败:%v", err.Error()))
+			logger.Error(err.Error())
+			response.FailWithStatus(c, http.StatusBadGateway, "获取DaemonSet列表失败")
 			return
 		}
 		response.Success(c, "执行成功", daemonSets)
@@ -54,19 +60,20 @@ func (d *daemonSet) GetDaemonSetList(c *gin.Context) {
 func (d *daemonSet) GetDaemonSetByName(c *gin.Context) {
 	var query DaemonSetQueryByNameParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 
 	daemonSet, err := k8sDaemonSet.GetDaemonSetByName(client, query.Namespace, query.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取DaemonSet失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取DaemonSet失败")
 		return
 	}
 	response.Success(c, "执行成功", daemonSet)
@@ -75,19 +82,20 @@ func (d *daemonSet) GetDaemonSetByName(c *gin.Context) {
 func (d *daemonSet) GetDaemonSetYaml(c *gin.Context) {
 	var query DaemonSetQueryByNameParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 
 	daemonSetYaml, err := k8sDaemonSet.GetDaemonSetYaml(client, query.Namespace, query.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取DaemonSet失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取DaemonSet YAML失败")
 		return
 	}
 	response.Success(c, "执行成功", daemonSetYaml)
@@ -96,17 +104,18 @@ func (d *daemonSet) GetDaemonSetYaml(c *gin.Context) {
 func (d *daemonSet) CreateDaemonSet(c *gin.Context) {
 	var body DaemonSetCreateParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 	if err := k8sDaemonSet.CreateDaemonSet(client, body.Namespace, body.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("创建DaemonSet失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "创建DaemonSet失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -115,17 +124,18 @@ func (d *daemonSet) CreateDaemonSet(c *gin.Context) {
 func (d *daemonSet) UpdateDaemonSet(c *gin.Context) {
 	var body DaemonSetUpdateParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	if err := k8sDaemonSet.UpdateDaemonSet(client, body.Namespace, body.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("更新DaemonSet失败:%v", err.Error()))
+	if err := k8sDaemonSet.UpdateDaemonSet(client, body.Namespace, body.Name, body.Yaml); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "更新DaemonSet失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -134,18 +144,19 @@ func (d *daemonSet) UpdateDaemonSet(c *gin.Context) {
 func (d *daemonSet) DeleteDaemonSetByName(c *gin.Context) {
 	var body DaemonSetDeleteByNameParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 
 	if err := k8sDaemonSet.DeleteDaemonSetByName(client, body.Namespace, body.Name); err != nil {
-		response.Fail(c, fmt.Sprintf("删除DaemonSet失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "删除DaemonSet失败")
 		return
 	}
 
@@ -160,19 +171,21 @@ func (d *daemonSet) DeleteDaemonSetByName(c *gin.Context) {
 func (d *daemonSet) GetDaemonSetEvents(c *gin.Context) {
 	var query DaemonSetQueryByNameParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 	events, err := client.CoreV1().Events(query.Namespace).List(context.Background(), metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=DaemonSet", query.Name),
 	})
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取daemonset事件失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取DaemonSet事件失败")
 		return
 	}
 	var result []map[string]any
@@ -199,17 +212,19 @@ func (d *daemonSet) GetDaemonSetEvents(c *gin.Context) {
 func (d *daemonSet) DaemonSetPodList(c *gin.Context) {
 	var query DaemonSetQueryByNameParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 	podList, err := k8sDaemonSet.DaemonSetPodList(client, query.Namespace, query.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取daemonset pod列表失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取DaemonSet Pod列表失败")
 		return
 	}
 	response.Success(c, "执行成功", podList)
@@ -223,81 +238,104 @@ func (d *daemonSet) DaemonSetPodList(c *gin.Context) {
 func (d *daemonSet) RestartDaemonSet(c *gin.Context) {
 	var body DaemonSetRestartParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 	ok, err := k8sDaemonSet.RestartDaemonSet(client, body.Namespace, body.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("重启daemonset失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "重启DaemonSet失败")
 		return
 	}
 	if !ok {
-		response.Fail(c, "重启daemonset失败")
+		response.Fail(c, "重启DaemonSet失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
 }
 
+type DaemonSetRollbackParams struct {
+	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
+	Revision    int64  `form:"revision" json:"revision" binding:"required" label:"版本号"`
+}
+
+type DaemonSetUpdateImageParams struct {
+	ClusterName   string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	Namespace     string `form:"namespace" json:"namespace" label:"命名空间"`
+	Name          string `form:"name" json:"name" binding:"required" label:"名称"`
+	ContainerName string `form:"containerName" json:"containerName" binding:"required" label:"容器名称"`
+	Image         string `form:"image" json:"image" binding:"required" label:"镜像地址"`
+}
+
 func (d *daemonSet) RollbackDaemonSet(c *gin.Context) {
-	var req struct {
-		ClusterName string `json:"clusterName"`
-		Namespace   string `json:"namespace"`
-		Name        string `json:"name"`
-		Revision    int64  `json:"revision"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
+	var body DaemonSetRollbackParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-	if req.Name == "" {
-		response.Fail(c, "name参数不能为空")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	result, err := k8sDaemonSet.RollbackDaemonSet(client, req.Namespace, req.Name, req.Revision)
+	result, err := k8sDaemonSet.RollbackDaemonSet(client, body.Namespace, body.Name, body.Revision)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("回滚DaemonSet失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "回滚DaemonSet失败")
 		return
 	}
 	response.Success(c, "回滚成功", result)
 }
 
 func (d *daemonSet) UpdateDaemonSetImage(c *gin.Context) {
-	var req struct {
-		ClusterName   string `json:"clusterName"`
-		Namespace     string `json:"namespace"`
-		Name          string `json:"name"`
-		ContainerName string `json:"containerName"`
-		Image         string `json:"image"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
+	var body DaemonSetUpdateImageParams
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-	if req.Name == "" || req.ContainerName == "" || req.Image == "" {
-		response.Fail(c, "name, containerName, image参数不能为空")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	result, err := k8sDaemonSet.UpdateDaemonSetImage(client, req.Namespace, req.Name, req.ContainerName, req.Image)
+	result, err := k8sDaemonSet.UpdateDaemonSetImage(client, body.Namespace, body.Name, body.ContainerName, body.Image)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("更新DaemonSet镜像失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "更新DaemonSet镜像失败")
 		return
 	}
 	response.Success(c, "更新镜像成功", result)
+}
+
+func (d *daemonSet) GetDaemonSetRollbacks(c *gin.Context) {
+	var query DaemonSetQueryByNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
+		return
+	}
+	rollbacks, err := k8sDaemonSet.GetDaemonSetRollbacks(client, query.Namespace, query.Name)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取DaemonSet回滚列表失败")
+		return
+	}
+	response.Success(c, "执行成功", rollbacks)
 }
 
 type DaemonSetQueryListParams struct {
@@ -320,6 +358,7 @@ type DaemonSetCreateParams struct {
 type DaemonSetUpdateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
 	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
 }
 

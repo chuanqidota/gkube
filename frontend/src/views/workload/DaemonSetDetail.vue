@@ -10,16 +10,17 @@ import {
   getDaemonSetEvents,
   getDaemonSetPods,
   deletePod,
+  updateDaemonSetImage,
+  rollbackDaemonSet,
+  getDaemonSetRollbacks,
 } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
 import DaemonSetForm from '@/views/workload/components/DaemonSetForm.vue'
-import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useClusterNameRef } from '@/composables/useClusterName'
 import { useResizable } from '@/composables/useResizable'
 
-const clusterStore = useClusterStore()
 const clusterName = useClusterNameRef()
 
 const route = useRoute()
@@ -35,6 +36,21 @@ const podsLoading = ref(false)
 // Edit dialog
 const editDialogVisible = ref(false)
 const editFullscreen = ref(false)
+
+// Image update dialog
+const imageDialogVisible = ref(false)
+const imageForm = ref({
+  containerName: '',
+  image: '',
+})
+const imageLoading = ref(false)
+
+// Rollback dialog
+const rollbackDialogVisible = ref(false)
+const rollbackList = ref<any[]>([])
+const rollbackLoading = ref(false)
+const selectedRevision = ref<number | null>(null)
+const rollbackConfirmLoading = ref(false)
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
@@ -102,6 +118,21 @@ async function fetchPods() {
   }
 }
 
+async function fetchRollbacks() {
+  rollbackLoading.value = true
+  try {
+    const res: any = await getDaemonSetRollbacks({ namespace, name })
+    rollbackList.value = res.data || []
+    if (rollbackList.value.length > 0) {
+      selectedRevision.value = rollbackList.value[0].revision
+    }
+  } catch (e) {
+    rollbackList.value = []
+  } finally {
+    rollbackLoading.value = false
+  }
+}
+
 function handleOpenYaml() {
   yamlDialogVisible.value = true
 }
@@ -154,6 +185,66 @@ async function handleRestart() {
     fetchPods()
   } catch {
     // cancelled
+  }
+}
+
+function handleUpdateImage() {
+  const containers = daemonSet.value?.spec?.template?.spec?.containers || []
+  if (containers.length > 0) {
+    imageForm.value = {
+      containerName: containers[0].name,
+      image: containers[0].image || '',
+    }
+  }
+  imageDialogVisible.value = true
+}
+
+async function handleUpdateImageConfirm() {
+  if (!imageForm.value.containerName || !imageForm.value.image) {
+    ElMessage.warning('请填写容器名称和镜像')
+    return
+  }
+  imageLoading.value = true
+  try {
+    await updateDaemonSetImage({
+      namespace,
+      name,
+      containerName: imageForm.value.containerName,
+      image: imageForm.value.image,
+    })
+    ElMessage.success('镜像更新成功')
+    imageDialogVisible.value = false
+    fetchDetail()
+    fetchPods()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '镜像更新失败')
+  } finally {
+    imageLoading.value = false
+  }
+}
+
+function handleRollback() {
+  selectedRevision.value = null
+  rollbackDialogVisible.value = true
+  fetchRollbacks()
+}
+
+async function handleRollbackConfirm() {
+  if (!selectedRevision.value) {
+    ElMessage.warning('请选择要回滚的版本')
+    return
+  }
+  rollbackConfirmLoading.value = true
+  try {
+    await rollbackDaemonSet({ namespace, name, revision: selectedRevision.value })
+    ElMessage.success('回滚成功')
+    rollbackDialogVisible.value = false
+    fetchDetail()
+    fetchPods()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '回滚失败')
+  } finally {
+    rollbackConfirmLoading.value = false
   }
 }
 
@@ -233,6 +324,8 @@ onMounted(() => {
       </div>
       <div class="header-actions">
         <el-button type="warning" @click="handleRestart">重启</el-button>
+        <el-button type="success" @click="handleUpdateImage">更新镜像</el-button>
+        <el-button type="primary" @click="handleRollback">回滚</el-button>
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" plain @click="handleDelete">删除</el-button>
@@ -383,6 +476,67 @@ onMounted(() => {
       :name="name"
       @saved="handleYamlSaved"
     />
+
+    <!-- Rollback Dialog -->
+    <el-dialog v-model="rollbackDialogVisible" title="回滚 DaemonSet" width="520px" destroy-on-close>
+      <div>
+        <p style="margin-bottom: 16px;">选择要回滚到的版本</p>
+        <div v-loading="rollbackLoading" style="max-height: 300px; overflow-y: auto;">
+          <el-table v-if="rollbackList.length > 0" :data="rollbackList" border size="small" @row-click="(row: any) => selectedRevision = row.revision" style="cursor: pointer;">
+            <el-table-column label="Revision" prop="revision" width="100" />
+            <el-table-column label="名称" prop="name" />
+          </el-table>
+          <div v-else class="empty-hint">暂无回滚版本</div>
+        </div>
+        <el-form-item label="选择版本" style="margin-top: 16px;">
+          <el-select v-model="selectedRevision" placeholder="请选择 revision" style="width: 100%;" :disabled="rollbackList.length === 0">
+            <el-option
+              v-for="rev in rollbackList"
+              :key="rev.revision"
+              :label="`Revision ${rev.revision}`"
+              :value="rev.revision"
+            />
+          </el-select>
+        </el-form-item>
+      </div>
+      <template #footer>
+        <el-button @click="rollbackDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="rollbackConfirmLoading" @click="handleRollbackConfirm">确认回滚</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Image Update Dialog -->
+    <el-dialog v-model="imageDialogVisible" title="更新镜像" width="520px" destroy-on-close>
+      <div>
+        <p style="margin-bottom: 16px;">更新 <strong>{{ name }}</strong> 的容器镜像</p>
+        <el-form label-width="80px">
+          <el-form-item label="容器">
+            <el-select v-model="imageForm.containerName" style="width: 100%;">
+              <el-option
+                v-for="container in daemonSet?.spec?.template?.spec?.containers || []"
+                :key="container.name"
+                :label="container.name"
+                :value="container.name"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="镜像">
+            <el-input v-model="imageForm.image" placeholder="例如: nginx:1.25" />
+          </el-form-item>
+        </el-form>
+        <el-alert
+          v-if="imageForm.containerName"
+          :title="`当前镜像: ${daemonSet?.spec?.template?.spec?.containers?.find((c: any) => c.name === imageForm.containerName)?.image || '-'}`"
+          type="info"
+          :closable="false"
+          style="margin-top: 8px;"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="imageDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="imageLoading" @click="handleUpdateImageConfirm">确认更新</el-button>
+      </template>
+    </el-dialog>
 
     <el-drawer
       v-model="editDialogVisible"
