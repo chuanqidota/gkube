@@ -132,6 +132,30 @@ function onVResizeStart(e: MouseEvent) {
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
 
+function metricName(row: any): string {
+  if (row.type === 'Resource') return row.resource?.name || '-'
+  if (row.type === 'Pods') return row.pods?.metric?.name || '-'
+  if (row.type === 'Object') return row.object?.metric?.name || '-'
+  if (row.type === 'External') return row.external?.metric?.name || '-'
+  return '-'
+}
+
+function metricTargetType(row: any): string {
+  if (row.type === 'Resource') return row.resource?.target?.type || '-'
+  if (row.type === 'Pods') return row.pods?.target?.type || '-'
+  if (row.type === 'Object') return row.object?.target?.type || '-'
+  if (row.type === 'External') return row.external?.target?.type || '-'
+  return '-'
+}
+
+function metricTargetValue(row: any): string {
+  if (row.type === 'Resource') {
+    return row.resource?.target?.averageUtilization ?? row.resource?.target?.averageValue ?? row.resource?.target?.value ?? '-'
+  }
+  const target = row.pods?.target || row.object?.target || row.external?.target
+  return target?.averageValue ?? target?.value ?? '-'
+}
+
 onMounted(fetchDetail)
 </script>
 
@@ -237,13 +261,13 @@ onMounted(fetchDetail)
               <el-table v-if="hpa.spec?.metrics?.length" :data="hpa.spec.metrics" size="small" stripe>
                 <el-table-column prop="type" label="类型" width="120" />
                 <el-table-column label="资源" width="120">
-                  <template #default="{ row }">{{ row.resource?.name || '-' }}</template>
+                  <template #default="{ row }">{{ metricName(row) }}</template>
                 </el-table-column>
                 <el-table-column label="目标类型" width="120">
-                  <template #default="{ row }">{{ row.resource?.target?.type || '-' }}</template>
+                  <template #default="{ row }">{{ metricTargetType(row) }}</template>
                 </el-table-column>
                 <el-table-column label="目标值" min-width="150">
-                  <template #default="{ row }">{{ row.resource?.target?.averageUtilization || row.resource?.target?.averageValue || row.resource?.target?.value || '-' }}</template>
+                  <template #default="{ row }">{{ metricTargetValue(row) }}</template>
                 </el-table-column>
               </el-table>
               <div v-else class="empty-hint">暂无指标配置</div>
@@ -252,6 +276,47 @@ onMounted(fetchDetail)
 
           <!-- 垂直拖拽条 -->
           <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
+
+          <!-- Behavior -->
+          <div class="right-section behavior-section" v-if="hpa.spec?.behavior">
+            <div class="panel-title">扩缩容行为</div>
+            <div class="behavior-body">
+              <template v-if="hpa.spec.behavior.scaleUp">
+                <div class="behavior-group">
+                  <div class="behavior-subtitle">扩容 (Scale Up)</div>
+                  <el-descriptions :column="2" border size="small">
+                    <el-descriptions-item label="稳定窗口(秒)">{{ hpa.spec.behavior.scaleUp.stabilizationWindowSeconds ?? 0 }}</el-descriptions-item>
+                    <el-descriptions-item label="选择策略">{{ hpa.spec.behavior.scaleUp.selectPolicy || '-' }}</el-descriptions-item>
+                  </el-descriptions>
+                  <div v-if="hpa.spec.behavior.scaleUp.policies?.length" class="behavior-policies">
+                    <div class="behavior-policies-title">策略:</div>
+                    <el-table :data="hpa.spec.behavior.scaleUp.policies" size="small" stripe>
+                      <el-table-column prop="type" label="类型" width="100" />
+                      <el-table-column prop="value" label="值" width="100" />
+                      <el-table-column prop="periodSeconds" label="周期(秒)" width="100" />
+                    </el-table>
+                  </div>
+                </div>
+              </template>
+              <template v-if="hpa.spec.behavior.scaleDown">
+                <div class="behavior-group">
+                  <div class="behavior-subtitle">缩容 (Scale Down)</div>
+                  <el-descriptions :column="2" border size="small">
+                    <el-descriptions-item label="稳定窗口(秒)">{{ hpa.spec.behavior.scaleDown.stabilizationWindowSeconds ?? 300 }}</el-descriptions-item>
+                    <el-descriptions-item label="选择策略">{{ hpa.spec.behavior.scaleDown.selectPolicy || '-' }}</el-descriptions-item>
+                  </el-descriptions>
+                  <div v-if="hpa.spec.behavior.scaleDown.policies?.length" class="behavior-policies">
+                    <div class="behavior-policies-title">策略:</div>
+                    <el-table :data="hpa.spec.behavior.scaleDown.policies" size="small" stripe>
+                      <el-table-column prop="type" label="类型" width="100" />
+                      <el-table-column prop="value" label="值" width="100" />
+                      <el-table-column prop="periodSeconds" label="周期(秒)" width="100" />
+                    </el-table>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
 
           <!-- Conditions -->
           <div class="right-section events-section">
@@ -485,6 +550,11 @@ onMounted(fetchDetail)
   min-height: 0;
 }
 
+.right-section.behavior-section {
+  flex: 0 0 auto;
+  max-height: 300px;
+}
+
 .right-section.events-section {
   flex: 1;
   min-height: 0;
@@ -531,6 +601,37 @@ onMounted(fetchDetail)
   flex: 1;
   overflow-y: auto;
   padding: 0;
+}
+
+.behavior-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px;
+}
+
+.behavior-group {
+  margin-bottom: 14px;
+}
+
+.behavior-group:last-child {
+  margin-bottom: 0;
+}
+
+.behavior-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-regular);
+  margin-bottom: 8px;
+}
+
+.behavior-policies {
+  margin-top: 8px;
+}
+
+.behavior-policies-title {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 4px;
 }
 
 .events-body {

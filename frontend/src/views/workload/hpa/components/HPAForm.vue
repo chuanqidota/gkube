@@ -35,7 +35,7 @@ const form = ref({
   maxReplicas: 10,
   cpuUtilization: 80,
   memoryUtilization: 0,
-  customMetrics: [] as Array<{ type: string; name: string; target: number }>,
+  customMetrics: [] as Array<{ type: string; name: string; target: number; targetType: string }>,
   labels: [{ key: 'app', value: '' }] as Label[],
   behaviorEnabled: false,
   scaleUpStabilizationSeconds: 0,
@@ -61,10 +61,12 @@ function parseInitialData(data: any) {
     } else if (m.type === 'Resource' && m.resource?.name === 'memory') {
       form.value.memoryUtilization = m.resource?.target?.averageUtilization ?? 0
     } else if (m.type !== 'Resource') {
+      const target = m.pods?.target || m.object?.target || m.external?.target
       form.value.customMetrics.push({
         type: m.type || 'Resource',
-        name: m.resource?.name || m.pods?.metric?.name || m.object?.metric?.name || '',
-        target: m.resource?.target?.averageUtilization || m.pods?.target?.averageUtilization || 0,
+        name: m.pods?.metric?.name || m.object?.metric?.name || m.external?.metric?.name || '',
+        target: target?.averageValue ? Number(target.averageValue) : (target?.value ? Number(target.value) : 0),
+        targetType: target?.type || 'AverageValue',
       })
     }
   }
@@ -106,7 +108,7 @@ const rules = {
 const formRef = ref()
 
 function addCustomMetric() {
-  form.value.customMetrics.push({ type: 'Resource', name: 'cpu', target: 80 })
+  form.value.customMetrics.push({ type: 'Resource', name: 'cpu', target: 80, targetType: 'Utilization' })
 }
 
 function removeCustomMetric(index: number) {
@@ -150,16 +152,36 @@ function buildYaml(): string {
 
   // Custom metrics
   for (const m of form.value.customMetrics) {
-    metrics.push({
-      type: m.type,
-      resource: {
-        name: m.name,
-        target: {
-          type: 'Utilization',
-          averageUtilization: m.target,
+    if (m.type === 'Resource') {
+      metrics.push({
+        type: 'Resource',
+        resource: {
+          name: m.name,
+          target: {
+            type: m.targetType || 'Utilization',
+            ...(m.targetType === 'Utilization'
+              ? { averageUtilization: m.target }
+              : { averageValue: String(m.target) }),
+          },
         },
-      },
-    })
+      })
+    } else if (m.type === 'Pods') {
+      metrics.push({
+        type: 'Pods',
+        pods: {
+          metric: { name: m.name },
+          target: { type: m.targetType || 'AverageValue', averageValue: String(m.target) },
+        },
+      })
+    } else if (m.type === 'External') {
+      metrics.push({
+        type: 'External',
+        external: {
+          metric: { name: m.name },
+          target: { type: m.targetType || 'AverageValue', averageValue: String(m.target) },
+        },
+      })
+    }
   }
 
   const hpa: any = {
@@ -192,7 +214,7 @@ function buildYaml(): string {
         policies: form.value.scaleUpPolicies.map(p => ({ type: p.type, value: p.value, periodSeconds: p.periodSeconds })),
       }
     }
-    if (form.value.scaleDownPolicies.length > 0) {
+    if (form.value.scaleDownPolicies.length > 0 || form.value.scaleDownStabilizationSeconds > 0) {
       behavior.scaleDown = {
         stabilizationWindowSeconds: form.value.scaleDownStabilizationSeconds,
         selectPolicy: form.value.scaleDownSelectPolicy,
@@ -362,11 +384,18 @@ onMounted(() => {
                 <el-select v-model="metric.type" style="width: 120px;">
                   <el-option label="Resource" value="Resource" />
                   <el-option label="Pods" value="Pods" />
-                  <el-option label="Object" value="Object" />
                   <el-option label="External" value="External" />
                 </el-select>
                 <el-input v-model="metric.name" placeholder="指标名称" style="flex: 1;" />
-                <el-input-number v-model="metric.target" :min="1" :max="10000" style="width: 140px;" />
+                <el-select v-if="metric.type === 'Resource'" v-model="metric.targetType" style="width: 130px;">
+                  <el-option label="Utilization(%)" value="Utilization" />
+                  <el-option label="AverageValue" value="AverageValue" />
+                </el-select>
+                <el-select v-else v-model="metric.targetType" style="width: 130px;">
+                  <el-option label="AverageValue" value="AverageValue" />
+                  <el-option label="Value" value="Value" />
+                </el-select>
+                <el-input-number v-model="metric.target" :min="0" :max="100000" style="width: 140px;" />
                 <el-button type="danger" text circle @click="removeCustomMetric(index)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
