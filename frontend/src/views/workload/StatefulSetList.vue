@@ -10,6 +10,8 @@ import {
   transformStatefulSets,
   scaleStatefulSet,
   restartStatefulSet,
+  updateStatefulSetImage,
+  getStatefulSetDetail,
 } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
@@ -94,6 +96,47 @@ async function handleQuickRestart(row: any) {
     if (e !== 'cancel') ElMessage.error(e?.message || '重启失败')
   }
 }
+
+// Update image dialog
+const imageDialogVisible = ref(false)
+const imageTarget = ref<{ namespace: string; name: string } | null>(null)
+const imageForm = ref({ containerName: '', image: '' })
+const imageContainers = ref<{ name: string; image: string }[]>([])
+const imageLoading = ref(false)
+
+async function handleQuickUpdateImage(row: any) {
+  imageTarget.value = { namespace: row.namespace, name: row.name }
+  imageForm.value = { containerName: '', image: '' }
+  imageContainers.value = []
+  imageDialogVisible.value = true
+  try {
+    const res: any = await getStatefulSetDetail({ namespace: row.namespace, name: row.name })
+    const containers = res.data?.spec?.template?.spec?.containers || []
+    imageContainers.value = containers.map((c: any) => ({ name: c.name, image: c.image || '' }))
+    if (imageContainers.value.length > 0) {
+      imageForm.value.containerName = imageContainers.value[0].name
+      imageForm.value.image = imageContainers.value[0].image
+    }
+  } catch { /* ignore */ }
+}
+
+async function handleImageConfirm() {
+  if (!imageTarget.value || !imageForm.value.containerName || !imageForm.value.image) {
+    ElMessage.warning('请填写容器名称和镜像')
+    return
+  }
+  imageLoading.value = true
+  try {
+    await updateStatefulSetImage({ ...imageTarget.value, ...imageForm.value })
+    ElMessage.success('镜像更新成功')
+    imageDialogVisible.value = false
+    fetchResources()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '镜像更新失败')
+  } finally {
+    imageLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -147,12 +190,13 @@ async function handleQuickRestart(row: any) {
         <el-table-column prop="serviceName" label="服务" width="160" show-overflow-tooltip />
         <el-table-column prop="updateStrategy" label="更新策略" width="140" />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column label="操作" width="340" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
               <el-button size="small" type="primary" @click="handleQuickScale(row)">扩缩容</el-button>
               <el-button size="small" type="warning" @click="handleQuickRestart(row)">重启</el-button>
+              <el-button size="small" type="primary" @click="handleQuickUpdateImage(row)">更新镜像</el-button>
               <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
@@ -191,6 +235,27 @@ async function handleQuickRestart(row: any) {
       <template #footer>
         <el-button @click="scaleDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="scaleLoading" @click="handleScaleConfirm">确认</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Update Image Dialog -->
+    <el-dialog v-model="imageDialogVisible" title="更新镜像" width="520px" destroy-on-close>
+      <div>
+        <p style="margin-bottom: 16px;">更新 <strong>{{ imageTarget?.name }}</strong> 的容器镜像</p>
+        <el-form label-width="80px">
+          <el-form-item label="容器">
+            <el-select v-model="imageForm.containerName" style="width: 100%;" @change="() => { const c = imageContainers.find(c => c.name === imageForm.containerName); if (c) imageForm.image = c.image }">
+              <el-option v-for="c in imageContainers" :key="c.name" :label="c.name" :value="c.name" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="镜像">
+            <el-input v-model="imageForm.image" placeholder="例如: nginx:1.26" />
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="imageDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="imageLoading" @click="handleImageConfirm">确认更新</el-button>
       </template>
     </el-dialog>
   </div>
