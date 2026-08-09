@@ -54,6 +54,12 @@ export function useResourceList(options: ResourceListOptions) {
   const hasMore = ref(false)
   const totalCount = ref(0)
 
+  // Pending delete map — prevents auto-refresh from reverting optimistic removal
+  // Using Record<string, boolean> instead of Set for Vue 3 reactivity tracking
+  const pendingDeleteIds = ref<Record<string, boolean>>({})
+  // Track setTimeout IDs for cleanup on unmount
+  const pendingDeleteTimers: ReturnType<typeof setTimeout>[] = []
+
   // YAML drawer state
   const yamlDialogVisible = ref(false)
   const yamlContent = ref('')
@@ -78,6 +84,37 @@ export function useResourceList(options: ResourceListOptions) {
     return list.value.filter((item) => item.name?.toLowerCase().includes(keyword))
   })
 
+  function resourceKey(row: { namespace?: string; name: string }) {
+    return `${row.namespace ?? ''}/${row.name}`
+  }
+
+  function isPendingDelete(id: string) {
+    return !!pendingDeleteIds.value[id]
+  }
+
+  function markPendingDelete(ids: string[]) {
+    const updated = { ...pendingDeleteIds.value }
+    ids.forEach((id) => { updated[id] = true })
+    pendingDeleteIds.value = updated
+  }
+
+  function clearPendingDelete(ids: string[]) {
+    const updated = { ...pendingDeleteIds.value }
+    ids.forEach((id) => { delete updated[id] })
+    pendingDeleteIds.value = updated
+  }
+
+  function scheduleCleanup(ids: string[], delay = 5000) {
+    const timer = setTimeout(() => clearPendingDelete(ids), delay)
+    pendingDeleteTimers.push(timer)
+  }
+
+  function filterPendingItems<T extends { namespace?: string; name: string }>(items: T[]): T[] {
+    const keys = Object.keys(pendingDeleteIds.value)
+    if (keys.length === 0) return items
+    return items.filter((item) => !isPendingDelete(resourceKey(item)))
+  }
+
   async function fetchNamespaces() {
     await namespaceStore.fetchNamespaces()
   }
@@ -96,7 +133,8 @@ export function useResourceList(options: ResourceListOptions) {
 
       if (options.paginated && res.data?.items) {
         const items = res.data.items || []
-        list.value = options.transform ? options.transform(items) : items
+        const transformed = options.transform ? options.transform(items) : items
+        list.value = filterPendingItems(transformed)
         hasMore.value = res.data.hasMore || false
         totalCount.value = res.data.total || items.length
 
@@ -107,7 +145,8 @@ export function useResourceList(options: ResourceListOptions) {
         }
       } else {
         const items = res.data?.items || res.data || []
-        list.value = options.transform ? options.transform(items) : items
+        const transformed = options.transform ? options.transform(items) : items
+        list.value = filterPendingItems(transformed)
         totalCount.value = list.value.length
       }
     } catch (e) {
@@ -131,7 +170,8 @@ export function useResourceList(options: ResourceListOptions) {
       if (res.data?.items) {
         const items = res.data.items || []
         const transformed = options.transform ? options.transform(items) : items
-        list.value = [...list.value, ...transformed]
+        const filtered = filterPendingItems(transformed)
+        list.value = [...list.value, ...filtered]
         hasMore.value = res.data.hasMore || false
         currentPage.value++
 
@@ -238,43 +278,65 @@ export function useResourceList(options: ResourceListOptions) {
       } catch {
         return
       }
+      loading.value = true
       try {
         await options.forceDeleteResource({ namespace: row.namespace, name: row.name })
         ElMessage.success(`${options.resourceName} deleted (forced)`)
-        fetchResources()
+        const id = resourceKey(row)
+        markPendingDelete([id])
+        list.value = list.value.filter((item) => !isPendingDelete(resourceKey(item)))
+        totalCount.value = Math.max(0, totalCount.value - 1)
+        // Remove from selection if present
+        selectedRows.value = selectedRows.value.filter((r) => resourceKey(r) !== id)
+        scheduleCleanup([id])
       } catch (e: any) {
         ElMessage.error(e?.message || `强制删除${options.resourceName}失败`)
+      } finally {
+        loading.value = false
       }
       return
     }
     const msg = options.deleteConfirm
       ? options.deleteConfirm(row)
-      : `Delete ${options.resourceName.toLowerCase()} "${row.name}" in namespace "${row.namespace}"?`
+      : row.namespace
+        ? `Delete ${options.resourceName.toLowerCase()} "${row.name}" in namespace "${row.namespace}"?`
+        : `Delete ${options.resourceName.toLowerCase()} "${row.name}"?`
     try {
       await ElMessageBox.confirm(msg, 'Confirm', { type: 'warning' })
     } catch {
       // 用户取消,不报错
       return
     }
+    loading.value = true
     try {
       await options.deleteResource({ namespace: row.namespace, name: row.name })
       ElMessage.success(`${options.resourceName} deleted`)
-      fetchResources()
+      const id = resourceKey(row)
+      markPendingDelete([id])
+      list.value = list.value.filter((item) => !isPendingDelete(resourceKey(item)))
+      totalCount.value = Math.max(0, totalCount.value - 1)
+      selectedRows.value = selectedRows.value.filter((r) => resourceKey(r) !== id)
+      scheduleCleanup([id])
     } catch (e: any) {
       ElMessage.error(e?.message || `删除${options.resourceName}失败`)
+    } finally {
+      loading.value = false
     }
   }
 
   async function handleBatchDelete() {
     if (!selectedRows.value.length) return
+    // Capture rows before async gap to avoid race condition
+    const rowsToDelete = [...selectedRows.value]
     try {
       await ElMessageBox.confirm(
-        `Delete ${selectedRows.value.length} selected ${options.resourceName.toLowerCase()}(s)?`,
+        `Delete ${rowsToDelete.length} selected ${options.resourceName.toLowerCase()}(s)?`,
         'Confirm',
         { type: 'warning' }
       )
+      loading.value = true
       const results = await Promise.allSettled(
-        selectedRows.value.map((row) =>
+        rowsToDelete.map((row) =>
           options.deleteResource({ namespace: row.namespace, name: row.name })
         )
       )
@@ -285,9 +347,32 @@ export function useResourceList(options: ResourceListOptions) {
       } else {
         ElMessage.success(`Deleted ${successCount} ${options.resourceName.toLowerCase()}(s)`)
       }
-      fetchResources()
+      // Collect successfully deleted IDs
+      const deletedIds: string[] = []
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+          deletedIds.push(resourceKey(rowsToDelete[i]))
+        }
+      })
+      if (deletedIds.length > 0) {
+        markPendingDelete(deletedIds)
+        list.value = list.value.filter((item) => !isPendingDelete(resourceKey(item)))
+        totalCount.value = Math.max(0, totalCount.value - deletedIds.length)
+        scheduleCleanup(deletedIds)
+      }
+      // Only clear successfully deleted items from selection; keep failed ones selected
+      const failedKeys = new Set(
+        results
+          .map((r, i) => (r.status === 'rejected' ? resourceKey(rowsToDelete[i]) : null))
+          .filter(Boolean) as string[]
+      )
+      selectedRows.value = selectedRows.value.filter(
+        (row) => failedKeys.has(resourceKey(row))
+      )
     } catch {
       // cancelled
+    } finally {
+      loading.value = false
     }
   }
 
@@ -328,6 +413,7 @@ export function useResourceList(options: ResourceListOptions) {
   onUnmounted(() => {
     if (autoRefreshTimer) clearInterval(autoRefreshTimer)
     if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+    pendingDeleteTimers.forEach((t) => clearTimeout(t))
     document.removeEventListener('keydown', handleKeyboard)
   })
 

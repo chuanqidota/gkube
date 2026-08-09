@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, RefreshRight } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getJobList,
   getJobYaml,
   updateJobYaml,
   deleteJob,
+  rerunJob,
   transformJobs,
 } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
@@ -52,6 +54,22 @@ const {
 })
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+
+async function handleRerun(row: any) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要重跑 Job "${row.name}" 吗？将创建一个相同配置的新 Job。`,
+      '确认重跑',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+    await rerunJob({ namespace: row.namespace, name: row.name })
+    ElMessage.success('Job 重跑成功')
+    fetchResources()
+  } catch (e: any) {
+    if (e === 'cancel' || e?.message === 'cancel') return
+    ElMessage.error(e?.message || '重跑失败')
+  }
+}
 </script>
 
 <template>
@@ -102,10 +120,25 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         </el-table-column>
         <el-table-column prop="namespace" label="命名空间" width="140" />
         <el-table-column prop="completions" label="完成数" width="120" />
+        <el-table-column prop="active" label="进行中" width="80">
+          <template #default="{ row }">
+            <el-tag v-if="row.active > 0" type="warning" size="small">{{ row.active }}</el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="failed" label="失败" width="80">
+          <template #default="{ row }">
+            <el-tag v-if="row.failed > 0" type="danger" size="small">{{ row.failed }}</el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
+            <el-button size="small" type="success" :disabled="row.active > 0" @click="handleRerun(row)">
+              <el-icon><RefreshRight /></el-icon> 重跑
+            </el-button>
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>

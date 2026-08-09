@@ -54,7 +54,7 @@ interface FormData {
   schedule: string; concurrencyPolicy: string; suspend: boolean
   startingDeadlineSeconds: number | null; timeZone: string
   successfulJobsHistoryLimit: number | null; failedJobsHistoryLimit: number | null
-  completions: number | null; parallelism: number | null; backoffLimit: number | null
+  completions: number | null; parallelism: number | null; backoffLimit: number | null; restartPolicy: string
   containers: Container[]; initContainers: Container[]; volumes: Volume[]
   nodeSelector: Label[]; tolerations: Tolerance[]; annotations: Annotation[]
   serviceAccountName: string; terminationGracePeriodSeconds: number | null
@@ -89,7 +89,7 @@ const form = reactive<FormData>({
   schedule: '', concurrencyPolicy: 'Allow', suspend: false,
   startingDeadlineSeconds: null, timeZone: '',
   successfulJobsHistoryLimit: 3, failedJobsHistoryLimit: 1,
-  completions: 1, parallelism: 1, backoffLimit: 6,
+  completions: 1, parallelism: 1, backoffLimit: 6, restartPolicy: 'Never',
   containers: [createEmptyContainer()], initContainers: [], volumes: [],
   nodeSelector: [], tolerations: [], annotations: [],
   serviceAccountName: '', terminationGracePeriodSeconds: null, imagePullSecrets: [],
@@ -98,6 +98,7 @@ const form = reactive<FormData>({
 })
 
 const formRef = ref<FormInstance>()
+const timezoneRegex = /^[A-Z][a-zA-Z0-9_+-]+(\/[A-Za-z0-9_+-]+)*$/
 const formRules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
@@ -105,6 +106,18 @@ const formRules: FormRules = {
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
   schedule: [{ required: true, message: '请输入调度表达式', trigger: 'blur' }],
+  timeZone: [
+    {
+      validator: (_rule: any, value: string, callback: any) => {
+        if (value && !timezoneRegex.test(value)) {
+          callback(new Error('无效的时区格式，例如: Asia/Shanghai, America/New_York'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
+  ],
 }
 
 async function fetchNamespaces() {
@@ -325,6 +338,7 @@ function parseInitialData(data: any) {
   form.completions = jobSpec.completions || 1
   form.parallelism = jobSpec.parallelism || 1
   form.backoffLimit = jobSpec.backoffLimit ?? 6
+  form.restartPolicy = podSpec.restartPolicy || 'Never'
 
   // Containers
   const containers = podSpec.containers || []
@@ -459,7 +473,7 @@ function buildK8sResource(): Record<string, any> {
 
   const imagePullSecrets = form.imagePullSecrets.filter(s => s).map(s => ({ name: s }))
 
-  const podSpec: any = { containers, restartPolicy: 'Never' }
+  const podSpec: any = { containers, restartPolicy: form.restartPolicy || 'Never' }
   if (initContainers.length > 0) podSpec.initContainers = initContainers
   if (volumes.length > 0) podSpec.volumes = volumes
   if (Object.keys(nodeSelector).length > 0) podSpec.nodeSelector = nodeSelector
@@ -514,12 +528,51 @@ function buildK8sResource(): Record<string, any> {
   return resource
 }
 
+// Resource validation helpers
+function parseCpuToMillicores(cpu: string): number | null {
+  if (!cpu) return null
+  cpu = cpu.trim()
+  if (cpu.endsWith('m')) return parseInt(cpu.slice(0, -1), 10)
+  const val = parseFloat(cpu)
+  return isNaN(val) ? null : Math.round(val * 1000)
+}
+
+function parseMemoryToBytes(mem: string): number | null {
+  if (!mem) return null
+  mem = mem.trim()
+  const units: Record<string, number> = { 'Ki': 1024, 'Mi': 1024**2, 'Gi': 1024**3, 'Ti': 1024**4, 'K': 1000, 'M': 1000**2, 'G': 1000**3, 'T': 1000**4 }
+  for (const [suffix, multiplier] of Object.entries(units)) {
+    if (mem.endsWith(suffix)) {
+      const val = parseFloat(mem.slice(0, -suffix.length))
+      return isNaN(val) ? null : Math.round(val * multiplier)
+    }
+  }
+  const val = parseFloat(mem)
+  return isNaN(val) ? null : val
+}
+
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
   for (let i = 0; i < form.containers.length; i++) {
     if (!form.containers[i].name) { ElMessage.error(`容器 ${i + 1}: 名称不能为空`); return }
     if (!form.containers[i].image) { ElMessage.error(`容器 ${i + 1}: 镜像不能为空`); return }
+    // Validate resource requests <= limits
+    const c = form.containers[i]
+    if (c.resources.requests.cpu && c.resources.limits.cpu) {
+      const reqCpu = parseCpuToMillicores(c.resources.requests.cpu)
+      const limCpu = parseCpuToMillicores(c.resources.limits.cpu)
+      if (reqCpu !== null && limCpu !== null && reqCpu > limCpu) {
+        ElMessage.error(`容器 ${i + 1}: CPU requests 不能大于 limits`); return
+      }
+    }
+    if (c.resources.requests.memory && c.resources.limits.memory) {
+      const reqMem = parseMemoryToBytes(c.resources.requests.memory)
+      const limMem = parseMemoryToBytes(c.resources.limits.memory)
+      if (reqMem !== null && limMem !== null && reqMem > limMem) {
+        ElMessage.error(`容器 ${i + 1}: Memory requests 不能大于 limits`); return
+      }
+    }
   }
 
   submitting.value = true
@@ -632,7 +685,7 @@ function handleCancel() {
               <el-input-number v-model="form.startingDeadlineSeconds" :min="0" placeholder="不限制" style="width: 100%;" />
               <div class="form-help">错过调度时间后的截止秒数，超过则跳过本次执行</div>
             </el-form-item>
-            <el-form-item label="时区 (TimeZone)">
+            <el-form-item label="时区 (TimeZone)" prop="timeZone">
               <el-input v-model="form.timeZone" placeholder="例如: Asia/Shanghai" />
               <div class="form-help">K8s 1.27+ 支持，如 Asia/Shanghai、America/New_York</div>
             </el-form-item>
@@ -653,6 +706,13 @@ function handleCancel() {
             </el-form-item>
             <el-form-item label="重试次数 (Backoff Limit)">
               <el-input-number v-model="form.backoffLimit" :min="0" style="width: 100%;" />
+            </el-form-item>
+            <el-form-item label="重启策略 (Restart Policy)">
+              <el-select v-model="form.restartPolicy" style="width: 100%;">
+                <el-option label="Never - 不重启，创建新 Pod" value="Never" />
+                <el-option label="OnFailure - 容器内重启" value="OnFailure" />
+              </el-select>
+              <div class="form-help">Never: 失败后创建新Pod；OnFailure: 在容器内重启</div>
             </el-form-item>
           </div>
         </div>

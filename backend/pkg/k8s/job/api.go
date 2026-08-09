@@ -1,9 +1,11 @@
 package job
 
 import (
-	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
+	"gkube/pkg/yamlutil"
+	"time"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -234,4 +236,45 @@ func JobPodList(client *kubernetes.Clientset, namespace, name string) (*corev1.P
 		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
 	}
 	return podList, nil
+}
+
+// RerunJob creates a new Job from an existing Job's spec (one-click re-run)
+func RerunJob(client *kubernetes.Clientset, namespace, name string) error {
+	ctx := context.TODO()
+	existing, err := client.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("获取job失败:%s", err.Error())
+	}
+
+	// Copy labels and annotations, removing controller-managed keys
+	newLabels := make(map[string]string)
+	for k, v := range existing.Labels {
+		if k == "controller-uid" {
+			continue
+		}
+		newLabels[k] = v
+	}
+	newAnnotations := make(map[string]string)
+	for k, v := range existing.Annotations {
+		if k == "cronjob.kubernetes.io/instantiate" {
+			continue
+		}
+		newAnnotations[k] = v
+	}
+
+	newJob := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        fmt.Sprintf("%s-rerun-%d", existing.Name, time.Now().UnixNano()),
+			Namespace:   namespace,
+			Labels:      newLabels,
+			Annotations: newAnnotations,
+		},
+		Spec: *existing.Spec.DeepCopy(),
+	}
+
+	_, err = client.BatchV1().Jobs(namespace).Create(ctx, newJob, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("重跑job失败:%s", err.Error())
+	}
+	return nil
 }

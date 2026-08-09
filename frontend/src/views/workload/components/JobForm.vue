@@ -52,7 +52,7 @@ interface TopologySpreadConstraint { maxSkew: number; topologyKey: string; whenU
 interface FormData {
   name: string; namespace: string; labels: Label[]
   completions: number | null; parallelism: number | null; backoffLimit: number | null; activeDeadlineSeconds: number | null
-  ttlSecondsAfterFinished: number | null; completionMode: string
+  ttlSecondsAfterFinished: number | null; completionMode: string; restartPolicy: string
   containers: Container[]; initContainers: Container[]; volumes: Volume[]
   nodeSelector: Label[]; tolerations: Tolerance[]; annotations: Annotation[]
   serviceAccountName: string; terminationGracePeriodSeconds: number | null
@@ -85,7 +85,7 @@ const form = reactive<FormData>({
   name: '', namespace: 'default',
   labels: [{ key: 'app', value: '' }],
   completions: 1, parallelism: 1, backoffLimit: 6, activeDeadlineSeconds: null,
-  ttlSecondsAfterFinished: null, completionMode: 'NonIndexed',
+  ttlSecondsAfterFinished: null, completionMode: 'NonIndexed', restartPolicy: 'Never',
   containers: [createEmptyContainer()], initContainers: [], volumes: [],
   nodeSelector: [], tolerations: [], annotations: [],
   serviceAccountName: '', terminationGracePeriodSeconds: null, imagePullSecrets: [],
@@ -358,6 +358,7 @@ function parseInitialData(data: any) {
   form.activeDeadlineSeconds = spec.activeDeadlineSeconds || null
   form.ttlSecondsAfterFinished = spec.ttlSecondsAfterFinished || null
   form.completionMode = spec.completionMode || 'NonIndexed'
+  form.restartPolicy = podSpec.restartPolicy || 'Never'
 
   // Pod Affinity
   const affinity = podSpec.affinity || {}
@@ -447,7 +448,7 @@ function buildK8sResource(): Record<string, any> {
 
   const imagePullSecrets = form.imagePullSecrets.filter(s => s).map(s => ({ name: s }))
 
-  const podSpec: any = { containers, restartPolicy: 'Never' }
+  const podSpec: any = { containers, restartPolicy: form.restartPolicy || 'Never' }
   if (initContainers.length > 0) podSpec.initContainers = initContainers
   if (volumes.length > 0) podSpec.volumes = volumes
   if (Object.keys(nodeSelector).length > 0) podSpec.nodeSelector = nodeSelector
@@ -496,12 +497,51 @@ function buildK8sResource(): Record<string, any> {
   return resource
 }
 
+// Resource validation helpers
+function parseCpuToMillicores(cpu: string): number | null {
+  if (!cpu) return null
+  cpu = cpu.trim()
+  if (cpu.endsWith('m')) return parseInt(cpu.slice(0, -1), 10)
+  const val = parseFloat(cpu)
+  return isNaN(val) ? null : Math.round(val * 1000)
+}
+
+function parseMemoryToBytes(mem: string): number | null {
+  if (!mem) return null
+  mem = mem.trim()
+  const units: Record<string, number> = { 'Ki': 1024, 'Mi': 1024**2, 'Gi': 1024**3, 'Ti': 1024**4, 'K': 1000, 'M': 1000**2, 'G': 1000**3, 'T': 1000**4 }
+  for (const [suffix, multiplier] of Object.entries(units)) {
+    if (mem.endsWith(suffix)) {
+      const val = parseFloat(mem.slice(0, -suffix.length))
+      return isNaN(val) ? null : Math.round(val * multiplier)
+    }
+  }
+  const val = parseFloat(mem)
+  return isNaN(val) ? null : val
+}
+
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
   for (let i = 0; i < form.containers.length; i++) {
     if (!form.containers[i].name) { ElMessage.error(`容器 ${i + 1}: 名称不能为空`); return }
     if (!form.containers[i].image) { ElMessage.error(`容器 ${i + 1}: 镜像不能为空`); return }
+    // Validate resource requests <= limits
+    const c = form.containers[i]
+    if (c.resources.requests.cpu && c.resources.limits.cpu) {
+      const reqCpu = parseCpuToMillicores(c.resources.requests.cpu)
+      const limCpu = parseCpuToMillicores(c.resources.limits.cpu)
+      if (reqCpu !== null && limCpu !== null && reqCpu > limCpu) {
+        ElMessage.error(`容器 ${i + 1}: CPU requests 不能大于 limits`); return
+      }
+    }
+    if (c.resources.requests.memory && c.resources.limits.memory) {
+      const reqMem = parseMemoryToBytes(c.resources.requests.memory)
+      const limMem = parseMemoryToBytes(c.resources.limits.memory)
+      if (reqMem !== null && limMem !== null && reqMem > limMem) {
+        ElMessage.error(`容器 ${i + 1}: Memory requests 不能大于 limits`); return
+      }
+    }
   }
 
   submitting.value = true
@@ -616,6 +656,13 @@ function handleCancel() {
                 <el-option label="NonIndexed (默认)" value="NonIndexed" />
                 <el-option label="Indexed (索引模式)" value="Indexed" />
               </el-select>
+            </el-form-item>
+            <el-form-item label="重启策略 (Restart Policy)">
+              <el-select v-model="form.restartPolicy" style="width: 100%;">
+                <el-option label="Never - 不重启，创建新 Pod" value="Never" />
+                <el-option label="OnFailure - 容器内重启" value="OnFailure" />
+              </el-select>
+              <div class="form-help">Never: 失败后创建新Pod；OnFailure: 在容器内重启</div>
             </el-form-item>
           </div>
         </div>

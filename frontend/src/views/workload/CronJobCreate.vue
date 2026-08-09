@@ -49,7 +49,7 @@ const {
   startClone, cancelClone, handleLoadClone,
 } = useCloneCreate({
   api: { list: getCronJobList, yaml: getCronJobYaml },
-  onCloneToForm: (parsed) => { parsedData.value = parsed; yamlContent.value = defaultYaml; mode.value = 'form' },
+  onCloneToForm: (parsed) => { parsedData.value = parsed; mode.value = 'form' },
   onCloneToYaml: (parsed) => { yamlContent.value = dumpCloneYaml(parsed); parsedData.value = null; mode.value = 'yaml' },
 })
 

@@ -129,6 +129,7 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.POST("job/create", k8s.Job.CreateJob)
 	rg.PUT("job/update", k8s.Job.UpdateJob)
 	rg.DELETE("job/delete", k8s.Job.DeleteJob)
+	rg.POST("job/rerun", k8s.Job.RerunJob)
 
 	// CronJob
 	rg.GET("cronjob/list", k8s.Cronjob.GetCronJobList)

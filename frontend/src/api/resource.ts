@@ -1096,6 +1096,8 @@ export interface Job {
   namespace: string
   completions: string
   succeeded: number
+  active: number
+  failed: number
   age: string
 }
 
@@ -1109,6 +1111,8 @@ export function transformJobs(items: any[]): Job[] {
     namespace: d.metadata?.namespace || '',
     completions: `${d.status?.succeeded || 0}/${d.spec?.completions || 1}`,
     succeeded: d.status?.succeeded || 0,
+    active: d.status?.active || 0,
+    failed: d.status?.failed || 0,
     age: calcAge(d.metadata?.creationTimestamp),
   }))
 }
@@ -1139,6 +1143,10 @@ export function getJobPods(params: { namespace: string; name: string }) {
   return request.get('/k8s/job/pods', { params })
 }
 
+export function rerunJob(params: { namespace: string; name: string }) {
+  return request.get('/k8s/job/rerun', { params })
+}
+
 // CronJob
 export interface CronJob {
   name: string
@@ -1147,6 +1155,7 @@ export interface CronJob {
   suspend: boolean
   active: number
   lastSchedule: string
+  nextScheduleTime: string
   age: string
 }
 
@@ -1162,6 +1171,7 @@ export function transformCronJobs(items: any[]): CronJob[] {
     suspend: d.spec?.suspend || false,
     active: d.status?.active?.length || 0,
     lastSchedule: d.status?.lastScheduleTime || '',
+    nextScheduleTime: d.nextScheduleTime || '',
     age: calcAge(d.metadata?.creationTimestamp),
   }))
 }

@@ -26,6 +26,10 @@ func CronJobJobsList(client *kubernetes.Clientset, namespace, name string) ([]ba
 	if err != nil {
 		return nil, fmt.Errorf("获取cronjob资源失败:%s", err.Error())
 	}
+	// Early return if no active jobs and no recent schedule
+	if len(cronJob.Status.Active) == 0 && cronJob.Status.LastScheduleTime == nil {
+		return nil, nil
+	}
 	// CronJob doesn't have a selector like Deployment/StatefulSet
 	// We need to find jobs owned by this CronJob using ownerReferences
 	jobList, err := client.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})

@@ -242,7 +242,6 @@ func (j *job) JobPodList(c *gin.Context) {
 
 type JobListParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
 }
 
@@ -268,4 +267,29 @@ type JobDeleteByNameParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+}
+
+// RerunJob
+//
+//	@Description: 一键重跑job
+//	@receiver j
+//	@param c
+func (j *job) RerunJob(c *gin.Context) {
+	var query JobQueryByNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, fmt.Sprintf("参数校验失败:%v", err.Error()))
+		return
+	}
+
+	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+
+	if err := k8sJob.RerunJob(client, query.Namespace, query.Name); err != nil {
+		response.Fail(c, fmt.Sprintf("重跑job失败:%v", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", nil)
 }

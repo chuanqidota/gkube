@@ -3,10 +3,15 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sCronjob "gkube/pkg/k8s/cronjob"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
+	"github.com/robfig/cron/v3"
+	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -43,7 +48,11 @@ func (cj *cronjob) GetCronJobList(c *gin.Context) {
 		if cjList.RemainingItemCount != nil {
 			remaining = *cjList.RemainingItemCount
 		}
-		data := k8sclient.BuildPaginatedData(cjList.Items, cjList.Continue, remaining, limit)
+		augmented := make([]map[string]any, 0, len(cjList.Items))
+		for i := range cjList.Items {
+			augmented = append(augmented, augmentCronJob(&cjList.Items[i]))
+		}
+		data := k8sclient.BuildPaginatedData(augmented, cjList.Continue, remaining, limit)
 		data.Total = len(cjList.Items)
 		response.Success(c, "执行成功", data)
 	} else {
@@ -52,7 +61,11 @@ func (cj *cronjob) GetCronJobList(c *gin.Context) {
 			response.Fail(c, fmt.Sprintf("获取cronjob列表失败:%s", err.Error()))
 			return
 		}
-		response.Success(c, "执行成功", jobList)
+		augmented := make([]map[string]any, 0, len(jobList))
+		for i := range jobList {
+			augmented = append(augmented, augmentCronJob(&jobList[i]))
+		}
+		response.Success(c, "执行成功", augmented)
 	}
 }
 
@@ -77,7 +90,7 @@ func (cj *cronjob) GetCronJobByName(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取cronjob失败:%v", err.Error()))
 		return
 	}
-	response.Success(c, "执行成功", job)
+	response.Success(c, "执行成功", augmentCronJob(job))
 }
 
 // GetCronJobYaml
@@ -250,6 +263,10 @@ func (cj *cronjob) SuspendCronJob(c *gin.Context) {
 		response.Fail(c, "name参数不能为空")
 		return
 	}
+	if clusterName == "" {
+		response.Fail(c, "clusterName参数不能为空")
+		return
+	}
 	client, err := k8sclient.GetK8sClientByName(clusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
@@ -270,6 +287,10 @@ func (cj *cronjob) ResumeCronJob(c *gin.Context) {
 		response.Fail(c, "name参数不能为空")
 		return
 	}
+	if clusterName == "" {
+		response.Fail(c, "clusterName参数不能为空")
+		return
+	}
 	client, err := k8sclient.GetK8sClientByName(clusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
@@ -288,6 +309,10 @@ func (cj *cronjob) TriggerCronJob(c *gin.Context) {
 	clusterName := c.Query("clusterName")
 	if name == "" {
 		response.Fail(c, "name参数不能为空")
+		return
+	}
+	if clusterName == "" {
+		response.Fail(c, "clusterName参数不能为空")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(clusterName)
@@ -324,4 +349,37 @@ type CronJobDeleteByNameParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
 	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
+}
+
+// cronParser is a shared parser for cron expressions (thread-safe)
+var cronParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+
+// computeNextScheduleTime computes the next execution time for a CronJob
+func computeNextScheduleTime(cj *batchv1.CronJob) string {
+	if cj.Spec.Suspend != nil && *cj.Spec.Suspend {
+		return ""
+	}
+	schedule, err := cronParser.Parse(cj.Spec.Schedule)
+	if err != nil {
+		logger.Error(fmt.Sprintf("解析cron表达式失败 [%s/%s]: %s", cj.Namespace, cj.Name, err.Error()))
+		return ""
+	}
+	var base time.Time
+	if cj.Status.LastScheduleTime != nil {
+		base = cj.Status.LastScheduleTime.Time
+	} else {
+		base = time.Now()
+	}
+	next := schedule.Next(base)
+	return next.Format("2006-01-02 15:04:05")
+}
+
+// augmentCronJob adds computed fields (nextScheduleTime) to a CronJob
+func augmentCronJob(cj *batchv1.CronJob) map[string]any {
+	return map[string]any{
+		"metadata":         cj.ObjectMeta,
+		"spec":             cj.Spec,
+		"status":           cj.Status,
+		"nextScheduleTime": computeNextScheduleTime(cj),
+	}
 }

@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { Plus, Delete, VideoPause, VideoPlay } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import yaml from 'js-yaml'
 import {
   getCronJobList,
   getCronJobYaml,
   updateCronJobYaml,
   deleteCronJob,
   transformCronJobs,
+  suspendCronJob,
+  resumeCronJob,
+  triggerCronJob,
 } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
@@ -55,7 +57,7 @@ const {
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
 
-// 暂停 / 恢复 CronJob：后端无专用接口，通过全量 YAML 更新切换 spec.suspend
+// 暂停 / 恢复 CronJob：使用专用 API 端点
 async function handleToggleSuspend(row: any) {
   const willSuspend = !row.suspend
   const actionLabel = willSuspend ? '暂停' : '恢复'
@@ -69,16 +71,35 @@ async function handleToggleSuspend(row: any) {
     return // 取消
   }
   try {
-    const res: any = await getCronJobYaml({ namespace: row.namespace, name: row.name })
-    const raw = res.data?.yaml ?? res.data ?? ''
-    const doc: any = yaml.load(raw) || {}
-    if (!doc.spec) doc.spec = {}
-    doc.spec.suspend = willSuspend
-    await updateCronJobYaml({ namespace: row.namespace, name: row.name, yaml: yaml.dump(doc) })
+    if (willSuspend) {
+      await suspendCronJob({ namespace: row.namespace, name: row.name })
+    } else {
+      await resumeCronJob({ namespace: row.namespace, name: row.name })
+    }
     ElMessage.success(`${row.name} 已${actionLabel}`)
     fetchResources()
   } catch (e: any) {
     ElMessage.error(e?.message || `${actionLabel}失败`)
+  }
+}
+
+// 手动触发 CronJob
+async function handleTrigger(row: any) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要手动触发 CronJob "${row.name}" 吗？`,
+      '确认触发',
+      { type: 'info' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await triggerCronJob({ namespace: row.namespace, name: row.name })
+    ElMessage.success(`${row.name} 已触发`)
+    fetchResources()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '触发失败')
   }
 }
 </script>
@@ -137,8 +158,15 @@ async function handleToggleSuspend(row: any) {
           </template>
         </el-table-column>
         <el-table-column prop="active" label="活跃" width="80" />
+        <el-table-column prop="nextScheduleTime" label="下次执行时间" width="170">
+          <template #default="{ row }">
+            <span v-if="row.nextScheduleTime">{{ row.nextScheduleTime }}</span>
+            <el-tag v-else-if="row.suspend" type="info" size="small">已暂停</el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="350" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
@@ -148,6 +176,7 @@ async function handleToggleSuspend(row: any) {
               :icon="row.suspend ? VideoPlay : VideoPause"
               @click="handleToggleSuspend(row)"
             >{{ row.suspend ? '恢复' : '暂停' }}</el-button>
+            <el-button size="small" type="primary" @click="handleTrigger(row)">触发</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>

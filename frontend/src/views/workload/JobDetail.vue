@@ -8,8 +8,9 @@ import {
   getJobEvents,
   getJobPods,
   deletePod,
+  rerunJob,
 } from '@/api/resource'
-import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
+import { Refresh, Timer, ArrowLeft, FullScreen, Aim, RefreshRight } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
 import JobForm from '@/views/workload/components/JobForm.vue'
@@ -111,6 +112,22 @@ async function handleDelete() {
     if (e !== 'cancel') {
       ElMessage.error(e?.message || '删除失败')
     }
+  }
+}
+
+async function handleRerun() {
+  try {
+    await ElMessageBox.confirm(
+      `确定要重跑 Job "${name}" 吗？将创建一个相同配置的新 Job。`,
+      '确认重跑',
+      { type: 'warning', confirmButtonText: '确定', cancelButtonText: '取消' }
+    )
+    await rerunJob({ namespace, name })
+    ElMessage.success('Job 重跑成功')
+    fetchDetail()
+  } catch (e: any) {
+    if (e === 'cancel' || e?.message === 'cancel') return
+    ElMessage.error(e?.message || '重跑失败')
   }
 }
 
@@ -253,6 +270,9 @@ onMounted(() => {
         </div>
       </div>
       <div class="header-actions">
+        <el-button type="success" :disabled="job?.status?.active > 0" @click="handleRerun">
+          <el-icon><RefreshRight /></el-icon> 重跑
+        </el-button>
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" plain @click="handleDelete">删除</el-button>

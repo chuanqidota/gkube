@@ -7,6 +7,7 @@ import {
   deleteCronJob,
   getCronJobEvents,
   getCronJobJobs,
+  triggerCronJob,
 } from '@/api/resource'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
@@ -120,6 +121,25 @@ function handleEditCancel() {
   editDialogVisible.value = false
 }
 
+async function handleTrigger() {
+  try {
+    await ElMessageBox.confirm(
+      `确定要手动触发 CronJob "${name}" 吗？`,
+      '确认触发',
+      { type: 'info' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await triggerCronJob({ namespace, name })
+    ElMessage.success('CronJob 已触发')
+    fetchJobs()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '触发失败')
+  }
+}
+
 function getJobStatus(job: any): string {
   if (job.status?.succeeded > 0) return 'Complete'
   if (job.status?.active > 0) return 'Running'
@@ -209,6 +229,7 @@ onMounted(() => {
       <div class="header-actions">
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
+        <el-button type="primary" @click="handleTrigger">触发</el-button>
         <el-button type="danger" plain @click="handleDelete">删除</el-button>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
@@ -264,6 +285,11 @@ onMounted(() => {
               <el-descriptions-item label="成功历史限制">{{ cronJob.spec?.successfulJobsHistoryLimit ?? '-' }}</el-descriptions-item>
               <el-descriptions-item label="失败历史限制">{{ cronJob.spec?.failedJobsHistoryLimit ?? '-' }}</el-descriptions-item>
               <el-descriptions-item label="最后调度">{{ cronJob.status?.lastScheduleTime || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="下次执行时间">
+                <span v-if="cronJob.nextScheduleTime">{{ cronJob.nextScheduleTime }}</span>
+                <el-tag v-else-if="cronJob.spec?.suspend" type="info" size="small">已暂停</el-tag>
+                <span v-else>-</span>
+              </el-descriptions-item>
               <el-descriptions-item label="活跃 Job 数">{{ cronJob.status?.active?.length ?? 0 }}</el-descriptions-item>
             </el-descriptions>
 
