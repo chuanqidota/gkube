@@ -209,7 +209,7 @@ watch(nodeName, () => {
           <el-button v-else type="danger" plain @click="handleDelete(nodeName, node?.status === 'Ready', () => router.push('/nodes'))">删除</el-button>
         </el-button-group>
         <div class="action-divider" />
-        <el-popover placement="bottom" :width="200" trigger="click">
+        <el-popover placement="bottom" :width="200" trigger="click" :append-to-body="false">
           <template #reference>
             <el-button
               :type="isRunning ? 'success' : 'default'"

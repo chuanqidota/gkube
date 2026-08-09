@@ -111,7 +111,7 @@ onMounted(fetchDetail)
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" plain @click="handleDelete">删除</el-button>
         <div class="action-divider" />
-        <el-popover placement="bottom" :width="200" trigger="click">
+        <el-popover placement="bottom" :width="200" trigger="click" :append-to-body="false">
           <template #reference>
             <el-button
               :type="isRunning ? 'success' : 'default'"
