@@ -290,12 +290,12 @@ async function handleRollbackConfirm() {
 }
 
 function handlePodLogs(pod: any) {
-  const cluster = clusterName
+  const cluster = clusterName.value
   window.open(`/fullscreen/logs?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function handlePodExec(pod: any) {
-  const cluster = clusterName
+  const cluster = clusterName.value
   window.open(`/fullscreen/terminal?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
