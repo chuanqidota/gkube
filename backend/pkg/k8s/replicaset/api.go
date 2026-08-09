@@ -41,14 +41,14 @@ func DeleteReplicaSet(client *kubernetes.Clientset, namespace, name string) erro
 func GetReplicaSetPodList(client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
 	rs, err := client.AppsV1().ReplicaSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("获取ReplicaSet资源失败:%s", err.Error())
+		return nil, fmt.Errorf("failed to get ReplicaSet: %w", err)
 	}
 	selector := metav1.FormatLabelSelector(rs.Spec.Selector)
 	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: selector,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
+		return nil, fmt.Errorf("failed to list Pods: %w", err)
 	}
 	return podList, nil
 }

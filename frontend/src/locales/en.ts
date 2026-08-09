@@ -746,7 +746,6 @@ export default {
     current: 'Current',
     ready: 'Ready',
     available: 'Available',
-    fullyLabeled: 'Fully Labeled',
     deleteConfirm: 'Are you sure to delete ReplicaSet "{name}" in namespace "{namespace}"?',
   },
 }

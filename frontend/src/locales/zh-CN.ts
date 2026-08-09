@@ -772,7 +772,6 @@ export default {
     current: '当前',
     ready: '就绪',
     available: '可用',
-    fullyLabeled: '完全标记',
     deleteConfirm: '确定删除副本集 "{name}" 在命名空间 "{namespace}" 中吗？',
   },
   search: {

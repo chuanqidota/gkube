@@ -12,10 +12,10 @@ import {
 } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
-import { useClusterStore } from '@/stores/cluster'
+import { useClusterNameRef } from '@/composables/useClusterName'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
-const clusterStore = useClusterStore()
+const clusterName = useClusterNameRef()
 import { useResizable } from '@/composables/useResizable'
 import { formatAge } from '@/utils/time'
 
@@ -37,22 +37,13 @@ const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResi
 
 const rs = computed(() => detail.value?.rs)
 
-const statusTagType = computed(() => {
+const statusInfo = computed(() => {
   const conditions = rs.value?.status?.conditions || []
   const available = conditions.find((c: any) => c.type === 'Available')
-  if (available?.status === 'True') return 'success'
+  if (available?.status === 'True') return { type: 'success' as const, text: 'Available' }
   const failure = conditions.find((c: any) => c.type === 'ReplicaFailure')
-  if (failure?.status === 'True') return 'danger'
-  return 'warning'
-})
-
-const statusText = computed(() => {
-  const conditions = rs.value?.status?.conditions || []
-  const available = conditions.find((c: any) => c.type === 'Available')
-  if (available?.status === 'True') return 'Available'
-  const failure = conditions.find((c: any) => c.type === 'ReplicaFailure')
-  if (failure?.status === 'True') return 'Failure'
-  return 'Progressing'
+  if (failure?.status === 'True') return { type: 'danger' as const, text: 'Failure' }
+  return { type: 'warning' as const, text: 'Progressing' }
 })
 
 const controllerOf = computed(() => detail.value?.controllerOf || null)
@@ -102,17 +93,13 @@ async function fetchEvents() {
   }
 }
 
-function getClusterName(): string {
-  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.cluster_name || clusterStore.currentCluster?.name || ''
-}
-
 function handlePodLogs(pod: any) {
-  const cluster = getClusterName()
+  const cluster = clusterName.value
   window.open(`/fullscreen/logs?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
 function handlePodExec(pod: any) {
-  const cluster = getClusterName()
+  const cluster = clusterName.value
   window.open(`/fullscreen/terminal?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
 }
 
@@ -188,10 +175,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 }, { autoStart: false })
 
 onMounted(() => {
-  fetchDetail().then(() => {
-    fetchPods()
-  })
-  fetchEvents()
+  Promise.all([fetchDetail(), fetchPods(), fetchEvents()])
 })
 </script>
 
@@ -203,7 +187,7 @@ onMounted(() => {
       <div class="header-left">
         <h2 class="res-name">{{ name }}</h2>
         <div class="meta-line">
-          <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
+          <el-tag :type="statusInfo.type" effect="dark" size="small">{{ statusInfo.text }}</el-tag>
           <span class="ns-tag">ns/{{ namespace }}</span>
           <span class="replicas-info" v-if="rs">
             {{ rs.status?.readyReplicas ?? 0 }}/{{ rs.spec?.replicas ?? 0 }} ready
