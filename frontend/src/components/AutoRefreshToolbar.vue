@@ -51,6 +51,7 @@ onUnmounted(() => {
       placement="bottom"
       :width="200"
       trigger="click"
+      :append-to-body="false"
     >
       <template #reference>
         <el-button
