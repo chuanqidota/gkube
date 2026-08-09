@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
 import { Refresh, Timer } from '@element-plus/icons-vue'
 
 interface Props {
@@ -20,15 +21,37 @@ const emit = defineEmits<{
   'interval-change': [seconds: number]
 }>()
 
+const popoverVisible = ref(false)
+
 function handleIntervalChange(seconds: number) {
   emit('interval-change', seconds)
 }
+
+function handleClickOutside(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (!target.closest('.auto-refresh-toolbar')) {
+    popoverVisible.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <template>
   <div class="auto-refresh-toolbar">
     <!-- 自动刷新按钮（图标 + popover） -->
-    <el-popover placement="bottom" :width="200" trigger="click">
+    <el-popover
+      v-model:visible="popoverVisible"
+      placement="bottom"
+      :width="200"
+      trigger="click"
+    >
       <template #reference>
         <el-button
           :type="isRunning ? 'success' : 'default'"
