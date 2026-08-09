@@ -263,7 +263,7 @@ onMounted(() => {
           </template>
         </el-dropdown>
         <div class="action-divider" />
-        <el-popover placement="bottom" :width="200" trigger="hover">
+        <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
             <el-button
               :type="isRunning ? 'success' : 'default'"

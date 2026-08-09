@@ -28,7 +28,7 @@ function handleIntervalChange(seconds: number) {
 <template>
   <div class="auto-refresh-toolbar">
     <!-- 自动刷新按钮（图标 + popover） -->
-    <el-popover placement="bottom" :width="200" trigger="hover">
+    <el-popover placement="bottom" :width="200" trigger="click">
       <template #reference>
         <el-button
           :type="isRunning ? 'success' : 'default'"
