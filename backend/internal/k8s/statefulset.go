@@ -256,12 +256,16 @@ func (s *statefulSet) ScaleStatefulSet(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
+	if body.Replicas == nil {
+		response.Fail(c, "replicas参数不能为空")
+		return
+	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	ok, err := k8sStatefulSet.ScaleStatefulSet(client, body.Namespace, body.Name, body.Replicas)
+	ok, err := k8sStatefulSet.ScaleStatefulSet(client, body.Namespace, body.Name, *body.Replicas)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("扩缩容statefulset失败:%s", err.Error()))
 		return
@@ -440,7 +444,7 @@ type StatefulSetScaleParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
 	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-	Replicas    int32  `form:"replicas" json:"replicas" label:"副本数"`
+	Replicas    *int32 `form:"replicas" json:"replicas" binding:"required" label:"副本数"`
 }
 
 type StatefulSetRestartParams struct {
