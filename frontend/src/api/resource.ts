@@ -1176,6 +1176,9 @@ export function getCronJobEvents(params: { namespace: string; name: string }) {
 export function getCronJobJobs(params: { namespace: string; name: string }) {
   return request.get('/k8s/cronjob/jobs', { params })
 }
+export function getCronJobExecutionHistory(params: { namespace: string; name: string }) {
+  return request.get('/k8s/cronjob/jobs', { params })
+}
 
 // ReplicaSet detail
 export function getReplicaSetDetail(params: { namespace: string; name: string }) {

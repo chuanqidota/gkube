@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/robfig/cron/v3"
 	k8sclient "gkube/pkg/k8s"
 	k8sCronjob "gkube/pkg/k8s/cronjob"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
-	"github.com/robfig/cron/v3"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -233,7 +233,7 @@ func (cj *cronjob) GetCronJobEvents(c *gin.Context) {
 
 // CronJobJobsList
 //
-//	@Description: 获取cronjob关联的job列表
+//	@Description: 获取cronjob执行历史Job列表
 //	@receiver cj
 //	@param c
 func (cj *cronjob) CronJobJobsList(c *gin.Context) {
@@ -249,7 +249,7 @@ func (cj *cronjob) CronJobJobsList(c *gin.Context) {
 	}
 	jobList, err := k8sCronjob.CronJobJobsList(client, query.Namespace, query.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取cronjob关联job列表失败:%v", err.Error()))
+		response.Fail(c, fmt.Sprintf("获取cronjob执行历史失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", jobList)

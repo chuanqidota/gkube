@@ -6,7 +6,7 @@ import {
   getCronJobDetail,
   deleteCronJob,
   getCronJobEvents,
-  getCronJobJobs,
+  getCronJobExecutionHistory,
   triggerCronJob,
 } from '@/api/resource'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
@@ -25,7 +25,7 @@ const yamlDialogVisible = ref(false)
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
 
-// Jobs
+// Execution history
 const jobs = ref<any[]>([])
 const jobsLoading = ref(false)
 
@@ -73,7 +73,7 @@ async function fetchEvents() {
 async function fetchJobs() {
   jobsLoading.value = true
   try {
-    const res: any = await getCronJobJobs({ namespace, name })
+    const res: any = await getCronJobExecutionHistory({ namespace, name })
     jobs.value = res.data || []
   } catch (e: any) {
     jobs.value = []
@@ -152,6 +152,47 @@ function getJobStatusType(job: any): string {
   if (job.status?.active > 0) return 'warning'
   if (job.status?.failed > 0) return 'danger'
   return 'info'
+}
+
+function getJobStartedAt(job: any): string {
+  return job.status?.startTime || job.metadata?.creationTimestamp || ''
+}
+
+function getJobFinishedAt(job: any): string {
+  return job.status?.completionTime || ''
+}
+
+function formatDateTime(value?: string): string {
+  if (!value) return '-'
+  return value.replace('T', ' ').replace(/\.\d+Z$/, '').replace('Z', '')
+}
+
+function getJobDuration(job: any): string {
+  const startAt = getJobStartedAt(job)
+  const endAt = getJobFinishedAt(job)
+  if (!startAt || !endAt) return '-'
+
+  const start = new Date(startAt).getTime()
+  const end = new Date(endAt).getTime()
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return '-'
+
+  const seconds = Math.floor((end - start) / 1000)
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  const remainSeconds = seconds % 60
+  if (minutes < 60) return `${minutes}m ${remainSeconds}s`
+  const hours = Math.floor(minutes / 60)
+  const remainMinutes = minutes % 60
+  return `${hours}h ${remainMinutes}m`
+}
+
+function getJobImages(job: any): string {
+  const containers = job.spec?.template?.spec?.containers || []
+  return containers.map((container: any) => container.image).filter(Boolean).join(', ') || '-'
+}
+
+function isManualJob(job: any): boolean {
+  return job.metadata?.annotations?.['cronjob.kubernetes.io/instantiate'] === 'manual'
 }
 
 // ---- Resize: left-right ----
@@ -308,39 +349,57 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 右侧：Jobs + Events -->
+        <!-- 右侧：Execution History + Events -->
         <div class="right-panel">
 
-          <!-- Job 列表 -->
+          <!-- 执行历史 -->
           <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
-            <div class="panel-title">
-              关联 Job
-              <span class="count-badge">{{ jobs.length }} 个</span>
+            <div class="panel-title execution-title">
+              <div class="title-main">
+                <span>执行历史</span>
+                <span class="count-badge">{{ jobs.length }} 条</span>
+              </div>
+              <span class="title-hint">由 CronJob 创建的 Job，保留数量受成功/失败历史限制控制</span>
             </div>
             <div v-loading="jobsLoading" class="jobs-body">
               <el-table v-if="jobs.length > 0" :data="jobs" size="small" stripe>
-                <el-table-column label="名称" min-width="250" show-overflow-tooltip>
+                <el-table-column label="名称" min-width="240" show-overflow-tooltip>
                   <template #default="{ row }">
-                    <el-button link type="primary" @click="router.push(`/workloads/jobs/${row.metadata?.namespace}/${row.metadata?.name}`)">
-                      {{ row.metadata?.name }}
-                    </el-button>
+                    <div class="job-name-cell">
+                      <el-button link type="primary" @click="router.push(`/workloads/jobs/${row.metadata?.namespace}/${row.metadata?.name}`)">
+                        {{ row.metadata?.name }}
+                      </el-button>
+                      <el-tag v-if="isManualJob(row)" type="info" size="small">手动触发</el-tag>
+                    </div>
                   </template>
                 </el-table-column>
-                <el-table-column label="状态" width="120">
+                <el-table-column label="状态" width="100">
                   <template #default="{ row }">
                     <el-tag :type="getJobStatusType(row)" size="small">{{ getJobStatus(row) }}</el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column label="完成数" width="120">
+                <el-table-column label="完成数" width="90">
                   <template #default="{ row }">
                     {{ row.status?.succeeded || 0 }}/{{ row.spec?.completions || 1 }}
                   </template>
                 </el-table-column>
-                <el-table-column label="Age" width="120">
+                <el-table-column label="开始时间" width="150">
+                  <template #default="{ row }">{{ formatDateTime(getJobStartedAt(row)) }}</template>
+                </el-table-column>
+                <el-table-column label="完成时间" width="150">
+                  <template #default="{ row }">{{ formatDateTime(getJobFinishedAt(row)) }}</template>
+                </el-table-column>
+                <el-table-column label="耗时" width="90">
+                  <template #default="{ row }">{{ getJobDuration(row) }}</template>
+                </el-table-column>
+                <el-table-column label="Age" width="100">
                   <template #default="{ row }">{{ formatAge(row.metadata?.creationTimestamp) }}</template>
                 </el-table-column>
+                <el-table-column label="镜像" min-width="220" show-overflow-tooltip>
+                  <template #default="{ row }">{{ getJobImages(row) }}</template>
+                </el-table-column>
               </el-table>
-              <div v-else class="empty-hint">暂无关联 Job</div>
+              <div v-else class="empty-hint">暂无执行记录</div>
             </div>
           </div>
 
@@ -548,6 +607,37 @@ onMounted(() => {
   font-weight: 400;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+.execution-title {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.title-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.title-hint {
+  min-width: 0;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: right;
+}
+
+.job-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.job-name-cell .el-button {
+  min-width: 0;
 }
 
 .info-body {

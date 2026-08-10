@@ -1,9 +1,10 @@
 package cronjob
 
 import (
-	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
+	"gkube/pkg/yamlutil"
+	"sort"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -15,7 +16,7 @@ import (
 
 // CronJobJobsList
 //
-//	@Description: 获取cronjob关联的job列表
+//	@Description: 获取cronjob执行历史Job列表
 //	@param client
 //	@param namespace
 //	@param name
@@ -26,26 +27,34 @@ func CronJobJobsList(client *kubernetes.Clientset, namespace, name string) ([]ba
 	if err != nil {
 		return nil, fmt.Errorf("获取cronjob资源失败:%s", err.Error())
 	}
-	// Early return if no active jobs and no recent schedule
-	if len(cronJob.Status.Active) == 0 && cronJob.Status.LastScheduleTime == nil {
-		return nil, nil
-	}
-	// CronJob doesn't have a selector like Deployment/StatefulSet
-	// We need to find jobs owned by this CronJob using ownerReferences
+
 	jobList, err := client.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("获取job列表失败:%s", err.Error())
 	}
+
 	var ownedJobs []batchv1.Job
 	for _, job := range jobList.Items {
 		for _, ref := range job.OwnerReferences {
-			if ref.Kind == "CronJob" && ref.Name == cronJob.Name {
+			if ref.Kind == "CronJob" && ref.UID == cronJob.UID {
 				ownedJobs = append(ownedJobs, job)
 				break
 			}
 		}
 	}
+
+	sort.Slice(ownedJobs, func(i, j int) bool {
+		return jobHistoryTime(ownedJobs[i]).After(jobHistoryTime(ownedJobs[j]))
+	})
+
 	return ownedJobs, nil
+}
+
+func jobHistoryTime(job batchv1.Job) time.Time {
+	if job.Status.StartTime != nil {
+		return job.Status.StartTime.Time
+	}
+	return job.CreationTimestamp.Time
 }
 
 // GetCronJobList

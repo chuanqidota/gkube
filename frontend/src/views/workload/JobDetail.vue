@@ -54,6 +54,10 @@ const statusText = computed(() => {
   return 'Pending'
 })
 
+const ownerCronJob = computed(() => {
+  return job.value?.metadata?.ownerReferences?.find((ref: any) => ref.kind === 'CronJob') || null
+})
+
 async function fetchDetail() {
   loading.value = true
   try {
@@ -324,6 +328,11 @@ onMounted(() => {
             <el-descriptions :column="1" border size="small">
               <el-descriptions-item label="名称">{{ job.metadata?.name }}</el-descriptions-item>
               <el-descriptions-item label="命名空间">{{ job.metadata?.namespace }}</el-descriptions-item>
+              <el-descriptions-item v-if="ownerCronJob" label="所属 CronJob">
+                <el-button link type="primary" @click="router.push(`/workloads/cronjobs/${job.metadata?.namespace || namespace}/${ownerCronJob.name}`)">
+                  {{ ownerCronJob.name }}
+                </el-button>
+              </el-descriptions-item>
               <el-descriptions-item label="完成数">{{ job.spec?.completions ?? '-' }}</el-descriptions-item>
               <el-descriptions-item label="并行数">{{ job.spec?.parallelism ?? '-' }}</el-descriptions-item>
               <el-descriptions-item label="最大失败次数">{{ job.spec?.backoffLimit ?? '-' }}</el-descriptions-item>
@@ -363,13 +372,13 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 右侧：Pods + Events -->
+        <!-- 右侧：Execution Pods + Events -->
         <div class="right-panel">
 
-          <!-- Pod 列表 -->
+          <!-- 执行 Pod 列表 -->
           <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
             <div class="panel-title">
-              关联 Pod
+              执行 Pod
               <span class="count-badge">{{ pods.length }} 个</span>
             </div>
             <PodListPanel
