@@ -182,7 +182,6 @@ export default {
     job: '任务',
     cronjob: '定时任务',
     hpa: '弹性伸缩',
-    pdb: '中断预算',
     ready: '就绪',
     restarts: '重启次数',
     node_label: '节点',
@@ -291,14 +290,6 @@ export default {
     resource: '资源',
     targetType: '目标类型',
     targetValue: '目标值',
-    // PDB
-    pdbTitle: '中断预算: {name}',
-    minAvailable: '最小可用数',
-    maxUnavailable: '最大不可用数',
-    currentHealthy: '当前健康数',
-    desiredHealthy: '期望健康数',
-    allowedDisruptions: '允许中断数',
-    allowed: '允许',
     // Common workload messages
     deleteResourceConfirm: '确定删除 {type} "{name}" 在命名空间 "{namespace}" 中吗？',
     deleteResourceSuccess: '{type} 已删除',

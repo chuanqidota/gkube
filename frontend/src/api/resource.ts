@@ -849,31 +849,6 @@ export function getReplicaSetEvents(params: { namespace: string; name: string })
   return request.get('/k8s/replicaset/events', { params })
 }
 
-// PDB
-export function getPdbList(params?: { namespace?: string }) {
-  return request.get('/k8s/pdb/list', { params })
-}
-
-export function getPdbDetail(params: { namespace: string; name: string }) {
-  return request.get('/k8s/pdb/detail', { params })
-}
-
-export function getPdbYaml(params: { namespace: string; name: string }) {
-  return request.get('/k8s/pdb/get-yaml', { params })
-}
-
-export function createPdb(data: { namespace: string; yaml: string }) {
-  return request.post('/k8s/pdb/create', data)
-}
-
-export function updatePdb(data: { namespace: string; yaml: string }) {
-  return request.put('/k8s/pdb/update', data)
-}
-
-export function deletePdb(params: { namespace: string; name: string }) {
-  return request.delete('/k8s/pdb/delete', { params })
-}
-
 // ResourceQuota
 export function getResourceQuotaList(params?: { namespace?: string }) {
   return request.get('/k8s/resourcequota/list', { params })

@@ -160,14 +160,6 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.POST("hpa/create", k8s.Hpa.CreateHPA)
 	rg.PUT("hpa/update", k8s.Hpa.UpdateHPA)
 	rg.DELETE("hpa/delete", k8s.Hpa.DeleteHPA)
-
-	// PDB
-	rg.GET("pdb/list", k8s.Pdb.GetPDBList)
-	rg.GET("pdb/detail", k8s.Pdb.GetPDBDetail)
-	rg.GET("pdb/get-yaml", k8s.Pdb.GetPDBYaml)
-	rg.POST("pdb/create", k8s.Pdb.CreatePDB)
-	rg.PUT("pdb/update", k8s.Pdb.UpdatePDB)
-	rg.DELETE("pdb/delete", k8s.Pdb.DeletePDB)
 }
 
 func registerNetworkRoutes(rg *gin.RouterGroup) {

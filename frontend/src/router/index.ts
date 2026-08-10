@@ -214,25 +214,6 @@ const router = createRouter({
           props: true,
           meta: { title: 'HPA详情', parent: 'HPAList' },
         },
-        // Workloads - PDB
-        {
-          path: 'workloads/pdb',
-          name: 'PDBList',
-          component: () => import('@/views/workload/pdb/PDBList.vue'),
-          meta: { title: 'PDB', icon: 'Warning' },
-        },
-        {
-          path: 'workloads/pdb/create',
-          name: 'PDBCreate',
-          component: () => import('@/views/workload/pdb/PDBCreate.vue'),
-          meta: { title: '创建PDB', parent: 'PDBList' },
-        },
-        {
-          path: 'workloads/pdb/:namespace/:name',
-          name: 'PDBDetail',
-          component: () => import('@/views/workload/pdb/PDBDetail.vue'),
-          meta: { title: 'PDB详情', parent: 'PDBList' },
-        },
         // Config - ConfigMap
         {
           path: 'config/configmaps',

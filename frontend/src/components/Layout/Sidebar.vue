@@ -67,10 +67,6 @@
           <el-icon><DataLine /></el-icon>
           <template #title>{{ t('sidebar.hpa') }}</template>
         </el-menu-item>
-        <el-menu-item index="/workloads/pdb" @click="navigateTo('/workloads/pdb')">
-          <el-icon><Warning /></el-icon>
-          <template #title>{{ t('sidebar.pdb') }}</template>
-        </el-menu-item>
       </el-sub-menu>
       <!-- Network -->
       <el-sub-menu index="network">
@@ -177,7 +173,6 @@ import {
   Key,
   Bell,
   DataLine,
-  Warning,
   Lock,
   Grid,
   DocumentCopy,
