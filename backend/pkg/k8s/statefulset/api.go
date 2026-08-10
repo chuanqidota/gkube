@@ -348,15 +348,15 @@ func RollbackStatefulSet(client *kubernetes.Clientset, namespace, name string, r
 	if !found {
 		return nil, fmt.Errorf("revision %d 不存在", revision)
 	}
-	// 冲突时自动重试(与 UpdateStatefulSet 保持一致的 RetryOnConflict 模式)：
-	// 重新获取最新 resourceVersion 后再用 revision 的 spec 覆盖，避免并发编辑导致 409。
+	// 只回滚 pod template（与 Deployment 回滚逻辑一致），不覆盖 selector/serviceName 等不可变字段。
+	// K8s 禁止更新 statefulset spec 的 selector 等字段，整 spec 覆盖会触发 Forbidden。
 	var result *appsv1.StatefulSet
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		latest, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("获取statefulset资源失败:%s", err.Error())
 		}
-		latest.Spec = restored.Spec
+		latest.Spec.Template = restored.Spec.Template
 		result, err = client.AppsV1().StatefulSets(namespace).Update(ctx, latest, metav1.UpdateOptions{})
 		return err
 	}); err != nil {
@@ -379,15 +379,27 @@ func GetStatefulSetRollbacks(client *kubernetes.Clientset, namespace, name strin
 	if err != nil {
 		return nil, err
 	}
+	// 反序列化 ControllerRevision.Data.Raw 取出容器镜像，方便回滚时确认目标版本。
 	type revEntry struct {
-		Revision int64  `json:"revision"`
-		Name     string `json:"name"`
+		Revision  int64    `json:"revision"`
+		Name      string   `json:"name"`
+		Images    []string `json:"images"`
+		CreatedAt string   `json:"createdAt"`
 	}
 	var entries []revEntry
 	for _, rev := range revisions.Items {
+		var restored appsv1.StatefulSet
+		var images []string
+		if err := json.Unmarshal(rev.Data.Raw, &restored); err == nil {
+			for _, c := range restored.Spec.Template.Spec.Containers {
+				images = append(images, c.Image)
+			}
+		}
 		entries = append(entries, revEntry{
-			Revision: rev.Revision,
-			Name:     rev.Name,
+			Revision:  rev.Revision,
+			Name:      rev.Name,
+			Images:    images,
+			CreatedAt: rev.CreationTimestamp.Time.Format(time.RFC3339),
 		})
 	}
 	// Sort descending by revision
@@ -401,8 +413,10 @@ func GetStatefulSetRollbacks(client *kubernetes.Clientset, namespace, name strin
 	result := make([]map[string]any, len(entries))
 	for i, e := range entries {
 		result[i] = map[string]any{
-			"revision": e.Revision,
-			"name":     e.Name,
+			"revision":  e.Revision,
+			"name":      e.Name,
+			"images":    e.Images,
+			"createdAt": e.CreatedAt,
 		}
 	}
 	return result, nil

@@ -16,7 +16,7 @@ const { t } = useI18n()
 const mode = ref<'form' | 'yaml'>('form')
 const yamlEditorRef = ref()
 const parsedData = ref<any>(null)
-const yamlContent = ref(`apiVersion: v1
+const defaultYaml = `apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: my-pvc
@@ -27,7 +27,8 @@ spec:
   resources:
     requests:
       storage: 10Gi
-`)
+`
+const yamlContent = ref(defaultYaml)
 const submitting = ref(false)
 
 const {

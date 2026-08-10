@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { FullScreen, CopyDocument } from '@element-plus/icons-vue'
-import yaml from 'js-yaml'
 import PVForm from '@/views/storage/components/PVForm.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
 import CloneDialog from '@/components/CloneDialog.vue'
@@ -16,7 +15,7 @@ const { t } = useI18n()
 const mode = ref<'form' | 'yaml'>('form')
 const yamlEditorRef = ref()
 const parsedData = ref<any>(null)
-const yamlContent = ref(`apiVersion: v1
+const defaultYaml = `apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: my-pv
@@ -30,7 +29,8 @@ spec:
     - ReadWriteOnce
   hostPath:
     path: "/mnt/data"
-`)
+`
+const yamlContent = ref(defaultYaml)
 const submitting = ref(false)
 
 const {

@@ -16,7 +16,7 @@ const { t } = useI18n()
 const mode = ref<'form' | 'yaml'>('form')
 const yamlEditorRef = ref()
 const parsedData = ref<any>(null)
-const yamlContent = ref(`apiVersion: v1
+const defaultYaml = `apiVersion: v1
 kind: Service
 metadata:
   name: my-service
@@ -32,7 +32,8 @@ spec:
       port: 80
       targetPort: 80
       protocol: TCP
-`)
+`
+const yamlContent = ref(defaultYaml)
 const submitting = ref(false)
 
 const {

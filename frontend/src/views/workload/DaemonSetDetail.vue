@@ -20,6 +20,8 @@ import DaemonSetForm from '@/views/workload/components/DaemonSetForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useClusterNameRef } from '@/composables/useClusterName'
 import { useResizable } from '@/composables/useResizable'
+import { formatAge } from '@/utils/time'
+import { buildFullscreenUrl } from '@/utils/pod'
 
 const clusterName = useClusterNameRef()
 
@@ -28,14 +30,21 @@ const router = useRouter()
 const loading = ref(false)
 const daemonSet = ref<any>(null)
 const yamlDialogVisible = ref(false)
+
+// Events
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
-const pods = ref<any[]>([])
-const podsLoading = ref(false)
 
-// Edit dialog
-const editDialogVisible = ref(false)
-const editFullscreen = ref(false)
+// Revisions & Pods
+const revisions = ref<any[]>([])
+const revisionsLoading = ref(false)
+const selectedRevision = ref<any>(null)
+const allPods = ref<any[]>([])
+const rsPods = ref<any[]>([])
+const rsPodsLoading = ref(false)
+
+// 左侧视图切换：修订历史 / 基本信息
+const leftView = ref<'revisions' | 'info'>('revisions')
 
 // Image update dialog
 const imageDialogVisible = ref(false)
@@ -45,12 +54,9 @@ const imageForm = ref({
 })
 const imageLoading = ref(false)
 
-// Rollback dialog
-const rollbackDialogVisible = ref(false)
-const rollbackList = ref<any[]>([])
-const rollbackLoading = ref(false)
-const selectedRevision = ref<number | null>(null)
-const rollbackConfirmLoading = ref(false)
+// Edit dialog
+const editDialogVisible = ref(false)
+const editFullscreen = ref(false)
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
@@ -59,6 +65,9 @@ if (!namespace || !name) {
   ElMessage.error('缺少必需的路由参数')
   router.push('/workloads/daemonsets')
 }
+
+// ---- Resize: left-right + top-bottom ----
+const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
 
 const statusTagType = computed(() => {
   const desired = daemonSet.value?.status?.desiredNumberScheduled || 0
@@ -75,9 +84,6 @@ const statusText = computed(() => {
   if (ready > 0) return 'Progressing'
   return 'Unavailable'
 })
-
-// ---- Resize: left-right + top-bottom ----
-const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
 
 async function fetchDetail() {
   loading.value = true
@@ -96,46 +102,131 @@ async function fetchEvents() {
   try {
     const res: any = await getDaemonSetEvents({ namespace, name })
     events.value = res.data || []
-  } catch (e: any) {
+  } catch (e) {
     events.value = []
   } finally {
     eventsLoading.value = false
   }
 }
 
-async function fetchPods() {
-  podsLoading.value = true
+async function fetchRevisions() {
+  revisionsLoading.value = true
   try {
-    const res: any = await getDaemonSetPods({ namespace, name })
-    const data = res.data
-    if (Array.isArray(data)) {
-      pods.value = data
-    } else if (data?.items && Array.isArray(data.items)) {
-      pods.value = data.items
-    } else {
-      pods.value = []
+    const res: any = await getDaemonSetRollbacks({ namespace, name })
+    revisions.value = res.data || []
+    // 自动选中当前 revision（DaemonSet status 无 currentRevision，由后端按模板对比标记 isCurrent）
+    const current = revisions.value.find((r: any) => r.isCurrent)
+    if (current) {
+      handleRevisionSelect(current)
+      return
     }
-  } catch (e: any) {
-    pods.value = []
-    ElMessage.error(e?.message || '加载 Pod 列表失败')
+    // fallback：选中第一个（最新）
+    if (revisions.value.length > 0) {
+      handleRevisionSelect(revisions.value[0])
+    }
+  } catch (e) {
+    revisions.value = []
   } finally {
-    podsLoading.value = false
+    revisionsLoading.value = false
   }
 }
 
-async function fetchRollbacks() {
-  rollbackLoading.value = true
+async function fetchAllPods() {
+  rsPodsLoading.value = true
   try {
-    const res: any = await getDaemonSetRollbacks({ namespace, name })
-    rollbackList.value = res.data || []
-    if (rollbackList.value.length > 0) {
-      selectedRevision.value = rollbackList.value[0].revision
+    const res: any = await getDaemonSetPods({ namespace, name })
+    allPods.value = res.data?.items || res.data || []
+    // 若已选中 revision 则过滤
+    if (selectedRevision.value) {
+      handleRevisionSelect(selectedRevision.value)
+    } else {
+      rsPods.value = allPods.value
     }
-  } catch (e: any) {
-    rollbackList.value = []
-    if (e !== 'cancel') ElMessage.error(e?.message || '获取回滚版本列表失败')
+  } catch (e) {
+    allPods.value = []
+    rsPods.value = []
   } finally {
-    rollbackLoading.value = false
+    rsPodsLoading.value = false
+  }
+}
+
+function handleRevisionSelect(rev: any) {
+  selectedRevision.value = rev
+  rsPods.value = allPods.value.filter((pod: any) => {
+    const labels = pod.metadata?.labels || {}
+    return labels['controller-revision-hash'] === rev.name
+  })
+}
+
+function revisionPodCount(rev: any): number {
+  return allPods.value.filter((pod: any) => {
+    const labels = pod.metadata?.labels || {}
+    return labels['controller-revision-hash'] === rev.name
+  }).length
+}
+
+async function handleRevisionRollback(rev: any) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要回滚到 revision ${rev.revision} 吗？`,
+      '确认回滚',
+      { type: 'warning' }
+    )
+    await rollbackDaemonSet({ namespace, name, revision: rev.revision })
+    ElMessage.success('回滚成功')
+    fetchDetail()
+    fetchRevisions()
+    fetchAllPods()
+  } catch (error: any) {
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(error?.message || '回滚失败')
+    }
+  }
+}
+
+function handlePodLogs(pod: any) {
+  const cluster = clusterName.value
+  window.open(buildFullscreenUrl('logs', { namespace: pod.metadata?.namespace || namespace, pod: pod.metadata?.name, cluster }), '_blank')
+}
+
+function handlePodExec(pod: any) {
+  const cluster = clusterName.value
+  window.open(buildFullscreenUrl('terminal', { namespace: pod.metadata?.namespace || namespace, pod: pod.metadata?.name, cluster }), '_blank')
+}
+
+async function handlePodDelete(pod: any, force = false) {
+  if (force) {
+    try {
+      await ElMessageBox.confirm(
+        `强制删除 Pod "${pod.metadata?.name}" 将跳过优雅终止，控制器管理的 Pod 会被立即重建。确定继续？`,
+        '确认强制删除',
+        { type: 'warning', confirmButtonText: '强制删除', cancelButtonText: '取消' }
+      )
+    } catch {
+      return
+    }
+    try {
+      await deletePod({ namespace: pod.metadata.namespace || namespace, name: pod.metadata.name, force: true })
+      ElMessage.success('Pod 已强制删除')
+      if (selectedRevision.value) handleRevisionSelect(selectedRevision.value)
+    } catch (e: any) {
+      if (e !== 'cancel') ElMessage.error(e?.message || '强制删除失败')
+    }
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除 Pod "${pod.metadata?.name}" 吗？`,
+      '确认删除',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+    await deletePod({ namespace: pod.metadata.namespace || namespace, name: pod.metadata.name })
+    ElMessage.success('Pod 已删除')
+    if (selectedRevision.value) handleRevisionSelect(selectedRevision.value)
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e?.message || '删除失败')
+    }
   }
 }
 
@@ -145,28 +236,15 @@ function handleOpenYaml() {
 
 function handleYamlSaved() {
   fetchDetail()
-}
-
-function handleEdit() {
-  editDialogVisible.value = true
-}
-
-function handleEditSuccess() {
-  editDialogVisible.value = false
-  fetchDetail()
-  fetchPods()
-}
-
-function handleEditCancel() {
-  editDialogVisible.value = false
+  fetchRevisions()
 }
 
 async function handleDelete() {
   try {
     await ElMessageBox.confirm(
-      `确定删除命名空间 "${namespace}" 中的 DaemonSet "${name}" 吗？`,
+      `确定要删除 DaemonSet "${name}" 吗？此操作不可恢复。`,
       '确认删除',
-      { type: 'warning' }
+      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
     await deleteDaemonSet({ namespace, name })
     ElMessage.success('DaemonSet 已删除')
@@ -181,19 +259,36 @@ async function handleDelete() {
 async function handleRestart() {
   try {
     await ElMessageBox.confirm(
-      `确定重启 DaemonSet "${name}" 吗？这将触发滚动更新。`,
+      `确定要重启 DaemonSet "${name}" 吗？这将触发滚动更新。`,
       '确认重启',
       { type: 'warning' }
     )
     await restartDaemonSet({ namespace, name })
     ElMessage.success('DaemonSet 已重启')
     fetchDetail()
-    fetchPods()
+    fetchRevisions()
+    fetchAllPods()
   } catch {
     // cancelled
   }
 }
 
+function handleEdit() {
+  editDialogVisible.value = true
+}
+
+function handleEditSuccess() {
+  editDialogVisible.value = false
+  fetchDetail()
+  fetchRevisions()
+  fetchAllPods()
+}
+
+function handleEditCancel() {
+  editDialogVisible.value = false
+}
+
+// Image update handlers
 function handleUpdateImage() {
   const containers = daemonSet.value?.spec?.template?.spec?.containers || []
   if (containers.length > 0) {
@@ -221,7 +316,8 @@ async function handleUpdateImageConfirm() {
     ElMessage.success('镜像更新成功')
     imageDialogVisible.value = false
     fetchDetail()
-    fetchPods()
+    fetchRevisions()
+    fetchAllPods()
   } catch (e: any) {
     ElMessage.error(e?.message || '镜像更新失败')
   } finally {
@@ -229,86 +325,18 @@ async function handleUpdateImageConfirm() {
   }
 }
 
-function handleRollback() {
-  selectedRevision.value = null
-  rollbackDialogVisible.value = true
-  fetchRollbacks()
-}
-
-async function handleRollbackConfirm() {
-  if (!selectedRevision.value) {
-    ElMessage.warning('请选择要回滚的版本')
-    return
-  }
-  rollbackConfirmLoading.value = true
-  try {
-    await rollbackDaemonSet({ namespace, name, revision: selectedRevision.value })
-    ElMessage.success('回滚成功')
-    rollbackDialogVisible.value = false
-    fetchDetail()
-    fetchPods()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '回滚失败')
-  } finally {
-    rollbackConfirmLoading.value = false
-  }
-}
-
-function handlePodLogs(pod: any) {
-  const cluster = clusterName.value
-  window.open(`/fullscreen/logs?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
-}
-
-function handlePodExec(pod: any) {
-  const cluster = clusterName.value
-  window.open(`/fullscreen/terminal?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
-}
-
-async function handlePodDelete(pod: any, force = false) {
-  if (force) {
-    try {
-      await ElMessageBox.confirm(
-        `强制删除 Pod "${pod.metadata.name}" 将跳过优雅终止，控制器管理的 Pod 会被立即重建。确定继续？`,
-        '确认强制删除',
-        { type: 'warning', confirmButtonText: '强制删除', cancelButtonText: '取消' }
-      )
-    } catch {
-      return
-    }
-    try {
-      await deletePod({ namespace, name: pod.metadata.name, force: true })
-      ElMessage.success('Pod 已强制删除')
-      fetchPods()
-    } catch (e: any) {
-      if (e !== 'cancel') ElMessage.error(e?.message || '强制删除失败')
-    }
-    return
-  }
-  try {
-    await ElMessageBox.confirm(
-      `确定删除 Pod ${pod.metadata.name} 吗？`,
-      '确认删除',
-      { type: 'warning' }
-    )
-    await deletePod({ namespace, name: pod.metadata.name })
-    ElMessage.success('Pod 已删除')
-    fetchPods()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败')
-    }
-  }
-}
-
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
   fetchDetail()
-  fetchPods()
+  fetchRevisions()
+  fetchAllPods()
   fetchEvents()
 }, { autoStart: false })
 
 onMounted(() => {
-  fetchDetail()
-  fetchPods()
+  fetchDetail().then(() => {
+    fetchRevisions()
+    fetchAllPods()
+  })
   fetchEvents()
 })
 </script>
@@ -331,7 +359,6 @@ onMounted(() => {
       <div class="header-actions">
         <el-button type="warning" @click="handleRestart">重启</el-button>
         <el-button type="success" @click="handleUpdateImage">更新镜像</el-button>
-        <el-button type="primary" @click="handleRollback">回滚</el-button>
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" plain @click="handleDelete">删除</el-button>
@@ -376,46 +403,108 @@ onMounted(() => {
     <template v-if="daemonSet">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
 
-        <!-- 左侧：基本信息 -->
+        <!-- 左侧：修订历史 / 基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
-          <div class="panel-title">基本信息</div>
-          <div class="info-body">
+          <div class="left-tabs">
+            <el-segmented
+              v-model="leftView"
+              :options="[
+                { label: '修订历史', value: 'revisions' },
+                { label: '基本信息', value: 'info' },
+              ]"
+              size="small"
+              block
+            />
+          </div>
+
+          <!-- 修订历史 -->
+          <div v-show="leftView === 'revisions'" class="rs-list" v-loading="revisionsLoading">
+            <div v-if="revisions.length === 0" class="empty-hint">暂无修订历史</div>
+            <div
+              v-for="rev in revisions"
+              :key="rev.revision"
+              class="rs-item"
+              :class="{ active: selectedRevision?.name === rev.name }"
+              @click="handleRevisionSelect(rev)"
+            >
+              <div class="rs-name">{{ rev.name }}</div>
+              <div class="rs-meta">
+                <span class="rs-rev">v{{ rev.revision }}</span>
+                <span class="rs-replicas">{{ revisionPodCount(rev) }} 个 Pod</span>
+                <el-tag
+                  v-if="rev.isCurrent"
+                  type="success" size="small">当前</el-tag>
+                <el-tag v-else-if="revisionPodCount(rev) > 0" type="primary" size="small">活跃</el-tag>
+              </div>
+              <div class="rs-image" v-for="(img, i) in (rev.images || [])" :key="i">{{ img }}</div>
+              <div class="rs-age">{{ formatAge(rev.createdAt) }}</div>
+              <div class="rs-rollback" v-if="!rev.isCurrent">
+                <el-button size="small" type="warning" @click.stop="handleRevisionRollback(rev)">回滚</el-button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 基本信息 -->
+          <div v-show="leftView === 'info'" class="info-body">
             <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="名称">{{ daemonSet.metadata?.name }}</el-descriptions-item>
-              <el-descriptions-item label="命名空间">{{ daemonSet.metadata?.namespace }}</el-descriptions-item>
-              <el-descriptions-item label="预期调度">{{ daemonSet.status?.desiredNumberScheduled ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="当前调度">{{ daemonSet.status?.currentNumberScheduled ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="就绪数量">{{ daemonSet.status?.numberReady ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="可用数量">{{ daemonSet.status?.numberAvailable ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="更新策略">{{ daemonSet.spec?.updateStrategy?.type || 'RollingUpdate' }}</el-descriptions-item>
-              <el-descriptions-item label="创建时间">{{ daemonSet.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="名称">{{ daemonSet?.metadata?.name || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="命名空间">{{ daemonSet?.metadata?.namespace || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="调度数">
+                {{ daemonSet?.status?.desiredNumberScheduled ?? 0 }} 期望 ·
+                {{ daemonSet?.status?.currentNumberScheduled ?? 0 }} 当前 ·
+                {{ daemonSet?.status?.numberReady ?? 0 }} 就绪 ·
+                {{ daemonSet?.status?.updatedNumberScheduled ?? 0 }} 更新中 ·
+                {{ daemonSet?.status?.numberAvailable ?? 0 }} 可用 ·
+                {{ daemonSet?.status?.numberUnavailable ?? 0 }} 不可用
+              </el-descriptions-item>
+              <el-descriptions-item label="更新策略">
+                {{ daemonSet?.spec?.updateStrategy?.type || 'RollingUpdate' }}
+                <span v-if="(daemonSet?.spec?.updateStrategy?.type || 'RollingUpdate') === 'RollingUpdate'" class="info-sub">
+                  (maxUnavailable {{ daemonSet?.spec?.updateStrategy?.rollingUpdate?.maxUnavailable ?? '-' }},
+                  maxSurge {{ daemonSet?.spec?.updateStrategy?.rollingUpdate?.maxSurge ?? '-' }})
+                </span>
+              </el-descriptions-item>
+              <el-descriptions-item label="当前 revision">{{ revisions.find((r: any) => r.isCurrent)?.name || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="历史上限">{{ daemonSet?.spec?.revisionHistoryLimit ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item label="创建时间">{{ daemonSet?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="UID">{{ daemonSet?.metadata?.uid || '-' }}</el-descriptions-item>
             </el-descriptions>
 
-            <!-- Labels -->
-            <div v-if="daemonSet.metadata?.labels && Object.keys(daemonSet.metadata.labels).length > 0" style="margin-top: 16px;">
-              <h4 style="margin: 0 0 8px; font-size: 13px;">Labels</h4>
-              <el-tag
-                v-for="(val, key) in daemonSet.metadata.labels"
-                :key="key"
-                style="margin-right: 8px; margin-bottom: 8px;"
-                size="small"
-              >
-                {{ key }}={{ val }}
-              </el-tag>
+            <div class="info-section-title">容器镜像</div>
+            <div class="vct-list">
+              <div v-for="c in (daemonSet?.spec?.template?.spec?.containers || [])" :key="c.name" class="vct-item">
+                <span class="vct-name">{{ c.name }}</span>
+                <span class="vct-meta">{{ c.image || '-' }}</span>
+              </div>
+              <div v-if="!daemonSet?.spec?.template?.spec?.containers?.length" class="info-empty">无</div>
             </div>
 
-            <!-- Selector -->
-            <div v-if="daemonSet.spec?.selector?.matchLabels && Object.keys(daemonSet.spec.selector.matchLabels).length > 0" style="margin-top: 16px;">
-              <h4 style="margin: 0 0 8px; font-size: 13px;">Selector</h4>
-              <el-tag
-                v-for="(val, key) in daemonSet.spec.selector.matchLabels"
-                :key="key"
-                style="margin-right: 8px; margin-bottom: 8px;"
-                type="info"
-                size="small"
-              >
-                {{ key }}={{ val }}
-              </el-tag>
+            <div class="info-section-title">Conditions</div>
+            <div v-if="daemonSet?.status?.conditions?.length" class="conditions-list">
+              <div v-for="cond in daemonSet.status.conditions" :key="cond.type" class="condition-item">
+                <div class="condition-head">
+                  <span class="condition-type">{{ cond.type }}</span>
+                  <el-tag :type="cond.status === 'True' ? 'success' : (cond.status === 'False' ? 'danger' : 'info')" size="small">{{ cond.status }}</el-tag>
+                </div>
+                <div v-if="cond.reason || cond.message" class="condition-msg">
+                  <span v-if="cond.reason" class="condition-reason">{{ cond.reason }}</span>
+                  <span v-if="cond.message" class="condition-text">{{ cond.message }}</span>
+                </div>
+                <div v-if="cond.lastTransitionTime" class="condition-time">{{ cond.lastTransitionTime }}</div>
+              </div>
+            </div>
+            <div v-else class="info-empty">无</div>
+
+            <div class="info-section-title">Selector</div>
+            <div class="label-list">
+              <el-tag v-for="(v, k) in (daemonSet?.spec?.selector?.matchLabels || {})" :key="k" size="small" class="label-tag">{{ k }}={{ v }}</el-tag>
+              <span v-if="!daemonSet?.spec?.selector?.matchLabels || Object.keys(daemonSet.spec.selector.matchLabels).length === 0" class="info-empty">无</span>
+            </div>
+
+            <div class="info-section-title">Labels</div>
+            <div class="label-list">
+              <el-tag v-for="(v, k) in (daemonSet?.metadata?.labels || {})" :key="k" size="small" type="info" class="label-tag">{{ k }}={{ v }}</el-tag>
+              <span v-if="!daemonSet?.metadata?.labels || Object.keys(daemonSet.metadata.labels).length === 0" class="info-empty">无</span>
             </div>
           </div>
         </div>
@@ -426,12 +515,13 @@ onMounted(() => {
           <!-- Pod 列表 -->
           <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
             <div class="panel-title">
-              Pod 列表
-              <span class="count-badge">{{ pods.length }} 个</span>
+              关联 Pod
+              <span class="count-badge">{{ rsPods.length }} 个</span>
+              <span class="rs-label" v-if="selectedRevision">{{ selectedRevision.name }}</span>
             </div>
             <PodListPanel
-              :pods="pods"
-              :loading="podsLoading"
+              :pods="rsPods"
+              :loading="rsPodsLoading"
               @logs="handlePodLogs"
               @exec="handlePodExec"
               @delete="handlePodDelete"
@@ -474,7 +564,7 @@ onMounted(() => {
       </div>
     </template>
 
-    <!-- YAML Drawer -->
+    <!-- ===== Dialogs ===== -->
     <YamlDrawer
       v-model="yamlDialogVisible"
       resource-type="daemonset"
@@ -482,34 +572,6 @@ onMounted(() => {
       :name="name"
       @saved="handleYamlSaved"
     />
-
-    <!-- Rollback Dialog -->
-    <el-dialog v-model="rollbackDialogVisible" title="回滚 DaemonSet" width="520px" destroy-on-close>
-      <div>
-        <p style="margin-bottom: 16px;">选择要回滚到的版本</p>
-        <div v-loading="rollbackLoading" style="max-height: 300px; overflow-y: auto;">
-          <el-table v-if="rollbackList.length > 0" :data="rollbackList" border size="small" @row-click="(row: any) => selectedRevision = row.revision" style="cursor: pointer;">
-            <el-table-column label="Revision" prop="revision" width="100" />
-            <el-table-column label="名称" prop="name" />
-          </el-table>
-          <div v-else class="empty-hint">暂无回滚版本</div>
-        </div>
-        <el-form-item label="选择版本" style="margin-top: 16px;">
-          <el-select v-model="selectedRevision" placeholder="请选择 revision" style="width: 100%;" :disabled="rollbackList.length === 0">
-            <el-option
-              v-for="rev in rollbackList"
-              :key="rev.revision"
-              :label="`Revision ${rev.revision}`"
-              :value="rev.revision"
-            />
-          </el-select>
-        </el-form-item>
-      </div>
-      <template #footer>
-        <el-button @click="rollbackDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="rollbackConfirmLoading" @click="handleRollbackConfirm">确认回滚</el-button>
-      </template>
-    </el-dialog>
 
     <!-- Image Update Dialog -->
     <el-dialog v-model="imageDialogVisible" title="更新镜像" width="520px" destroy-on-close>
@@ -704,10 +766,192 @@ onMounted(() => {
   color: var(--el-text-color-secondary);
 }
 
+.rs-label {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--el-text-color-placeholder);
+  font-family: monospace;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rs-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* 左侧视图切换 */
+.left-tabs {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+  flex-shrink: 0;
+}
+
 .info-body {
   flex: 1;
   overflow-y: auto;
-  padding: 14px;
+  padding: 10px;
+}
+
+.info-sub {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+.info-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-regular);
+  margin: 12px 0 6px;
+}
+
+.vct-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vct-item {
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 4px;
+}
+
+.vct-name {
+  font-family: monospace;
+  color: var(--el-text-color-primary);
+}
+
+.vct-meta {
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+}
+
+.label-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.label-tag {
+  font-family: monospace;
+}
+
+.info-empty {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+}
+
+.conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.condition-item {
+  padding: 6px 8px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 4px;
+}
+
+.condition-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.condition-type {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.condition-msg {
+  font-size: 11px;
+  margin-top: 2px;
+  display: flex;
+  gap: 6px;
+}
+
+.condition-reason {
+  color: var(--el-color-warning);
+  flex-shrink: 0;
+}
+
+.condition-text {
+  color: var(--el-text-color-secondary);
+  word-break: break-all;
+}
+
+.condition-time {
+  font-size: 10px;
+  color: var(--el-text-color-placeholder);
+  margin-top: 2px;
+}
+
+.rs-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.rs-item:hover {
+  background: var(--el-fill-color-light);
+}
+
+.rs-item.active {
+  background: var(--el-color-primary-light-9);
+  border-left: 3px solid var(--el-color-primary);
+}
+
+.rs-name {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: monospace;
+  word-break: break-all;
+  margin-bottom: 4px;
+}
+
+.rs-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.rs-rev {
+  font-size: 12px;
+  color: var(--el-color-primary);
+  font-weight: 500;
+}
+
+.rs-replicas {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.rs-image {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  word-break: break-all;
+  margin-bottom: 2px;
+}
+
+.rs-age {
+  font-size: 11px;
+  color: var(--el-text-color-placeholder);
+}
+
+.rs-rollback {
+  margin-top: 6px;
 }
 
 /* Right Panel */

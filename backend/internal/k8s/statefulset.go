@@ -271,7 +271,7 @@ func (s *statefulSet) ScaleStatefulSet(c *gin.Context) {
 		return
 	}
 	if !ok {
-		response.Fail(c, fmt.Sprintf("扩缩容statefulset失败:%s", err.Error()))
+		response.Fail(c, "扩缩容statefulset失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -299,7 +299,7 @@ func (s *statefulSet) RestartStatefulSet(c *gin.Context) {
 		return
 	}
 	if !ok {
-		response.Fail(c, fmt.Sprintf("重启statefulset失败:%s", err.Error()))
+		response.Fail(c, "重启statefulset失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -442,7 +442,7 @@ type StatefulSetDeleteByNameParams struct {
 
 type StatefulSetScaleParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	Namespace   string `form:"namespace" json:"namespace" binding:"required" label:"命名空间"`
 	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
 	Replicas    *int32 `form:"replicas" json:"replicas" binding:"required" label:"副本数"`
 }

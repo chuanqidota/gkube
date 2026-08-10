@@ -16,7 +16,7 @@ const { t } = useI18n()
 const mode = ref<'form' | 'yaml'>('form')
 const yamlEditorRef = ref()
 const parsedData = ref<any>(null)
-const yamlContent = ref(`apiVersion: networking.k8s.io/v1
+const defaultYaml = `apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: my-ingress
@@ -36,7 +36,8 @@ spec:
                 name: my-service
                 port:
                   number: 80
-`)
+`
+const yamlContent = ref(defaultYaml)
 const submitting = ref(false)
 
 const {

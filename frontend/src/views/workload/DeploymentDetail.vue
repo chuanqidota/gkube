@@ -42,6 +42,9 @@ const rsPods = ref<any[]>([])
 const allPods = ref<any[]>([])
 const rsPodsLoading = ref(false)
 
+// 左侧视图切换：修订历史 / 基本信息
+const leftView = ref<'revisions' | 'info'>('revisions')
+
 // ---- Resize: left-right + top-bottom ----
 const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
 
@@ -341,7 +344,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
   fetchDetail()
   fetchReplicaSets()
   fetchEvents()
-}, { autoStart: true })
+}, { autoStart: false })
 
 onMounted(() => {
   fetchDetail().then(() => {
@@ -414,13 +417,22 @@ onMounted(() => {
     <template v-if="deployment">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
 
-        <!-- 左侧：ReplicaSet 列表 -->
+        <!-- 左侧：ReplicaSet 列表 / 基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
-          <div class="panel-title">
-            ReplicaSet
-            <span class="count-badge">{{ replicasets.length }} 个</span>
+          <div class="left-tabs">
+            <el-segmented
+              v-model="leftView"
+              :options="[
+                { label: 'ReplicaSet', value: 'revisions' },
+                { label: '基本信息', value: 'info' },
+              ]"
+              size="small"
+              block
+            />
           </div>
-          <div class="rs-list" v-loading="replicasetsLoading">
+
+          <!-- 修订历史 -->
+          <div v-show="leftView === 'revisions'" class="rs-list" v-loading="replicasetsLoading">
             <div v-if="replicasets.length === 0" class="empty-hint">暂无 ReplicaSet</div>
             <div
               v-for="rs in replicasets"
@@ -443,6 +455,72 @@ onMounted(() => {
               <div class="rs-rollback" v-if="rs.metadata.annotations?.['deployment.kubernetes.io/revision'] !== deployment?.metadata?.annotations?.['deployment.kubernetes.io/revision']">
                 <el-button size="small" type="warning" @click.stop="handleReplicasetRollback(rs)">回滚</el-button>
               </div>
+            </div>
+          </div>
+
+          <!-- 基本信息 -->
+          <div v-show="leftView === 'info'" class="info-body">
+            <el-descriptions :column="1" border size="small">
+              <el-descriptions-item label="名称">{{ deployment?.metadata?.name || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="命名空间">{{ deployment?.metadata?.namespace || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="副本">
+                {{ deployment?.spec?.replicas ?? '-' }} 期望 ·
+                {{ deployment?.status?.readyReplicas ?? 0 }} 就绪 ·
+                {{ deployment?.status?.availableReplicas ?? 0 }} 可用 ·
+                {{ deployment?.status?.updatedReplicas ?? 0 }} 更新中
+              </el-descriptions-item>
+              <el-descriptions-item label="更新策略">
+                {{ deployment?.spec?.strategy?.type || '-' }}
+                <span v-if="deployment?.spec?.strategy?.type === 'RollingUpdate'" class="info-sub">
+                  (maxSurge {{ deployment.spec.strategy.rollingUpdate?.maxSurge ?? '-' }},
+                  maxUnavailable {{ deployment.spec.strategy.rollingUpdate?.maxUnavailable ?? '-' }})
+                </span>
+              </el-descriptions-item>
+              <el-descriptions-item label="历史上限">{{ deployment?.spec?.revisionHistoryLimit ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item label="暂停">
+                <el-tag :type="deployment?.spec?.paused ? 'warning' : 'info'" size="small">
+                  {{ deployment?.spec?.paused ? '已暂停' : '否' }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="创建时间">{{ deployment?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="UID">{{ deployment?.metadata?.uid || '-' }}</el-descriptions-item>
+            </el-descriptions>
+
+            <div class="info-section-title">容器镜像</div>
+            <div class="vct-list">
+              <div v-for="c in (deployment?.spec?.template?.spec?.containers || [])" :key="c.name" class="vct-item">
+                <span class="vct-name">{{ c.name }}</span>
+                <span class="vct-meta">{{ c.image || '-' }}</span>
+              </div>
+              <div v-if="!deployment?.spec?.template?.spec?.containers?.length" class="info-empty">无</div>
+            </div>
+
+            <div class="info-section-title">Conditions</div>
+            <div v-if="deployment?.status?.conditions?.length" class="conditions-list">
+              <div v-for="cond in deployment.status.conditions" :key="cond.type" class="condition-item">
+                <div class="condition-head">
+                  <span class="condition-type">{{ cond.type }}</span>
+                  <el-tag :type="cond.status === 'True' ? 'success' : (cond.status === 'False' ? 'danger' : 'info')" size="small">{{ cond.status }}</el-tag>
+                </div>
+                <div v-if="cond.reason || cond.message" class="condition-msg">
+                  <span v-if="cond.reason" class="condition-reason">{{ cond.reason }}</span>
+                  <span v-if="cond.message" class="condition-text">{{ cond.message }}</span>
+                </div>
+                <div v-if="cond.lastTransitionTime" class="condition-time">{{ cond.lastTransitionTime }}</div>
+              </div>
+            </div>
+            <div v-else class="info-empty">无</div>
+
+            <div class="info-section-title">Selector</div>
+            <div class="label-list">
+              <el-tag v-for="(v, k) in (deployment?.spec?.selector?.matchLabels || {})" :key="k" size="small" class="label-tag">{{ k }}={{ v }}</el-tag>
+              <span v-if="!deployment?.spec?.selector?.matchLabels || Object.keys(deployment.spec.selector.matchLabels).length === 0" class="info-empty">无</span>
+            </div>
+
+            <div class="info-section-title">Labels</div>
+            <div class="label-list">
+              <el-tag v-for="(v, k) in (deployment?.metadata?.labels || {})" :key="k" size="small" type="info" class="label-tag">{{ k }}={{ v }}</el-tag>
+              <span v-if="!deployment?.metadata?.labels || Object.keys(deployment.metadata.labels).length === 0" class="info-empty">无</span>
             </div>
           </div>
         </div>
@@ -737,6 +815,93 @@ onMounted(() => {
 .rs-list {
   flex: 1;
   overflow-y: auto;
+}
+
+/* 左侧视图切换 */
+.left-tabs {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+  flex-shrink: 0;
+}
+
+.info-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.info-sub {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+.info-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-regular);
+  margin: 12px 0 6px;
+}
+
+.label-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.label-tag {
+  font-family: monospace;
+}
+
+.info-empty {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+}
+
+.conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.condition-item {
+  padding: 6px 8px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 4px;
+}
+
+.condition-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.condition-type {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.condition-msg {
+  font-size: 11px;
+  margin-top: 2px;
+  display: flex;
+  gap: 6px;
+}
+
+.condition-reason {
+  color: var(--el-color-warning);
+  flex-shrink: 0;
+}
+
+.condition-text {
+  color: var(--el-text-color-secondary);
+  word-break: break-all;
+}
+
+.condition-time {
+  font-size: 10px;
+  color: var(--el-text-color-placeholder);
+  margin-top: 2px;
 }
 
 .rs-item {

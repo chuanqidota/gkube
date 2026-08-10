@@ -859,7 +859,7 @@ export function getPdbDetail(params: { namespace: string; name: string }) {
 }
 
 export function getPdbYaml(params: { namespace: string; name: string }) {
-  return request.get('/k8s/pdb/yaml', { params })
+  return request.get('/k8s/pdb/get-yaml', { params })
 }
 
 export function createPdb(data: { namespace: string; yaml: string }) {
@@ -1144,7 +1144,7 @@ export function getJobPods(params: { namespace: string; name: string }) {
 }
 
 export function rerunJob(params: { namespace: string; name: string }) {
-  return request.get('/k8s/job/rerun', { params })
+  return request.post('/k8s/job/rerun', undefined, { params })
 }
 
 // CronJob

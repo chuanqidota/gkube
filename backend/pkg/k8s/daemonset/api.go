@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"time"
 
@@ -331,9 +332,10 @@ func RollbackDaemonSet(client *kubernetes.Clientset, namespace, name string, rev
 		if err != nil {
 			return err
 		}
-		restored.ResourceVersion = current.ResourceVersion
-		restored.UID = current.UID
-		latest, err = client.AppsV1().DaemonSets(namespace).Update(context.Background(), &restored, metav1.UpdateOptions{})
+		// 只回滚 pod template（与 Deployment/StatefulSet 回滚逻辑一致），
+		// 不覆盖 selector 等不可变字段，避免触发 Forbidden。
+		current.Spec.Template = restored.Spec.Template
+		latest, err = client.AppsV1().DaemonSets(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
 		return err
 	})
 	return latest, err
@@ -353,15 +355,34 @@ func GetDaemonSetRollbacks(client *kubernetes.Clientset, namespace, name string)
 	if err != nil {
 		return nil, err
 	}
+	// 反序列化 ControllerRevision.Data.Raw 取出容器镜像，方便回滚时确认目标版本。
+	// DaemonSet（与 StatefulSet 不同）的 status 不暴露 currentRevision，
+	// 所以通过对比 ControllerRevision 中存储的 PodTemplateSpec 与当前 DaemonSet
+	// 的 Spec.Template 来判定哪个是“当前”版本，供前端标记“当前”并隐藏其回滚按钮。
 	type revEntry struct {
-		Revision int64  `json:"revision"`
-		Name     string `json:"name"`
+		Revision  int64    `json:"revision"`
+		Name      string   `json:"name"`
+		Images    []string `json:"images"`
+		CreatedAt string   `json:"createdAt"`
+		IsCurrent bool     `json:"isCurrent"`
 	}
 	var entries []revEntry
 	for _, rev := range revisions.Items {
+		var restored appsv1.DaemonSet
+		var images []string
+		isCurrent := false
+		if err := json.Unmarshal(rev.Data.Raw, &restored); err == nil {
+			for _, c := range restored.Spec.Template.Spec.Containers {
+				images = append(images, c.Image)
+			}
+			isCurrent = reflect.DeepEqual(restored.Spec.Template, ds.Spec.Template)
+		}
 		entries = append(entries, revEntry{
-			Revision: rev.Revision,
-			Name:     rev.Name,
+			Revision:  rev.Revision,
+			Name:      rev.Name,
+			Images:    images,
+			CreatedAt: rev.CreationTimestamp.Time.Format(time.RFC3339),
+			IsCurrent: isCurrent,
 		})
 	}
 	sort.Slice(entries, func(i, j int) bool {
@@ -370,8 +391,11 @@ func GetDaemonSetRollbacks(client *kubernetes.Clientset, namespace, name string)
 	result := make([]map[string]any, len(entries))
 	for i, e := range entries {
 		result[i] = map[string]any{
-			"revision": e.Revision,
-			"name":     e.Name,
+			"revision":  e.Revision,
+			"name":      e.Name,
+			"images":    e.Images,
+			"createdAt": e.CreatedAt,
+			"isCurrent": e.IsCurrent,
 		}
 	}
 	return result, nil
