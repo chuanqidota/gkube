@@ -63,9 +63,9 @@
           <el-icon><Timer /></el-icon>
           <template #title>{{ t('sidebar.cronjobs') }}</template>
         </el-menu-item>
-        <el-menu-item index="/workloads/hpa" @click="navigateTo('/workloads/hpa')">
+        <el-menu-item index="/autoscaling" @click="navigateTo('/autoscaling')">
           <el-icon><DataLine /></el-icon>
-          <template #title>{{ t('sidebar.hpa') }}</template>
+          <template #title>{{ t('sidebar.autoscaling') }}</template>
         </el-menu-item>
       </el-sub-menu>
       <!-- Network -->
@@ -196,6 +196,7 @@ const authStore = useAuthStore()
 const isAdmin = computed(() => authStore.user?.isAdmin !== false)
 
 const activeMenu = computed(() => {
+  if (route.path.startsWith('/autoscaling')) return '/autoscaling'
   // 详情页高亮父级菜单项
   if (route.meta.parent) {
     const parentRoute = router.resolve({ name: route.meta.parent as string })

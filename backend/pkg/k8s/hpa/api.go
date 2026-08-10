@@ -1,9 +1,9 @@
 package hpa
 
 import (
-	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
+	"gkube/pkg/yamlutil"
 
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +55,20 @@ func UpdateHPA(client *kubernetes.Clientset, namespace, yamlContent string) erro
 	if hpa.Namespace == "" {
 		hpa.Namespace = namespace
 	}
-	_, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(context.TODO(), &hpa, metav1.UpdateOptions{})
+	if hpa.Namespace == "" {
+		return fmt.Errorf("namespace不能为空")
+	}
+	if hpa.Name == "" {
+		return fmt.Errorf("metadata.name不能为空")
+	}
+	if hpa.ResourceVersion == "" {
+		existing, err := client.AutoscalingV2().HorizontalPodAutoscalers(hpa.Namespace).Get(context.TODO(), hpa.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		hpa.ResourceVersion = existing.ResourceVersion
+	}
+	_, err := client.AutoscalingV2().HorizontalPodAutoscalers(hpa.Namespace).Update(context.TODO(), &hpa, metav1.UpdateOptions{})
 	return err
 }
 

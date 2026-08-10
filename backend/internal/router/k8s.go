@@ -160,6 +160,14 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.POST("hpa/create", k8s.Hpa.CreateHPA)
 	rg.PUT("hpa/update", k8s.Hpa.UpdateHPA)
 	rg.DELETE("hpa/delete", k8s.Hpa.DeleteHPA)
+
+	// VPA
+	rg.GET("vpa/list", k8s.Vpa.GetVPAList)
+	rg.GET("vpa/detail", k8s.Vpa.GetVPADetail)
+	rg.GET("vpa/get-yaml", k8s.Vpa.GetVPAYaml)
+	rg.POST("vpa/create", k8s.Vpa.CreateVPA)
+	rg.PUT("vpa/update", k8s.Vpa.UpdateVPA)
+	rg.DELETE("vpa/delete", k8s.Vpa.DeleteVPA)
 }
 
 func registerNetworkRoutes(rg *gin.RouterGroup) {

@@ -60,6 +60,8 @@ import {
   getCrdYaml, updateCrd,
   // HPA
   getHpaYaml, updateHpa,
+  // VPA
+  getVpaYaml, updateVpa,
 } from '@/api/resource'
 
 // Resource type definition
@@ -69,7 +71,7 @@ export type ResourceType =
   | 'pv' | 'pvc' | 'storageclass' | 'volumesnapshot' | 'volumesnapshotclass'
   | 'configmap' | 'secret' | 'resourcequota' | 'limitrange'
   | 'node' | 'namespace'
-  | 'crd' | 'hpa'
+  | 'crd' | 'hpa' | 'vpa'
 
 // Resource display names
 const resourceDisplayNames: Record<ResourceType, string> = {
@@ -96,6 +98,7 @@ const resourceDisplayNames: Record<ResourceType, string> = {
   namespace: 'Namespace',
   crd: 'CRD',
   hpa: 'HPA',
+  vpa: 'VPA',
 }
 
 // Check if resource is cluster-scoped (no namespace)
@@ -142,6 +145,7 @@ const resourceApis: Record<ResourceType, ResourceApi> = {
   // Others
   crd: { getYaml: getCrdYaml, updateYaml: updateCrd },
   hpa: { getYaml: getHpaYaml, updateYaml: updateHpa },
+  vpa: { getYaml: getVpaYaml, updateYaml: updateVpa },
 }
 
 const props = withDefaults(defineProps<{
@@ -173,7 +177,7 @@ const drawerTitle = computed(() => {
 
 // Resources that don't need name in update data (name is extracted from YAML)
 const noNameInUpdateData: ResourceType[] = [
-  'volumesnapshot', 'volumesnapshotclass', 'hpa',
+  'volumesnapshot', 'volumesnapshotclass', 'hpa', 'vpa',
 ]
 
 // Build params for getYaml based on resource type

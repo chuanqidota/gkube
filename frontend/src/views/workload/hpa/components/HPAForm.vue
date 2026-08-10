@@ -247,7 +247,7 @@ async function handleSubmit() {
     if (props.isEdit) {
       emit('success')
     } else {
-      router.push('/workloads/hpa')
+      router.push('/autoscaling/hpa')
     }
   } catch (e: any) {
     ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
@@ -260,7 +260,7 @@ function handleCancel() {
   if (props.isEdit) {
     emit('cancel')
   } else {
-    router.push('/workloads/hpa')
+    router.push('/autoscaling/hpa')
   }
 }
 

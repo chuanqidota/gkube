@@ -64,7 +64,7 @@ async function handleDelete() {
     )
     await deleteHpa({ namespace, name })
     ElMessage.success('HPA 已删除')
-    router.push('/workloads/hpa')
+    router.push('/autoscaling/hpa')
   } catch (e: any) {
     if (e !== 'cancel') {
       ElMessage.error(e?.message || '删除失败')
@@ -211,7 +211,7 @@ onMounted(fetchDetail)
           <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
         </el-tooltip>
         <el-tooltip content="返回列表" placement="top">
-          <el-button :icon="ArrowLeft" @click="router.push('/workloads/hpa')" />
+          <el-button :icon="ArrowLeft" @click="router.push('/autoscaling/hpa')" />
         </el-tooltip>
       </div>
     </div>

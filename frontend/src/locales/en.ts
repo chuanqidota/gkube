@@ -687,6 +687,7 @@ export default {
     jobs: 'Jobs',
     cronjobs: 'CronJobs',
     hpa: 'HPA',
+    autoscaling: 'Autoscaling',
     network: 'Network',
     services: 'Services',
     ingresses: 'Ingresses',
@@ -703,6 +704,12 @@ export default {
     system: 'System Management',
     users: 'Users',
     audit: 'Audit Logs',
+  },
+  autoscaling: {
+    title: 'Autoscaling',
+    subtitle: 'Manage horizontal scaling policies and vertical resource recommendations for workloads',
+    hpaTab: 'HPA Horizontal Scaling',
+    vpaTab: 'VPA Resource Recommendations',
   },
   audit: {
     title: 'Audit Logs',

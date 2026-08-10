@@ -194,25 +194,66 @@ const router = createRouter({
           props: true,
           meta: { title: 'ReplicaSet 详情', parent: 'ReplicaSetList' },
         },
-        // Workloads - HPA
+        // Workloads - HPA legacy redirects
         {
           path: 'workloads/hpa',
-          name: 'HPAList',
-          component: () => import('@/views/workload/hpa/HPAList.vue'),
-          meta: { title: 'HPA', icon: 'DataLine' },
+          redirect: '/autoscaling/hpa',
         },
         {
           path: 'workloads/hpa/create',
-          name: 'HPACreate',
-          component: () => import('@/views/workload/hpa/HPACreate.vue'),
-          meta: { title: '创建HPA', parent: 'HPAList' },
+          redirect: '/autoscaling/hpa/create',
         },
         {
           path: 'workloads/hpa/:namespace/:name',
-          name: 'HPADetail',
-          component: () => import('@/views/workload/hpa/HPADetail.vue'),
-          props: true,
-          meta: { title: 'HPA详情', parent: 'HPAList' },
+          redirect: to => `/autoscaling/hpa/${to.params.namespace}/${to.params.name}`,
+        },
+        // Autoscaling
+        {
+          path: 'autoscaling',
+          name: 'Autoscaling',
+          component: () => import('@/views/autoscaling/AutoscalingView.vue'),
+          redirect: '/autoscaling/hpa',
+          meta: { title: '弹性伸缩', icon: 'DataLine' },
+          children: [
+            {
+              path: 'hpa',
+              name: 'AutoscalingHPAList',
+              component: () => import('@/views/workload/hpa/HPAList.vue'),
+              meta: { title: 'HPA', parent: 'Autoscaling' },
+            },
+            {
+              path: 'hpa/create',
+              name: 'AutoscalingHPACreate',
+              component: () => import('@/views/workload/hpa/HPACreate.vue'),
+              meta: { title: '创建HPA', parent: 'Autoscaling' },
+            },
+            {
+              path: 'hpa/:namespace/:name',
+              name: 'AutoscalingHPADetail',
+              component: () => import('@/views/workload/hpa/HPADetail.vue'),
+              props: true,
+              meta: { title: 'HPA详情', parent: 'Autoscaling' },
+            },
+            {
+              path: 'vpa',
+              name: 'VPAList',
+              component: () => import('@/views/autoscaling/vpa/VPAList.vue'),
+              meta: { title: 'VPA', parent: 'Autoscaling' },
+            },
+            {
+              path: 'vpa/create',
+              name: 'VPACreate',
+              component: () => import('@/views/autoscaling/vpa/VPACreate.vue'),
+              meta: { title: '创建VPA', parent: 'Autoscaling' },
+            },
+            {
+              path: 'vpa/:namespace/:name',
+              name: 'VPADetail',
+              component: () => import('@/views/autoscaling/vpa/VPADetail.vue'),
+              props: true,
+              meta: { title: 'VPA详情', parent: 'Autoscaling' },
+            },
+          ],
         },
         // Config - ConfigMap
         {

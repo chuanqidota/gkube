@@ -711,7 +711,8 @@ export default {
     replicasets: '副本集',
     jobs: '任务',
     cronjobs: '定时任务',
-    hpa: '弹性伸缩',
+    hpa: 'HPA',
+    autoscaling: '弹性伸缩',
     network: '网络',
     services: '服务',
     ingresses: '路由',
@@ -728,6 +729,12 @@ export default {
     system: '系统管理',
     users: '用户管理',
     audit: '审计日志',
+  },
+  autoscaling: {
+    title: '弹性伸缩',
+    subtitle: '统一管理工作负载的水平伸缩策略与垂直资源推荐',
+    hpaTab: 'HPA 水平伸缩',
+    vpaTab: 'VPA 资源推荐',
   },
   audit: {
     title: '审计日志',
