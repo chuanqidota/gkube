@@ -773,6 +773,10 @@ export function deleteHpa(params: { namespace: string; name: string }) {
   return request.delete('/k8s/hpa/delete', { params })
 }
 
+export function getHpaEvents(params: { namespace: string; name: string }) {
+  return request.get('/k8s/hpa/events', { params })
+}
+
 // VPA
 export function getVpaList(params?: { namespace?: string }) {
   return request.get('/k8s/vpa/list', { params })

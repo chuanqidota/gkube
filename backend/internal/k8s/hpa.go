@@ -41,6 +41,9 @@ func (h *hpa) GetHPAList(c *gin.Context) {
 			"desired_replicas": hpa.Status.DesiredReplicas,
 			"target":           hpa.Spec.ScaleTargetRef.Name,
 			"target_kind":      hpa.Spec.ScaleTargetRef.Kind,
+			"conditions":       hpa.Status.Conditions,
+			"metrics":          hpa.Spec.Metrics,
+			"current_metrics":  hpa.Status.CurrentMetrics,
 			"age":              hpa.CreationTimestamp.Time.Format("2006-01-02 15:04:05"),
 			"labels":           hpa.Labels,
 		})
@@ -92,9 +95,9 @@ func (h *hpa) GetHPAYaml(c *gin.Context) {
 
 func (h *hpa) CreateHPA(c *gin.Context) {
 	var req struct {
-		ClusterName string `json:"clusterName"`
-		Namespace   string `json:"namespace"`
-		Yaml        string `json:"yaml"`
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace" binding:"required"`
+		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -114,9 +117,9 @@ func (h *hpa) CreateHPA(c *gin.Context) {
 
 func (h *hpa) UpdateHPA(c *gin.Context) {
 	var req struct {
-		ClusterName string `json:"clusterName"`
-		Namespace   string `json:"namespace"`
-		Yaml        string `json:"yaml"`
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace" binding:"required"`
+		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
@@ -152,4 +155,25 @@ func (h *hpa) DeleteHPA(c *gin.Context) {
 		return
 	}
 	response.Success(c, "删除HPA成功", nil)
+}
+
+func (h *hpa) GetHPAEvents(c *gin.Context) {
+	namespace := c.Query("namespace")
+	name := c.Query("name")
+	clusterName := c.Query("clusterName")
+	if name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(clusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	events, err := k8sHpa.GetHPAEvents(client, namespace, name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取HPA事件失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "执行成功", events)
 }

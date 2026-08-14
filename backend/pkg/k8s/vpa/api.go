@@ -86,14 +86,27 @@ func parseVPAYaml(namespace, yamlContent string) (*unstructured.Unstructured, st
 	unstructuredObj := &unstructured.Unstructured{Object: obj}
 	unstructured.RemoveNestedField(unstructuredObj.Object, "status")
 
-	if unstructuredObj.GetAPIVersion() == "" {
-		unstructuredObj.SetAPIVersion("autoscaling.k8s.io/v1")
+	apiVersion := unstructuredObj.GetAPIVersion()
+	if apiVersion == "" {
+		apiVersion = "autoscaling.k8s.io/v1"
+		unstructuredObj.SetAPIVersion(apiVersion)
 	}
-	if unstructuredObj.GetKind() == "" {
-		unstructuredObj.SetKind("VerticalPodAutoscaler")
+	if apiVersion != "autoscaling.k8s.io/v1" {
+		return nil, "", "", fmt.Errorf("apiVersion必须为autoscaling.k8s.io/v1")
+	}
+	kind := unstructuredObj.GetKind()
+	if kind == "" {
+		kind = "VerticalPodAutoscaler"
+		unstructuredObj.SetKind(kind)
+	}
+	if kind != "VerticalPodAutoscaler" {
+		return nil, "", "", fmt.Errorf("kind必须为VerticalPodAutoscaler")
 	}
 
 	ns := unstructuredObj.GetNamespace()
+	if ns != "" && namespace != "" && ns != namespace {
+		return nil, "", "", fmt.Errorf("不允许修改VPA namespace")
+	}
 	if ns == "" {
 		ns = namespace
 		unstructuredObj.SetNamespace(ns)

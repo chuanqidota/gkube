@@ -9,14 +9,27 @@ import { createHpa, updateHpa, getNamespaceList, extractNamespaceNames } from '@
 const props = withDefaults(defineProps<{
   isEdit?: boolean
   initialData?: any
+  prefillNamespace?: string
+  prefillTargetName?: string
+  prefillTargetKind?: string
+  hideNamespace?: boolean
+  hideTarget?: boolean
+  autoName?: boolean
 }>(), {
   isEdit: false,
   initialData: undefined,
+  prefillNamespace: '',
+  prefillTargetName: '',
+  prefillTargetKind: 'Deployment',
+  hideNamespace: false,
+  hideTarget: false,
+  autoName: false,
 })
 
 const emit = defineEmits<{
   success: []
   cancel: []
+  created: []
 }>()
 
 const router = useRouter()
@@ -25,6 +38,40 @@ const namespaceList = ref<string[]>([])
 
 interface Label { key: string; value: string }
 interface ScalingPolicy { type: string; value: number; periodSeconds: number }
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value || {}))
+}
+
+function isNumericQuantity(value: any): boolean {
+  if (value === undefined || value === null || value === '') return false
+  return Number.isFinite(Number(value))
+}
+
+function isManagedMetric(metric: any): boolean {
+  if (metric.type === 'Resource') {
+    const name = metric.resource?.name
+    const target = metric.resource?.target || {}
+    if ((name === 'cpu' || name === 'memory') && target.type === 'Utilization' && target.averageUtilization !== undefined) {
+      return true
+    }
+    return target.type === 'Utilization' && isNumericQuantity(target.averageUtilization)
+  }
+  if (metric.type === 'Pods') {
+    const target = metric.pods?.target || {}
+    return !metric.pods?.metric?.selector && ['AverageValue', 'Value'].includes(target.type) && isNumericQuantity(target.averageValue ?? target.value)
+  }
+  if (metric.type === 'External') {
+    const target = metric.external?.target || {}
+    return !metric.external?.metric?.selector && ['AverageValue', 'Value'].includes(target.type) && isNumericQuantity(target.averageValue ?? target.value)
+  }
+  return false
+}
+
+function unsupportedInitialMetrics(): any[] {
+  if (!props.isEdit || !props.initialData?.spec?.metrics) return []
+  return props.initialData.spec.metrics.filter((metric: any) => !isManagedMetric(metric))
+}
 
 const form = ref({
   name: '',
@@ -60,11 +107,11 @@ function parseInitialData(data: any) {
       form.value.cpuUtilization = m.resource?.target?.averageUtilization ?? 0
     } else if (m.type === 'Resource' && m.resource?.name === 'memory') {
       form.value.memoryUtilization = m.resource?.target?.averageUtilization ?? 0
-    } else if (m.type !== 'Resource') {
-      const target = m.pods?.target || m.object?.target || m.external?.target
+    } else if (m.type !== 'Resource' && isManagedMetric(m)) {
+      const target = m.pods?.target || m.external?.target
       form.value.customMetrics.push({
         type: m.type || 'Resource',
-        name: m.pods?.metric?.name || m.object?.metric?.name || m.external?.metric?.name || '',
+        name: m.pods?.metric?.name || m.external?.metric?.name || '',
         target: target?.averageValue ? Number(target.averageValue) : (target?.value ? Number(target.value) : 0),
         targetType: target?.type || 'AverageValue',
       })
@@ -184,24 +231,36 @@ function buildYaml(): string {
     }
   }
 
-  const hpa: any = {
+  const preservedMetrics = unsupportedInitialMetrics()
+  metrics.push(...preservedMetrics)
+
+  const hpa: any = props.isEdit ? clone(props.initialData) : {
     apiVersion: 'autoscaling/v2',
     kind: 'HorizontalPodAutoscaler',
-    metadata: {
-      name: form.value.name,
-      namespace: form.value.namespace,
-      ...(Object.keys(labels).length > 0 ? { labels } : {}),
+    metadata: {},
+    spec: {},
+  }
+  delete hpa.status
+  hpa.apiVersion = hpa.apiVersion || 'autoscaling/v2'
+  hpa.kind = hpa.kind || 'HorizontalPodAutoscaler'
+  hpa.metadata = {
+    ...(hpa.metadata || {}),
+    name: form.value.name,
+    namespace: form.value.namespace,
+    ...(Object.keys(labels).length > 0 ? { labels } : { labels: undefined }),
+  }
+  if (!Object.keys(labels).length) delete hpa.metadata.labels
+  hpa.spec = {
+    ...(hpa.spec || {}),
+    scaleTargetRef: {
+      ...(hpa.spec?.scaleTargetRef || {}),
+      apiVersion: hpa.spec?.scaleTargetRef?.apiVersion || 'apps/v1',
+      kind: form.value.targetKind,
+      name: form.value.targetName,
     },
-    spec: {
-      scaleTargetRef: {
-        apiVersion: 'apps/v1',
-        kind: form.value.targetKind,
-        name: form.value.targetName,
-      },
-      minReplicas: form.value.minReplicas,
-      maxReplicas: form.value.maxReplicas,
-      metrics,
-    },
+    minReplicas: form.value.minReplicas,
+    maxReplicas: form.value.maxReplicas,
+    metrics,
   }
 
   // Behavior
@@ -222,6 +281,8 @@ function buildYaml(): string {
       }
     }
     if (Object.keys(behavior).length > 0) hpa.spec.behavior = behavior
+  } else if (hpa.spec?.behavior) {
+    delete hpa.spec.behavior
   }
 
   return yaml.dump(hpa, { indent: 2, lineWidth: -1, noRefs: true })
@@ -246,6 +307,9 @@ async function handleSubmit() {
     }
     if (props.isEdit) {
       emit('success')
+    } else if (props.autoName) {
+      // Drawer mode: notify parent, don't navigate
+      emit('created')
     } else {
       router.push('/autoscaling/hpa')
     }
@@ -257,7 +321,7 @@ async function handleSubmit() {
 }
 
 function handleCancel() {
-  if (props.isEdit) {
+  if (props.isEdit || props.autoName) {
     emit('cancel')
   } else {
     router.push('/autoscaling/hpa')
@@ -275,6 +339,20 @@ onMounted(() => {
   fetchNamespaces()
   if (props.isEdit && props.initialData) {
     parseInitialData(props.initialData)
+  } else {
+    // Apply prefill values for create mode (e.g., from workload detail drawer)
+    if (props.prefillNamespace) {
+      form.value.namespace = props.prefillNamespace
+    }
+    if (props.prefillTargetName) {
+      form.value.targetName = props.prefillTargetName
+    }
+    if (props.prefillTargetKind) {
+      form.value.targetKind = props.prefillTargetKind
+    }
+    if (props.autoName && props.prefillTargetName) {
+      form.value.name = `${props.prefillTargetName}-hpa`
+    }
   }
 })
 </script>
@@ -290,10 +368,11 @@ onMounted(() => {
         <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="名称" prop="name">
-              <el-input v-model="form.name" placeholder="请输入HPA名称" />
+              <el-input v-model="form.name" :placeholder="autoName ? '自动生成' : '请输入HPA名称'" />
+              <div v-if="autoName" class="form-tip">自动生成，可手动修改</div>
             </el-form-item>
             <el-form-item label="命名空间" prop="namespace">
-              <el-select v-model="form.namespace" filterable placeholder="请选择命名空间" style="width: 100%;">
+              <el-select v-model="form.namespace" filterable placeholder="请选择命名空间" :disabled="hideNamespace" style="width: 100%;">
                 <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
               </el-select>
             </el-form-item>
@@ -332,14 +411,14 @@ onMounted(() => {
         <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="目标类型" prop="targetKind">
-              <el-select v-model="form.targetKind" style="width: 100%;">
+              <el-select v-model="form.targetKind" :disabled="hideTarget" style="width: 100%;">
                 <el-option label="Deployment" value="Deployment" />
                 <el-option label="StatefulSet" value="StatefulSet" />
                 <el-option label="ReplicaSet" value="ReplicaSet" />
               </el-select>
             </el-form-item>
             <el-form-item label="目标名称" prop="targetName">
-              <el-input v-model="form.targetName" placeholder="请输入目标工作负载名称" />
+              <el-input v-model="form.targetName" :disabled="hideTarget" placeholder="请输入目标工作负载名称" />
             </el-form-item>
           </div>
         </div>
@@ -492,7 +571,7 @@ onMounted(() => {
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="loading" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
+            <el-button type="primary" :loading="loading" @click="handleSubmit">{{ isEdit ? '更新' : (autoName ? '创建 HPA' : '创建') }}</el-button>
           </div>
         </div>
       </div>

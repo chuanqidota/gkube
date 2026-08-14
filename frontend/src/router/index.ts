@@ -47,13 +47,6 @@ const router = createRouter({
           path: 'system/overview',
           redirect: '/dashboard',
         },
-        // 404 catch-all inside the app shell (keeps sidebar/header)
-        {
-          path: ':pathMatch(.*)*',
-          name: 'NotFound',
-          component: () => import('@/views/system/NotFound.vue'),
-          meta: { title: '页面不存在' },
-        },
         // Clusters
         {
           path: 'clusters',
@@ -233,25 +226,6 @@ const router = createRouter({
               component: () => import('@/views/workload/hpa/HPADetail.vue'),
               props: true,
               meta: { title: 'HPA详情', parent: 'Autoscaling' },
-            },
-            {
-              path: 'vpa',
-              name: 'VPAList',
-              component: () => import('@/views/autoscaling/vpa/VPAList.vue'),
-              meta: { title: 'VPA', parent: 'Autoscaling' },
-            },
-            {
-              path: 'vpa/create',
-              name: 'VPACreate',
-              component: () => import('@/views/autoscaling/vpa/VPACreate.vue'),
-              meta: { title: '创建VPA', parent: 'Autoscaling' },
-            },
-            {
-              path: 'vpa/:namespace/:name',
-              name: 'VPADetail',
-              component: () => import('@/views/autoscaling/vpa/VPADetail.vue'),
-              props: true,
-              meta: { title: 'VPA详情', parent: 'Autoscaling' },
             },
           ],
         },
@@ -561,6 +535,13 @@ const router = createRouter({
           name: 'AuditLog',
           component: () => import('@/views/audit/AuditLog.vue'),
           meta: { title: '审计日志', icon: 'Document', requireAdmin: true },
+        },
+        // 404 catch-all inside the app shell (keeps sidebar/header)
+        {
+          path: ':pathMatch(.*)*',
+          name: 'NotFound',
+          component: () => import('@/views/system/NotFound.vue'),
+          meta: { title: '页面不存在' },
         },
       ],
     },

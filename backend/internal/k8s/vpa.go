@@ -34,7 +34,7 @@ func (v *vpa) GetVPAList(c *gin.Context) {
 		targetAPIVersion, _, _ := unstructured.NestedString(item.Object, "spec", "targetRef", "apiVersion")
 		updateMode, _, _ := unstructured.NestedString(item.Object, "spec", "updatePolicy", "updateMode")
 		if updateMode == "" {
-			updateMode = "Auto"
+			updateMode = "未指定（按控制器默认）"
 		}
 		conditions, _, _ := unstructured.NestedSlice(item.Object, "status", "conditions")
 		recommendations, _, _ := unstructured.NestedSlice(item.Object, "status", "recommendation", "containerRecommendations")

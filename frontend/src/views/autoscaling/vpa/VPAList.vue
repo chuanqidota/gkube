@@ -137,8 +137,8 @@ function conditionStatus(row: any) {
         </el-table-column>
         <el-table-column label="更新模式" width="120">
           <template #default="{ row }">
-            <el-tag size="small" :type="row.update_mode === 'Off' ? 'info' : 'warning'">
-              {{ row.update_mode || 'Auto' }}
+            <el-tag size="small" :type="row.update_mode === 'Off' || row.update_mode?.startsWith('未指定') ? 'info' : 'warning'">
+              {{ row.update_mode || '未指定（按控制器默认）' }}
             </el-tag>
           </template>
         </el-table-column>

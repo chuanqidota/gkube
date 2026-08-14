@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getHpaDetail, deleteHpa } from '@/api/resource'
+import { getHpaDetail, deleteHpa, getHpaEvents } from '@/api/resource'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import HPAForm from './components/HPAForm.vue'
@@ -18,6 +18,10 @@ const yamlDialogVisible = ref(false)
 const editDialogVisible = ref(false)
 const editFullscreen = ref(false)
 
+// Events
+const events = ref<any[]>([])
+const eventsLoading = ref(false)
+
 const namespace = route.params.namespace as string
 const name = route.params.name as string
 
@@ -31,8 +35,137 @@ const statusTagType = computed(() => {
 const statusText = computed(() => {
   const conditions = hpa.value?.status?.conditions || []
   const scalingReady = conditions.find((c: any) => c.type === 'ScalingActive')
-  if (scalingReady?.status === 'True') return 'Active'
-  return 'Inactive'
+  if (scalingReady?.status === 'True') return '正常'
+  return '未激活'
+})
+
+// Scale target link
+const targetRoute = computed(() => {
+  const kind = hpa.value?.spec?.scaleTargetRef?.kind
+  const targetName = hpa.value?.spec?.scaleTargetRef?.name
+  const ns = hpa.value?.metadata?.namespace || namespace
+  if (!kind || !targetName || !ns) return null
+  if (kind === 'Deployment') return `/workloads/deployments/${ns}/${targetName}`
+  if (kind === 'StatefulSet') return `/workloads/statefulsets/${ns}/${targetName}`
+  if (kind === 'DaemonSet') return `/workloads/daemonsets/${ns}/${targetName}`
+  if (kind === 'ReplicaSet') return `/workloads/replicasets/${ns}/${targetName}`
+  return null
+})
+
+// Metrics helpers
+interface MetricInfo {
+  name: string
+  targetType: string
+  targetValue: number
+  currentValue: number | null
+  color: 'success' | 'warning' | 'exception'
+  statusText: string
+}
+
+const metricInfos = computed<MetricInfo[]>(() => {
+  const spec = hpa.value?.spec
+  const status = hpa.value?.status
+  if (!spec?.metrics) return []
+
+  const currentMap: Record<string, number> = {}
+  if (status?.currentMetrics) {
+    for (const cm of status.currentMetrics) {
+      if (cm.type === 'Resource') {
+        const name = cm.resource?.name
+        const val = cm.resource?.current?.averageUtilization
+        if (name && val !== undefined) currentMap[name] = Number(val)
+      } else if (cm.type === 'Pods') {
+        const name = cm.pods?.metric?.name
+        const val = cm.pods?.current?.averageValue
+        if (name && val !== undefined) {
+          const numVal = parseFloat(String(val))
+          if (!isNaN(numVal)) currentMap[name] = numVal
+        }
+      } else if (cm.type === 'External') {
+        const name = cm.external?.metric?.name
+        const val = cm.external?.current?.averageValue
+        if (name && val !== undefined) {
+          const numVal = parseFloat(String(val))
+          if (!isNaN(numVal)) currentMap[name] = numVal
+        }
+      }
+    }
+  }
+
+  return spec.metrics.map((m: any) => {
+    let name = '-'
+    let targetType = '-'
+    let targetValue = 0
+    let currentValue: number | null = null
+
+    if (m.type === 'Resource') {
+      name = m.resource?.name || '-'
+      targetType = m.resource?.target?.type || '-'
+      targetValue = Number(m.resource?.target?.averageUtilization ?? 0)
+      currentValue = currentMap[name] ?? null
+    } else if (m.type === 'Pods') {
+      name = m.pods?.metric?.name || '-'
+      targetType = m.pods?.target?.type || '-'
+      targetValue = Number(m.pods?.target?.averageValue ?? 0)
+      currentValue = currentMap[name] ?? null
+    } else if (m.type === 'Object') {
+      name = m.object?.metric?.name || '-'
+      targetType = m.object?.target?.type || '-'
+      targetValue = Number(m.object?.target?.value ?? 0)
+    } else if (m.type === 'External') {
+      name = m.external?.metric?.name || '-'
+      targetType = m.external?.target?.type || '-'
+      targetValue = Number(m.external?.target?.averageValue ?? 0)
+      currentValue = currentMap[name] ?? null
+    }
+
+    let color: 'success' | 'warning' | 'exception' = 'success'
+    let statusLabel = '当前未触发扩容'
+    if (currentValue !== null && targetValue > 0) {
+      if (currentValue >= targetValue) {
+        color = 'exception'
+        statusLabel = '⚠ 已触发扩容'
+      } else if (currentValue >= targetValue * 0.8) {
+        color = 'warning'
+        statusLabel = '接近阈值'
+      }
+    }
+
+    return { name, targetType, targetValue, currentValue, color, statusText: statusLabel }
+  })
+})
+
+// Events filtered for scaling events
+const scalingEvents = computed(() => {
+  return (events.value || []).slice(0, 10)
+})
+
+// Behavior rows for the table
+const behaviorRows = computed(() => {
+  const behavior = hpa.value?.spec?.behavior
+  if (!behavior) return []
+  const rows: any[] = []
+  if (behavior.scaleUp) {
+    const w = behavior.scaleUp.stabilizationWindowSeconds ?? 0
+    rows.push({
+      direction: '扩容',
+      window: w,
+      windowLabel: w === 0 ? '立即' : `${Math.round(w / 60)}分钟`,
+      selectPolicy: behavior.scaleUp.selectPolicy || '-',
+      policies: behavior.scaleUp.policies || [],
+    })
+  }
+  if (behavior.scaleDown) {
+    const w = behavior.scaleDown.stabilizationWindowSeconds ?? 300
+    rows.push({
+      direction: '缩容',
+      window: w,
+      windowLabel: w === 0 ? '立即' : `${Math.round(w / 60)}分钟`,
+      selectPolicy: behavior.scaleDown.selectPolicy || '-',
+      policies: behavior.scaleDown.policies || [],
+    })
+  }
+  return rows
 })
 
 async function fetchDetail() {
@@ -44,6 +177,18 @@ async function fetchDetail() {
     ElMessage.error(e?.message || '加载 HPA 详情失败')
   } finally {
     loading.value = false
+  }
+}
+
+async function fetchEvents() {
+  eventsLoading.value = true
+  try {
+    const res: any = await getHpaEvents({ namespace, name })
+    events.value = res.data || []
+  } catch {
+    // Events are optional — don't block the page
+  } finally {
+    eventsLoading.value = false
   }
 }
 
@@ -130,33 +275,15 @@ function onVResizeStart(e: MouseEvent) {
   document.addEventListener('mouseup', onUp)
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
+  await fetchDetail()
+  await fetchEvents()
+}, { autoStart: false })
 
-function metricName(row: any): string {
-  if (row.type === 'Resource') return row.resource?.name || '-'
-  if (row.type === 'Pods') return row.pods?.metric?.name || '-'
-  if (row.type === 'Object') return row.object?.metric?.name || '-'
-  if (row.type === 'External') return row.external?.metric?.name || '-'
-  return '-'
-}
-
-function metricTargetType(row: any): string {
-  if (row.type === 'Resource') return row.resource?.target?.type || '-'
-  if (row.type === 'Pods') return row.pods?.target?.type || '-'
-  if (row.type === 'Object') return row.object?.target?.type || '-'
-  if (row.type === 'External') return row.external?.target?.type || '-'
-  return '-'
-}
-
-function metricTargetValue(row: any): string {
-  if (row.type === 'Resource') {
-    return row.resource?.target?.averageUtilization ?? row.resource?.target?.averageValue ?? row.resource?.target?.value ?? '-'
-  }
-  const target = row.pods?.target || row.object?.target || row.external?.target
-  return target?.averageValue ?? target?.value ?? '-'
-}
-
-onMounted(fetchDetail)
+onMounted(() => {
+  fetchDetail()
+  fetchEvents()
+})
 </script>
 
 <template>
@@ -169,8 +296,15 @@ onMounted(fetchDetail)
         <div class="meta-line">
           <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
           <span class="ns-tag">ns/{{ namespace }}</span>
-          <span class="replicas-info" v-if="hpa">
-            {{ hpa.spec?.scaleTargetRef?.kind }}/{{ hpa.spec?.scaleTargetRef?.name }}
+          <el-button
+            v-if="hpa?.spec?.scaleTargetRef && targetRoute"
+            link
+            type="primary"
+            class="target-link"
+            @click="$router.push(targetRoute!)"
+          >{{ hpa.spec.scaleTargetRef.kind }}/{{ hpa.spec.scaleTargetRef.name }}</el-button>
+          <span v-else-if="hpa?.spec?.scaleTargetRef" class="replicas-info">
+            {{ hpa.spec.scaleTargetRef.kind }}/{{ hpa.spec.scaleTargetRef.name }}
           </span>
         </div>
       </div>
@@ -226,7 +360,15 @@ onMounted(fetchDetail)
             <el-descriptions :column="1" border size="small">
               <el-descriptions-item label="名称">{{ hpa.metadata?.name || hpa.name }}</el-descriptions-item>
               <el-descriptions-item label="命名空间">{{ hpa.metadata?.namespace || hpa.namespace }}</el-descriptions-item>
-              <el-descriptions-item label="伸缩目标">{{ hpa.spec?.scaleTargetRef?.kind }}/{{ hpa.spec?.scaleTargetRef?.name }}</el-descriptions-item>
+              <el-descriptions-item label="伸缩目标">
+                <el-button
+                  v-if="targetRoute"
+                  link
+                  type="primary"
+                  @click="$router.push(targetRoute!)"
+                >{{ hpa.spec?.scaleTargetRef?.kind }}/{{ hpa.spec?.scaleTargetRef?.name }}</el-button>
+                <span v-else>{{ hpa.spec?.scaleTargetRef?.kind }}/{{ hpa.spec?.scaleTargetRef?.name }}</span>
+              </el-descriptions-item>
               <el-descriptions-item label="最小副本数">{{ hpa.spec?.minReplicas ?? '-' }}</el-descriptions-item>
               <el-descriptions-item label="最大副本数">{{ hpa.spec?.maxReplicas ?? '-' }}</el-descriptions-item>
               <el-descriptions-item label="当前副本数">{{ hpa.status?.currentReplicas ?? '-' }}</el-descriptions-item>
@@ -248,28 +390,45 @@ onMounted(fetchDetail)
           </div>
         </div>
 
-        <!-- 右侧：Metrics + Conditions -->
+        <!-- 右侧：Metrics + Behavior + Conditions + Events -->
         <div class="right-panel">
 
-          <!-- Metrics -->
-          <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
+          <!-- Metrics Progress Bars -->
+          <div class="right-section metrics-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
             <div class="panel-title">
-              指标配置
-              <span class="count-badge">{{ hpa.spec?.metrics?.length || 0 }} 个</span>
+              指标目标
+              <span class="count-badge">{{ metricInfos.length }} 个</span>
             </div>
             <div class="metrics-body">
-              <el-table v-if="hpa.spec?.metrics?.length" :data="hpa.spec.metrics" size="small" stripe>
-                <el-table-column prop="type" label="类型" width="120" />
-                <el-table-column label="资源" width="120">
-                  <template #default="{ row }">{{ metricName(row) }}</template>
-                </el-table-column>
-                <el-table-column label="目标类型" width="120">
-                  <template #default="{ row }">{{ metricTargetType(row) }}</template>
-                </el-table-column>
-                <el-table-column label="目标值" min-width="150">
-                  <template #default="{ row }">{{ metricTargetValue(row) }}</template>
-                </el-table-column>
-              </el-table>
+              <div v-if="metricInfos.length" class="metrics-grid">
+                <div v-for="(m, idx) in metricInfos" :key="idx" class="metric-card">
+                  <div class="metric-header">
+                    <span class="metric-name">{{ m.name === 'cpu' ? 'CPU 使用率' : m.name === 'memory' ? 'Memory 使用率' : m.name }}</span>
+                    <span class="metric-values">
+                      目标: {{ m.targetValue }}<template v-if="m.targetType === 'Utilization'">%</template>
+                      &nbsp;&nbsp;
+                      当前: <template v-if="m.currentValue !== null">{{ m.currentValue }}<template v-if="m.targetType === 'Utilization'">%</template></template><template v-else>-</template>
+                    </span>
+                  </div>
+                  <el-progress
+                    :percentage="m.currentValue !== null ? Math.min(m.currentValue, 100) : 0"
+                    :color="m.color === 'success' ? '#67c23a' : m.color === 'warning' ? '#e6a23c' : '#f56c6c'"
+                    :stroke-width="18"
+                    :show-text="false"
+                    :status="m.currentValue === null ? undefined : undefined"
+                  />
+                  <div class="metric-markers">
+                    <span class="marker marker-target" :style="{ left: Math.min(m.targetValue, 100) + '%' }">↑目标{{ m.targetValue }}%</span>
+                    <span v-if="m.currentValue !== null" class="marker marker-current" :style="{ left: Math.min(m.currentValue, 100) + '%' }">↑当前{{ m.currentValue }}%</span>
+                  </div>
+                  <div class="metric-status" v-if="m.currentValue !== null">
+                    <el-tag :type="m.color" size="small" effect="plain">{{ m.statusText }}</el-tag>
+                  </div>
+                  <div class="metric-status" v-else>
+                    <el-tag type="info" size="small" effect="plain">无当前数据</el-tag>
+                  </div>
+                </div>
+              </div>
               <div v-else class="empty-hint">暂无指标配置</div>
             </div>
           </div>
@@ -281,50 +440,32 @@ onMounted(fetchDetail)
           <div class="right-section behavior-section" v-if="hpa.spec?.behavior">
             <div class="panel-title">扩缩容行为</div>
             <div class="behavior-body">
-              <template v-if="hpa.spec.behavior.scaleUp">
-                <div class="behavior-group">
-                  <div class="behavior-subtitle">扩容 (Scale Up)</div>
-                  <el-descriptions :column="2" border size="small">
-                    <el-descriptions-item label="稳定窗口(秒)">{{ hpa.spec.behavior.scaleUp.stabilizationWindowSeconds ?? 0 }}</el-descriptions-item>
-                    <el-descriptions-item label="选择策略">{{ hpa.spec.behavior.scaleUp.selectPolicy || '-' }}</el-descriptions-item>
-                  </el-descriptions>
-                  <div v-if="hpa.spec.behavior.scaleUp.policies?.length" class="behavior-policies">
-                    <div class="behavior-policies-title">策略:</div>
-                    <el-table :data="hpa.spec.behavior.scaleUp.policies" size="small" stripe>
-                      <el-table-column prop="type" label="类型" width="100" />
-                      <el-table-column prop="value" label="值" width="100" />
-                      <el-table-column prop="periodSeconds" label="周期(秒)" width="100" />
-                    </el-table>
-                  </div>
-                </div>
-              </template>
-              <template v-if="hpa.spec.behavior.scaleDown">
-                <div class="behavior-group">
-                  <div class="behavior-subtitle">缩容 (Scale Down)</div>
-                  <el-descriptions :column="2" border size="small">
-                    <el-descriptions-item label="稳定窗口(秒)">{{ hpa.spec.behavior.scaleDown.stabilizationWindowSeconds ?? 300 }}</el-descriptions-item>
-                    <el-descriptions-item label="选择策略">{{ hpa.spec.behavior.scaleDown.selectPolicy || '-' }}</el-descriptions-item>
-                  </el-descriptions>
-                  <div v-if="hpa.spec.behavior.scaleDown.policies?.length" class="behavior-policies">
-                    <div class="behavior-policies-title">策略:</div>
-                    <el-table :data="hpa.spec.behavior.scaleDown.policies" size="small" stripe>
-                      <el-table-column prop="type" label="类型" width="100" />
-                      <el-table-column prop="value" label="值" width="100" />
-                      <el-table-column prop="periodSeconds" label="周期(秒)" width="100" />
-                    </el-table>
-                  </div>
-                </div>
-              </template>
+              <el-table :data="behaviorRows" size="small" stripe>
+                <el-table-column prop="direction" label="方向" width="80" />
+                <el-table-column label="稳定窗口" width="200">
+                  <template #default="{ row }">
+                    {{ row.window }}s
+                    <span v-if="row.windowLabel" class="text-hint"> ({{ row.windowLabel }})</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="selectPolicy" label="选择策略" width="140" />
+                <el-table-column label="策略" min-width="250">
+                  <template #default="{ row }">
+                    <span v-if="row.policies.length === 0" class="text-hint">默认</span>
+                    <span v-else>{{ row.policies.map((p: any) => `${p.type} ${p.value}/${p.periodSeconds}s`).join(', ') }}</span>
+                  </template>
+                </el-table-column>
+              </el-table>
             </div>
           </div>
 
           <!-- Conditions -->
-          <div class="right-section events-section">
+          <div class="right-section conditions-section">
             <div class="panel-title">
               状态条件
               <span class="count-badge">{{ hpa.status?.conditions?.length || 0 }} 条</span>
             </div>
-            <div class="events-body">
+            <div class="conditions-body">
               <el-table v-if="hpa.status?.conditions?.length" :data="hpa.status.conditions" size="small" stripe max-height="260">
                 <el-table-column prop="type" label="类型" width="180" />
                 <el-table-column label="状态" width="100">
@@ -336,6 +477,31 @@ onMounted(fetchDetail)
                 <el-table-column prop="message" label="信息" min-width="250" show-overflow-tooltip />
               </el-table>
               <div v-else class="empty-hint">暂无状态条件</div>
+            </div>
+          </div>
+
+          <!-- Events Timeline -->
+          <div class="right-section events-section">
+            <div class="panel-title">
+              伸缩事件
+              <span class="count-badge">{{ scalingEvents.length }} 条</span>
+            </div>
+            <div class="events-body" v-loading="eventsLoading">
+              <el-table v-if="scalingEvents.length" :data="scalingEvents" size="small" stripe max-height="260">
+                <el-table-column label="时间" width="180">
+                  <template #default="{ row }">
+                    {{ row.lastTimestamp || row.firstTimestamp || '-' }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="类型" width="100">
+                  <template #default="{ row }">
+                    <el-tag :type="row.type === 'Normal' ? 'success' : 'warning'" size="small">{{ row.type || '-' }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="reason" label="原因" width="180" />
+                <el-table-column prop="message" label="消息" min-width="300" show-overflow-tooltip />
+              </el-table>
+              <div v-else class="empty-hint">{{ eventsLoading ? '加载中...' : '暂无伸缩事件' }}</div>
             </div>
           </div>
 
@@ -443,6 +609,10 @@ onMounted(fetchDetail)
   color: var(--el-text-color-regular);
 }
 
+.target-link {
+  font-size: 12px;
+}
+
 .header-actions {
   display: flex;
   flex-shrink: 0;
@@ -545,7 +715,7 @@ onMounted(fetchDetail)
   background: var(--el-bg-color);
 }
 
-.right-section:first-child {
+.metrics-section {
   flex: 1;
   min-height: 0;
 }
@@ -555,9 +725,104 @@ onMounted(fetchDetail)
   max-height: 300px;
 }
 
+.right-section.conditions-section {
+  flex: 0 0 auto;
+  max-height: 300px;
+}
+
 .right-section.events-section {
   flex: 1;
   min-height: 0;
+}
+
+/* Metrics */
+.metrics-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+.metrics-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metric-card {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+
+.metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.metric-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.metric-values {
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+}
+
+.metric-markers {
+  position: relative;
+  height: 28px;
+  margin-top: 2px;
+}
+
+.marker {
+  position: absolute;
+  font-size: 10px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.marker-target {
+  top: 0;
+  color: var(--el-text-color-secondary);
+}
+
+.marker-current {
+  top: 14px;
+  color: var(--el-color-primary);
+}
+
+.metric-status {
+  margin-top: 4px;
+}
+
+/* Behavior */
+.behavior-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.text-hint {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+/* Conditions */
+.conditions-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* Events */
+.events-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
 }
 
 /* Resize handles */
@@ -595,49 +860,6 @@ onMounted(fetchDetail)
 
 .is-resizing * {
   pointer-events: none;
-}
-
-.metrics-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
-.behavior-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 14px;
-}
-
-.behavior-group {
-  margin-bottom: 14px;
-}
-
-.behavior-group:last-child {
-  margin-bottom: 0;
-}
-
-.behavior-subtitle {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--el-text-color-regular);
-  margin-bottom: 8px;
-}
-
-.behavior-policies {
-  margin-top: 8px;
-}
-
-.behavior-policies-title {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-bottom: 4px;
-}
-
-.events-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
 }
 
 .empty-hint {

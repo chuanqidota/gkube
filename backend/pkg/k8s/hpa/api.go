@@ -3,11 +3,14 @@ package hpa
 import (
 	"context"
 	"fmt"
+	k8sEvent "gkube/pkg/k8s/event"
 	"gkube/pkg/yamlutil"
 
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
@@ -40,9 +43,13 @@ func CreateHPA(client *kubernetes.Clientset, namespace, yamlContent string) erro
 	if err := yaml.Unmarshal([]byte(yamlContent), &hpa); err != nil {
 		return fmt.Errorf("failed to unmarshal HPA YAML: %w", err)
 	}
-	if hpa.Namespace == "" {
-		hpa.Namespace = namespace
+	if namespace == "" {
+		return fmt.Errorf("namespace不能为空")
 	}
+	if hpa.Namespace != "" && hpa.Namespace != namespace {
+		return fmt.Errorf("HPA YAML namespace与请求namespace不一致")
+	}
+	hpa.Namespace = namespace
 	_, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Create(context.TODO(), &hpa, metav1.CreateOptions{})
 	return err
 }
@@ -52,24 +59,27 @@ func UpdateHPA(client *kubernetes.Clientset, namespace, yamlContent string) erro
 	if err := yaml.Unmarshal([]byte(yamlContent), &hpa); err != nil {
 		return fmt.Errorf("failed to unmarshal HPA YAML: %w", err)
 	}
-	if hpa.Namespace == "" {
-		hpa.Namespace = namespace
-	}
-	if hpa.Namespace == "" {
+	if namespace == "" {
 		return fmt.Errorf("namespace不能为空")
 	}
+	if hpa.Namespace != "" && hpa.Namespace != namespace {
+		return fmt.Errorf("不允许修改HPA namespace")
+	}
+	hpa.Namespace = namespace
 	if hpa.Name == "" {
 		return fmt.Errorf("metadata.name不能为空")
 	}
-	if hpa.ResourceVersion == "" {
-		existing, err := client.AutoscalingV2().HorizontalPodAutoscalers(hpa.Namespace).Get(context.TODO(), hpa.Name, metav1.GetOptions{})
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		existing, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.TODO(), hpa.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
-		hpa.ResourceVersion = existing.ResourceVersion
-	}
-	_, err := client.AutoscalingV2().HorizontalPodAutoscalers(hpa.Namespace).Update(context.TODO(), &hpa, metav1.UpdateOptions{})
-	return err
+		existing.Spec = hpa.Spec
+		existing.Labels = hpa.Labels
+		existing.Annotations = hpa.Annotations
+		_, err = client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(context.TODO(), existing, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 func DeleteHPA(client *kubernetes.Clientset, namespace, name string) error {
@@ -78,4 +88,16 @@ func DeleteHPA(client *kubernetes.Clientset, namespace, name string) error {
 
 func GetHPADetail(client *kubernetes.Clientset, namespace, name string) (*autoscalingv2.HorizontalPodAutoscaler, error) {
 	return client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}
+
+func GetHPAEvents(client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
+	selector := fields.AndSelectors(
+		fields.OneTermEqualSelector("involvedObject.name", name),
+		fields.OneTermEqualSelector("involvedObject.kind", "HorizontalPodAutoscaler"),
+	).String()
+	events, _, _, err := k8sEvent.ListEvents(client, namespace, selector, 0, "")
+	if err != nil {
+		return nil, fmt.Errorf("获取HPA事件失败:%s", err.Error())
+	}
+	return events, nil
 }

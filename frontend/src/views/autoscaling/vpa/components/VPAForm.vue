@@ -34,6 +34,10 @@ interface ContainerPolicy {
   maxMemory: string
 }
 
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value || {}))
+}
+
 const form = ref({
   name: '',
   namespace: 'default',
@@ -71,7 +75,7 @@ function parseInitialData(data: any) {
   form.value.targetAPIVersion = data.spec?.targetRef?.apiVersion || 'apps/v1'
   form.value.targetKind = data.spec?.targetRef?.kind || 'Deployment'
   form.value.targetName = data.spec?.targetRef?.name || ''
-  form.value.updateMode = data.spec?.updatePolicy?.updateMode || 'Auto'
+  form.value.updateMode = data.spec?.updatePolicy?.updateMode || ''
 
   const labels = data.metadata?.labels || {}
   const labelEntries = Object.entries(labels).map(([k, v]) => ({ key: k, value: String(v) }))
@@ -124,27 +128,43 @@ function buildYaml(): string {
     return policy
   })
 
-  const vpa: any = {
+  const vpa: any = props.isEdit ? clone(props.initialData) : {
     apiVersion: 'autoscaling.k8s.io/v1',
     kind: 'VerticalPodAutoscaler',
-    metadata: {
-      name: form.value.name,
-      namespace: form.value.namespace,
-      ...(Object.keys(labels).length > 0 ? { labels } : {}),
+    metadata: {},
+    spec: {},
+  }
+  delete vpa.status
+  vpa.apiVersion = vpa.apiVersion || 'autoscaling.k8s.io/v1'
+  vpa.kind = vpa.kind || 'VerticalPodAutoscaler'
+  vpa.metadata = {
+    ...(vpa.metadata || {}),
+    name: form.value.name,
+    namespace: form.value.namespace,
+    ...(Object.keys(labels).length > 0 ? { labels } : { labels: undefined }),
+  }
+  if (!Object.keys(labels).length) delete vpa.metadata.labels
+  vpa.spec = {
+    ...(vpa.spec || {}),
+    targetRef: {
+      ...(vpa.spec?.targetRef || {}),
+      apiVersion: form.value.targetAPIVersion,
+      kind: form.value.targetKind,
+      name: form.value.targetName,
     },
-    spec: {
-      targetRef: {
-        apiVersion: form.value.targetAPIVersion,
-        kind: form.value.targetKind,
-        name: form.value.targetName,
-      },
-      updatePolicy: {
-        updateMode: form.value.updateMode,
-      },
-      resourcePolicy: {
-        containerPolicies,
-      },
+    resourcePolicy: {
+      ...(vpa.spec?.resourcePolicy || {}),
+      containerPolicies,
     },
+  }
+  if (form.value.updateMode) {
+    vpa.spec.updatePolicy = {
+      ...(vpa.spec?.updatePolicy || {}),
+      updateMode: form.value.updateMode,
+    }
+  } else if (vpa.spec?.updatePolicy) {
+    delete vpa.spec.updatePolicy.updateMode
+    if (Object.keys(vpa.spec.updatePolicy).length === 0) delete vpa.spec.updatePolicy
   }
 
   return yaml.dump(vpa, { indent: 2, lineWidth: -1, noRefs: true })
@@ -276,6 +296,7 @@ onMounted(() => {
         <div class="section-content">
           <el-form-item label="Update Mode">
             <el-select v-model="form.updateMode" style="width: 240px;">
+              <el-option label="未指定" value="" />
               <el-option label="Off (仅推荐)" value="Off" />
               <el-option label="Initial" value="Initial" />
               <el-option label="Recreate" value="Recreate" />

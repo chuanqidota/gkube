@@ -159,11 +159,19 @@ onMounted(fetchDetail)
               <el-descriptions-item label="目标资源">
                 {{ vpa.spec?.targetRef?.apiVersion || '-' }} {{ vpa.spec?.targetRef?.kind || '-' }}/{{ vpa.spec?.targetRef?.name || '-' }}
               </el-descriptions-item>
-              <el-descriptions-item label="更新模式">{{ vpa.spec?.updatePolicy?.updateMode || 'Auto' }}</el-descriptions-item>
+              <el-descriptions-item label="更新模式">{{ vpa.spec?.updatePolicy?.updateMode || '未指定' }}</el-descriptions-item>
             </el-descriptions>
 
             <el-alert
-              v-if="['Auto', 'Recreate'].includes(vpa.spec?.updatePolicy?.updateMode)"
+              v-if="!vpa.spec?.updatePolicy?.updateMode"
+              title="未显式设置 updateMode，实际行为取决于 VPA 控制器默认策略，请谨慎确认。"
+              type="warning"
+              show-icon
+              :closable="false"
+              class="detail-warning"
+            />
+            <el-alert
+              v-else-if="['Auto', 'Recreate'].includes(vpa.spec?.updatePolicy?.updateMode)"
               title="当前 VPA 可能自动驱逐或重建 Pod，请确认业务可接受重启风险。"
               type="warning"
               show-icon

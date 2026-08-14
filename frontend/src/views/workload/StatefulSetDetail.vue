@@ -18,6 +18,7 @@ import {
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
 import StatefulSetForm from '@/views/workload/components/StatefulSetForm.vue'
+import AutoscalingDrawer from '@/views/workload/components/AutoscalingDrawer.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useClusterNameRef } from '@/composables/useClusterName'
 import { useResizable } from '@/composables/useResizable'
@@ -63,6 +64,9 @@ const imageLoading = ref(false)
 // Edit dialog
 const editDialogVisible = ref(false)
 const editFullscreen = ref(false)
+
+// Autoscaling drawer
+const autoscalingDrawerVisible = ref(false)
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
@@ -386,6 +390,7 @@ onMounted(() => {
         <el-button type="success" @click="handleUpdateImage">更新镜像</el-button>
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
+        <el-button type="warning" plain @click="autoscalingDrawerVisible = true">弹性伸缩</el-button>
         <el-button type="danger" plain @click="handleDelete">删除</el-button>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
@@ -688,6 +693,14 @@ onMounted(() => {
         />
       </div>
     </el-drawer>
+
+    <!-- Autoscaling Drawer -->
+    <AutoscalingDrawer
+      v-model:visible="autoscalingDrawerVisible"
+      :namespace="namespace"
+      :workload-name="name"
+      workload-kind="StatefulSet"
+    />
   </div>
 </template>
 
