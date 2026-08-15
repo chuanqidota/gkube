@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
@@ -24,6 +24,23 @@ const router = useRouter()
 const submitting = ref(false)
 const namespaceLoading = ref(false)
 const namespaces = ref<string[]>([])
+let originalSpec: Record<string, any> | null = null
+
+// Detect matchExpressions in initial data for edit mode warning
+const hasMatchExpressions = computed(() => {
+  if (!props.isEdit || !props.initialData) return false
+  const spec = props.initialData.spec || {}
+  if (spec.podSelector?.matchExpressions?.length > 0) return true
+  for (const rules of [spec.ingress || [], spec.egress || []]) {
+    for (const rule of rules) {
+      for (const entry of [...(rule.from || []), ...(rule.to || [])]) {
+        if (entry.podSelector?.matchExpressions?.length > 0) return true
+        if (entry.namespaceSelector?.matchExpressions?.length > 0) return true
+      }
+    }
+  }
+  return false
+})
 
 // ---- Data Model ----
 
@@ -39,6 +56,7 @@ interface FromToEntry {
 interface PortEntry {
   protocol: string
   port: number | null
+  endPort: number | null
 }
 
 interface RuleItem {
@@ -54,11 +72,11 @@ const form = reactive({
   podSelectorLabels: [{ key: 'app', value: '' }] as Label[],
   ingressRules: [{
     fromTo: [{ type: 'podSelector', labels: [{ key: 'app', value: '' }], cidr: '', except: [] }],
-    ports: [{ protocol: 'TCP', port: 80 }],
+    ports: [{ protocol: 'TCP', port: 80, endPort: null }],
   }] as RuleItem[],
   egressRules: [{
     fromTo: [{ type: 'ipBlock', labels: [], cidr: '0.0.0.0/0', except: [] }],
-    ports: [{ protocol: 'TCP', port: 443 }],
+    ports: [{ protocol: 'TCP', port: 443, endPort: null }],
   }] as RuleItem[],
 })
 
@@ -69,11 +87,17 @@ const formRef = ref<FormInstance>()
 const formRules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符，以字母开头', trigger: 'blur' },
+    { pattern: /^[a-z]([a-z0-9-]*[a-z0-9])?$/, message: '仅支持小写字母、数字和连字符，以字母开头、字母或数字结尾', trigger: 'blur' },
     { max: 253, message: '最长 253 个字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
 }
+
+// CIDR format validation
+const cidrPattern = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/
+
+// K8s label key validation: optional DNS prefix + "/" + name (letters, digits, -, _, .)
+const labelKeyPattern = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\/)?[a-z0-9A-Z]([a-z0-9A-Z._-]*[a-z0-9A-Z])?$/
 
 // ---- Namespace Fetch ----
 
@@ -106,7 +130,7 @@ function removePodSelectorLabel(i: number) { form.podSelectorLabels.splice(i, 1)
 function addIngressRule() {
   form.ingressRules.push({
     fromTo: [{ type: 'podSelector', labels: [{ key: '', value: '' }], cidr: '', except: [] }],
-    ports: [{ protocol: 'TCP', port: null }],
+    ports: [{ protocol: 'TCP', port: null, endPort: null }],
   })
 }
 function removeIngressRule(i: number) { form.ingressRules.splice(i, 1) }
@@ -119,7 +143,7 @@ function removeIngressFrom(ruleIdx: number, fromIdx: number) {
 }
 
 function addIngressPort(ruleIdx: number) {
-  form.ingressRules[ruleIdx].ports.push({ protocol: 'TCP', port: null })
+  form.ingressRules[ruleIdx].ports.push({ protocol: 'TCP', port: null, endPort: null })
 }
 function removeIngressPort(ruleIdx: number, portIdx: number) {
   form.ingressRules[ruleIdx].ports.splice(portIdx, 1)
@@ -130,7 +154,7 @@ function removeIngressPort(ruleIdx: number, portIdx: number) {
 function addEgressRule() {
   form.egressRules.push({
     fromTo: [{ type: 'ipBlock', labels: [], cidr: '0.0.0.0/0', except: [] }],
-    ports: [{ protocol: 'TCP', port: null }],
+    ports: [{ protocol: 'TCP', port: null, endPort: null }],
   })
 }
 function removeEgressRule(i: number) { form.egressRules.splice(i, 1) }
@@ -143,7 +167,7 @@ function removeEgressTo(ruleIdx: number, toIdx: number) {
 }
 
 function addEgressPort(ruleIdx: number) {
-  form.egressRules[ruleIdx].ports.push({ protocol: 'TCP', port: null })
+  form.egressRules[ruleIdx].ports.push({ protocol: 'TCP', port: null, endPort: null })
 }
 function removeEgressPort(ruleIdx: number, portIdx: number) {
   form.egressRules[ruleIdx].ports.splice(portIdx, 1)
@@ -190,7 +214,11 @@ function buildFromTo(entries: FromToEntry[]): Record<string, any>[] {
 function buildPorts(entries: PortEntry[]): Record<string, any>[] {
   return entries
     .filter(p => p.port != null && p.port > 0)
-    .map(p => ({ protocol: p.protocol, port: p.port }))
+    .map(p => {
+      const port: Record<string, any> = { protocol: p.protocol, port: p.port }
+      if (p.endPort != null && p.endPort > 0) port.endPort = p.endPort
+      return port
+    })
 }
 
 function buildNetworkPolicy(): Record<string, any> {
@@ -254,6 +282,9 @@ function parseInitialData(data: any) {
   const spec = data.spec || {}
   const meta = data.metadata || {}
 
+  // Preserve original spec for merge during submit (to avoid losing matchExpressions etc.)
+  originalSpec = JSON.parse(JSON.stringify(spec))
+
   form.name = meta.name || ''
   form.namespace = meta.namespace || 'default'
   form.policyTypes = spec.policyTypes || ['Ingress', 'Egress']
@@ -279,9 +310,9 @@ function parseInitialData(data: any) {
           if (f.namespaceSelector) return { type: 'namespaceSelector' as const, labels: Object.entries(f.namespaceSelector.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), cidr: '', except: [] }
           return { type: 'podSelector' as const, labels: Object.entries(f.podSelector?.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), cidr: '', except: [] }
         }),
-        ports: (rule.ports || []).map((p: any) => ({ protocol: p.protocol || 'TCP', port: p.port ?? null })),
+        ports: (rule.ports || []).map((p: any) => ({ protocol: p.protocol || 'TCP', port: p.port ?? null, endPort: p.endPort ?? null })),
       }))
-    : [{ fromTo: [{ type: 'podSelector' as const, labels: [{ key: 'app', value: '' }], cidr: '', except: [] }], ports: [{ protocol: 'TCP', port: 80 }] }]
+    : [{ fromTo: [{ type: 'podSelector' as const, labels: [{ key: 'app', value: '' }], cidr: '', except: [] }], ports: [{ protocol: 'TCP', port: 80, endPort: null }] }]
 
   // Egress rules
   const egress = spec.egress || []
@@ -292,9 +323,9 @@ function parseInitialData(data: any) {
           if (t.namespaceSelector) return { type: 'namespaceSelector' as const, labels: Object.entries(t.namespaceSelector.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), cidr: '', except: [] }
           return { type: 'podSelector' as const, labels: Object.entries(t.podSelector?.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), cidr: '', except: [] }
         }),
-        ports: (rule.ports || []).map((p: any) => ({ protocol: p.protocol || 'TCP', port: p.port ?? null })),
+        ports: (rule.ports || []).map((p: any) => ({ protocol: p.protocol || 'TCP', port: p.port ?? null, endPort: p.endPort ?? null })),
       }))
-    : [{ fromTo: [{ type: 'ipBlock' as const, labels: [], cidr: '0.0.0.0/0', except: [] }], ports: [{ protocol: 'TCP', port: 443 }] }]
+    : [{ fromTo: [{ type: 'ipBlock' as const, labels: [], cidr: '0.0.0.0/0', except: [] }], ports: [{ protocol: 'TCP', port: 443, endPort: null }] }]
 }
 
 // ---- Submit ----
@@ -303,9 +334,92 @@ async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 
+  // Validate CIDR fields
+  for (const rules of [form.ingressRules, form.egressRules]) {
+    for (const rule of rules) {
+      for (const entry of rule.fromTo) {
+        if (entry.type === 'ipBlock' && entry.cidr.trim() && !cidrPattern.test(entry.cidr.trim())) {
+          ElMessage.error(`CIDR 格式不正确: ${entry.cidr}`)
+          return
+        }
+        for (const ex of entry.except) {
+          if (ex.trim() && !cidrPattern.test(ex.trim())) {
+            ElMessage.error(`Except CIDR 格式不正确: ${ex}`)
+            return
+          }
+        }
+      }
+    }
+  }
+
+  // Validate endPort > port
+  for (const rules of [form.ingressRules, form.egressRules]) {
+    for (const rule of rules) {
+      for (const port of rule.ports) {
+        if (port.endPort != null && port.port != null && port.endPort <= port.port) {
+          ElMessage.error(`端口范围结束端口必须大于起始端口: ${port.port}-${port.endPort}`)
+          return
+        }
+      }
+    }
+  }
+
+  // Validate label keys
+  const allLabels = [
+    ...form.labels,
+    ...form.podSelectorLabels,
+    ...form.ingressRules.flatMap(r => r.fromTo.flatMap(e => e.labels)),
+    ...form.egressRules.flatMap(r => r.fromTo.flatMap(e => e.labels)),
+  ]
+  for (const label of allLabels) {
+    if (label.key.trim() && !labelKeyPattern.test(label.key.trim())) {
+      ElMessage.error(`Label Key 格式不正确: ${label.key}`)
+      return
+    }
+  }
+
   submitting.value = true
   try {
-    const resource = buildNetworkPolicy()
+    let resource = buildNetworkPolicy()
+
+    // In edit mode, merge with original spec to preserve fields the form can't edit
+    // (e.g. matchExpressions, which are only editable via YAML)
+    if (props.isEdit && originalSpec) {
+      // Preserve podSelector.matchExpressions
+      if (originalSpec.podSelector?.matchExpressions) {
+        resource.spec.podSelector.matchExpressions = originalSpec.podSelector.matchExpressions
+      }
+
+      // Preserve matchExpressions in ingress/egress from/to entries
+      const mergeSelector = (formSel: any, origSel: any) => {
+        if (!formSel || !origSel) return formSel
+        if (origSel.matchExpressions) formSel.matchExpressions = origSel.matchExpressions
+        return formSel
+      }
+
+      if (resource.spec.ingress && originalSpec.ingress) {
+        resource.spec.ingress.forEach((rule: any, ri: number) => {
+          if (!rule.from || !originalSpec.ingress[ri]?.from) return
+          rule.from.forEach((entry: any, fi: number) => {
+            const orig = originalSpec.ingress[ri].from[fi]
+            if (entry.podSelector) mergeSelector(entry.podSelector, orig?.podSelector)
+            if (entry.namespaceSelector) mergeSelector(entry.namespaceSelector, orig?.namespaceSelector)
+          })
+        })
+      }
+
+      if (resource.spec.egress && originalSpec.egress) {
+        resource.spec.egress.forEach((rule: any, ri: number) => {
+          if (!rule.to || !originalSpec.egress[ri]?.to) return
+          rule.to.forEach((entry: any, ti: number) => {
+            const orig = originalSpec.egress[ri].to[ti]
+            if (entry.podSelector) mergeSelector(entry.podSelector, orig?.podSelector)
+            if (entry.namespaceSelector) mergeSelector(entry.namespaceSelector, orig?.namespaceSelector)
+          })
+        })
+      }
+    }
+
     const yamlContent = yaml.dump(resource, { indent: 2, lineWidth: -1, noRefs: true })
     if (props.isEdit) {
       await updateNetworkPolicyYaml({ namespace: form.namespace, name: form.name, yaml: yamlContent })
@@ -336,6 +450,19 @@ function handleCancel() {
   <div class="np-form">
     <el-form ref="formRef" :model="form" :rules="formRules" label-position="top">
 
+      <!-- Warning for matchExpressions in edit mode -->
+      <el-alert
+        v-if="hasMatchExpressions"
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 24px;"
+      >
+        <template #title>
+          此 NetworkPolicy 包含 matchExpressions 表达式，表单仅展示 matchLabels 部分。matchExpressions 已保留，如需编辑请使用 YAML 模式。
+        </template>
+      </el-alert>
+
       <!-- Section 1: Basic Info -->
       <div class="form-section">
         <div class="section-sidebar">
@@ -344,10 +471,10 @@ function handleCancel() {
         <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="名称" prop="name">
-              <el-input v-model="form.name" placeholder="my-network-policy" />
+              <el-input v-model="form.name" placeholder="my-network-policy" :disabled="isEdit" />
             </el-form-item>
             <el-form-item label="命名空间" prop="namespace">
-              <el-select v-model="form.namespace" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+              <el-select v-model="form.namespace" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading" :disabled="isEdit">
                 <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
               </el-select>
             </el-form-item>
@@ -495,6 +622,7 @@ function handleCancel() {
                   <el-option label="SCTP" value="SCTP" />
                 </el-select>
                 <el-input-number v-model="port.port" :min="1" :max="65535" placeholder="Port" style="flex: 1;" size="small" />
+                <el-input-number v-model="port.endPort" :min="1" :max="65535" placeholder="End Port" style="flex: 1;" size="small" />
                 <el-button type="danger" text circle size="small" @click="removeIngressPort(ri, pi)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
@@ -587,6 +715,7 @@ function handleCancel() {
                   <el-option label="SCTP" value="SCTP" />
                 </el-select>
                 <el-input-number v-model="port.port" :min="1" :max="65535" placeholder="Port" style="flex: 1;" size="small" />
+                <el-input-number v-model="port.endPort" :min="1" :max="65535" placeholder="End Port" style="flex: 1;" size="small" />
                 <el-button type="danger" text circle size="small" @click="removeEgressPort(ri, pi)">
                   <el-icon><Delete /></el-icon>
                 </el-button>

@@ -783,28 +783,12 @@ export function getNetworkPolicyList(params?: { namespace?: string }) {
   return request.get('/k8s/networkpolicy/list', { params })
 }
 
-/**
- * Transform raw K8s NetworkPolicy objects into simplified display format.
- */
-export function transformNetworkPolicies(items: any[]) {
-  if (!Array.isArray(items)) return []
-  return items.map((np: any) => ({
-    name: np.metadata?.name || '',
-    namespace: np.metadata?.namespace || '',
-    pod_selector: Object.entries(np.spec?.podSelector?.matchLabels || {}).map(([k, v]) => `${k}=${v}`).join(', ') || 'All',
-    policy_types: np.spec?.policyTypes || [],
-    ingress_rules: np.spec?.ingress?.length || 0,
-    egress_rules: np.spec?.egress?.length || 0,
-    age: calcAge(np.metadata?.creationTimestamp),
-  }))
-}
-
 export function getNetworkPolicyDetail(params: { namespace: string; name: string }) {
   return request.get('/k8s/networkpolicy/detail', { params })
 }
 
 export function getNetworkPolicyYaml(params: { namespace: string; name: string }) {
-  return request.get('/k8s/networkpolicy/yaml', { params })
+  return request.get('/k8s/networkpolicy/get-yaml', { params })
 }
 
 export function createNetworkPolicy(data: { namespace: string; yaml: string }) {

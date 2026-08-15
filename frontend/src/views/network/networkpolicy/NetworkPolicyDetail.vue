@@ -46,9 +46,16 @@ const np = computed(() => {
   const meta = raw.metadata || {}
 
   const podSelector = spec.podSelector?.matchLabels || {}
-  const podSelectorStr = Object.keys(podSelector).length > 0
+  const podExpressions = spec.podSelector?.matchExpressions || []
+  let podSelectorStr = Object.keys(podSelector).length > 0
     ? Object.entries(podSelector).map(([k, v]) => `${k}=${v}`).join(', ')
-    : 'All pods'
+    : ''
+  for (const expr of podExpressions) {
+    const vals = (expr.values || []).join(', ')
+    if (podSelectorStr) podSelectorStr += ', '
+    podSelectorStr += `${expr.key} ${expr.operator} (${vals})`
+  }
+  if (!podSelectorStr) podSelectorStr = 'All pods'
 
   return {
     name: meta.name || '',
@@ -334,19 +341,29 @@ onMounted(() => {
               <div v-for="(rule, i) in np.ingress" :key="i" class="rule-summary">
                 <div v-if="rule.from && rule.from.length > 0">
                   <div v-for="(from, j) in rule.from" :key="j" style="margin-bottom: 4px;">
-                    <el-tag v-if="from.podSelector" type="info" size="small" style="margin-right: 4px;">
-                      Pod: {{ Object.entries(from.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
-                    </el-tag>
-                    <el-tag v-if="from.namespaceSelector" type="warning" size="small" style="margin-right: 4px;">
-                      NS: {{ Object.entries(from.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
-                    </el-tag>
+                    <template v-if="from.podSelector">
+                      <el-tag type="info" size="small" style="margin-right: 4px;">
+                        Pod: {{ Object.entries(from.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
+                        <template v-if="from.podSelector.matchExpressions && from.podSelector.matchExpressions.length > 0">
+                          , {{ from.podSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                        </template>
+                      </el-tag>
+                    </template>
+                    <template v-if="from.namespaceSelector">
+                      <el-tag type="warning" size="small" style="margin-right: 4px;">
+                        NS: {{ Object.entries(from.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
+                        <template v-if="from.namespaceSelector.matchExpressions && from.namespaceSelector.matchExpressions.length > 0">
+                          , {{ from.namespaceSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                        </template>
+                      </el-tag>
+                    </template>
                     <el-tag v-if="from.ipBlock" type="success" size="small" style="margin-right: 4px;">
-                      IP: {{ from.ipBlock.cidr }}
+                      IP: {{ from.ipBlock.cidr }}<template v-if="from.ipBlock.except && from.ipBlock.except.length > 0"> (except: {{ from.ipBlock.except.join(', ') }})</template>
                     </el-tag>
                   </div>
                 </div>
                 <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 4px;">
-                  <el-tag v-for="(port, j) in rule.ports" :key="j" size="small" style="margin-right: 4px;">{{ port.protocol }}/{{ port.port }}</el-tag>
+                  <el-tag v-for="(port, j) in rule.ports" :key="j" size="small" style="margin-right: 4px;">{{ port.protocol }}/{{ port.port }}<template v-if="port.endPort">-{{ port.endPort }}</template></el-tag>
                 </div>
               </div>
             </div>
@@ -357,19 +374,29 @@ onMounted(() => {
               <div v-for="(rule, i) in np.egress" :key="i" class="rule-summary">
                 <div v-if="rule.to && rule.to.length > 0">
                   <div v-for="(to, j) in rule.to" :key="j" style="margin-bottom: 4px;">
-                    <el-tag v-if="to.podSelector" type="info" size="small" style="margin-right: 4px;">
-                      Pod: {{ Object.entries(to.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
-                    </el-tag>
-                    <el-tag v-if="to.namespaceSelector" type="warning" size="small" style="margin-right: 4px;">
-                      NS: {{ Object.entries(to.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
-                    </el-tag>
+                    <template v-if="to.podSelector">
+                      <el-tag type="info" size="small" style="margin-right: 4px;">
+                        Pod: {{ Object.entries(to.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
+                        <template v-if="to.podSelector.matchExpressions && to.podSelector.matchExpressions.length > 0">
+                          , {{ to.podSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                        </template>
+                      </el-tag>
+                    </template>
+                    <template v-if="to.namespaceSelector">
+                      <el-tag type="warning" size="small" style="margin-right: 4px;">
+                        NS: {{ Object.entries(to.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
+                        <template v-if="to.namespaceSelector.matchExpressions && to.namespaceSelector.matchExpressions.length > 0">
+                          , {{ to.namespaceSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                        </template>
+                      </el-tag>
+                    </template>
                     <el-tag v-if="to.ipBlock" type="success" size="small" style="margin-right: 4px;">
-                      IP: {{ to.ipBlock.cidr }}
+                      IP: {{ to.ipBlock.cidr }}<template v-if="to.ipBlock.except && to.ipBlock.except.length > 0"> (except: {{ to.ipBlock.except.join(', ') }})</template>
                     </el-tag>
                   </div>
                 </div>
                 <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 4px;">
-                  <el-tag v-for="(port, j) in rule.ports" :key="j" size="small" style="margin-right: 4px;">{{ port.protocol }}/{{ port.port }}</el-tag>
+                  <el-tag v-for="(port, j) in rule.ports" :key="j" size="small" style="margin-right: 4px;">{{ port.protocol }}/{{ port.port }}<template v-if="port.endPort">-{{ port.endPort }}</template></el-tag>
                 </div>
               </div>
             </div>
