@@ -106,6 +106,9 @@ export default {
     clusterName: '集群名称',
     version: '版本',
     view: '查看',
+    toggleSidebar: '切换侧边栏',
+    lightMode: '浅色模式',
+    darkMode: '深色模式',
   },
   dashboard: {
     title: '仪表盘',
@@ -406,6 +409,7 @@ export default {
     deleteQuotaConfirm: '确定删除此资源配额吗？',
     // LimitRange
     limitRangeTitle: '资源限制: {name}',
+    limit: '限制',
     limits: '限制',
     max: '最大',
     min: '最小',
@@ -732,9 +736,8 @@ export default {
   },
   autoscaling: {
     title: '弹性伸缩',
-    subtitle: '统一管理工作负载的水平伸缩策略与垂直资源推荐',
+    subtitle: '统一管理工作负载的水平伸缩策略',
     hpaTab: 'HPA 水平伸缩',
-    vpaTab: 'VPA 资源推荐',
   },
   audit: {
     title: '审计日志',

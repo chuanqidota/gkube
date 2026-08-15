@@ -106,6 +106,9 @@ export default {
     clusterName: 'Cluster Name',
     version: 'Version',
     view: 'View',
+    toggleSidebar: 'Toggle Sidebar',
+    lightMode: 'Light Mode',
+    darkMode: 'Dark Mode',
   },
   dashboard: {
     title: 'Dashboard',
@@ -437,6 +440,7 @@ export default {
     annotations: 'Annotations',
     resourceQuotas: 'Resource Quotas',
     limitRanges: 'Limit Ranges',
+    limit: 'Limit',
     noResourceQuotas: 'No resource quotas',
     noLimitRanges: 'No limit ranges',
     quota: 'Quota',
@@ -707,9 +711,8 @@ export default {
   },
   autoscaling: {
     title: 'Autoscaling',
-    subtitle: 'Manage horizontal scaling policies and vertical resource recommendations for workloads',
+    subtitle: 'Manage horizontal scaling policies for workloads',
     hpaTab: 'HPA Horizontal Scaling',
-    vpaTab: 'VPA Resource Recommendations',
   },
   audit: {
     title: 'Audit Logs',

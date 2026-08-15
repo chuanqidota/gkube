@@ -777,31 +777,6 @@ export function getHpaEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/hpa/events', { params })
 }
 
-// VPA
-export function getVpaList(params?: { namespace?: string }) {
-  return request.get('/k8s/vpa/list', { params })
-}
-
-export function getVpaDetail(params: { namespace: string; name: string }) {
-  return request.get('/k8s/vpa/detail', { params })
-}
-
-export function getVpaYaml(params: { namespace: string; name: string }) {
-  return request.get('/k8s/vpa/get-yaml', { params })
-}
-
-export function createVpa(data: { namespace: string; yaml: string }) {
-  return request.post('/k8s/vpa/create', data)
-}
-
-export function updateVpa(data: { namespace: string; yaml: string }) {
-  return request.put('/k8s/vpa/update', data)
-}
-
-export function deleteVpa(params: { namespace: string; name: string }) {
-  return request.delete('/k8s/vpa/delete', { params })
-}
-
 // NetworkPolicy
 export function getNetworkPolicyList(params?: { namespace?: string }) {
   return request.get('/k8s/networkpolicy/list', { params })
