@@ -7,6 +7,9 @@ import { getSecretDetail, deleteSecret } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import SecretForm from '@/views/config/components/SecretForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useResizable } from '@/composables/useResizable'
+
+const { leftWidth, resizingH, onHResizeStart } = useResizable({ initialWidth: 320 })
 
 const route = useRoute()
 const router = useRouter()
@@ -26,9 +29,13 @@ const showDecoded = ref(true)
 
 function base64Decode(str: string): string {
   try {
-    return atob(str)
+    return decodeURIComponent(escape(atob(str)))
   } catch {
-    return str
+    try {
+      return atob(str)
+    } catch {
+      return str
+    }
   }
 }
 
@@ -153,10 +160,10 @@ onMounted(fetchDetail)
     </div>
 
     <template v-if="secret">
-      <div class="main-layout">
+      <div class="main-layout" :class="{ 'is-resizing': resizingH }">
 
         <!-- 左侧：基本信息 -->
-        <div class="left-panel">
+        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">基本信息</div>
           <div class="info-body">
             <div class="info-row">
@@ -202,6 +209,14 @@ onMounted(fetchDetail)
             </template>
           </div>
         </div>
+
+        <!-- 拖拽分隔条 -->
+        <div
+          class="resize-handle-h"
+          :class="{ active: resizingH }"
+          :style="{ left: (leftWidth - 3) + 'px' }"
+          @mousedown="onHResizeStart"
+        />
 
         <!-- 右侧：Data -->
         <div class="right-panel">
@@ -367,6 +382,28 @@ onMounted(fetchDetail)
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative;
+}
+
+.main-layout.is-resizing {
+  user-select: none;
+  pointer-events: none;
+}
+
+/* 拖拽分隔条 */
+.resize-handle-h {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background 0.15s;
+}
+
+.resize-handle-h:hover,
+.resize-handle-h.active {
+  background: var(--el-color-primary-light-7);
 }
 
 /* Left Panel */
