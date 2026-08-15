@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
@@ -38,6 +39,13 @@ func (np *networkPolicy) GetNetworkPolicyList(c *gin.Context) {
 				}
 				podSelector += k + "=" + v
 			}
+		}
+		// Also display MatchExpressions
+		for _, expr := range np.Spec.PodSelector.MatchExpressions {
+			if podSelector != "" {
+				podSelector += ", "
+			}
+			podSelector += fmt.Sprintf("%s %s (%s)", expr.Key, expr.Operator, strings.Join(expr.Values, ", "))
 		}
 		if podSelector == "" {
 			podSelector = "All pods"
