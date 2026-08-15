@@ -45,15 +45,15 @@ async function fetchSecrets() {
     const res: any = await getSecretList(params)
     const items = res.data?.items || res.data || []
     secretList.value = transformSecrets(items)
-  } catch {
-    // Silently handle — resource may not exist in cluster
+  } catch (e) {
+    console.warn('Failed to fetch secrets:', e)
   } finally { loading.value = false }
 }
 
 function handleNamespaceChange() { fetchSecrets() }
 function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
 
-function base64Decode(str: string): string { try { return atob(str) } catch { return str } }
+function base64Decode(str: string): string { try { return decodeURIComponent(escape(atob(str))) } catch { try { return atob(str) } catch { return str } } }
 
 function handleViewYaml(row: any) {
   yamlTarget.value = { namespace: row.namespace, name: row.name }
@@ -61,6 +61,9 @@ function handleViewYaml(row: any) {
 }
 
 async function handleViewData(row: any) {
+  try {
+    await ElMessageBox.confirm('即将查看保密字典的敏感数据，请确认当前环境安全。', '查看敏感数据', { type: 'warning', confirmButtonText: '确定查看', cancelButtonText: '取消' })
+  } catch { return }
   dataLoading.value = true; dataDialogVisible.value = true; dataDialogTitle.value = `保密字典: ${row.name}`; dataEntries.value = []
   try {
     const res: any = await getSecretDetail({ name: row.name, namespace: row.namespace })
@@ -87,11 +90,12 @@ async function handleBatchDelete() {
   if (!selectedRows.value.length) return
   try {
     await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 个保密字典吗？`, '确认', { type: 'warning' })
-    let count = 0
-    for (const row of selectedRows.value) {
-      try { await deleteSecret({ name: row.name, namespace: row.namespace }); count++ } catch { /* continue */ }
-    }
-    ElMessage.success(`已成功删除 ${count} 个保密字典`); fetchSecrets()
+    const results = await Promise.allSettled(
+      selectedRows.value.map((row: any) => deleteSecret({ name: row.name, namespace: row.namespace }))
+    )
+    const count = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.length - count
+    ElMessage.success(`已成功删除 ${count} 个保密字典${failed ? `，${failed} 个失败` : ''}`); fetchSecrets()
   } catch { /* cancelled */ }
 }
 
@@ -141,7 +145,7 @@ onMounted(() => { fetchNamespaces(); fetchSecrets() })
         <el-table-column prop="namespace" label="命名空间" width="140" />
         <el-table-column prop="type" label="类型" min-width="160" show-overflow-tooltip />
         <el-table-column label="数据键数量" width="120">
-          <template #default="{ row }"><el-tag size="small">{{ row.data_keys_count ?? Object.keys(row.data || {}).length }}</el-tag></template>
+          <template #default="{ row }"><el-tag size="small">{{ row.data_keys_count }}</el-tag></template>
         </el-table-column>
         <el-table-column prop="age" label="创建时间" width="120" />
         <el-table-column label="操作" width="240" fixed="right">

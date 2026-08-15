@@ -54,6 +54,8 @@ const secretTypes = [
   { label: 'Opaque', value: 'Opaque' },
   { label: 'TLS', value: 'kubernetes.io/tls' },
   { label: 'Docker Config JSON', value: 'kubernetes.io/dockerconfigjson' },
+  { label: 'Basic Auth', value: 'kubernetes.io/basic-auth' },
+  { label: 'SSH Auth', value: 'kubernetes.io/ssh-auth' },
 ]
 
 // TLS specific data
@@ -61,6 +63,12 @@ const tlsData = ref({ cert: '', key: '' })
 
 // Docker Config JSON specific data
 const dockerConfig = ref({ server: '', username: '', password: '', email: '' })
+
+function triggerFileInput(event: Event) {
+  const btn = event.currentTarget as HTMLElement
+  const input = btn.closest('.file-upload-btn')?.querySelector('input[type="file"]') as HTMLInputElement | null
+  input?.click()
+}
 
 // File upload
 function handleFileUpload(entry: DataEntry, event: Event) {
@@ -105,9 +113,13 @@ function buildDockerConfigJson(): string {
 
 function base64Decode(str: string): string {
   try {
-    return atob(str)
+    return decodeURIComponent(escape(atob(str)))
   } catch {
-    return str
+    try {
+      return atob(str)
+    } catch {
+      return str
+    }
   }
 }
 
@@ -301,17 +313,23 @@ function handleCancel() {
         <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="名称" prop="name">
-              <el-input v-model="form.name" :disabled="isEdit" placeholder="my-secret" />
+              <el-tooltip :disabled="!isEdit" content="编辑模式下不可修改名称" placement="top">
+                <el-input v-model="form.name" :disabled="isEdit" placeholder="my-secret" />
+              </el-tooltip>
             </el-form-item>
             <el-form-item label="命名空间" prop="namespace">
-              <el-select v-model="form.namespace" :disabled="isEdit" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
-                <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
-              </el-select>
+              <el-tooltip :disabled="!isEdit" content="编辑模式下不可修改命名空间" placement="top">
+                <el-select v-model="form.namespace" :disabled="isEdit" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+                  <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
+                </el-select>
+              </el-tooltip>
             </el-form-item>
             <el-form-item label="类型" prop="type" class="full-width">
-              <el-select v-model="form.type" :disabled="isEdit" style="width: 100%;">
-                <el-option v-for="t in secretTypes" :key="t.value" :label="t.label" :value="t.value" />
-              </el-select>
+              <el-tooltip :disabled="!isEdit" content="编辑模式下不可修改类型" placement="top">
+                <el-select v-model="form.type" :disabled="isEdit" style="width: 100%;">
+                  <el-option v-for="t in secretTypes" :key="t.value" :label="t.label" :value="t.value" />
+                </el-select>
+              </el-tooltip>
             </el-form-item>
           </div>
         </div>
@@ -360,10 +378,10 @@ function handleCancel() {
               <div style="width: 100%;">
                 <el-input v-model="tlsData.cert" type="textarea" :rows="6" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----" />
                 <div style="margin-top: 8px;">
-                  <label class="file-upload-btn">
+                  <div class="file-upload-btn">
                     <input type="file" accept=".pem,.crt,.cer,.txt" style="display: none;" @change="handleTlsFileUpload('cert', $event)" />
-                    <el-button size="small" type="primary" plain>上传证书文件</el-button>
-                  </label>
+                    <el-button size="small" type="primary" plain @click="triggerFileInput">上传证书文件</el-button>
+                  </div>
                 </div>
               </div>
             </el-form-item>
@@ -371,10 +389,10 @@ function handleCancel() {
               <div style="width: 100%;">
                 <el-input v-model="tlsData.key" type="textarea" :rows="6" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----" />
                 <div style="margin-top: 8px;">
-                  <label class="file-upload-btn">
+                  <div class="file-upload-btn">
                     <input type="file" accept=".pem,.key,.txt" style="display: none;" @change="handleTlsFileUpload('key', $event)" />
-                    <el-button size="small" type="primary" plain>上传私钥文件</el-button>
-                  </label>
+                    <el-button size="small" type="primary" plain @click="triggerFileInput">上传私钥文件</el-button>
+                  </div>
                 </div>
               </div>
             </el-form-item>
@@ -407,12 +425,12 @@ function handleCancel() {
                 <div v-for="(entry, i) in form.data" :key="i" class="data-row">
                   <el-input v-model="entry.key" placeholder="Key" style="width: 220px;" />
                   <el-input v-model="entry.value" type="textarea" :rows="2" placeholder="Value" style="flex: 1;" />
-                  <label class="file-upload-btn">
+                  <div class="file-upload-btn">
                     <input type="file" style="display: none;" @change="handleFileUpload(entry, $event)" />
-                    <el-button type="primary" text circle>
+                    <el-button type="primary" text circle @click="triggerFileInput">
                       <el-icon><Upload /></el-icon>
                     </el-button>
-                  </label>
+                  </div>
                   <el-button type="danger" text circle :disabled="form.data.length <= 1" @click="removeEntry(i)">
                     <el-icon><Delete /></el-icon>
                   </el-button>

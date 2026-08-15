@@ -24,6 +24,11 @@ func GetSecretsList(client *kubernetes.Clientset, namespace string) ([]corev1.Se
 	if err != nil {
 		return nil, err
 	}
+	// 清除敏感数据，列表只返回元信息
+	for i := range secrets.Items {
+		secrets.Items[i].Data = nil
+		secrets.Items[i].StringData = nil
+	}
 	return secrets.Items, nil
 }
 
@@ -92,7 +97,15 @@ func UpdateSecretFromYaml(client *kubernetes.Clientset, namespace, yamlContent s
 	if secret.Namespace == "" {
 		secret.Namespace = namespace
 	}
-	_, err := client.CoreV1().Secrets(namespace).Update(context.TODO(), &secret, metav1.UpdateOptions{})
+	// YAML 编辑器精简视图会删除 resourceVersion，从集群获取当前值自动补全
+	if secret.ResourceVersion == "" {
+		current, err := client.CoreV1().Secrets(secret.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get current Secret for resourceVersion: %w", err)
+		}
+		secret.ResourceVersion = current.ResourceVersion
+	}
+	_, err := client.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), &secret, metav1.UpdateOptions{})
 	return err
 }
 
@@ -117,6 +130,6 @@ func CreateSecretFromYaml(client *kubernetes.Clientset, namespace, yamlContent s
 	if secret.Namespace == "" {
 		secret.Namespace = namespace
 	}
-	_, err := client.CoreV1().Secrets(namespace).Create(context.TODO(), &secret, metav1.CreateOptions{})
+	_, err := client.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), &secret, metav1.CreateOptions{})
 	return err
 }

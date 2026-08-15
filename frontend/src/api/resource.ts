@@ -208,7 +208,7 @@ export function transformSecrets(items: any[]) {
     name: s.metadata?.name || '',
     namespace: s.metadata?.namespace || '',
     type: s.type || 'Opaque',
-    data: s.data ? Object.keys(s.data).length : 0,
+    data_keys_count: s.data ? Object.keys(s.data).length : 0,
     age: calcAge(s.metadata?.creationTimestamp),
   }))
 }
