@@ -251,7 +251,7 @@ function handleCancel() {
         <div class="section-content">
           <el-form-item label="不可变">
             <div style="width: 100%;">
-              <el-switch v-model="form.immutable" />
+              <el-switch v-model="form.immutable" :disabled="isEdit" />
               <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">设置后不可修改，只能删除重建</div>
             </div>
           </el-form-item>

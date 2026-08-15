@@ -8,6 +8,9 @@ import YamlDrawer from '@/components/YamlDrawer.vue'
 import ConfigDataViewer from '@/components/ConfigDataViewer.vue'
 import ConfigMapForm from '@/views/config/components/ConfigMapForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useResizable } from '@/composables/useResizable'
+
+const { leftWidth, resizingH, onHResizeStart } = useResizable({ initialWidth: 320 })
 
 const route = useRoute()
 const router = useRouter()
@@ -21,6 +24,7 @@ const name = route.params.name as string
 // Edit dialog
 const editDialogVisible = ref(false)
 const editFullscreen = ref(false)
+const activeDataTab = ref('data')
 
 const dataEntries = computed(() => {
   const data = configMap.value?.data || {}
@@ -30,7 +34,16 @@ const dataEntries = computed(() => {
   }))
 })
 
+const binaryDataEntries = computed(() => {
+  const binaryData = configMap.value?.binaryData || {}
+  return Object.entries(binaryData).map(([key, value]) => ({
+    key,
+    value: String(value ?? ''),
+  }))
+})
+
 const dataCount = computed(() => dataEntries.value.length)
+const binaryDataCount = computed(() => binaryDataEntries.value.length)
 
 async function fetchDetail() {
   loading.value = true
@@ -90,7 +103,7 @@ onMounted(fetchDetail)
         <h2 class="res-name">{{ name }}</h2>
         <div class="meta-line">
           <span class="ns-tag">ns/{{ namespace }}</span>
-          <span class="info-text">{{ dataCount }} 个数据项</span>
+          <span class="info-text">{{ dataCount + binaryDataCount }} 个数据项</span>
         </div>
       </div>
       <div class="header-actions">
@@ -136,10 +149,10 @@ onMounted(fetchDetail)
     </div>
 
     <template v-if="configMap">
-      <div class="main-layout">
+      <div class="main-layout" :class="{ 'is-resizing': resizingH }">
 
         <!-- 左侧：基本信息 -->
-        <div class="left-panel">
+        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">基本信息</div>
           <div class="info-body">
             <div class="info-row">
@@ -182,16 +195,35 @@ onMounted(fetchDetail)
           </div>
         </div>
 
-        <!-- 右侧：Data -->
+        <!-- 拖拽分隔条 -->
+        <div
+          class="resize-handle-h"
+          :class="{ active: resizingH }"
+          :style="{ left: (leftWidth - 3) + 'px' }"
+          @mousedown="onHResizeStart"
+        />
+
+        <!-- 右侧：Data / BinaryData -->
         <div class="right-panel">
           <div class="right-section">
-            <div class="panel-title">
-              数据
-              <span class="count-badge">{{ dataCount }} 项</span>
-            </div>
-            <div class="data-body">
-              <ConfigDataViewer :entries="dataEntries" />
-            </div>
+            <el-tabs v-model="activeDataTab" class="data-tabs">
+              <el-tab-pane name="data">
+                <template #label>
+                  数据 <span class="count-badge">{{ dataCount }}</span>
+                </template>
+                <div class="data-body">
+                  <ConfigDataViewer :entries="dataEntries" />
+                </div>
+              </el-tab-pane>
+              <el-tab-pane name="binaryData">
+                <template #label>
+                  二进制数据 <span class="count-badge">{{ binaryDataCount }}</span>
+                </template>
+                <div class="data-body">
+                  <ConfigDataViewer :entries="binaryDataEntries" />
+                </div>
+              </el-tab-pane>
+            </el-tabs>
           </div>
         </div>
       </div>
@@ -335,6 +367,28 @@ onMounted(fetchDetail)
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative;
+}
+
+.main-layout.is-resizing {
+  user-select: none;
+  pointer-events: none;
+}
+
+/* 拖拽分隔条 */
+.resize-handle-h {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background 0.15s;
+}
+
+.resize-handle-h:hover,
+.resize-handle-h.active {
+  background: var(--el-color-primary-light-7);
 }
 
 /* Left Panel */
@@ -453,17 +507,35 @@ onMounted(fetchDetail)
   background: var(--el-bg-color);
 }
 
+.data-tabs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.data-tabs :deep(.el-tabs__header) {
+  margin: 0;
+  padding: 0 14px;
+  background: var(--el-fill-color-lighter);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  flex-shrink: 0;
+}
+
+.data-tabs :deep(.el-tabs__content) {
+  flex: 1;
+  min-height: 0;
+}
+
+.data-tabs :deep(.el-tab-pane) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .data-body {
   flex: 1;
   overflow: hidden;
   padding: 8px;
-}
-
-.empty-hint {
-  padding: 24px;
-  text-align: center;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
 }
 
 /* Edit Drawer */

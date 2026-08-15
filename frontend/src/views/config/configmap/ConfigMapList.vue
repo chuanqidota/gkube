@@ -62,8 +62,13 @@ async function handleViewData(row: any) {
   dataLoading.value = true; dataDialogVisible.value = true; dataDialogTitle.value = `数据字典: ${row.name}`; dataEntries.value = []
   try {
     const res: any = await getConfigMapDetail({ name: row.name, namespace: row.namespace })
-    const data = res.data?.data || res.data || {}
-    dataEntries.value = Object.entries(data).map(([key, value]) => ({ key, value: String(value ?? '') }))
+    const data = res.data?.data || {}
+    const binaryData = res.data?.binaryData || {}
+    const merged = [
+      ...Object.entries(data).map(([key, value]) => ({ key, value: String(value ?? '') })),
+      ...Object.entries(binaryData).map(([key, value]) => ({ key, value: String(value ?? '') })),
+    ]
+    dataEntries.value = merged
   } catch (e: any) { ElMessage.error(e?.message || '加载数据失败'); dataDialogVisible.value = false }
   finally { dataLoading.value = false }
 }
@@ -82,11 +87,12 @@ async function handleBatchDelete() {
   if (!selectedRows.value.length) return
   try {
     await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 个数据字典吗？`, '确认', { type: 'warning' })
-    let count = 0
-    for (const row of selectedRows.value) {
-      try { await deleteConfigMap({ name: row.name, namespace: row.namespace }); count++ } catch { /* continue */ }
-    }
-    ElMessage.success(`已成功删除 ${count} 个数据字典`); fetchConfigMaps()
+    const results = await Promise.allSettled(
+      selectedRows.value.map((row: any) => deleteConfigMap({ name: row.name, namespace: row.namespace }))
+    )
+    const count = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.length - count
+    ElMessage.success(`已成功删除 ${count} 个数据字典${failed ? `，${failed} 个失败` : ''}`); fetchConfigMaps()
   } catch { /* cancelled */ }
 }
 
@@ -134,8 +140,21 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
           <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
         </el-table-column>
         <el-table-column prop="namespace" label="命名空间" width="140" />
+        <el-table-column label="标签" min-width="180" show-overflow-tooltip>
+          <template #default="{ row }">
+            <template v-if="row.labels && Object.keys(row.labels).length">
+              <el-tag v-for="(val, key, idx) in row.labels" :key="key" size="small" class="label-tag" v-show="idx < 3">
+                {{ key }}={{ val }}
+              </el-tag>
+              <el-tag v-if="Object.keys(row.labels).length > 3" size="small" type="info" effect="plain">
+                +{{ Object.keys(row.labels).length - 3 }}
+              </el-tag>
+            </template>
+            <span v-else class="no-labels">-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="数据键数量" width="120">
-          <template #default="{ row }"><el-tag size="small">{{ row.data_keys_count ?? Object.keys(row.data || {}).length }}</el-tag></template>
+          <template #default="{ row }"><el-tag size="small">{{ row.data_keys_count }}</el-tag></template>
         </el-table-column>
         <el-table-column prop="age" label="创建时间" width="120" />
         <el-table-column label="操作" width="240" fixed="right">
@@ -183,6 +202,17 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
 }
 .action-buttons .el-button + .el-button {
   margin-left: 0;
+}
+.label-tag {
+  margin-right: 4px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.no-labels {
+  color: var(--el-text-color-placeholder);
+  font-size: 12px;
 }
 </style>
 

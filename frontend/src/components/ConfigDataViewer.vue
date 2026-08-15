@@ -2,7 +2,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { Editor as MonacoEditor } from '@guolao/vue-monaco-editor'
 import { ElMessage } from 'element-plus'
-import { Search, CopyDocument, FullScreen, Aim } from '@element-plus/icons-vue'
+import { Search, CopyDocument, Download, FullScreen, Aim } from '@element-plus/icons-vue'
 
 interface DataEntry {
   key: string
@@ -70,9 +70,18 @@ function detectLanguage(key: string, value: string): string {
 }
 
 // 计算右侧展示内容：JSON 美化，其余原样
+const LARGE_VALUE_THRESHOLD = 100 * 1024 // 100 KB
+const isLargeValue = computed(() => (selectedEntry.value?.value.length || 0) > LARGE_VALUE_THRESHOLD)
+const showFull = ref(false)
+
+watch(selectedKey, () => { showFull.value = false })
+
 const displayValue = computed(() => {
   const entry = selectedEntry.value
   if (!entry) return ''
+  if (isLargeValue.value && !showFull.value) {
+    return entry.value.slice(0, LARGE_VALUE_THRESHOLD)
+  }
   const lang = detectLanguage(entry.key, entry.value)
   if (lang === 'json') {
     try { return JSON.stringify(JSON.parse(entry.value.trim()), null, 2) } catch { return entry.value }
@@ -107,6 +116,17 @@ function handleCopy() {
   navigator.clipboard.writeText(selectedEntry.value.value)
     .then(() => ElMessage.success('已复制到剪贴板'))
     .catch(() => ElMessage.error('复制失败'))
+}
+
+function handleDownload() {
+  if (!selectedEntry.value) return
+  const blob = new Blob([selectedEntry.value.value], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = selectedEntry.value.key
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 function toggleFullscreen() {
@@ -163,14 +183,27 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
         <div class="value-toolbar">
           <span class="value-title" :title="selectedEntry?.key">值: {{ selectedEntry?.key || '-' }}</span>
           <el-tag size="small" type="info" effect="plain" class="lang-tag">{{ displayLanguage }}</el-tag>
+          <el-tag v-if="isLargeValue" size="small" type="warning" effect="plain">
+            {{ (selectedEntry!.value.length / 1024).toFixed(0) }} KB
+          </el-tag>
           <div class="toolbar-actions">
             <el-tooltip content="复制" placement="top">
               <el-button size="small" :icon="CopyDocument" :disabled="!selectedEntry" @click="handleCopy" />
+            </el-tooltip>
+            <el-tooltip content="下载" placement="top">
+              <el-button size="small" :icon="Download" :disabled="!selectedEntry" @click="handleDownload" />
             </el-tooltip>
             <el-tooltip :content="isFullscreen ? '退出全屏' : '全屏'" placement="top">
               <el-button size="small" :icon="isFullscreen ? Aim : FullScreen" @click="toggleFullscreen" />
             </el-tooltip>
           </div>
+        </div>
+        <div v-if="isLargeValue && !showFull" class="large-value-banner">
+          <el-alert type="warning" :closable="false" show-icon>
+            值较大（{{ (selectedEntry!.value.length / 1024).toFixed(0) }} KB），已截断显示。
+            <el-button size="small" text type="primary" @click="showFull = true">加载全部</el-button>
+            <el-button size="small" text type="primary" @click="handleDownload">下载</el-button>
+          </el-alert>
         </div>
         <div class="editor-wrap">
           <MonacoEditor
@@ -298,6 +331,18 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
   border-bottom: 1px solid var(--el-border-color-lighter);
   background: var(--el-fill-color-lighter);
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.large-value-banner {
+  padding: 8px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.large-value-banner :deep(.el-alert__content) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .value-title {
   font-size: 13px;

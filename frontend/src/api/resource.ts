@@ -193,7 +193,8 @@ export function transformConfigMaps(items: any[]) {
   return items.map((cm: any) => ({
     name: cm.metadata?.name || '',
     namespace: cm.metadata?.namespace || '',
-    data: cm.data ? Object.keys(cm.data).length : 0,
+    labels: cm.metadata?.labels || {},
+    data_keys_count: (cm.data ? Object.keys(cm.data).length : 0) + (cm.binaryData ? Object.keys(cm.binaryData).length : 0),
     age: calcAge(cm.metadata?.creationTimestamp),
   }))
 }
