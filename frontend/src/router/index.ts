@@ -306,6 +306,7 @@ const router = createRouter({
           path: 'config/limitranges/:namespace/:name',
           name: 'LimitRangeDetail',
           component: () => import('@/views/config/limitrange/LimitRangeDetail.vue'),
+          props: true,
           meta: { title: 'LimitRange详情', parent: 'LimitRangeList' },
         },
         // Storage - PV

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -36,14 +36,22 @@ spec:
 const yamlContent = ref(defaultYaml)
 const submitting = ref(false)
 
-const {
-  cloneMode, cloneNamespace, cloneName, cloneNsOptions, cloneNameOptions,
+const { cloneMode, cloneNamespace, cloneName, cloneNsOptions, cloneNameOptions,
   cloneNsLoading, cloneNameLoading, cloneLoading, cloneTarget,
   startClone, cancelClone, handleLoadClone,
 } = useCloneCreate({
   api: { list: getServiceList, yaml: getServiceYaml },
   onCloneToForm: (parsed) => { parsedData.value = parsed; yamlContent.value = defaultYaml; mode.value = 'form' },
   onCloneToYaml: (parsed) => { yamlContent.value = dumpCloneYaml(parsed); parsedData.value = null; mode.value = 'yaml' },
+})
+
+// 切换模式时，YAML→Form 会丢失 YAML 编辑内容，给用户提示
+watch(mode, (newMode, oldMode) => {
+  if (oldMode === 'yaml' && newMode === 'form') {
+    if (yamlContent.value.trim() !== defaultYaml.trim()) {
+      ElMessage.warning('切换到表单模式后，YAML 编辑内容将不会保留')
+    }
+  }
 })
 
 async function handleYamlSubmit() {
@@ -107,7 +115,7 @@ function handleMaximize() {
     />
 
     <!-- ServiceForm 始终挂载（v-show），避免克隆后切换 mode 时组件被销毁重建导致数据丢失 -->
-    <ServiceForm v-show="mode === 'form'" :initial-data="parsedData" />
+    <ServiceForm v-show="mode === 'form'" :is-edit="false" :initial-data="parsedData" />
 
     <div v-if="mode !== 'form'" class="yaml-mode">
       <div class="yaml-card">

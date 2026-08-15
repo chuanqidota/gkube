@@ -1,13 +1,11 @@
 package k8s
 
 import (
-	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sService "gkube/pkg/k8s/service"
 	"gkube/pkg/response"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type service struct {
@@ -44,7 +42,7 @@ func (s *service) GetServicesList(c *gin.Context) {
 			remaining = *svcList.RemainingItemCount
 		}
 		data := k8sclient.BuildPaginatedData(svcList.Items, svcList.Continue, remaining, limit)
-		data.Total = len(svcList.Items)
+		data.Total = len(svcList.Items) + int(remaining)
 		response.Success(c, "获取成功", data)
 	} else {
 		services, err := k8sService.GetServicesList(client, query.Namespace)
@@ -144,7 +142,7 @@ func (s *service) UpdateService(c *gin.Context) {
 		return
 	}
 
-	if err := k8sService.UpdateService(client, body.Yaml); err != nil {
+	if err := k8sService.UpdateService(client, body.Namespace, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新Service失败:%v", err.Error()))
 		return
 	}
@@ -190,27 +188,12 @@ func (s *service) GetServiceEvents(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	events, err := client.CoreV1().Events(query.Namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Service", query.Name),
-	})
+	events, err := k8sService.GetServiceEvents(client, query.Namespace, query.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取service事件失败:%s", err.Error()))
+		response.Fail(c, err.Error())
 		return
 	}
-	var result []map[string]any
-	for _, event := range events.Items {
-		lastSeen := ""
-		if !event.LastTimestamp.IsZero() {
-			lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
-		}
-		result = append(result, map[string]any{
-			"type":      event.Type,
-			"reason":    event.Reason,
-			"message":   event.Message,
-			"last_seen": lastSeen,
-		})
-	}
-	response.Success(c, "执行成功", result)
+	response.Success(c, "获取成功", events)
 }
 
 // ServicePodList

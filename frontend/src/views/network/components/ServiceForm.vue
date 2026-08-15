@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
@@ -25,10 +25,6 @@ const namespaceLoading = ref(false)
 const namespaces = ref<string[]>([])
 
 // ---- Form Data ----
-
-interface Label { key: string; value: string }
-interface ServicePort { name: string; port: number | null; targetPort: number | null; protocol: string; nodePort: number | null }
-interface Selector { key: string; value: string }
 
 interface Label { key: string; value: string }
 interface ServicePort { name: string; port: number | null; targetPort: number | null; protocol: string; nodePort: number | null }
@@ -71,7 +67,7 @@ const form = reactive<FormData>({
 
 const formRef = ref<FormInstance>()
 
-const formRules: FormRules = {
+const formRules = computed<FormRules>(() => ({
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
     { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符，以字母开头', trigger: 'blur' },
@@ -79,7 +75,10 @@ const formRules: FormRules = {
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
   type: [{ required: true, message: '请选择 Service 类型', trigger: 'change' }],
-}
+  ...(form.type === 'ExternalName' && {
+    externalName: [{ required: true, message: '请输入 External Name', trigger: 'blur' }],
+  }),
+}))
 
 // ---- Namespace Fetch ----
 
@@ -105,6 +104,13 @@ onMounted(() => {
 // 克隆流入（创建模式 isEdit=false，onMounted 不会触发 parseInitialData，故用 watch 兜底）
 watch(() => props.initialData, (newData) => {
   if (newData) parseInitialData(newData)
+})
+
+// 切换类型时，若离开 ExternalName 则清除校验错误
+watch(() => form.type, (newType) => {
+  if (newType !== 'ExternalName') {
+    nextTick(() => formRef.value?.clearValidate('externalName'))
+  }
 })
 
 // ---- Label Management ----
@@ -256,8 +262,8 @@ async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
   for (let i = 0; i < form.ports.length; i++) {
-    if (!form.ports[i].port) { ElMessage.error(`端口 ${i + 1}: 端口号不能为空`); return }
-    if (!form.ports[i].targetPort) { ElMessage.error(`端口 ${i + 1}: 目标端口不能为空`); return }
+    if (form.ports[i].port == null) { ElMessage.error(`端口 ${i + 1}: 端口号不能为空`); return }
+    if (form.ports[i].targetPort == null) { ElMessage.error(`端口 ${i + 1}: 目标端口不能为空`); return }
   }
 
   submitting.value = true

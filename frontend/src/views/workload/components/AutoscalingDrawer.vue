@@ -75,10 +75,6 @@ watch(() => props.visible, (val) => {
   }
 })
 
-function handleClose() {
-  emit('update:visible', false)
-}
-
 function handleCreate() {
   showCreateForm.value = true
 }

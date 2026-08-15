@@ -8,7 +8,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
@@ -43,7 +42,7 @@ func ListServices(client *kubernetes.Clientset, namespace string, limit int64, c
 
 // GetServicesByName
 //
-//	@Description: 获取svc根据名好吃呢个
+//	@Description: 根据名称获取service
 //	@param client
 //	@param namespace
 //	@param name
@@ -52,47 +51,40 @@ func ListServices(client *kubernetes.Clientset, namespace string, limit int64, c
 func GetServicesByName(client *kubernetes.Clientset, namespace, name string) (*corev1.Service, error) {
 	service, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		return &corev1.Service{}, err
+		return nil, err
 	}
 	return service, nil
 }
 
-// GetServicesByLabel
+// GetServiceEvents
 //
-//	@Description: 根据标签获取service列表
+//	@Description: 获取service相关事件
 //	@param client
 //	@param namespace
-//	@param labelMap
-//	@return []corev1.Service
+//	@param name
+//	@return []map[string]any
 //	@return error
-func GetServicesByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]corev1.Service, error) {
-	labelSelector := labels.SelectorFromSet(labelMap) // 创建标签选择器
-	services, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
+func GetServiceEvents(client *kubernetes.Clientset, namespace, name string) ([]map[string]any, error) {
+	events, err := client.CoreV1().Events(namespace).List(context.TODO(), metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Service", name),
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("获取service事件失败:%s", err.Error())
 	}
-	return services.Items, nil
-}
-
-// GetServicesByField
-//
-//	@Description: 根据字段获取service列表
-//	@param client
-//	@param namespace
-//	@param fieldMap
-//	@return []corev1.Service
-//	@return error
-func GetServicesByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]corev1.Service, error) {
-	fieldSelector := fields.SelectorFromSet(fieldMap) // 创建标签选择器
-	services, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fieldSelector.String(),
-	})
-	if err != nil {
-		return nil, err
+	var result []map[string]any
+	for _, event := range events.Items {
+		lastSeen := ""
+		if !event.LastTimestamp.IsZero() {
+			lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
+		}
+		result = append(result, map[string]any{
+			"type":      event.Type,
+			"reason":    event.Reason,
+			"message":   event.Message,
+			"last_seen": lastSeen,
+		})
 	}
-	return services.Items, nil
+	return result, nil
 }
 
 // GetServicesYaml
@@ -106,7 +98,7 @@ func GetServicesByField(client *kubernetes.Clientset, namespace string, fieldMap
 func GetServicesYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
 	services, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	services.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "Service"}
 	servicesYAML, err := yamlutil.MarshalWithoutManagedFields(services)
@@ -137,15 +129,18 @@ func CreateService(client *kubernetes.Clientset, namespace, serviceYAML string) 
 
 // UpdateService
 //
-//	@Description: 创建service
+//	@Description: 更新service
 //	@param client
+//	@param namespace
 //	@param serviceYAML
-//	@return bool
 //	@return error
-func UpdateService(client *kubernetes.Clientset, serviceYAML string) error {
+func UpdateService(client *kubernetes.Clientset, namespace, serviceYAML string) error {
 	var service corev1.Service
 	if err := yaml.Unmarshal([]byte(serviceYAML), &service); err != nil {
 		return fmt.Errorf("yaml文件错误:%s", err.Error())
+	}
+	if service.Namespace == "" {
+		service.Namespace = namespace
 	}
 	_, err := client.CoreV1().Services(service.Namespace).Update(context.TODO(), &service, metav1.UpdateOptions{})
 	if err != nil {
@@ -160,7 +155,6 @@ func UpdateService(client *kubernetes.Clientset, serviceYAML string) error {
 //	@param client
 //	@param namespace
 //	@param name
-//	@return bool
 //	@return error
 func DeleteService(client *kubernetes.Clientset, namespace, name string) error {
 	err := client.CoreV1().Services(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})

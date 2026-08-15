@@ -35,7 +35,7 @@ func CORSMiddleware() gin.HandlerFunc {
 		}
 		// origin 不在白名单时不设置 ACAO,浏览器将拒绝跨域请求
 
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, Authorization")
 
 		if c.Request.Method == http.MethodOptions {
