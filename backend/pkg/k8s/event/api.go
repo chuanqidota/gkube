@@ -2,12 +2,15 @@ package event
 
 import (
 	"context"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 )
+
+const eventTimeout = 30 * time.Second
 
 type KubeEvent struct {
 	Type           string    `json:"type"`
@@ -40,7 +43,9 @@ func ListEvents(client *kubernetes.Clientset, namespace, fieldSelector string, l
 	if continueToken != "" {
 		opts.Continue = continueToken
 	}
-	list, err := client.CoreV1().Events(namespace).List(context.TODO(), opts)
+	ctx, cancel := context.WithTimeout(context.Background(), eventTimeout)
+	defer cancel()
+	list, err := client.CoreV1().Events(namespace).List(ctx, opts)
 	if err != nil {
 		return nil, "", "", err
 	}
@@ -51,9 +56,12 @@ func ListEvents(client *kubernetes.Clientset, namespace, fieldSelector string, l
 	return events, list.Continue, list.ResourceVersion, nil
 }
 
-func WatchEvents(client *kubernetes.Clientset, namespace, fieldSelector string) (watch.Interface, error) {
+func WatchEvents(ctx context.Context, client *kubernetes.Clientset, namespace, fieldSelector string, resourceVersion string) (watch.Interface, error) {
 	opts := metav1.ListOptions{FieldSelector: fieldSelector}
-	return client.CoreV1().Events(namespace).Watch(context.TODO(), opts)
+	if resourceVersion != "" {
+		opts.ResourceVersion = resourceVersion
+	}
+	return client.CoreV1().Events(namespace).Watch(ctx, opts)
 }
 
 func toKubeEvent(e corev1.Event) KubeEvent {

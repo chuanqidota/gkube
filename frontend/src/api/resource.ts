@@ -565,7 +565,14 @@ export function getDeploymentPodList(params: { namespace: string; name: string }
 }
 
 // Dashboard events
-export function getDashboardEvents(params?: { clusterId?: number; type?: string; limit?: number }) {
+export function getDashboardEvents(params?: {
+  clusterId?: number
+  type?: string
+  namespace?: string
+  limit?: number
+  continue?: string
+  fieldSelector?: string
+}) {
   return request.get('/dashboard/events', { params })
 }
 

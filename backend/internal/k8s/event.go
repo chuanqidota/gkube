@@ -1,8 +1,10 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
@@ -15,6 +17,9 @@ import (
 type eventController struct{}
 
 var Event = new(eventController)
+
+// watchMaxDuration 单个 SSE Watch 连接的最长生命周期,防止僵尸连接。
+const watchMaxDuration = 30 * time.Minute
 
 func (e *eventController) ListEvents(c *gin.Context) {
 	clusterName := c.Query("clusterName")
@@ -55,6 +60,7 @@ func (e *eventController) WatchEvents(c *gin.Context) {
 	clusterName := c.Query("clusterName")
 	namespace := c.Query("namespace")
 	fieldSelector := c.Query("fieldSelector")
+	resourceVersion := c.Query("resourceVersion")
 
 	client, err := k8sclient.GetK8sClientByName(clusterName)
 	if err != nil {
@@ -63,7 +69,11 @@ func (e *eventController) WatchEvents(c *gin.Context) {
 		return
 	}
 
-	watcher, err := k8sEvent.WatchEvents(client, namespace, fieldSelector)
+	// 派生带最大连接时长的 context,超时后主动关闭 SSE 连接。
+	ctx, cancel := context.WithTimeout(c.Request.Context(), watchMaxDuration)
+	defer cancel()
+
+	watcher, err := k8sEvent.WatchEvents(ctx, client, namespace, fieldSelector, resourceVersion)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusBadGateway, "Watch事件失败")
@@ -75,7 +85,6 @@ func (e *eventController) WatchEvents(c *gin.Context) {
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
 
-	ctx := c.Request.Context()
 	for {
 		select {
 		case <-ctx.Done():

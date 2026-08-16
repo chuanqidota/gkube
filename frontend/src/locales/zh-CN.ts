@@ -584,6 +584,7 @@ export default {
     reportingComponent: '报告组件',
     reportingInstance: '报告实例',
     action: '操作',
+    multiClusterHint: '当前查看所有集群事件，分页不可用。请在顶部选择具体集群以启用分页浏览。',
   },
   terminal: {
     title: 'Web 终端',

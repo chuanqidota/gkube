@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Bell, Warning, InfoFilled, Search } from '@element-plus/icons-vue'
 import { getDashboardEvents, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 
 const { t } = useI18n()
 const router = useRouter()
+const clusterStore = useClusterStore()
 const loading = ref(false)
 const eventList = ref<any[]>([])
 const namespaceList = ref<string[]>([])
@@ -26,6 +28,10 @@ const hasMore = ref(false)
 const selectedNamespace = ref('')
 const selectedType = ref('')
 const reasonSearch = ref('')
+
+// Cluster: single-cluster mode enables pagination; all-clusters mode disables it
+const clusterId = computed(() => Number(clusterStore.currentCluster?.id) || 0)
+const isSingleCluster = computed(() => clusterId.value > 0)
 
 // Auto-refresh
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchEvents)
@@ -53,11 +59,14 @@ async function fetchEvents() {
     const params: any = {
       limit: pageSize.value,
     }
+    if (isSingleCluster.value) {
+      params.clusterId = clusterId.value
+      // Token used to load the current page (empty for the first page)
+      const token = pageTokens.value[currentPage.value - 1] || ''
+      if (token) params.continue = token
+    }
     if (selectedType.value) params.type = selectedType.value
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
-    // Token used to load the current page (empty for the first page)
-    const token = pageTokens.value[currentPage.value - 1] || ''
-    if (token) params.continue = token
 
     const res: any = await getDashboardEvents(params)
     const data = res.data || {}
@@ -207,6 +216,14 @@ const filteredEvents = computed(() => {
   return result
 })
 
+// Re-fetch when the selected cluster changes (e.g. user switches in header)
+watch(clusterId, () => {
+  resetPagination()
+  selectedNamespace.value = ''
+  fetchNamespaces()
+  fetchEvents()
+})
+
 onMounted(() => {
   fetchNamespaces()
   fetchEvents()
@@ -275,6 +292,16 @@ onMounted(() => {
       </div>
     </el-card>
 
+    <!-- Multi-cluster hint -->
+    <el-alert
+      v-if="!isSingleCluster"
+      :title="t('event.multiClusterHint')"
+      type="info"
+      show-icon
+      :closable="false"
+      style="margin-bottom: 12px;"
+    />
+
     <!-- Event Table -->
     <el-card shadow="never" class="table-card">
       <el-table
@@ -282,7 +309,7 @@ onMounted(() => {
         v-loading="loading"
         stripe
         style="width: 100%"
-        max-height="calc(100vh - 320px)"
+        max-height="calc(100vh - 360px)"
         :default-sort="{ prop: 'last_seen', order: 'descending' }"
         @sort-change="handleSortChange"
         @row-click="showEventDetail"
@@ -357,8 +384,8 @@ onMounted(() => {
         />
       </el-table>
 
-      <!-- Pagination (token-based: forward-only prev/next) -->
-      <div class="pagination-wrapper">
+      <!-- Pagination (token-based: forward-only prev/next) — only in single-cluster mode -->
+      <div v-if="isSingleCluster" class="pagination-wrapper">
         <el-select
           v-model="pageSize"
           size="small"
@@ -367,7 +394,6 @@ onMounted(() => {
         >
           <el-option v-for="s in [20, 50, 100, 200]" :key="s" :value="s" :label="`${s} / ${t('common.page')}`" />
         </el-select>
-        <span class="page-total">{{ t('common.total') }}: {{ total }}</span>
         <el-button-group>
           <el-button size="small" :disabled="currentPage <= 1 || loading" @click="handlePrevPage">
             {{ t('common.prevPage') }}
@@ -528,8 +554,10 @@ export default {
 .pagination-wrapper {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   margin-top: 16px;
   padding: 8px 0;
+  gap: 12px;
 }
 
 .event-detail {

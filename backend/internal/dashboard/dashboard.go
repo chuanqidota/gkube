@@ -705,7 +705,9 @@ func toEventInfo(event corev1.Event, clusterName string) eventInfo {
 	}
 }
 
-// Events 获取集群事件列表（支持分页，使用 K8s 原生 continue token 避免全量拉取）
+// Events 获取集群事件列表（支持分页，使用 K8s 原生 continue token 避免全量拉取）。
+// 单集群模式:支持 type 过滤（下推到 K8s fieldSelector）和 continue 分页。
+// 多集群模式:各集群取最近 limit 条合并返回,不支持翻页（K8s continue token 是 per-cluster 的）。
 func (d *dashboard) Events(c *gin.Context) {
 	var query EventQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
@@ -743,6 +745,17 @@ func (d *dashboard) Events(c *gin.Context) {
 		namespace = corev1.NamespaceAll
 	}
 
+	// 构建 fieldSelector:将 type 过滤下推到 K8s API,避免分页不准
+	fs := query.FieldSelector
+	if query.Type != "" {
+		typeSelector := fmt.Sprintf("type=%s", query.Type)
+		if fs != "" {
+			fs = fs + "," + typeSelector
+		} else {
+			fs = typeSelector
+		}
+	}
+
 	// 单集群模式:直接查询该集群,支持 K8s 原生 continue 分页。
 	if query.ClusterID != nil {
 		cluster := clusters[0]
@@ -760,8 +773,8 @@ func (d *dashboard) Events(c *gin.Context) {
 		}
 
 		listOpts := metav1.ListOptions{Limit: int64(query.Limit)}
-		if query.FieldSelector != "" {
-			listOpts.FieldSelector = query.FieldSelector
+		if fs != "" {
+			listOpts.FieldSelector = fs
 		}
 		if query.Continue != "" {
 			listOpts.Continue = query.Continue
@@ -775,11 +788,8 @@ func (d *dashboard) Events(c *gin.Context) {
 			return
 		}
 
-		var items []eventInfo
+		items := make([]eventInfo, 0, len(eventList.Items))
 		for _, event := range eventList.Items {
-			if query.Type != "" && event.Type != query.Type {
-				continue
-			}
 			items = append(items, toEventInfo(event, cluster.ClusterName))
 		}
 
@@ -802,6 +812,7 @@ func (d *dashboard) Events(c *gin.Context) {
 	}
 
 	// 多集群模式:各集群取最近 limit 条,合并后排序。
+	// 注意:多集群不支持翻页（K8s continue token 是 per-cluster 的,无法跨集群统一）。
 	var mu sync.Mutex
 	var allEvents []eventInfo
 
@@ -815,8 +826,8 @@ func (d *dashboard) Events(c *gin.Context) {
 		}
 
 		listOpts := metav1.ListOptions{Limit: int64(query.Limit)}
-		if query.FieldSelector != "" {
-			listOpts.FieldSelector = query.FieldSelector
+		if fs != "" {
+			listOpts.FieldSelector = fs
 		}
 
 		eventList, err := client.CoreV1().Events(namespace).List(ctx, listOpts)
@@ -824,11 +835,8 @@ func (d *dashboard) Events(c *gin.Context) {
 			return
 		}
 
-		var local []eventInfo
+		local := make([]eventInfo, 0, len(eventList.Items))
 		for _, event := range eventList.Items {
-			if query.Type != "" && event.Type != query.Type {
-				continue
-			}
 			local = append(local, toEventInfo(event, cluster.ClusterName))
 		}
 		mu.Lock()

@@ -563,6 +563,7 @@ export default {
     reportingComponent: 'Reporting Component',
     reportingInstance: 'Reporting Instance',
     action: 'Action',
+    multiClusterHint: 'Viewing all clusters — pagination is unavailable. Select a specific cluster in the header to enable pagination.',
   },
   terminal: {
     title: 'Web Terminal',
