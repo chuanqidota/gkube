@@ -110,7 +110,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     <!-- YAML Drawer -->
     <el-drawer
       v-model="yamlDialogVisible"
-      title="PersistentVolume YAML"
+      title="持久卷 YAML"
       size="85%"
       direction="rtl"
       class="yaml-drawer"

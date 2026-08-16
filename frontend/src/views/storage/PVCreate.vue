@@ -46,16 +46,16 @@ const {
 
 async function handleYamlSubmit() {
   if (!yamlContent.value.trim()) {
-    ElMessage.error('YAML content is required')
+    ElMessage.error('YAML内容不能为空')
     return
   }
   submitting.value = true
   try {
     await createPv({ yaml: yamlContent.value })
-    ElMessage.success('PersistentVolume created successfully')
+    ElMessage.success('持久卷创建成功')
     router.push('/storage/pvs')
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Create failed')
+    ElMessage.error(e?.message || '创建失败')
   } finally {
     submitting.value = false
   }
@@ -109,7 +109,7 @@ function handleMaximize() {
           <div class="yaml-card-left">
             <span class="yaml-card-title">YAML 配置</span>
             <el-button-group>
-              <el-button size="small" @click="handleFormat">Format</el-button>
+              <el-button size="small" @click="handleFormat">格式化</el-button>
               <el-button size="small" @click="handleCopy">复制</el-button>
             </el-button-group>
             <el-tooltip content="最大化" placement="top">

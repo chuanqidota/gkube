@@ -286,160 +286,174 @@ function handleCancel() {
 
 <template>
   <div class="pv-form">
-    <!-- Form -->
-    <el-form
-      ref="formRef"
-      :model="form"
-      :rules="rules"
-      label-width="140px"
-      style="max-width: 700px;"
-    >
-      <!-- 基本信息 -->
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+      <!-- Section 1: Basic Info -->
       <div class="form-section">
-        <div class="section-title">基本信息</div>
-        <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" :disabled="isEdit" placeholder="例如: my-pv" />
-        </el-form-item>
-
-        <el-form-item label="容量" prop="capacity">
-          <el-input v-model="form.capacity" placeholder="例如: 10Gi" />
-        </el-form-item>
-
-        <el-form-item label="访问模式" prop="accessModes">
-          <el-checkbox-group v-model="form.accessModes">
-            <el-checkbox label="ReadWriteOnce" value="ReadWriteOnce" />
-            <el-checkbox label="ReadOnlyMany" value="ReadOnlyMany" />
-            <el-checkbox label="ReadWriteMany" value="ReadWriteMany" />
-          </el-checkbox-group>
-        </el-form-item>
-
-        <el-form-item label="存储类名称">
-          <el-input v-model="form.storageClassName" placeholder="留空表示不指定存储类" />
-        </el-form-item>
-
-        <el-form-item label="回收策略">
-          <el-select v-model="form.reclaimPolicy" style="width: 100%;">
-            <el-option label="Retain" value="Retain" />
-            <el-option label="Recycle" value="Recycle" />
-            <el-option label="Delete" value="Delete" />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="卷模式">
-          <el-select v-model="form.volumeMode" style="width: 100%;">
-            <el-option label="Filesystem (文件系统)" value="Filesystem" />
-            <el-option label="Block (块设备)" value="Block" />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="挂载选项">
-          <div style="width: 100%;">
-            <div v-for="(_opt, i) in form.mountOptions" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <el-input v-model="form.mountOptions[i]" placeholder="例如: hard,nfsvers=4.1" style="flex: 1;" />
-              <el-button type="danger" circle @click="form.mountOptions.splice(i, 1)">
-                <el-icon><Delete /></el-icon>
+        <div class="section-sidebar">
+          <div class="section-title">基本信息</div>
+        </div>
+        <div class="section-content">
+          <div class="fields-grid">
+            <el-form-item label="名称" prop="name">
+              <el-input v-model="form.name" :disabled="isEdit" placeholder="例如: my-pv" />
+            </el-form-item>
+            <el-form-item label="容量" prop="capacity">
+              <el-input v-model="form.capacity" placeholder="例如: 10Gi" />
+            </el-form-item>
+            <el-form-item label="存储类名称">
+              <el-input v-model="form.storageClassName" placeholder="留空表示不指定存储类" />
+            </el-form-item>
+            <el-form-item label="回收策略">
+              <el-select v-model="form.reclaimPolicy" style="width: 100%;">
+                <el-option label="Retain" value="Retain" />
+                <el-option label="Recycle" value="Recycle" />
+                <el-option label="Delete" value="Delete" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="卷模式">
+              <el-select v-model="form.volumeMode" style="width: 100%;">
+                <el-option label="Filesystem (文件系统)" value="Filesystem" />
+                <el-option label="Block (块设备)" value="Block" />
+              </el-select>
+            </el-form-item>
+          </div>
+          <el-form-item label="访问模式" prop="accessModes">
+            <el-checkbox-group v-model="form.accessModes">
+              <el-checkbox label="ReadWriteOnce" value="ReadWriteOnce" />
+              <el-checkbox label="ReadOnlyMany" value="ReadOnlyMany" />
+              <el-checkbox label="ReadWriteMany" value="ReadWriteMany" />
+            </el-checkbox-group>
+          </el-form-item>
+          <el-form-item label="挂载选项">
+            <div style="width: 100%;">
+              <div v-for="(_opt, i) in form.mountOptions" :key="i" class="kv-row">
+                <el-input v-model="form.mountOptions[i]" placeholder="例如: hard,nfsvers=4.1" />
+                <el-button type="danger" text circle @click="form.mountOptions.splice(i, 1)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button text type="primary" @click="form.mountOptions.push('')" size="small">
+                <el-icon><Plus /></el-icon> 添加挂载选项
               </el-button>
             </div>
-            <el-button @click="form.mountOptions.push('')" size="small">
-              <el-icon><Plus /></el-icon> 添加挂载选项
-            </el-button>
-          </div>
-        </el-form-item>
-
-        <el-form-item label="标签">
-          <div style="width: 100%;">
-            <div
-              v-for="(label, index) in form.labels"
-              :key="index"
-              style="display: flex; gap: 8px; margin-bottom: 8px;"
-            >
-              <el-input v-model="label.key" placeholder="键" style="flex: 1;" />
-              <el-input v-model="label.value" placeholder="值" style="flex: 1;" />
-              <el-button
-                type="danger"
-                circle
-                :disabled="form.labels.length <= 1"
-                @click="removeLabel(index)"
-              >
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </div>
-            <el-button @click="addLabel" size="small">
-              <el-icon><Plus /></el-icon> 添加标签
-            </el-button>
-          </div>
-        </el-form-item>
+          </el-form-item>
+        </div>
       </div>
 
-      <!-- 存储源 -->
+      <!-- Section 2: Labels -->
       <div class="form-section">
-        <div class="section-title">存储源</div>
-        <el-form-item label="存储类型" prop="storageType" required>
-          <el-select v-model="form.storageType" style="width: 100%;">
-            <el-option label="NFS" value="nfs" />
-            <el-option label="Host Path" value="hostPath" />
-            <el-option label="Local" value="local" />
-          </el-select>
-        </el-form-item>
-
-        <!-- NFS -->
-        <template v-if="form.storageType === 'nfs'">
-          <el-form-item label="NFS 服务器" required>
-            <el-input v-model="form.nfsServer" placeholder="例如: 10.0.0.1" />
+        <div class="section-sidebar">
+          <div class="section-title">标签</div>
+        </div>
+        <div class="section-content">
+          <el-form-item label="标签">
+            <div style="width: 100%;">
+              <div v-for="(label, index) in form.labels" :key="index" class="kv-row">
+                <el-input v-model="label.key" placeholder="键" />
+                <el-input v-model="label.value" placeholder="值" />
+                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="removeLabel(index)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+              <el-button text type="primary" @click="addLabel" size="small">
+                <el-icon><Plus /></el-icon> 添加标签
+              </el-button>
+            </div>
           </el-form-item>
-          <el-form-item label="NFS 路径" required>
-            <el-input v-model="form.nfsPath" placeholder="例如: /exports/data" />
-          </el-form-item>
-        </template>
+        </div>
+      </div>
 
-        <!-- Host Path -->
-        <template v-if="form.storageType === 'hostPath'">
-          <el-form-item label="主机路径" required>
+      <!-- Section 3: Storage Source -->
+      <div class="form-section">
+        <div class="section-sidebar">
+          <div class="section-title">存储源</div>
+        </div>
+        <div class="section-content">
+          <el-form-item label="存储类型" prop="storageType" required>
+            <el-select v-model="form.storageType" style="width: 100%;">
+              <el-option label="NFS" value="nfs" />
+              <el-option label="Host Path" value="hostPath" />
+              <el-option label="Local" value="local" />
+            </el-select>
+          </el-form-item>
+
+          <!-- NFS -->
+          <div v-if="form.storageType === 'nfs'" class="fields-grid">
+            <el-form-item label="NFS 服务器" required>
+              <el-input v-model="form.nfsServer" placeholder="例如: 10.0.0.1" />
+            </el-form-item>
+            <el-form-item label="NFS 路径" required>
+              <el-input v-model="form.nfsPath" placeholder="例如: /exports/data" />
+            </el-form-item>
+          </div>
+
+          <!-- Host Path -->
+          <el-form-item v-if="form.storageType === 'hostPath'" label="主机路径" required>
             <el-input v-model="form.hostPath" placeholder="例如: /mnt/data" />
           </el-form-item>
-        </template>
 
-        <!-- Local -->
-        <template v-if="form.storageType === 'local'">
-          <el-form-item label="本地路径" required>
-            <el-input v-model="form.localPath" placeholder="例如: /mnt/disks/ssd1" />
-          </el-form-item>
-          <el-form-item label="节点亲和性">
-            <el-input v-model="form.nodeAffinityRequired" placeholder="节点名称，多个用逗号分隔" />
-            <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">Local PV 必须指定节点亲和性，用逗号分隔多个节点名</div>
-          </el-form-item>
-        </template>
+          <!-- Local -->
+          <template v-if="form.storageType === 'local'">
+            <el-form-item label="本地路径" required>
+              <el-input v-model="form.localPath" placeholder="例如: /mnt/disks/ssd1" />
+            </el-form-item>
+            <el-form-item label="节点亲和性">
+              <el-input v-model="form.nodeAffinityRequired" placeholder="节点名称，多个用逗号分隔" />
+              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">Local PV 必须指定节点亲和性，用逗号分隔多个节点名</div>
+            </el-form-item>
+          </template>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div class="form-section">
+        <div class="section-sidebar"></div>
+        <div class="section-content">
+          <div class="form-actions">
+            <el-button @click="handleCancel">取消</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
+          </div>
+        </div>
       </div>
     </el-form>
-
-    <!-- Actions -->
-    <div class="form-actions">
-      <el-button @click="handleCancel">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
-    </div>
   </div>
 </template>
 
 <style scoped>
 .pv-form {
-  max-width: 900px;
+  padding: 0 40px;
+  max-width: 1000px;
   margin: 0 auto;
-  padding: 20px 0;
 }
 
+/* Section layout with sidebar titles */
 .form-section {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
+  display: flex;
+  gap: 24px;
+  margin-bottom: 32px;
+  align-items: flex-start;
+}
+
+.section-sidebar {
+  width: 120px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 20px;
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  color: var(--el-color-primary);
+  padding: 12px 16px;
+  background: var(--el-fill-color-lighter);
+  border-left: 3px solid var(--el-color-primary);
+  border-radius: 0 4px 4px 0;
+}
+
+.section-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .form-actions {
@@ -447,7 +461,32 @@ function handleCancel() {
   justify-content: flex-end;
   gap: 12px;
   padding-top: 24px;
-  border-top: 1px solid var(--el-border-color-lighter);
-  margin-top: 24px;
+  border-top: 1px solid var(--el-border-color-light);
+}
+
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 32px;
+}
+
+.fields-grid :deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+
+.fields-grid :deep(.el-form-item:last-child) {
+  margin-bottom: 0;
+}
+
+/* Key-value rows */
+.kv-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.kv-row :deep(.el-input) {
+  flex: 1;
 }
 </style>

@@ -43,7 +43,7 @@ import {
   getNetworkPolicyYaml, updateNetworkPolicyYaml,
   // Storage
   getPvYaml, updatePvYaml,
-  getPvcYaml,
+  getPvcYaml, updatePvcYaml,
   getStorageClassYaml, updateStorageClass,
   getVolumeSnapshotYaml, updateVolumeSnapshot,
   getVolumeSnapshotClassYaml, updateVolumeSnapshotClass,
@@ -127,7 +127,7 @@ const resourceApis: Record<ResourceType, ResourceApi> = {
   networkpolicy: { getYaml: getNetworkPolicyYaml, updateYaml: updateNetworkPolicyYaml },
   // Storage
   pv: { getYaml: getPvYaml, updateYaml: updatePvYaml },
-  pvc: { getYaml: getPvcYaml, updateYaml: null },
+  pvc: { getYaml: getPvcYaml, updateYaml: updatePvcYaml },
   storageclass: { getYaml: getStorageClassYaml, updateYaml: updateStorageClass },
   volumesnapshot: { getYaml: getVolumeSnapshotYaml, updateYaml: updateVolumeSnapshot },
   volumesnapshotclass: { getYaml: getVolumeSnapshotClassYaml, updateYaml: updateVolumeSnapshotClass },

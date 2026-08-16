@@ -1,10 +1,10 @@
 package k8s
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sPv "gkube/pkg/k8s/pv"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
 
@@ -21,17 +21,20 @@ var Pv = new(pv)
 func (p *pv) GetPVList(c *gin.Context) {
 	var query PvListParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "参数错误")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 	pvList, err := k8sPv.GetPVList(client)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取pv列表失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取pv列表失败")
 		return
 	}
 	response.Success(c, "执行成功", pvList)
@@ -43,19 +46,22 @@ func (p *pv) GetPVList(c *gin.Context) {
 //	@receiver p
 //	@param c
 func (p *pv) GetPVByName(c *gin.Context) {
-	var query PvQueryByName
+	var query PvQueryByNameParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "参数错误")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 	pv, err := k8sPv.GetPVByName(client, query.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取pv列表失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取pv详情失败")
 		return
 	}
 	response.Success(c, "执行成功", pv)
@@ -63,23 +69,26 @@ func (p *pv) GetPVByName(c *gin.Context) {
 
 // GetPVYaml
 //
-//	@Description: 获取pv详情
+//	@Description: 获取pv的yaml
 //	@receiver p
 //	@param c
 func (p *pv) GetPVYaml(c *gin.Context) {
-	var query PvQueryByName
+	var query PvQueryByNameParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "参数错误")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 	yaml, err := k8sPv.GetPVYaml(client, query.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取pv列表失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取pv yaml失败")
 		return
 	}
 	response.Success(c, "执行成功", yaml)
@@ -93,17 +102,20 @@ func (p *pv) GetPVYaml(c *gin.Context) {
 func (p *pv) CreatePV(c *gin.Context) {
 	var body PvCreateParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "参数错误")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 	err = k8sPv.CreatePV(client, body.Yaml)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("创建pv失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "创建pv失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -117,17 +129,20 @@ func (p *pv) CreatePV(c *gin.Context) {
 func (p *pv) UpdatePV(c *gin.Context) {
 	var body PvUpdateParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "参数错误")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 	err = k8sPv.UpdatePV(client, body.Yaml)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("更新pv失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "更新pv失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -139,19 +154,22 @@ func (p *pv) UpdatePV(c *gin.Context) {
 //	@receiver p
 //	@param c
 func (p *pv) DeletePVByName(c *gin.Context) {
-	var body PvQueryByName
+	var body PvQueryByNameParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "参数错误")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
 	err = k8sPv.DeletePVByName(client, body.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("删除pv失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "删除pv失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -161,17 +179,17 @@ type PvListParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 }
 
-type PvQueryByName struct {
+type PvQueryByNameParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
 }
 
 type PvCreateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
+	Yaml        string `form:"yaml" json:"yaml" binding:"required" label:"Yaml"`
 }
 
 type PvUpdateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
+	Yaml        string `form:"yaml" json:"yaml" binding:"required" label:"Yaml"`
 }

@@ -218,7 +218,7 @@ async function handleSubmit() {
   try {
     const yamlStr = (await import('js-yaml')).default.dump(buildK8sPVC(), { indent: 2, lineWidth: -1, noRefs: true })
     if (props.isEdit) {
-      await updatePvcYaml({ namespace: form.namespace, yaml: yamlStr })
+      await updatePvcYaml({ namespace: form.namespace, name: form.name, yaml: yamlStr })
       ElMessage.success('PVC更新成功')
       emit('success')
     } else {

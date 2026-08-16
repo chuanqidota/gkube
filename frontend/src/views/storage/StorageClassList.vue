@@ -5,6 +5,7 @@ import {
   getStorageClassYaml,
   updateStorageClass,
   deleteStorageClass,
+  transformStorageClasses,
 } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
@@ -32,6 +33,7 @@ const {
 } = useResourceList({
   resourceName: 'StorageClass',
   fetchList: getStorageClassList,
+  transform: transformStorageClasses,
   getYaml: (params: any) => getStorageClassYaml({ name: params.name }),
   updateYaml: (data: any) => updateStorageClass({ name: data.name, yaml: data.yaml }),
   deleteResource: (params: any) => deleteStorageClass({ name: params.name }),

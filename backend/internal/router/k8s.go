@@ -205,6 +205,7 @@ func registerStorageRoutes(rg *gin.RouterGroup) {
 
 	// PVC
 	rg.GET("pvc/list", k8s.Pvc.GetPVCList)
+	rg.GET("pvc/list-by-storageclass", k8s.Pvc.GetPVCListByStorageClass)
 	rg.GET("pvc/detail", k8s.Pvc.GetPVCByName)
 	rg.GET("pvc/get-yaml", k8s.Pvc.GetPVCYaml)
 	rg.POST("pvc/create", k8s.Pvc.CreatePVC)

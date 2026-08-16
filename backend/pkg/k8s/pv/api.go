@@ -1,15 +1,17 @@
 package pv
 
 import (
-	"gkube/pkg/yamlutil"
 	"context"
 	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
+
+	"gkube/pkg/yamlutil"
 )
 
 // GetPVList
@@ -109,7 +111,7 @@ func CreatePV(client *kubernetes.Clientset, pvYaml string) error {
 	}
 	_, err := client.CoreV1().PersistentVolumes().Create(context.Background(), &persistentVolume, metav1.CreateOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("创建pv资源失败:%s", err.Error())
 	}
 	return nil
 }

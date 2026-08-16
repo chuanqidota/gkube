@@ -44,6 +44,7 @@ const {
   deleteResource: deletePvc,
   detailRoute: '/storage/pvcs',
   createRoute: '/storage/pvcs/create',
+  deleteConfirm: (row) => `删除持久卷声明 "${row.name}" (ns: ${row.namespace})?`,
 })
 
 function statusType(status: string) {
@@ -112,7 +113,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <el-table-column prop="volume" label="卷" min-width="160" show-overflow-tooltip />
         <el-table-column prop="capacity" label="容量" width="120" />
         <el-table-column prop="storage_class" label="存储类" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="age" label="Age" width="120" />
+        <el-table-column prop="age" label="存活时间" width="120" />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
@@ -125,7 +126,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     </el-card>
 
     <!-- YAML Drawer -->
-    <el-drawer v-model="yamlDialogVisible" title="PVC YAML" size="85%" direction="rtl" class="yaml-drawer"
+    <el-drawer v-model="yamlDialogVisible" title="持久卷声明 YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
       <div v-loading="yamlLoading" style="height: calc(100vh - 52px);">
         <YamlEditor

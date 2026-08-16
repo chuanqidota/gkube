@@ -3,38 +3,41 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
-import { getStorageClassDetail, deleteStorageClass, getStorageClassEvents } from '@/api/resource'
+import { getStorageClassDetail, deleteStorageClass, getPvcListByStorageClass, calcAge } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import StorageClassForm from '@/views/storage/components/StorageClassForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useResizable } from '@/composables/useResizable'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const storageClass = ref<any>(null)
 const yamlDialogVisible = ref(false)
-const events = ref<any[]>([])
-const eventsLoading = ref(false)
+
+// Related PVCs
+const pvcs = ref<any[]>([])
+const pvcsLoading = ref(false)
 
 // Edit dialog
 const editDialogVisible = ref(false)
 const editFullscreen = ref(false)
 
-// Top-bottom resize
+// Right panel vertical resize
 const rightTopHeight = ref<number | null>(null)
 const resizingV = ref(false)
-let startY = 0, startH = 0
+let vStartY = 0, vStartH = 0
 
 function onVResizeStart(e: MouseEvent) {
   e.preventDefault()
   const rightPanel = (e.target as HTMLElement).closest('.right-panel')
   if (!rightPanel) return
   resizingV.value = true
-  startY = e.clientY
-  startH = rightPanel.getBoundingClientRect().height
+  vStartY = e.clientY
+  vStartH = rightPanel.getBoundingClientRect().height
   const onMove = (ev: MouseEvent) => {
-    const delta = ev.clientY - startY
-    rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
+    const delta = ev.clientY - vStartY
+    rightTopHeight.value = Math.min(Math.max(vStartH * 0.3 + delta, 120), vStartH - 120)
   }
   const onUp = () => {
     resizingV.value = false
@@ -65,15 +68,22 @@ async function fetchDetail() {
   }
 }
 
-async function fetchEvents() {
-  eventsLoading.value = true
+async function fetchPvcs() {
+  pvcsLoading.value = true
   try {
-    const res: any = await getStorageClassEvents({ name })
-    events.value = res.data || []
+    const res: any = await getPvcListByStorageClass({ storageClassName: name })
+    const allPvcs = res.data || []
+    pvcs.value = allPvcs.map((pvc: any) => ({
+      namespace: pvc.metadata?.namespace || '-',
+      name: pvc.metadata?.name || '-',
+      status: pvc.status?.phase || 'Unknown',
+      capacity: pvc.spec?.resources?.requests?.storage || '-',
+      age: calcAge(pvc.metadata?.creationTimestamp),
+    }))
   } catch {
-    events.value = []
+    pvcs.value = []
   } finally {
-    eventsLoading.value = false
+    pvcsLoading.value = false
   }
 }
 
@@ -109,14 +119,16 @@ async function handleDelete() {
   }
 }
 
+const { leftWidth, resizingH, onHResizeStart } = useResizable({ initialWidth: 320 })
+
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
   fetchDetail()
-  fetchEvents()
+  fetchPvcs()
 }, { autoStart: false })
 
 onMounted(() => {
   fetchDetail()
-  fetchEvents()
+  fetchPvcs()
 })
 </script>
 
@@ -175,15 +187,15 @@ onMounted(() => {
     </div>
 
     <template v-if="storageClass">
-      <div class="main-layout" :class="{ 'is-resizing': resizingV }">
+      <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
 
         <!-- 左侧：基本信息 -->
-        <div class="left-panel">
+        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">基本信息</div>
           <div class="info-body">
             <div class="info-row">
               <span class="info-label">名称</span>
-              <span class="info-value">{{ storageClass.metadata?.name || storageClass.name || '-' }}</span>
+              <span class="info-value">{{ storageClass.metadata?.name || '-' }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Provisioner</span>
@@ -191,11 +203,18 @@ onMounted(() => {
             </div>
             <div class="info-row">
               <span class="info-label">回收策略</span>
-              <span class="info-value">{{ storageClass.reclaimPolicy || storageClass.reclaim_policy || '-' }}</span>
+              <span class="info-value">{{ storageClass.reclaimPolicy || '-' }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">卷绑定模式</span>
-              <span class="info-value">{{ storageClass.volumeBindingMode || storageClass.volume_binding_mode || '-' }}</span>
+              <span class="info-value">{{ storageClass.volumeBindingMode || '-' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">允许卷扩展</span>
+              <span class="info-value">
+                <el-tag v-if="storageClass.allowVolumeExpansion" type="success" size="small">是</el-tag>
+                <span v-else>否</span>
+              </span>
             </div>
             <div class="info-row">
               <span class="info-label">默认</span>
@@ -206,7 +225,7 @@ onMounted(() => {
             </div>
             <div class="info-row">
               <span class="info-label">创建时间</span>
-              <span class="info-value">{{ storageClass.metadata?.creationTimestamp || storageClass.creationTimestamp || storageClass.creation_timestamp || '-' }}</span>
+              <span class="info-value">{{ storageClass.metadata?.creationTimestamp || '-' }}</span>
             </div>
 
             <!-- Labels -->
@@ -219,47 +238,74 @@ onMounted(() => {
               </div>
             </template>
 
+            <!-- Mount Options -->
+            <template v-if="storageClass.mountOptions && storageClass.mountOptions.length > 0">
+              <div class="info-row">
+                <span class="info-label">挂载选项</span>
+                <span class="info-value">
+                  <el-tag v-for="opt in storageClass.mountOptions" :key="opt" size="small" type="info" class="label-tag">{{ opt }}</el-tag>
+                </span>
+              </div>
+            </template>
+
             <!-- Parameters -->
             <template v-if="storageClass.parameters && Object.keys(storageClass.parameters).length > 0">
-              <div class="info-row" style="flex-direction: column;">
-                <span class="info-label" style="margin-bottom: 4px;">参数</span>
-                <el-table :data="Object.entries(storageClass.parameters).map(([k, v]) => ({ key: k, value: v }))" size="small" border stripe style="width: 100%;">
-                  <el-table-column prop="key" label="键" width="160" />
-                  <el-table-column prop="value" label="值" min-width="120" show-overflow-tooltip />
-                </el-table>
+              <div class="info-row">
+                <span class="info-label">参数</span>
+                <span class="info-value">
+                  <span v-for="(val, key) in storageClass.parameters" :key="key" class="param-item">
+                    <span class="param-key">{{ key }}</span>
+                    <span class="param-val">{{ val }}</span>
+                  </span>
+                </span>
               </div>
             </template>
           </div>
         </div>
 
-        <!-- 右侧：事件 + 注解 -->
+        <!-- 水平拖拽条 -->
+        <div
+          class="resize-handle-h"
+          :class="{ active: resizingH }"
+          :style="{ left: (leftWidth - 3) + 'px' }"
+          @mousedown="onHResizeStart"
+        />
+
+        <!-- 右侧：关联 PVC + 注解 -->
         <div class="right-panel">
-          <!-- 事件 -->
+          <!-- 关联 PVC -->
           <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
             <div class="panel-title">
-              事件
-              <span class="count-badge">{{ events.length }} 条</span>
+              关联 PVC
+              <span class="count-badge">{{ pvcs.length }} 个</span>
             </div>
-            <div v-loading="eventsLoading" class="events-body">
-              <el-table v-if="events.length > 0" :data="events" size="small" stripe>
-                <el-table-column prop="type" label="类型" width="80">
+            <div v-loading="pvcsLoading" class="events-body">
+              <el-table v-if="pvcs.length > 0" :data="pvcs" size="small" stripe>
+                <el-table-column prop="namespace" label="命名空间" width="120" />
+                <el-table-column prop="name" label="名称" min-width="160" show-overflow-tooltip>
                   <template #default="{ row }">
-                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
+                    <el-button link type="primary" @click="$router.push(`/storage/pvcs/${row.namespace}/${row.name}`)">{{ row.name }}</el-button>
                   </template>
                 </el-table-column>
-                <el-table-column prop="reason" label="原因" width="130" />
-                <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="last_seen" label="最后发生" width="150" />
+                <el-table-column prop="status" label="状态" width="100">
+                  <template #default="{ row }">
+                    <el-tag :type="row.status === 'Bound' ? 'success' : row.status === 'Pending' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="capacity" label="容量" width="100" />
+                <el-table-column prop="age" label="Age" width="100" />
               </el-table>
-              <div v-else class="empty-hint">暂无事件</div>
+              <div v-else class="empty-hint">暂无关联 PVC</div>
             </div>
           </div>
 
-          <!-- 垂直拖拽条 -->
-          <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
+          <!-- 垂直拖拽条（仅当注解存在时显示） -->
+          <template v-if="storageClass.metadata?.annotations && Object.keys(storageClass.metadata.annotations).length > 0">
+            <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
+          </template>
 
           <!-- 注解 -->
-          <div class="right-section events-section" v-if="storageClass.metadata?.annotations && Object.keys(storageClass.metadata.annotations).length > 0">
+          <div class="right-section" v-if="storageClass.metadata?.annotations && Object.keys(storageClass.metadata.annotations).length > 0">
             <div class="panel-title">注解</div>
             <div class="info-body">
               <div v-for="(val, key) in storageClass.metadata.annotations" :key="key" class="info-row">
@@ -406,8 +452,6 @@ onMounted(() => {
 
 /* Left Panel */
 .left-panel {
-  width: 320px;
-  min-width: 320px;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 6px;
   display: flex;
@@ -476,6 +520,31 @@ onMounted(() => {
   margin: 0;
 }
 
+/* Parameter display */
+.param-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.param-key {
+  background: var(--el-fill-color-lighter);
+  padding: 2px 8px;
+  color: var(--el-text-color-secondary);
+  font-weight: 500;
+}
+
+.param-val {
+  padding: 2px 8px;
+  color: var(--el-text-color-primary);
+  font-family: monospace;
+  font-size: 12px;
+}
+
 /* Right Panel */
 .right-panel {
   flex: 1;
@@ -493,19 +562,25 @@ onMounted(() => {
   flex-direction: column;
   overflow: hidden;
   background: var(--el-bg-color);
-}
-
-.right-section:first-child {
-  flex: 1;
-  min-height: 0;
-}
-
-.right-section.events-section {
   flex: 1;
   min-height: 0;
 }
 
 /* Resize handles */
+.resize-handle-h {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resize-handle-h:hover,
+.resize-handle-h.active {
+  background: var(--el-color-primary-light-7);
+}
+
 .resize-handle-v {
   height: 4px;
   cursor: row-resize;

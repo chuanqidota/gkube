@@ -7,6 +7,7 @@ import { getPvcDetail, deletePvc } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PVCForm from '@/views/storage/components/PVCForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useResizable } from '@/composables/useResizable'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,6 +31,18 @@ const statusTagType = computed(() => {
 })
 
 const pvcStatus = computed(() => pvc.value?.status?.phase || '-')
+
+const requestedStorage = computed(() => pvc.value?.spec?.resources?.requests?.storage || '-')
+
+const volumeMode = computed(() => pvc.value?.spec?.volumeMode || 'Filesystem')
+
+const dataSource = computed(() => {
+  const ds = pvc.value?.spec?.dataSource
+  if (!ds) return null
+  return { kind: ds.kind || '-', name: ds.name || '-', apiGroup: ds.apiGroup || '' }
+})
+
+const conditions = computed(() => pvc.value?.status?.conditions || [])
 
 async function fetchDetail() {
   loading.value = true
@@ -74,6 +87,8 @@ async function handleDelete() {
     /* cancelled */
   }
 }
+
+const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
 
@@ -135,10 +150,10 @@ onMounted(fetchDetail)
     </div>
 
     <template v-if="pvc">
-      <div class="main-layout">
+      <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
 
         <!-- 左侧：基本信息 -->
-        <div class="left-panel">
+        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">基本信息</div>
           <div class="info-body">
             <div class="info-row">
@@ -154,22 +169,6 @@ onMounted(fetchDetail)
               <span class="info-value">
                 <el-tag :type="statusTagType" size="small">{{ pvcStatus }}</el-tag>
               </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">卷名</span>
-              <span class="info-value">{{ pvc.spec?.volumeName || '-' }}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">容量</span>
-              <span class="info-value">{{ pvc.status?.capacity?.storage || '-' }}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">访问模式</span>
-              <span class="info-value">{{ (pvc.spec?.accessModes || []).join(', ') || '-' }}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">存储类名</span>
-              <span class="info-value">{{ pvc.spec?.storageClassName || '-' }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">创建时间</span>
@@ -188,8 +187,72 @@ onMounted(fetchDetail)
           </div>
         </div>
 
-        <!-- 右侧：注解 -->
+        <!-- 水平拖拽条 -->
+        <div
+          class="resize-handle-h"
+          :class="{ active: resizingH }"
+          :style="{ left: (leftWidth - 3) + 'px' }"
+          @mousedown="onHResizeStart"
+        />
+
+        <!-- 右侧：存储配置 + Conditions + 注解 -->
         <div class="right-panel">
+
+          <!-- 存储配置 -->
+          <div class="right-section" style="flex: none;" :style="rightTopHeight ? { height: rightTopHeight + 'px' } : {}">
+            <div class="panel-title">存储配置</div>
+            <div class="info-body">
+              <div class="info-row">
+                <span class="info-label">请求容量</span>
+                <span class="info-value">{{ requestedStorage }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">实际容量</span>
+                <span class="info-value">{{ pvc.status?.capacity?.storage || '-' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">访问模式</span>
+                <span class="info-value">{{ (pvc.spec?.accessModes || []).join(', ') || '-' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">存储类</span>
+                <span class="info-value">{{ pvc.spec?.storageClassName || '-' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">卷模式</span>
+                <span class="info-value">{{ volumeMode }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">绑定卷</span>
+                <span class="info-value">{{ pvc.spec?.volumeName || '-' }}</span>
+              </div>
+              <template v-if="dataSource">
+                <div class="info-row">
+                  <span class="info-label">数据源</span>
+                  <span class="info-value">{{ dataSource.kind }}: {{ dataSource.name }}</span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- 垂直拖拽条 -->
+          <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
+
+          <!-- Conditions -->
+          <div class="right-section" v-if="conditions.length > 0" style="flex: none;">
+            <div class="panel-title">Conditions</div>
+            <div class="info-body">
+              <div v-for="(cond, i) in conditions" :key="i" class="info-row">
+                <span class="info-label" style="min-width: 100px;">{{ cond.type }}</span>
+                <span class="info-value">
+                  <el-tag :type="cond.status === 'True' ? 'success' : 'info'" size="small">{{ cond.status }}</el-tag>
+                  <span v-if="cond.message" style="margin-left: 4px; color: var(--el-text-color-secondary); font-size: 12px;">{{ cond.message }}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 注解 -->
           <div class="right-section" v-if="pvc.metadata?.annotations && Object.keys(pvc.metadata.annotations).length > 0">
             <div class="panel-title">注解</div>
             <div class="info-body">
@@ -198,10 +261,6 @@ onMounted(fetchDetail)
                 <span class="info-value mono" style="word-break: break-all;">{{ val }}</span>
               </div>
             </div>
-          </div>
-          <div v-else class="right-section">
-            <div class="panel-title">详情</div>
-            <div class="empty-hint">暂无额外信息</div>
           </div>
         </div>
       </div>
@@ -435,6 +494,39 @@ onMounted(fetchDetail)
   text-align: center;
   color: var(--el-text-color-secondary);
   font-size: 13px;
+}
+
+/* Resize handles */
+.resize-handle-h {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resize-handle-h:hover,
+.resize-handle-h.active {
+  background: var(--el-color-primary-light-7);
+}
+
+.resize-handle-v {
+  height: 4px;
+  cursor: row-resize;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+  margin: -2px 0;
+}
+
+.resize-handle-v:hover,
+.resize-handle-v.active {
+  background: var(--el-color-primary-light-7);
+}
+
+.is-resizing {
+  user-select: none;
 }
 
 /* Edit Drawer */

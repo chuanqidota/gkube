@@ -180,7 +180,7 @@ export function useResourceList(options: ResourceListOptions) {
         }
       }
     } catch (e: any) {
-      ElMessage.error(e?.message || 'Failed to load more items')
+      ElMessage.error(e?.message || '加载更多失败')
     } finally {
       loading.value = false
     }
@@ -209,7 +209,7 @@ export function useResourceList(options: ResourceListOptions) {
       })
       yamlContent.value = res.data?.yaml || res.data || ''
     } catch (e: any) {
-      ElMessage.error(e?.message || 'Failed to load YAML')
+      ElMessage.error(e?.message || '加载 YAML 失败')
       yamlDialogVisible.value = false
     } finally {
       yamlLoading.value = false
@@ -226,7 +226,7 @@ export function useResourceList(options: ResourceListOptions) {
       })
       yamlContent.value = res.data?.yaml || res.data || ''
     } catch (e: any) {
-      ElMessage.error(e?.message || 'Failed to load YAML')
+      ElMessage.error(e?.message || '加载 YAML 失败')
     } finally {
       yamlLoading.value = false
     }
@@ -245,11 +245,11 @@ export function useResourceList(options: ResourceListOptions) {
         name: yamlTarget.value.name,
         yaml: yamlContent.value,
       })
-      ElMessage.success('YAML saved successfully')
+      ElMessage.success('YAML 保存成功')
       yamlEditing.value = false
       fetchResources()
     } catch (e: any) {
-      ElMessage.error(e?.message || 'Failed to save YAML')
+      ElMessage.error(e?.message || '保存 YAML 失败')
     } finally {
       yamlSaving.value = false
     }
@@ -274,14 +274,14 @@ export function useResourceList(options: ResourceListOptions) {
     if (force && options.forceDeleteResource) {
       const msg = `强制删除 ${options.resourceName} "${row.name}" 将跳过优雅终止，控制器管理的 Pod 会被立即重建。确定继续？`
       try {
-        await ElMessageBox.confirm(msg, 'Confirm', { type: 'warning' })
+        await ElMessageBox.confirm(msg, '确认', { type: 'warning' })
       } catch {
         return
       }
       loading.value = true
       try {
         await options.forceDeleteResource({ namespace: row.namespace, name: row.name })
-        ElMessage.success(`${options.resourceName} deleted (forced)`)
+        ElMessage.success(`${options.resourceName} 已强制删除`)
         const id = resourceKey(row)
         markPendingDelete([id])
         list.value = list.value.filter((item) => !isPendingDelete(resourceKey(item)))
@@ -299,10 +299,10 @@ export function useResourceList(options: ResourceListOptions) {
     const msg = options.deleteConfirm
       ? options.deleteConfirm(row)
       : row.namespace
-        ? `Delete ${options.resourceName.toLowerCase()} "${row.name}" in namespace "${row.namespace}"?`
-        : `Delete ${options.resourceName.toLowerCase()} "${row.name}"?`
+        ? `删除 ${options.resourceName} "${row.name}"（命名空间: ${row.namespace}）？`
+        : `删除 ${options.resourceName} "${row.name}"？`
     try {
-      await ElMessageBox.confirm(msg, 'Confirm', { type: 'warning' })
+      await ElMessageBox.confirm(msg, '确认', { type: 'warning' })
     } catch {
       // 用户取消,不报错
       return
@@ -310,7 +310,7 @@ export function useResourceList(options: ResourceListOptions) {
     loading.value = true
     try {
       await options.deleteResource({ namespace: row.namespace, name: row.name })
-      ElMessage.success(`${options.resourceName} deleted`)
+      ElMessage.success(`${options.resourceName} 已删除`)
       const id = resourceKey(row)
       markPendingDelete([id])
       list.value = list.value.filter((item) => !isPendingDelete(resourceKey(item)))
@@ -330,8 +330,8 @@ export function useResourceList(options: ResourceListOptions) {
     const rowsToDelete = [...selectedRows.value]
     try {
       await ElMessageBox.confirm(
-        `Delete ${rowsToDelete.length} selected ${options.resourceName.toLowerCase()}(s)?`,
-        'Confirm',
+        `删除选中的 ${rowsToDelete.length} 个 ${options.resourceName}？`,
+        '确认',
         { type: 'warning' }
       )
       loading.value = true
@@ -343,9 +343,9 @@ export function useResourceList(options: ResourceListOptions) {
       const successCount = results.filter((r) => r.status === 'fulfilled').length
       const failCount = results.filter((r) => r.status === 'rejected').length
       if (failCount > 0) {
-        ElMessage.warning(`Deleted ${successCount}, failed ${failCount}`)
+        ElMessage.warning(`成功删除 ${successCount} 个，失败 ${failCount} 个`)
       } else {
-        ElMessage.success(`Deleted ${successCount} ${options.resourceName.toLowerCase()}(s)`)
+        ElMessage.success(`已删除 ${successCount} 个 ${options.resourceName}`)
       }
       // Collect successfully deleted IDs
       const deletedIds: string[] = []
@@ -384,13 +384,13 @@ export function useResourceList(options: ResourceListOptions) {
       autoRefreshTimer = setInterval(() => {
         fetchResources()
       }, interval)
-      ElMessage.info(`Auto-refresh enabled (${interval / 1000}s)`)
+      ElMessage.info(`自动刷新已开启（${interval / 1000}s）`)
     } else {
       if (autoRefreshTimer) {
         clearInterval(autoRefreshTimer)
         autoRefreshTimer = null
       }
-      ElMessage.info('Auto-refresh disabled')
+      ElMessage.info('自动刷新已关闭')
     }
   }
 

@@ -7,6 +7,7 @@ import { getPvDetail, deletePv } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PVForm from '@/views/storage/components/PVForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useResizable } from '@/composables/useResizable'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +20,35 @@ const name = route.params.name as string
 // Edit dialog
 const editDialogVisible = ref(false)
 const editFullscreen = ref(false)
+
+// Right panel vertical resize (between each section pair)
+const section1Height = ref(180)   // 存储源
+const section2Height = ref(120)   // 声明引用 / 节点亲和性
+const resizingV = ref(false)
+
+function onVResizeStart(e: MouseEvent, target: 'section1' | 'section2') {
+  e.preventDefault()
+  resizingV.value = true
+  const startY = e.clientY
+  const startVal = target === 'section1' ? section1Height.value : section2Height.value
+  const rightPanel = (e.target as HTMLElement).closest('.right-panel')
+  const panelH = rightPanel?.getBoundingClientRect().height || 600
+  const onMove = (ev: MouseEvent) => {
+    const delta = ev.clientY - startY
+    if (target === 'section1') {
+      section1Height.value = Math.min(Math.max(startVal + delta, 60), panelH - 120)
+    } else {
+      section2Height.value = Math.min(Math.max(startVal + delta, 60), panelH - 120)
+    }
+  }
+  const onUp = () => {
+    resizingV.value = false
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
 
 const statusTagType = computed(() => {
   const status = (pv.value?.status?.phase || '').toLowerCase()
@@ -51,7 +81,7 @@ async function fetchDetail() {
     const res: any = await getPvDetail({ name })
     pv.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Failed to load PV detail')
+    ElMessage.error(e?.message || '加载PV详情失败')
   } finally {
     loading.value = false
   }
@@ -88,6 +118,8 @@ async function handleDelete() {
     /* cancelled */
   }
 }
+
+const { leftWidth, resizingH, onHResizeStart } = useResizable({ initialWidth: 320 })
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
 
@@ -149,10 +181,10 @@ onMounted(fetchDetail)
     </div>
 
     <template v-if="pv">
-      <div class="main-layout">
+      <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
 
         <!-- 左侧：基本信息 -->
-        <div class="left-panel">
+        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">基本信息</div>
           <div class="info-body">
             <div class="info-row">
@@ -199,13 +231,31 @@ onMounted(fetchDetail)
                 </span>
               </div>
             </template>
+
+            <!-- Mount Options -->
+            <template v-if="pv.spec?.mountOptions && pv.spec.mountOptions.length > 0">
+              <div class="info-row">
+                <span class="info-label">挂载选项</span>
+                <span class="info-value">
+                  <el-tag v-for="opt in pv.spec.mountOptions" :key="opt" size="small" type="info" class="label-tag">{{ opt }}</el-tag>
+                </span>
+              </div>
+            </template>
           </div>
         </div>
 
-        <!-- 右侧：存储源 + 声明引用 + 注解 -->
+        <!-- 水平拖拽条 -->
+        <div
+          class="resize-handle-h"
+          :class="{ active: resizingH }"
+          :style="{ left: (leftWidth - 3) + 'px' }"
+          @mousedown="onHResizeStart"
+        />
+
+        <!-- 右侧：存储源 + 声明引用 + 节点亲和性 + 注解 -->
         <div class="right-panel">
           <!-- 存储源 -->
-          <div class="right-section" style="flex: none;">
+          <div class="right-section" :style="{ flex: 'none', height: section1Height + 'px' }">
             <div class="panel-title">存储源</div>
             <div class="info-body">
               <div class="info-row">
@@ -223,31 +273,69 @@ onMounted(fetchDetail)
             </div>
           </div>
 
-          <!-- 声明引用 -->
-          <div class="right-section" v-if="pv.spec?.claimRef" style="flex: none;">
-            <div class="panel-title">声明引用</div>
-            <div class="info-body">
-              <div class="info-row">
-                <span class="info-label">命名空间</span>
-                <span class="info-value">{{ pv.spec.claimRef.namespace || '-' }}</span>
+          <!-- 拖拽条 1：存储源 ↔ 声明引用（仅当下方有内容时显示） -->
+          <template v-if="pv.spec?.claimRef || pv.spec?.nodeAffinity">
+            <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="(e) => onVResizeStart(e, 'section1')" />
+          </template>
+
+          <!-- 声明引用 + 节点亲和性 -->
+          <div class="right-middle-group" v-if="pv.spec?.claimRef || pv.spec?.nodeAffinity" :style="{ flex: 'none', height: section2Height + 'px' }">
+            <div class="right-section" v-if="pv.spec?.claimRef">
+              <div class="panel-title">声明引用</div>
+              <div class="info-body">
+                <div class="info-row">
+                  <span class="info-label">命名空间</span>
+                  <span class="info-value">{{ pv.spec.claimRef.namespace || '-' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">名称</span>
+                  <span class="info-value">
+                    <el-button v-if="pv.spec.claimRef.name" link type="primary" @click="$router.push(`/storage/pvcs/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`)">{{ pv.spec.claimRef.name }}</el-button>
+                    <span v-else>-</span>
+                  </span>
+                </div>
               </div>
-              <div class="info-row">
-                <span class="info-label">名称</span>
-                <span class="info-value">{{ pv.spec.claimRef.name || '-' }}</span>
+            </div>
+
+            <!-- 节点亲和性（Local PV） -->
+            <div class="right-section" v-if="pv.spec?.nodeAffinity">
+              <div class="panel-title">节点亲和性</div>
+              <div class="info-body">
+                <template v-for="(term, ti) in pv.spec.nodeAffinity.required?.nodeSelectorTerms || []" :key="ti">
+                  <template v-for="(expr, ei) in term.matchExpressions || []" :key="ei">
+                    <div class="info-row">
+                      <span class="info-label">Key</span>
+                      <span class="info-value mono">{{ expr.key || '-' }}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">运算符</span>
+                      <span class="info-value">{{ expr.operator || '-' }}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">节点</span>
+                      <span class="info-value">
+                        <el-tag v-for="v in (expr.values || [])" :key="v" size="small" class="label-tag">{{ v }}</el-tag>
+                      </span>
+                    </div>
+                  </template>
+                </template>
               </div>
             </div>
           </div>
 
-          <!-- 注解 -->
-          <div class="right-section" v-if="pv.metadata?.annotations && Object.keys(pv.metadata.annotations).length > 0">
-            <div class="panel-title">注解</div>
-            <div class="info-body">
-              <div v-for="(val, key) in pv.metadata.annotations" :key="key" class="info-row">
-                <span class="info-label mono" style="min-width: 120px;">{{ key }}</span>
-                <span class="info-value mono" style="word-break: break-all;">{{ val }}</span>
+          <!-- 拖拽条 2 + 注解 -->
+          <template v-if="pv.metadata?.annotations && Object.keys(pv.metadata.annotations).length > 0">
+            <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="(e) => onVResizeStart(e, 'section2')" />
+            <div class="right-section right-section-bottom">
+              <div class="panel-title">注解</div>
+              <div class="info-body">
+                <div v-for="(val, key) in pv.metadata.annotations" :key="key" class="info-row">
+                  <span class="info-label mono" style="min-width: 120px;">{{ key }}</span>
+                  <span class="info-value mono" style="word-break: break-all;">{{ val }}</span>
+                </div>
               </div>
             </div>
-          </div>
+          </template>
         </div>
       </div>
     </template>
@@ -467,8 +555,55 @@ onMounted(fetchDetail)
   flex-direction: column;
   overflow: hidden;
   background: var(--el-bg-color);
+}
+
+.right-middle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.right-section-bottom {
   flex: 1;
   min-height: 0;
+}
+
+/* Resize handles */
+.resize-handle-h {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resize-handle-h:hover,
+.resize-handle-h.active {
+  background: var(--el-color-primary-light-7);
+}
+
+.resize-handle-v {
+  height: 4px;
+  cursor: row-resize;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+  margin: -2px 0;
+}
+
+.resize-handle-v:hover,
+.resize-handle-v.active {
+  background: var(--el-color-primary-light-7);
+}
+
+.is-resizing {
+  user-select: none;
+}
+
+.is-resizing * {
+  pointer-events: none;
 }
 
 /* Edit Drawer */

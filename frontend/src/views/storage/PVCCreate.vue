@@ -110,7 +110,7 @@ function handleMaximize() {
           <div class="yaml-card-left">
             <span class="yaml-card-title">YAML 配置</span>
             <el-button-group>
-              <el-button size="small" @click="handleFormat">Format</el-button>
+              <el-button size="small" @click="handleFormat">格式化</el-button>
               <el-button size="small" @click="handleCopy">复制</el-button>
             </el-button-group>
             <el-tooltip content="最大化" placement="top">

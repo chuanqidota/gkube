@@ -1,65 +1,20 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { FullScreen, CopyDocument } from '@element-plus/icons-vue'
-import yaml from 'js-yaml'
+import StorageClassForm from '@/views/storage/components/StorageClassForm.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
 import CloneDialog from '@/components/CloneDialog.vue'
 import { useCloneCreate, dumpCloneYaml } from '@/composables/useCloneCreate'
 import { createStorageClass, getStorageClassList, getStorageClassYaml } from '@/api/resource'
-import type { FormInstance, FormRules } from 'element-plus'
 
 const router = useRouter()
+const { t } = useI18n()
 const mode = ref<'form' | 'yaml'>('form')
 const yamlEditorRef = ref()
-const submitting = ref(false)
-
-// Form mode state
-const formRef = ref<FormInstance>()
-const form = reactive({
-  name: '',
-  provisioner: '',
-  reclaimPolicy: 'Delete',
-  volumeBindingMode: 'Immediate',
-  parameters: [] as Array<{ key: string; value: string }>,
-  labels: [] as Array<{ key: string; value: string }>,
-})
-
-const rules: FormRules = {
-  name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
-  provisioner: [{ required: true, message: '请输入 Provisioner', trigger: 'blur' }],
-}
-
-// 克隆流入：将解析后的 K8s 对象回填到内联表单
-function parseInitialData(data: any) {
-  if (!data) return
-  const meta = data.metadata || {}
-  form.name = meta.name || ''
-  form.provisioner = data.provisioner || ''
-  form.reclaimPolicy = data.reclaimPolicy || 'Delete'
-  form.volumeBindingMode = data.volumeBindingMode || 'Immediate'
-  form.parameters = Object.entries(data.parameters || {}).map(([k, v]) => ({ key: k, value: String(v) }))
-  form.labels = Object.entries(meta.labels || {}).map(([k, v]) => ({ key: k, value: String(v) }))
-}
-
-const {
-  cloneMode, cloneName, cloneNameOptions, cloneNameLoading,
-  cloneLoading, cloneTarget,
-  startClone, cancelClone, handleLoadClone,
-} = useCloneCreate({
-  api: { list: getStorageClassList, yaml: getStorageClassYaml },
-  namespaceScoped: false,
-  onCloneToForm: (parsed) => { parseInitialData(parsed); yamlContent.value = defaultYaml; mode.value = 'form' },
-  onCloneToYaml: (parsed) => { yamlContent.value = dumpCloneYaml(parsed); resetForm(); mode.value = 'yaml' },
-})
-
-function addParam() { form.parameters.push({ key: '', value: '' }) }
-function removeParam(i: number) { form.parameters.splice(i, 1) }
-function addLabel() { form.labels.push({ key: '', value: '' }) }
-function removeLabel(i: number) { form.labels.splice(i, 1) }
-
-// YAML mode state
+const parsedData = ref<any>(null)
 const defaultYaml = `apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -71,57 +26,22 @@ parameters:
   type: gp3
 `
 const yamlContent = ref(defaultYaml)
+const submitting = ref(false)
 
-// 重置内联表单为初始值(克隆到 YAML 目标时清除表单残留)
-function resetForm() {
-  form.name = ''
-  form.provisioner = ''
-  form.reclaimPolicy = 'Delete'
-  form.volumeBindingMode = 'Immediate'
-  form.parameters = []
-  form.labels = []
-}
-
-function buildYamlFromForm(): string {
-  const parameters: Record<string, string> = {}
-  form.parameters.forEach((p) => { if (p.key.trim()) parameters[p.key.trim()] = p.value })
-  const labels: Record<string, string> = {}
-  form.labels.forEach((l) => { if (l.key.trim()) labels[l.key.trim()] = l.value })
-
-  const obj: any = {
-    apiVersion: 'storage.k8s.io/v1',
-    kind: 'StorageClass',
-    metadata: {
-      name: form.name,
-    },
-    provisioner: form.provisioner,
-    reclaimPolicy: form.reclaimPolicy,
-    volumeBindingMode: form.volumeBindingMode,
-  }
-  if (Object.keys(parameters).length > 0) obj.parameters = parameters
-  if (Object.keys(labels).length > 0) obj.metadata.labels = labels
-  return yaml.dump(obj, { indent: 2 })
-}
-
-async function handleFormSubmit() {
-  const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
-  submitting.value = true
-  try {
-    const yamlStr = buildYamlFromForm()
-    await createStorageClass({ yaml: yamlStr })
-    ElMessage.success('StorageClass 创建成功')
-    router.push('/storage/storageclasses')
-  } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
-  } finally {
-    submitting.value = false
-  }
-}
+const {
+  cloneMode, cloneName, cloneNameOptions, cloneNameLoading,
+  cloneLoading, cloneTarget,
+  startClone, cancelClone, handleLoadClone,
+} = useCloneCreate({
+  api: { list: getStorageClassList, yaml: getStorageClassYaml },
+  namespaceScoped: false,
+  onCloneToForm: (parsed) => { parsedData.value = parsed; yamlContent.value = defaultYaml; mode.value = 'form' },
+  onCloneToYaml: (parsed) => { yamlContent.value = dumpCloneYaml(parsed); parsedData.value = null; mode.value = 'yaml' },
+})
 
 async function handleYamlSubmit() {
   if (!yamlContent.value.trim()) {
-    ElMessage.error('YAML 内容不能为空')
+    ElMessage.error('YAML内容不能为空')
     return
   }
   submitting.value = true
@@ -156,7 +76,7 @@ function handleMaximize() {
 <template>
   <div class="sc-create">
     <div class="mode-switcher">
-      <el-segmented v-model="mode" :options="[{ label: '表单创建', value: 'form' }, { label: 'YAML 创建', value: 'yaml' }]" size="small" />
+      <el-segmented v-model="mode" :options="[{ label: t('common.formCreate'), value: 'form' }, { label: t('common.yamlCreate'), value: 'yaml' }]" size="small" />
       <el-button size="small" style="margin-left: 12px;" @click="startClone">
         <el-icon><CopyDocument /></el-icon> 从现有资源克隆
       </el-button>
@@ -175,77 +95,16 @@ function handleMaximize() {
       @cancel="cancelClone"
     />
 
-    <!-- Form Mode -->
-    <div v-if="mode === 'form'" class="form-mode">
-      <el-card shadow="never">
-        <template #header>
-          <div class="card-header">
-            <h3 style="margin: 0;">创建 StorageClass</h3>
-            <el-button @click="handleCancel">返回</el-button>
-          </div>
-        </template>
+    <!-- StorageClassForm 始终挂载（v-show），避免克隆后切换 mode 时组件被销毁重建导致数据丢失 -->
+    <StorageClassForm v-show="mode === 'form'" :initial-data="parsedData" />
 
-        <el-form ref="formRef" :model="form" :rules="rules" label-width="160px" style="max-width: 700px;">
-          <el-form-item label="名称" prop="name">
-            <el-input v-model="form.name" placeholder="例如: fast-ssd" />
-          </el-form-item>
-
-          <el-form-item label="Provisioner" prop="provisioner">
-            <el-input v-model="form.provisioner" placeholder="例如: kubernetes.io/aws-ebs, kubernetes.io/gce-pd" />
-          </el-form-item>
-
-          <el-form-item label="回收策略">
-            <el-radio-group v-model="form.reclaimPolicy">
-              <el-radio value="Delete">Delete</el-radio>
-              <el-radio value="Retain">Retain</el-radio>
-            </el-radio-group>
-          </el-form-item>
-
-          <el-form-item label="卷绑定模式">
-            <el-radio-group v-model="form.volumeBindingMode">
-              <el-radio value="Immediate">Immediate</el-radio>
-              <el-radio value="WaitForFirstConsumer">WaitForFirstConsumer</el-radio>
-            </el-radio-group>
-          </el-form-item>
-
-          <el-form-item label="参数">
-            <div style="width: 100%;">
-              <div v-for="(p, i) in form.parameters" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-                <el-input v-model="p.key" placeholder="键" style="flex: 1;" />
-                <el-input v-model="p.value" placeholder="值" style="flex: 1;" />
-                <el-button type="danger" circle @click="removeParam(i)">-</el-button>
-              </div>
-              <el-button @click="addParam" type="primary" plain>添加参数</el-button>
-            </div>
-          </el-form-item>
-
-          <el-form-item label="标签">
-            <div style="width: 100%;">
-              <div v-for="(l, i) in form.labels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-                <el-input v-model="l.key" placeholder="键" style="flex: 1;" />
-                <el-input v-model="l.value" placeholder="值" style="flex: 1;" />
-                <el-button type="danger" circle @click="removeLabel(i)">-</el-button>
-              </div>
-              <el-button @click="addLabel" type="primary" plain>添加标签</el-button>
-            </div>
-          </el-form-item>
-
-          <el-form-item>
-            <el-button type="primary" :loading="submitting" @click="handleFormSubmit">创建</el-button>
-            <el-button @click="handleCancel">取消</el-button>
-          </el-form-item>
-        </el-form>
-      </el-card>
-    </div>
-
-    <!-- YAML Mode -->
-    <div v-else class="yaml-mode">
+    <div v-if="mode !== 'form'" class="yaml-mode">
       <div class="yaml-card">
         <div class="yaml-card-header">
           <div class="yaml-card-left">
             <span class="yaml-card-title">YAML 配置</span>
             <el-button-group>
-              <el-button size="small" @click="handleFormat">Format</el-button>
+              <el-button size="small" @click="handleFormat">格式化</el-button>
               <el-button size="small" @click="handleCopy">复制</el-button>
             </el-button-group>
             <el-tooltip content="最大化" placement="top">
@@ -273,8 +132,6 @@ function handleMaximize() {
 <style scoped>
 .sc-create { max-width: 1100px; margin: 0 auto; padding: 20px 0; }
 .mode-switcher { display: flex; justify-content: center; margin-bottom: 12px; }
-.form-mode { padding: 0 16px; }
-.card-header { display: flex; justify-content: space-between; align-items: center; }
 .yaml-mode { padding: 0 16px; }
 
 .yaml-card {

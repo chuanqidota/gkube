@@ -654,6 +654,10 @@ export function getPvcList(params?: { namespace?: string; cluster_id?: number })
   return request.get('/k8s/pvc/list', { params })
 }
 
+export function getPvcListByStorageClass(params: { storageClassName: string }) {
+  return request.get('/k8s/pvc/list-by-storageclass', { params })
+}
+
 export function getPvcYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/pvc/get-yaml', { params })
 }
@@ -666,7 +670,7 @@ export function createPvc(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/pvc/create', data)
 }
 
-export function updatePvcYaml(data: { namespace: string; yaml: string }) {
+export function updatePvcYaml(data: { namespace: string; name?: string; yaml: string }) {
   return request.put('/k8s/pvc/update', data)
 }
 
@@ -697,6 +701,26 @@ export function deleteStorageClass(data: { name: string }) {
 
 export function getStorageClassEvents(params: { name: string }) {
   return request.get('/k8s/storageclass/events', { params })
+}
+
+/**
+ * Transform raw K8s StorageClass objects into simplified display format.
+ */
+export function transformStorageClasses(items: any[]) {
+  if (!Array.isArray(items)) return []
+  return items.map((sc: any) => {
+    const annotations = sc.metadata?.annotations || {}
+    const isDefault = annotations['storageclass.kubernetes.io/is-default-class'] === 'true' ||
+                      annotations['storageclass.beta.kubernetes.io/is-default-class'] === 'true'
+    return {
+      name: sc.metadata?.name || '',
+      provisioner: sc.provisioner || '-',
+      reclaim_policy: sc.reclaimPolicy || '-',
+      volume_binding_mode: sc.volumeBindingMode || '-',
+      default: isDefault,
+      age: calcAge(sc.metadata?.creationTimestamp),
+    }
+  })
 }
 
 // VolumeSnapshot
