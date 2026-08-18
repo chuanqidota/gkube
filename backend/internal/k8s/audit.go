@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/olivere/elastic/v7"
+	auditlog "gkube/pkg/audit"
 	"gkube/pkg/es"
 	"gkube/pkg/response"
 )
@@ -19,51 +19,19 @@ type auditHandler struct{}
 var Audit = new(auditHandler)
 
 const auditFile = "config/audit-logs.json"
-const auditIndex = "gkube-audit-logs"
 
-// auditFileMu 保护文件回退的读写,避免并发写损坏 JSON。
 var auditFileMu sync.Mutex
 
-type AuditLog struct {
-	ID        string            `json:"id"`
-	Timestamp time.Time         `json:"timestamp"`
-	User      string            `json:"user"`
-	Action    string            `json:"action"`
-	Resource  string            `json:"resource"`
-	Name      string            `json:"name"`
-	Namespace string            `json:"namespace"`
-	Cluster   string            `json:"cluster"`
-	Details   map[string]string `json:"details"`
-	IP        string            `json:"ip"`
-	UserAgent string            `json:"userAgent"`
-	Status    string            `json:"status"` // success, failure
-	Error     string            `json:"error,omitempty"`
+type auditStore struct {
+	Logs []auditlog.AuditLog `json:"logs"`
 }
 
-type AuditStore struct {
-	Logs []AuditLog `json:"logs"`
-}
-
-// isElasticsearchAvailable checks if ES client is initialized
 func isElasticsearchAvailable() bool {
 	return es.ElasticSearch != nil
 }
 
-// saveToElasticsearch saves audit log to ES
-func saveToElasticsearch(log AuditLog) error {
-	if !isElasticsearchAvailable() {
-		return fmt.Errorf("elasticsearch not available")
-	}
-	_, err := es.ElasticSearch.Index().
-		Index(auditIndex).
-		Id(log.ID).
-		BodyJson(log).
-		Do(context.Background())
-	return err
-}
-
 // searchFromElasticsearch searches audit logs from ES
-func searchFromElasticsearch(user, action, resource, status string, limit int) ([]AuditLog, error) {
+func searchFromElasticsearch(user, action, resource, status string, limit int) ([]auditlog.AuditLog, error) {
 	if !isElasticsearchAvailable() {
 		return nil, fmt.Errorf("elasticsearch not available")
 	}
@@ -83,7 +51,7 @@ func searchFromElasticsearch(user, action, resource, status string, limit int) (
 	}
 
 	searchResult, err := es.ElasticSearch.Search().
-		Index(auditIndex).
+		Index(auditlog.AuditIndex).
 		Query(boolQuery).
 		Sort("timestamp", false).
 		Size(limit).
@@ -92,9 +60,9 @@ func searchFromElasticsearch(user, action, resource, status string, limit int) (
 		return nil, err
 	}
 
-	var logs []AuditLog
+	var logs []auditlog.AuditLog
 	for _, hit := range searchResult.Hits.Hits {
-		var log AuditLog
+		var log auditlog.AuditLog
 		if err := json.Unmarshal(hit.Source, &log); err == nil {
 			logs = append(logs, log)
 		}
@@ -108,8 +76,7 @@ func getStatsFromElasticsearch() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("elasticsearch not available")
 	}
 
-	// Total count
-	totalResult, err := es.ElasticSearch.Count(auditIndex).Do(context.Background())
+	totalResult, err := es.ElasticSearch.Count(auditlog.AuditIndex).Do(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -122,9 +89,8 @@ func getStatsFromElasticsearch() (map[string]interface{}, error) {
 		"byStatus":   make(map[string]int),
 	}
 
-	// Aggregations for breakdowns
 	aggResult, err := es.ElasticSearch.Search().
-		Index(auditIndex).
+		Index(auditlog.AuditIndex).
 		Size(0).
 		Aggregation("by_user", elastic.NewTermsAggregation().Field("user.keyword")).
 		Aggregation("by_action", elastic.NewTermsAggregation().Field("action.keyword")).
@@ -132,10 +98,9 @@ func getStatsFromElasticsearch() (map[string]interface{}, error) {
 		Aggregation("by_status", elastic.NewTermsAggregation().Field("status.keyword")).
 		Do(context.Background())
 	if err != nil {
-		return stats, nil // Return total even if aggs fail
+		return stats, nil
 	}
 
-	// Parse aggregations
 	if agg, found := aggResult.Aggregations.Terms("by_user"); found {
 		byUser := stats["byUser"].(map[string]int)
 		for _, bucket := range agg.Buckets {
@@ -169,17 +134,17 @@ func clearElasticsearchAuditLogs() error {
 	if !isElasticsearchAvailable() {
 		return fmt.Errorf("elasticsearch not available")
 	}
-	_, err := es.ElasticSearch.DeleteByQuery(auditIndex).
+	_, err := es.ElasticSearch.DeleteByQuery(auditlog.AuditIndex).
 		Query(elastic.NewMatchAllQuery()).
 		Do(context.Background())
 	return err
 }
 
 // File-based fallback functions
-func loadAuditLogs() *AuditStore {
+func loadAuditLogs() *auditStore {
 	auditFileMu.Lock()
 	defer auditFileMu.Unlock()
-	store := &AuditStore{Logs: []AuditLog{}}
+	store := &auditStore{Logs: []auditlog.AuditLog{}}
 	data, err := os.ReadFile(auditFile)
 	if err == nil {
 		json.Unmarshal(data, store)
@@ -187,7 +152,7 @@ func loadAuditLogs() *AuditStore {
 	return store
 }
 
-func saveAuditLogs(store *AuditStore) error {
+func saveAuditLogs(store *auditStore) error {
 	auditFileMu.Lock()
 	defer auditFileMu.Unlock()
 	data, err := json.MarshalIndent(store, "", "  ")
@@ -204,7 +169,6 @@ func (h *auditHandler) ListAuditLogs(c *gin.Context) {
 	resource := c.Query("resource")
 	status := c.Query("status")
 
-	// Try Elasticsearch first
 	if isElasticsearchAvailable() {
 		logs, err := searchFromElasticsearch(user, action, resource, status, 500)
 		if err == nil {
@@ -213,9 +177,8 @@ func (h *auditHandler) ListAuditLogs(c *gin.Context) {
 		}
 	}
 
-	// Fallback to file storage
 	store := loadAuditLogs()
-	var result []AuditLog
+	var result []auditlog.AuditLog
 
 	for _, log := range store.Logs {
 		if user != "" && log.User != user {
@@ -240,14 +203,13 @@ func (h *auditHandler) ListAuditLogs(c *gin.Context) {
 func (h *auditHandler) GetAuditLog(c *gin.Context) {
 	id := c.Query("id")
 
-	// Try Elasticsearch first
 	if isElasticsearchAvailable() {
 		getResult, err := es.ElasticSearch.Get().
-			Index(auditIndex).
+			Index(auditlog.AuditIndex).
 			Id(id).
 			Do(context.Background())
 		if err == nil && getResult.Found {
-			var log AuditLog
+			var log auditlog.AuditLog
 			if err := json.Unmarshal(getResult.Source, &log); err == nil {
 				response.Success(c, "获取成功", log)
 				return
@@ -255,7 +217,6 @@ func (h *auditHandler) GetAuditLog(c *gin.Context) {
 		}
 	}
 
-	// Fallback to file storage
 	store := loadAuditLogs()
 	for _, log := range store.Logs {
 		if log.ID == id {
@@ -267,42 +228,23 @@ func (h *auditHandler) GetAuditLog(c *gin.Context) {
 	response.Fail(c, "审计日志不存在")
 }
 
-// CreateAuditLog creates a new audit log entry
+// CreateAuditLog creates a new audit log entry (manual, via API)
 func (h *auditHandler) CreateAuditLog(c *gin.Context) {
-	var log AuditLog
+	var log auditlog.AuditLog
 	if err := c.ShouldBindJSON(&log); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
 		return
 	}
 
-	log.ID = fmt.Sprintf("audit-%d", time.Now().UnixNano())
-	log.Timestamp = time.Now()
 	log.IP = c.ClientIP()
 	log.UserAgent = c.GetHeader("User-Agent")
 
-	// Try Elasticsearch first
-	if isElasticsearchAvailable() {
-		if err := saveToElasticsearch(log); err == nil {
-			response.Success(c, "审计日志已创建", log)
-			return
-		}
-	}
-
-	// Fallback to file storage
-	store := loadAuditLogs()
-	store.Logs = append(store.Logs, log)
-
-	if err := saveAuditLogs(store); err != nil {
-		response.Fail(c, fmt.Sprintf("保存审计日志失败:%s", err.Error()))
-		return
-	}
-
+	auditlog.RecordAuditLog(log)
 	response.Success(c, "审计日志已创建", log)
 }
 
 // GetAuditStats gets audit log statistics
 func (h *auditHandler) GetAuditStats(c *gin.Context) {
-	// Try Elasticsearch first
 	if isElasticsearchAvailable() {
 		stats, err := getStatsFromElasticsearch()
 		if err == nil {
@@ -311,7 +253,6 @@ func (h *auditHandler) GetAuditStats(c *gin.Context) {
 		}
 	}
 
-	// Fallback to file storage
 	store := loadAuditLogs()
 
 	stats := map[string]interface{}{
@@ -339,7 +280,6 @@ func (h *auditHandler) GetAuditStats(c *gin.Context) {
 
 // ClearAuditLogs clears all audit logs
 func (h *auditHandler) ClearAuditLogs(c *gin.Context) {
-	// Try Elasticsearch first
 	if isElasticsearchAvailable() {
 		if err := clearElasticsearchAuditLogs(); err == nil {
 			response.Success(c, "审计日志已清除", nil)
@@ -347,8 +287,7 @@ func (h *auditHandler) ClearAuditLogs(c *gin.Context) {
 		}
 	}
 
-	// Fallback to file storage
-	store := &AuditStore{Logs: []AuditLog{}}
+	store := &auditStore{Logs: []auditlog.AuditLog{}}
 
 	if err := saveAuditLogs(store); err != nil {
 		response.Fail(c, fmt.Sprintf("清除审计日志失败:%s", err.Error()))

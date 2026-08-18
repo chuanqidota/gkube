@@ -29,5 +29,6 @@ func registerAuthRoutes(rg *gin.RouterGroup) {
 		adminUsers.POST("", auth.UserHandler.Create)
 		adminUsers.PUT("", auth.UserHandler.Update)
 		adminUsers.DELETE("", auth.UserHandler.Delete)
+		adminUsers.PUT("reset-password", auth.UserHandler.AdminResetPassword)
 	}
 }

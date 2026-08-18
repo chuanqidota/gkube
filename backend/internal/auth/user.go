@@ -14,28 +14,33 @@ import (
 
 type CreateUserParams struct {
 	Username    string `json:"username" binding:"required" label:"用户名"`
-	Password    string `json:"password" binding:"required" label:"密码"`
+	Password    string `json:"password" binding:"required,min=6" label:"密码"`
 	Email       string `json:"email" label:"邮箱"`
 	DisplayName string `json:"displayName" label:"显示名称"`
 }
 
 type UpdateUserParams struct {
-	ID          uint   `json:"id" binding:"required" label:"用户ID"`
-	Email       string `json:"email" label:"邮箱"`
-	DisplayName string `json:"displayName" label:"显示名称"`
-	Status      *int   `json:"status" label:"状态"`
+	ID          uint    `json:"id" binding:"required" label:"用户ID"`
+	Email       *string `json:"email" label:"邮箱"`
+	DisplayName *string `json:"displayName" label:"显示名称"`
+	Status      *int    `json:"status" label:"状态"`
 }
 
 type UserQueryParams struct {
-	Page     int    `form:"page" json:"page" label:"页码"`
-	Size     int    `form:"size" json:"size" label:"每页数量"`
-	Username string `form:"username" json:"username" label:"用户名"`
-	Status   *int   `form:"status" json:"status" label:"状态"`
+	Page    int    `form:"page" json:"page" label:"页码"`
+	Size    int    `form:"size" json:"size" label:"每页数量"`
+	Keyword string `form:"keyword" json:"keyword" label:"搜索关键字"`
+	Status  *int   `form:"status" json:"status" label:"状态"`
 }
 
 type ChangePasswordParams struct {
 	OldPassword string `json:"oldPassword" binding:"required" label:"旧密码"`
-	NewPassword string `json:"newPassword" binding:"required" label:"新密码"`
+	NewPassword string `json:"newPassword" binding:"required,min=6" label:"新密码"`
+}
+
+type AdminResetPasswordParams struct {
+	UserID      uint   `json:"userId" binding:"required" label:"用户ID"`
+	NewPassword string `json:"newPassword" binding:"required,min=6" label:"新密码"`
 }
 
 type userHandler struct{}
@@ -61,8 +66,9 @@ func (u *userHandler) List(c *gin.Context) {
 	}
 
 	db := database.DB.Model(&model.User{})
-	if query.Username != "" {
-		db = db.Where("username LIKE ?", "%"+query.Username+"%")
+	if query.Keyword != "" {
+		like := "%" + query.Keyword + "%"
+		db = db.Where("username LIKE ? OR display_name LIKE ? OR email LIKE ?", like, like, like)
 	}
 	if query.Status != nil {
 		db = db.Where("status = ?", *query.Status)
@@ -153,11 +159,11 @@ func (u *userHandler) Update(c *gin.Context) {
 
 	// 更新字段
 	updates := map[string]interface{}{}
-	if p.Email != "" {
-		updates["email"] = p.Email
+	if p.Email != nil {
+		updates["email"] = *p.Email
 	}
-	if p.DisplayName != "" {
-		updates["display_name"] = p.DisplayName
+	if p.DisplayName != nil {
+		updates["display_name"] = *p.DisplayName
 	}
 	if p.Status != nil {
 		updates["status"] = *p.Status
@@ -171,7 +177,6 @@ func (u *userHandler) Update(c *gin.Context) {
 		}
 	}
 
-	database.DB.First(&user, user.ID)
 	response.Success(c, "更新用户成功", user)
 }
 
@@ -261,4 +266,34 @@ func (u *userHandler) ChangePassword(c *gin.Context) {
 	}
 
 	response.Success(c, "修改密码成功", nil)
+}
+
+// AdminResetPassword 管理员重置指定用户密码（无需旧密码）
+func (u *userHandler) AdminResetPassword(c *gin.Context) {
+	var p AdminResetPasswordParams
+	if err := c.ShouldBindJSON(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+
+	var user model.User
+	if err := database.DB.First(&user, p.UserID).Error; err != nil {
+		response.Fail(c, "用户不存在")
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(p.NewPassword)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "密码加密失败")
+		return
+	}
+
+	if err := database.DB.Model(&user).Update("password_hash", hashedPassword).Error; err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusInternalServerError, "重置密码失败")
+		return
+	}
+
+	response.Success(c, "密码重置成功", nil)
 }

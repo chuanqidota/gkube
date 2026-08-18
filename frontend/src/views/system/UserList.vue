@@ -1,19 +1,22 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import request from '@/api/request'
+import { useAuthStore } from '@/stores/auth'
 import type { FormInstance, FormRules } from 'element-plus'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const loading = ref(false)
+const authStore = useAuthStore()
 const userList = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(20)
 const searchName = ref('')
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 const selectedRows = ref<any[]>([])
 
 const dialogVisible = ref(false)
@@ -21,6 +24,20 @@ const dialogTitle = ref('创建用户')
 const formRef = ref<FormInstance>()
 const saving = ref(false)
 const editingId = ref<number | null>(null)
+
+const resetDialogVisible = ref(false)
+const resetTargetUser = ref<any>(null)
+const resetSaving = ref(false)
+const resetFormRef = ref<FormInstance>()
+
+const resetForm = reactive({ newPassword: '' })
+
+const resetRules: FormRules = {
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' },
+  ],
+}
 
 const form = reactive({
   username: '',
@@ -33,12 +50,16 @@ const rules: FormRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [
     {
-      required: true,
-      message: '请输入密码',
       trigger: 'blur',
       validator: (_rule: any, value: string, callback: any) => {
-        if (!editingId.value && !value) {
-          callback(new Error('请输入密码'))
+        if (!editingId.value) {
+          if (!value) {
+            callback(new Error('请输入密码'))
+          } else if (value.length < 6) {
+            callback(new Error('密码长度不能少于6位'))
+          } else {
+            callback()
+          }
         } else {
           callback()
         }
@@ -47,19 +68,18 @@ const rules: FormRules = {
   ],
 }
 
-const filteredList = computed(() => {
-  if (!searchName.value) return userList.value
-  const keyword = searchName.value.toLowerCase()
-  return userList.value.filter(
-    (u) =>
-      u.username?.toLowerCase().includes(keyword) ||
-      u.display_name?.toLowerCase().includes(keyword) ||
-      u.email?.toLowerCase().includes(keyword)
-  )
-})
+function formatDate(_row: any, _col: any, cellValue: string) {
+  if (!cellValue) return ''
+  const d = new Date(cellValue)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
 
 function onSearchInput(value: string) {
   searchName.value = value
+  page.value = 1
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => fetchUsers(), 300)
 }
 
 function handleSelectionChange(rows: any[]) {
@@ -69,11 +89,15 @@ function handleSelectionChange(rows: any[]) {
 async function fetchUsers() {
   loading.value = true
   try {
-    const res: any = await request.get('/users', { params: { page: page.value, size: size.value } })
+    const params: any = { page: page.value, size: size.value }
+    if (searchName.value) {
+      params.keyword = searchName.value
+    }
+    const res: any = await request.get('/users', { params })
     userList.value = res.data.items || []
     total.value = res.data.total || 0
-  } catch {
-    // Silently handle
+  } catch (e: any) {
+    ElMessage.error(e?.message || '获取用户列表失败')
   } finally {
     loading.value = false
   }
@@ -115,10 +139,15 @@ async function handleSave() {
     }
 
     if (editingId.value) {
-      await request.put(`/users/${editingId.value}`, payload)
+      payload.id = editingId.value
+      await request.put('/users', payload)
+      // 编辑的是当前登录用户时，同步更新 Header 显示
+      if (authStore.user && editingId.value === authStore.user.id) {
+        if (payload.displayName !== undefined) authStore.user.display_name = payload.displayName
+        if (payload.email !== undefined) authStore.user.email = payload.email
+      }
       ElMessage.success('用户已更新')
     } else {
-      payload.password = form.password
       await request.post('/users', payload)
       ElMessage.success('用户已创建')
     }
@@ -166,6 +195,31 @@ async function handleBatchDelete() {
   }
 }
 
+function openResetPassword(row: any) {
+  resetTargetUser.value = row
+  resetForm.newPassword = ''
+  resetDialogVisible.value = true
+}
+
+async function handleResetPassword() {
+  const valid = await resetFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  resetSaving.value = true
+  try {
+    await request.put('/users/reset-password', {
+      userId: resetTargetUser.value.id,
+      newPassword: resetForm.newPassword,
+    })
+    ElMessage.success('密码重置成功')
+    resetDialogVisible.value = false
+  } catch (e: any) {
+    ElMessage.error(e?.message || '重置密码失败')
+  } finally {
+    resetSaving.value = false
+  }
+}
+
 function handlePageChange(newPage: number) {
   page.value = newPage
   fetchUsers()
@@ -210,7 +264,7 @@ onMounted(fetchUsers)
 
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="filteredList"
+        :data="userList"
         v-loading="loading"
         stripe
         @selection-change="handleSelectionChange"
@@ -218,13 +272,21 @@ onMounted(fetchUsers)
         <el-table-column type="selection" width="45" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="username" label="用户名" min-width="140" />
-        <el-table-column prop="display_name" label="昵称" min-width="140" />
+        <el-table-column prop="display_name" label="昵称" min-width="140" show-overflow-tooltip />
         <el-table-column prop="email" label="邮箱" min-width="200" />
-        <el-table-column prop="created_at" label="创建时间" min-width="180" />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column prop="status" label="状态" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
+              {{ row.status === 1 ? '启用' : '禁用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="created_at" label="创建时间" min-width="180" :formatter="formatDate" />
+        <el-table-column label="操作" width="230" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
             <el-button size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button size="small" type="warning" @click="openResetPassword(row)">重置密码</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
@@ -268,6 +330,27 @@ onMounted(fetchUsers)
         <el-button type="primary" :loading="saving" @click="handleSave">
           {{ editingId ? '更新' : '创建' }}
         </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Reset Password Dialog -->
+    <el-dialog v-model="resetDialogVisible" title="重置密码" width="420px" destroy-on-close>
+      <el-form ref="resetFormRef" :model="resetForm" :rules="resetRules" label-width="100px">
+        <el-form-item label="用户">
+          <el-input :model-value="resetTargetUser?.username" disabled />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input
+            v-model="resetForm.newPassword"
+            type="password"
+            show-password
+            placeholder="请输入新密码（不少于6位）"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="resetDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="resetSaving" @click="handleResetPassword">确认重置</el-button>
       </template>
     </el-dialog>
   </div>
