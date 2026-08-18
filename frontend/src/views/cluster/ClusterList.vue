@@ -180,6 +180,16 @@ function statusText(status: string) {
   return status || t('common.unknown')
 }
 
+function parseLabels(raw: unknown): Record<string, string> | null {
+  if (!raw) return null
+  try {
+    const obj = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return obj && typeof obj === 'object' ? (obj as Record<string, string>) : null
+  } catch {
+    return null
+  }
+}
+
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchClusters)
 
 onMounted(fetchClusters)
@@ -234,6 +244,19 @@ onUnmounted(() => clearTimeout(searchDebounce))
       </el-table-column>
       <el-table-column label="描述" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">{{ row.description || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="标签" min-width="180">
+        <template #default="{ row }">
+          <template v-if="parseLabels(row.labels)">
+            <el-tag
+              v-for="(val, k) in parseLabels(row.labels)!"
+              :key="k"
+              size="small"
+              style="margin: 2px 4px 2px 0;"
+            >{{ k }}={{ val }}</el-tag>
+          </template>
+          <span v-else style="color: var(--gk-color-text-secondary);">-</span>
+        </template>
       </el-table-column>
       <el-table-column label="操作" width="200" fixed="right" align="center">
         <template #default="{ row }">

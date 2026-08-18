@@ -176,6 +176,7 @@ export default {
     allocationRate: 'Allocation Rate',
     runningPods: 'Running',
     viewTopN: '{total} total, showing top {shown}',
+    collapseNs: 'Collapse to Top 8',
   },
   workload: {
     pod: 'Pods',
@@ -676,6 +677,12 @@ export default {
     descriptionMax: 'Description cannot exceed 500 characters',
     labelKeyRequired: 'Label key cannot be empty',
     noSearchResults: 'No matching clusters found',
+    uploadKubeConfig: 'Upload File',
+    testConnection: 'Test Connection',
+    testSuccess: 'Connection test passed (v{version}, {nodeCount} nodes, {responseTimeMs}ms)',
+    testFailed: 'Connection test failed',
+    fileUploaded: 'File loaded',
+    kubeConfigRequired: 'Please enter kubeconfig first',
   },
   sidebar: {
     overview: 'Overview',

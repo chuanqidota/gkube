@@ -60,7 +60,10 @@ const sortedNamespaces = computed(() => {
 // 命名空间柱状图:默认只展示 Top N(按当前排序),超量提供「查看全部」入口。
 // 避免几十个 ns 挤成细线;Top N 已能反映资源消耗分布。
 const BAR_TOP_N = 8
-const displayNamespaces = computed(() => sortedNamespaces.value.slice(0, BAR_TOP_N))
+const nsExpanded = ref(false)
+const displayNamespaces = computed(() =>
+  nsExpanded.value ? sortedNamespaces.value : sortedNamespaces.value.slice(0, BAR_TOP_N)
+)
 const hasMoreNamespaces = computed(() => sortedNamespaces.value.length > BAR_TOP_N)
 
 // 柱状图高度:按展示条数驱动,有上下限。
@@ -163,6 +166,7 @@ async function fetchHealth() {
 
 async function fetchAll() {
   if (!clusterId.value) return
+  nsExpanded.value = false
   await Promise.all([fetchOverview(), fetchResources(), fetchWorkloads(), fetchNodes(), fetchNamespaces(), fetchHealth()])
   nextTick(updateAllCharts)
 }
@@ -286,7 +290,8 @@ onBeforeUnmount(() => {
   Object.values(charts).forEach((c) => c?.dispose())
 })
 
-watch([resources, () => readyCount.value, nsList, sortKey], () => nextTick(updateAllCharts))
+watch([resources, () => readyCount.value, nsList], () => nextTick(updateAllCharts))
+watch([sortKey, nsExpanded], () => nextTick(updateBar))
 
 // 柱状图高度随 ns 数量变化时,resize ECharts
 watch(barHeight, () => nextTick(() => charts.bar?.resize()))
@@ -397,8 +402,13 @@ function nodePipClass(n: NodeInfo) {
               <el-empty :description="t('common.noData')" :image-size="44" />
             </div>
           </div>
-          <div v-if="hasMoreNamespaces" class="bar-more" @click="goto('/namespaces')">
-            {{ t('dashboard.viewTopN', { shown: displayNamespaces.length, total: sortedNamespaces.length }) }} →
+          <div v-if="hasMoreNamespaces" class="bar-more" @click="nsExpanded = !nsExpanded">
+            <template v-if="nsExpanded">
+              {{ t('dashboard.collapseNs') }} ↑
+            </template>
+            <template v-else>
+              {{ t('dashboard.viewTopN', { shown: displayNamespaces.length, total: sortedNamespaces.length }) }} ↓
+            </template>
           </div>
         </div>
 
@@ -702,7 +712,7 @@ function nodePipClass(n: NodeInfo) {
   background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%);
   border-color: var(--gk-color-primary-light);
 }
-.right-top { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; padding: var(--gk-space-4); border-bottom: 1px solid var(--gk-color-border-light); }
+.right-top { flex: 0 1 auto; min-height: 0; max-height: 65%; overflow-y: auto; display: flex; flex-direction: column; padding: var(--gk-space-4); border-bottom: 1px solid var(--gk-color-border-light); }
 .right-bottom { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--gk-space-4); }
 
 .bar-wrap { position: relative; min-height: 0; }

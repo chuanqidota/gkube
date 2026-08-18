@@ -13,7 +13,9 @@ import {
   updateDaemonSetImage,
   rollbackDaemonSet,
   getDaemonSetRollbacks,
+  getNodeList,
 } from '@/api/resource'
+import type { NodeInfo } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
 import DaemonSetForm from '@/views/workload/components/DaemonSetForm.vue'
@@ -43,8 +45,12 @@ const allPods = ref<any[]>([])
 const rsPods = ref<any[]>([])
 const rsPodsLoading = ref(false)
 
-// 左侧视图切换：修订历史 / 基本信息
-const leftView = ref<'revisions' | 'info'>('revisions')
+// 节点列表
+const nodeList = ref<NodeInfo[]>([])
+const nodesLoading = ref(false)
+
+// 左侧视图切换：修订历史 / 基本信息 / 节点分布
+const leftView = ref<'revisions' | 'info' | 'nodes'>('revisions')
 
 // Image update dialog
 const imageDialogVisible = ref(false)
@@ -157,6 +163,76 @@ function handleRevisionSelect(rev: any) {
     return labels['controller-revision-hash'] === rev.name
   })
 }
+
+async function fetchNodes() {
+  nodesLoading.value = true
+  try {
+    const res: any = await getNodeList()
+    nodeList.value = res.data || []
+  } catch {
+    nodeList.value = []
+  } finally {
+    nodesLoading.value = false
+  }
+}
+
+// 节点-Pod 分布矩阵
+interface NodePodItem {
+  nodeName: string
+  ip: string
+  isReady: boolean
+  pods: { name: string; phase: string; ready: boolean }[]
+}
+
+function nodeBarClass(node: NodePodItem): string {
+  if (node.pods.length === 0) return 'bar-empty'
+  if (!node.isReady) return 'bar-danger'
+  if (node.pods.some(p => p.phase !== 'Running' || !p.ready)) return 'bar-warning'
+  return 'bar-success'
+}
+
+const nodeDistribution = computed<NodePodItem[]>(() => {
+  // 以集群节点为基准，匹配 DaemonSet Pod
+  const nodeMap = new Map<string, NodePodItem>()
+  for (const node of nodeList.value) {
+    nodeMap.set(node.name, {
+      nodeName: node.name,
+      ip: node.internal_ip || '-',
+      isReady: node.is_ready,
+      pods: [],
+    })
+  }
+  // 将 Pod 按 nodeName 归入对应节点
+  const displayPods = selectedRevision.value ? rsPods.value : allPods.value
+  for (const pod of displayPods) {
+    const nodeName = pod.spec?.nodeName || ''
+    if (!nodeName) continue
+    let entry = nodeMap.get(nodeName)
+    if (!entry) {
+      // Pod 所在节点不在 nodeList 中（罕见，如节点刚删除）
+      entry = { nodeName, ip: pod.status?.hostIP || '-', isReady: false, pods: [] }
+      nodeMap.set(nodeName, entry)
+    }
+    const allReady = (pod.status?.containerStatuses || []).every((cs: any) => cs.ready)
+    entry.pods.push({
+      name: pod.metadata?.name || '',
+      phase: pod.status?.phase || 'Unknown',
+      ready: allReady,
+    })
+  }
+  // 排序：有异常 Pod → 无 Pod → 正常
+  const items = Array.from(nodeMap.values())
+  const score = (item: NodePodItem) => item.pods.some(p => p.phase !== 'Running' || !p.ready) ? 0 : item.pods.length === 0 ? 1 : 2
+  return items.sort((a, b) => score(a) - score(b))
+})
+
+const nodeDistStats = computed(() => {
+  const total = nodeDistribution.value.length
+  const withPod = nodeDistribution.value.filter(n => n.pods.length > 0).length
+  const abnormal = nodeDistribution.value.filter(n => n.pods.some(p => p.phase !== 'Running' || !p.ready)).length
+  const missing = total - withPod
+  return { total, withPod, missing, abnormal }
+})
 
 function revisionPodCount(rev: any): number {
   return allPods.value.filter((pod: any) => {
@@ -330,6 +406,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
   fetchRevisions()
   fetchAllPods()
   fetchEvents()
+  fetchNodes()
 }, { autoStart: false })
 
 onMounted(() => {
@@ -338,6 +415,7 @@ onMounted(() => {
     fetchAllPods()
   })
   fetchEvents()
+  fetchNodes()
 })
 </script>
 
@@ -411,6 +489,7 @@ onMounted(() => {
               :options="[
                 { label: '修订历史', value: 'revisions' },
                 { label: '基本信息', value: 'info' },
+                { label: '节点分布', value: 'nodes' },
               ]"
               size="small"
               block
@@ -505,6 +584,60 @@ onMounted(() => {
             <div class="label-list">
               <el-tag v-for="(v, k) in (daemonSet?.metadata?.labels || {})" :key="k" size="small" type="info" class="label-tag">{{ k }}={{ v }}</el-tag>
               <span v-if="!daemonSet?.metadata?.labels || Object.keys(daemonSet.metadata.labels).length === 0" class="info-empty">无</span>
+            </div>
+          </div>
+
+          <!-- 节点分布 -->
+          <div v-show="leftView === 'nodes'" class="node-dist-body" v-loading="nodesLoading">
+            <!-- 汇总条 -->
+            <div class="node-stats">
+              <div class="node-stat">
+                <span class="node-stat-num">{{ nodeDistStats.total }}</span>
+                <span class="node-stat-label">节点</span>
+              </div>
+              <div class="node-stat">
+                <span class="node-stat-num" style="color: var(--el-color-success)">{{ nodeDistStats.withPod }}</span>
+                <span class="node-stat-label">有 Pod</span>
+              </div>
+              <div class="node-stat">
+                <span class="node-stat-num" style="color: var(--el-color-warning)">{{ nodeDistStats.missing }}</span>
+                <span class="node-stat-label">缺失</span>
+              </div>
+              <div class="node-stat">
+                <span class="node-stat-num" style="color: var(--el-color-danger)">{{ nodeDistStats.abnormal }}</span>
+                <span class="node-stat-label">异常</span>
+              </div>
+            </div>
+
+            <div v-if="nodeDistribution.length === 0 && !nodesLoading" class="empty-hint">暂无节点信息</div>
+
+            <div class="node-cards">
+              <div
+                v-for="node in nodeDistribution"
+                :key="node.nodeName"
+                class="node-card"
+              >
+                <div
+                  class="node-card-bar"
+                  :class="nodeBarClass(node)"
+                />
+                <div class="node-card-body">
+                  <div class="node-card-head">
+                    <span class="node-card-name" :title="node.nodeName">{{ node.nodeName }}</span>
+                    <span class="node-card-ip mono">{{ node.ip }}</span>
+                  </div>
+                  <div v-if="node.pods.length === 0" class="node-card-empty">未调度</div>
+                  <div v-else class="node-card-pods">
+                    <div v-for="pod in node.pods" :key="pod.name" class="node-pod-row">
+                      <span class="node-pod-name" :title="pod.name">{{ pod.name }}</span>
+                      <el-tag
+                        :type="pod.phase === 'Running' && pod.ready ? 'success' : pod.phase === 'Pending' ? 'warning' : 'danger'"
+                        size="small"
+                      >{{ pod.phase }}</el-tag>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -794,6 +927,147 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 10px;
+}
+
+/* 节点分布 */
+.node-dist-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.node-stats {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.node-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 4px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 6px;
+}
+
+.node-stat-num {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--el-text-color-primary);
+}
+
+.node-stat-label {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  margin-top: 2px;
+}
+
+.node-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.node-card {
+  display: flex;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--el-bg-color);
+  transition: border-color 0.15s;
+}
+
+.node-card:hover {
+  border-color: var(--el-border-color);
+}
+
+.node-card-bar {
+  width: 4px;
+  flex-shrink: 0;
+}
+
+.bar-success {
+  background: var(--el-color-success);
+}
+
+.bar-warning {
+  background: var(--el-color-warning);
+}
+
+.bar-danger {
+  background: var(--el-color-danger);
+}
+
+.bar-empty {
+  background: var(--el-fill-color);
+}
+
+.node-card-body {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.node-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.node-card-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-card-ip {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  flex-shrink: 0;
+}
+
+.node-card-empty {
+  font-size: 11px;
+  color: var(--el-text-color-placeholder);
+  font-style: italic;
+}
+
+.node-card-pods {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.node-pod-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.node-pod-name {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--el-text-color-regular);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: monospace;
+  font-size: 12px;
 }
 
 .info-sub {

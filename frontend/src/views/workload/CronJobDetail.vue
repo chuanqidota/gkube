@@ -8,8 +8,10 @@ import {
   getCronJobEvents,
   getCronJobExecutionHistory,
   triggerCronJob,
+  suspendCronJob,
+  resumeCronJob,
 } from '@/api/resource'
-import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
+import { Refresh, Timer, ArrowLeft, FullScreen, Aim, VideoPause, VideoPlay } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import CronJobForm from '@/views/workload/components/CronJobForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -137,6 +139,32 @@ async function handleTrigger() {
     fetchJobs()
   } catch (e: any) {
     ElMessage.error(e?.message || '触发失败')
+  }
+}
+
+async function handleToggleSuspend() {
+  if (!cronJob.value) return
+  const willSuspend = !cronJob.value.spec?.suspend
+  const actionLabel = willSuspend ? '暂停' : '恢复'
+  try {
+    await ElMessageBox.confirm(
+      `确定要${actionLabel} CronJob "${name}" 吗？`,
+      `确认${actionLabel}`,
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  try {
+    if (willSuspend) {
+      await suspendCronJob({ namespace, name })
+    } else {
+      await resumeCronJob({ namespace, name })
+    }
+    ElMessage.success(`CronJob 已${actionLabel}`)
+    fetchDetail()
+  } catch (e: any) {
+    ElMessage.error(e?.message || `${actionLabel}失败`)
   }
 }
 
@@ -268,6 +296,12 @@ onMounted(() => {
         </div>
       </div>
       <div class="header-actions">
+        <el-button
+          v-if="cronJob"
+          :type="cronJob.spec?.suspend ? 'success' : 'warning'"
+          :icon="cronJob.spec?.suspend ? VideoPlay : VideoPause"
+          @click="handleToggleSuspend"
+        >{{ cronJob.spec?.suspend ? '恢复' : '暂停' }}</el-button>
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="primary" @click="handleTrigger">触发</el-button>

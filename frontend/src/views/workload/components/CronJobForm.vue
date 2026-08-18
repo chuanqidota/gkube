@@ -99,13 +99,70 @@ const form = reactive<FormData>({
 
 const formRef = ref<FormInstance>()
 const timezoneRegex = /^[A-Z][a-zA-Z0-9_+-]+(\/[A-Za-z0-9_+-]+)*$/
+
+function isValidCronField(field: string, min: number, max: number): boolean {
+  // Each field: *, number, */step, range, list
+  return field.split(',').every(part => {
+    if (part === '*') return true
+    // */step
+    if (/^\*\/\d+$/.test(part)) return true
+    // range: a-b[/step]
+    if (/^\d+-\d+(\/\d+)?$/.test(part)) return true
+    // single number
+    if (/^\d+$/.test(part)) {
+      const n = parseInt(part, 10)
+      return n >= min && n <= max
+    }
+    // L (last day of month), W (nearest weekday), # (nth day of week)
+    if (/^\d+[LW]$/.test(part) || /^\d+#\d+$/.test(part)) return true
+    return false
+  })
+}
+
+function isValidCronExpression(expr: string): boolean {
+  const parts = expr.trim().split(/\s+/)
+  if (parts.length !== 5 && parts.length !== 6) return false
+  // 6-field format: <second> <minute> <hour> <dom> <month> <dow>
+  // 5-field format: <minute> <hour> <dom> <month> <dow>
+  const fields = parts.length === 6
+    ? [
+        { val: parts[0], min: 0, max: 59 }, // second
+        { val: parts[1], min: 0, max: 59 }, // minute
+        { val: parts[2], min: 0, max: 23 }, // hour
+        { val: parts[3], min: 1, max: 31 }, // day of month
+        { val: parts[4], min: 1, max: 12 }, // month
+        { val: parts[5], min: 0, max: 7 },  // day of week (0 and 7 = Sunday)
+      ]
+    : [
+        { val: parts[0], min: 0, max: 59 }, // minute
+        { val: parts[1], min: 0, max: 23 }, // hour
+        { val: parts[2], min: 1, max: 31 }, // day of month
+        { val: parts[3], min: 1, max: 12 }, // month
+        { val: parts[4], min: 0, max: 7 },  // day of week
+      ]
+  return fields.every(f => isValidCronField(f.val, f.min, f.max))
+}
+
 const formRules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
     { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
-  schedule: [{ required: true, message: '请输入调度表达式', trigger: 'blur' }],
+  schedule: [
+    { required: true, message: '请输入调度表达式', trigger: 'blur' },
+    {
+      validator: (_rule: any, value: string, callback: any) => {
+        if (!value) { callback(); return }
+        if (!isValidCronExpression(value)) {
+          callback(new Error('无效的 Cron 表达式，格式: 分 时 日 月 周 (例如 */5 * * * *)'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
+  ],
   timeZone: [
     {
       validator: (_rule: any, value: string, callback: any) => {

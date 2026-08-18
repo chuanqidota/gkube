@@ -176,6 +176,7 @@ export default {
     allocationRate: '资源分配率',
     runningPods: '运行中',
     viewTopN: '共 {total} 个,显示前 {shown}',
+    collapseNs: '收起，仅显示 Top 8',
   },
   workload: {
     pod: '容器组',
@@ -700,6 +701,12 @@ export default {
     descriptionMax: '描述不能超过500个字符',
     labelKeyRequired: '标签键不能为空',
     noSearchResults: '未找到匹配的集群',
+    uploadKubeConfig: '上传文件',
+    testConnection: '测试连接',
+    testSuccess: '连接测试通过 (v{version}, {nodeCount} 节点, {responseTimeMs}ms)',
+    testFailed: '连接测试失败',
+    fileUploaded: '文件已加载',
+    kubeConfigRequired: '请先输入 kubeconfig',
   },
   sidebar: {
     overview: '概览',

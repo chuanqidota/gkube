@@ -37,3 +37,7 @@ export function deleteCluster(id: number) {
 export function checkCluster(id: number) {
   return request.get(`/clusters/${id}/check`)
 }
+
+export function testKubeConfig(kubeConfig: string) {
+  return request.post('/clusters/test', { kubeConfig })
+}

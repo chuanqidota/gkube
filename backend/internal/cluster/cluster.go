@@ -376,6 +376,53 @@ func markOffline(cluster *model.K8SCluster, version string) {
 	}
 }
 
+// TestKubeConfig 测试 kubeconfig 连通性（不入库）
+func (cl *clusterHandler) TestKubeConfig(c *gin.Context) {
+	var p struct {
+		KubeConfig string `json:"kubeConfig" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+
+	if len(p.KubeConfig) > 12800 {
+		response.Fail(c, "kubeconfig 内容超出最大长度(12.8KB)")
+		return
+	}
+
+	start := time.Now()
+
+	client, err := k8s.GetK8sClient(p.KubeConfig)
+	if err != nil {
+		logger.Error(err.Error())
+		response.Fail(c, "kubeconfig连接失败")
+		return
+	}
+
+	version, err := k8sCluster.GetClusterVersion(client)
+	if err != nil {
+		logger.Error(err.Error())
+		response.Fail(c, "获取集群版本失败")
+		return
+	}
+
+	nodes, err := k8sCluster.GetClusterNodesInfo(client)
+	if err != nil {
+		logger.Error(err.Error())
+		response.Fail(c, "获取集群节点信息失败")
+		return
+	}
+
+	responseTimeMs := time.Since(start).Milliseconds()
+
+	response.Success(c, "kubeconfig 连通性测试成功", gin.H{
+		"clusterVersion": version,
+		"nodeCount":      len(nodes),
+		"responseTimeMs": responseTimeMs,
+	})
+}
+
 // escapeLike escapes SQL LIKE metacharacters (%, _, \) in user input.
 func escapeLike(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`)

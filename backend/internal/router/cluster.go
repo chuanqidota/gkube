@@ -18,6 +18,7 @@ func registerClusterRoutes(rg *gin.RouterGroup) {
 	adminClusters := clusters.Group("", middleware.RequireAdmin())
 	{
 		adminClusters.POST("", cluster.Cluster.Create)
+		adminClusters.POST("/test", cluster.Cluster.TestKubeConfig)
 		adminClusters.PUT("/:id", cluster.Cluster.Update)
 		adminClusters.DELETE("/:id", cluster.Cluster.Delete)
 	}

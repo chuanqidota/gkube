@@ -3,15 +3,16 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { createCluster } from '@/api/cluster'
+import { createCluster, testKubeConfig } from '@/api/cluster'
 import { useClusterStore } from '@/stores/cluster'
-import type { FormInstance, FormRules } from 'element-plus'
+import type { FormInstance, FormRules, UploadFile } from 'element-plus'
 
 const { t } = useI18n()
 const router = useRouter()
 const clusterStore = useClusterStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const testing = ref(false)
 
 const form = reactive({
   clusterName: '',
@@ -32,6 +33,42 @@ function addLabel() {
 
 function removeLabel(index: number) {
   form.labels.splice(index, 1)
+}
+
+function handleFileUpload(uploadFile: UploadFile) {
+  if (!uploadFile.raw) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const content = e.target?.result as string
+    if (content) {
+      form.kubeConfig = content
+      ElMessage.success(t('cluster.fileUploaded'))
+    }
+  }
+  reader.readAsText(uploadFile.raw)
+}
+
+async function handleTestConnection() {
+  if (!form.kubeConfig.trim()) {
+    ElMessage.warning(t('cluster.kubeConfigRequired'))
+    return
+  }
+  testing.value = true
+  try {
+    const res: any = await testKubeConfig(form.kubeConfig)
+    const info = res.data
+    ElMessage.success(
+      t('cluster.testSuccess', {
+        version: info.clusterVersion,
+        nodeCount: info.nodeCount,
+        responseTimeMs: info.responseTimeMs,
+      })
+    )
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('cluster.testFailed'))
+  } finally {
+    testing.value = false
+  }
 }
 
 async function handleSubmit() {
@@ -94,11 +131,28 @@ async function handleSubmit() {
         </el-form-item>
 
         <el-form-item label="KubeConfig" prop="kubeConfig">
+          <div style="width: 100%; display: flex; align-items: flex-start; gap: 12px;">
+            <el-upload
+              :auto-upload="false"
+              :show-file-list="false"
+              :on-change="handleFileUpload"
+            >
+              <el-button type="primary" plain>{{ t('cluster.uploadKubeConfig') }}</el-button>
+            </el-upload>
+            <el-button
+              type="success"
+              plain
+              :loading="testing"
+              :disabled="!form.kubeConfig.trim()"
+              @click="handleTestConnection"
+            >{{ t('cluster.testConnection') }}</el-button>
+          </div>
           <el-input
             v-model="form.kubeConfig"
             type="textarea"
             :rows="12"
             :placeholder="t('cluster.kubeConfigPlaceholder')"
+            style="margin-top: 8px;"
           />
           <div class="form-tip">{{ t('cluster.kubeConfigTip') }}</div>
         </el-form-item>

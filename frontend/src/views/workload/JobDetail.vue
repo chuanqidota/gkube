@@ -11,6 +11,7 @@ import {
   rerunJob,
 } from '@/api/resource'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim, RefreshRight } from '@element-plus/icons-vue'
+import { formatDateTime } from '@/utils/time'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
 import JobForm from '@/views/workload/components/JobForm.vue'
@@ -56,6 +57,23 @@ const statusText = computed(() => {
 
 const ownerCronJob = computed(() => {
   return job.value?.metadata?.ownerReferences?.find((ref: any) => ref.kind === 'CronJob') || null
+})
+
+const completionPercent = computed(() => {
+  const total = job.value?.spec?.completions ?? 1
+  const succeeded = job.value?.status?.succeeded ?? 0
+  return Math.min(Math.round((succeeded / total) * 100), 100)
+})
+
+const progressStatus = computed(() => {
+  if (job.value?.status?.failed > 0 && job.value?.status?.active === 0 && (job.value?.status?.succeeded ?? 0) < (job.value?.spec?.completions ?? 1)) return 'exception'
+  if (completionPercent.value >= 100) return 'success'
+  if (job.value?.status?.active > 0) return ''
+  return ''
+})
+
+const jobConditions = computed(() => {
+  return job.value?.status?.conditions || []
 })
 
 async function fetchDetail() {
@@ -343,6 +361,23 @@ onMounted(() => {
               <el-descriptions-item label="完成时间">{{ job.status?.completionTime || '-' }}</el-descriptions-item>
             </el-descriptions>
 
+            <!-- Completion Progress -->
+            <div style="margin-top: 16px;">
+              <h4 style="margin: 0 0 8px; font-size: 13px;">完成进度</h4>
+              <el-progress
+                :percentage="completionPercent"
+                :status="progressStatus"
+                :stroke-width="18"
+                :text-inside="true"
+                style="margin-bottom: 4px;"
+              />
+              <div style="font-size: 12px; color: var(--el-text-color-secondary);">
+                已成功 {{ job.status?.succeeded ?? 0 }} / {{ job.spec?.completions ?? 1 }} 个 Pod
+                <template v-if="job.status?.active > 0"> · 运行中 {{ job.status.active }} 个</template>
+                <template v-if="job.status?.failed > 0"> · 失败 {{ job.status.failed }} 个</template>
+              </div>
+            </div>
+
             <!-- Labels -->
             <div v-if="job.metadata?.labels && Object.keys(job.metadata.labels).length > 0" style="margin-top: 16px;">
               <h4 style="margin: 0 0 8px; font-size: 13px;">Labels</h4>
@@ -368,6 +403,24 @@ onMounted(() => {
               >
                 {{ key }}={{ val }}
               </el-tag>
+            </div>
+
+            <!-- Conditions -->
+            <div v-if="jobConditions.length > 0" style="margin-top: 16px;">
+              <h4 style="margin: 0 0 8px; font-size: 13px;">Conditions</h4>
+              <el-table :data="jobConditions" size="small" border>
+                <el-table-column label="类型" prop="type" width="120">
+                  <template #default="{ row }">
+                    <el-tag :type="row.status === 'True' ? 'success' : 'info'" size="small">{{ row.type }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" prop="status" width="70" />
+                <el-table-column label="原因" prop="reason" min-width="100" show-overflow-tooltip />
+                <el-table-column label="信息" prop="message" min-width="160" show-overflow-tooltip />
+                <el-table-column label="更新时间" width="160">
+                  <template #default="{ row }">{{ formatDateTime(row.lastTransitionTime) }}</template>
+                </el-table-column>
+              </el-table>
             </div>
           </div>
         </div>
