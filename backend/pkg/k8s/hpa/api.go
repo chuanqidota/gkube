@@ -3,6 +3,8 @@ package hpa
 import (
 	"context"
 	"fmt"
+	"strconv"
+
 	k8sEvent "gkube/pkg/k8s/event"
 	"gkube/pkg/yamlutil"
 
@@ -12,6 +14,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
+)
+
+const (
+	annotationPaused        = "gkube.io/paused"
+	annotationPausedMin     = "gkube.io/paused-min-replicas"
+	annotationPausedMax     = "gkube.io/paused-max-replicas"
 )
 
 func GetHPAList(client *kubernetes.Clientset, namespace string) ([]autoscalingv2.HorizontalPodAutoscaler, error) {
@@ -100,4 +108,74 @@ func GetHPAEvents(client *kubernetes.Clientset, namespace, name string) ([]k8sEv
 		return nil, fmt.Errorf("获取HPA事件失败:%s", err.Error())
 	}
 	return events, nil
+}
+
+// PauseHPA freezes the HPA by setting minReplicas = maxReplicas = currentReplicas
+// and saving the original values in annotations.
+func PauseHPA(client *kubernetes.Clientset, namespace, name string) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		hpa, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if hpa.Annotations == nil {
+			hpa.Annotations = make(map[string]string)
+		}
+		// Already paused
+		if hpa.Annotations[annotationPaused] == "true" {
+			return nil
+		}
+		// Save original min/max
+		var origMin int32 = 1
+		if hpa.Spec.MinReplicas != nil {
+			origMin = *hpa.Spec.MinReplicas
+		}
+		hpa.Annotations[annotationPausedMin] = strconv.Itoa(int(origMin))
+		hpa.Annotations[annotationPausedMax] = strconv.Itoa(int(hpa.Spec.MaxReplicas))
+		hpa.Annotations[annotationPaused] = "true"
+		// Freeze to current replicas
+		current := hpa.Status.CurrentReplicas
+		if current == 0 {
+			// K8s requires maxReplicas >= 1; use 1 as minimum valid freeze
+			one := int32(1)
+			hpa.Spec.MinReplicas = &one
+			hpa.Spec.MaxReplicas = 1
+		} else {
+			hpa.Spec.MinReplicas = &current
+			hpa.Spec.MaxReplicas = current
+		}
+		_, err = client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(context.TODO(), hpa, metav1.UpdateOptions{})
+		return err
+	})
+}
+
+// ResumeHPA restores the original min/max from annotations and removes pause markers.
+func ResumeHPA(client *kubernetes.Clientset, namespace, name string) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		hpa, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if hpa.Annotations == nil || hpa.Annotations[annotationPaused] != "true" {
+			return nil
+		}
+		// Restore original min/max
+		if minStr, ok := hpa.Annotations[annotationPausedMin]; ok {
+			if v, err := strconv.Atoi(minStr); err == nil {
+				minVal := int32(v)
+				hpa.Spec.MinReplicas = &minVal
+			}
+		}
+		if maxStr, ok := hpa.Annotations[annotationPausedMax]; ok {
+			if v, err := strconv.Atoi(maxStr); err == nil {
+				hpa.Spec.MaxReplicas = int32(v)
+			}
+		}
+		// Remove pause annotations
+		delete(hpa.Annotations, annotationPaused)
+		delete(hpa.Annotations, annotationPausedMin)
+		delete(hpa.Annotations, annotationPausedMax)
+		_, err = client.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(context.TODO(), hpa, metav1.UpdateOptions{})
+		return err
+	})
 }

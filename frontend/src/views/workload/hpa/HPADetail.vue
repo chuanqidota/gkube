@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getHpaDetail, deleteHpa, getHpaEvents } from '@/api/resource'
+import { getHpaDetail, deleteHpa, getHpaEvents, pauseHpa, resumeHpa } from '@/api/resource'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import HPAForm from './components/HPAForm.vue'
@@ -25,7 +25,12 @@ const eventsLoading = ref(false)
 const namespace = route.params.namespace as string
 const name = route.params.name as string
 
+const isPaused = computed(() => {
+  return hpa.value?.metadata?.annotations?.['gkube.io/paused'] === 'true'
+})
+
 const statusTagType = computed(() => {
+  if (isPaused.value) return 'warning'
   const conditions = hpa.value?.status?.conditions || []
   const scalingReady = conditions.find((c: any) => c.type === 'ScalingActive')
   if (scalingReady?.status === 'True') return 'success'
@@ -33,6 +38,7 @@ const statusTagType = computed(() => {
 })
 
 const statusText = computed(() => {
+  if (isPaused.value) return '已暂停'
   const conditions = hpa.value?.status?.conditions || []
   const scalingReady = conditions.find((c: any) => c.type === 'ScalingActive')
   if (scalingReady?.status === 'True') return '正常'
@@ -230,6 +236,35 @@ function handleEditCancel() {
   editDialogVisible.value = false
 }
 
+// Pause / Resume
+async function handlePause() {
+  const current = hpa.value?.status?.currentReplicas
+  try {
+    await ElMessageBox.confirm(
+      `暂停后 HPA 将停止自动伸缩，副本数固定在当前值（${current ?? '-'}）。确定暂停吗？`,
+      '确认暂停',
+      { type: 'warning', confirmButtonText: '暂停', cancelButtonText: '取消' }
+    )
+    await pauseHpa({ namespace, name })
+    ElMessage.success('HPA 已暂停')
+    fetchDetail()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e?.message || '暂停失败')
+    }
+  }
+}
+
+async function handleResume() {
+  try {
+    await resumeHpa({ namespace, name })
+    ElMessage.success('HPA 已恢复')
+    fetchDetail()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '恢复失败')
+  }
+}
+
 // ---- Resize: left-right ----
 const leftWidth = ref(300)
 const resizingH = ref(false)
@@ -310,6 +345,8 @@ onMounted(() => {
       </div>
       <div class="header-actions">
         <el-button type="info" @click="handleEdit">编辑</el-button>
+        <el-button v-if="isPaused" type="success" plain @click="handleResume">恢复</el-button>
+        <el-button v-else type="warning" plain @click="handlePause">暂停</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" plain @click="handleDelete">删除</el-button>
         <div class="action-divider" />
@@ -373,6 +410,14 @@ onMounted(() => {
               <el-descriptions-item label="最大副本数">{{ hpa.spec?.maxReplicas ?? '-' }}</el-descriptions-item>
               <el-descriptions-item label="当前副本数">{{ hpa.status?.currentReplicas ?? '-' }}</el-descriptions-item>
               <el-descriptions-item label="期望副本数">{{ hpa.status?.desiredReplicas ?? '-' }}</el-descriptions-item>
+              <template v-if="isPaused">
+                <el-descriptions-item label="原始最小副本数">
+                  <el-tag type="warning" size="small">{{ hpa.metadata?.annotations?.['gkube.io/paused-min-replicas'] ?? '-' }}</el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="原始最大副本数">
+                  <el-tag type="warning" size="small">{{ hpa.metadata?.annotations?.['gkube.io/paused-max-replicas'] ?? '-' }}</el-tag>
+                </el-descriptions-item>
+              </template>
             </el-descriptions>
 
             <!-- Labels -->

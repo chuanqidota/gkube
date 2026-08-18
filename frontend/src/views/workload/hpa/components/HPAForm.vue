@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
@@ -92,6 +92,13 @@ const form = ref({
   scaleDownSelectPolicy: 'Min',
   scaleDownPolicies: [{ type: 'Percent', value: 100, periodSeconds: 15 }] as ScalingPolicy[],
 })
+
+const isPaused = computed(() => {
+  return props.isEdit && props.initialData?.metadata?.annotations?.['gkube.io/paused'] === 'true'
+})
+
+const pausedOrigMin = computed(() => props.initialData?.metadata?.annotations?.['gkube.io/paused-min-replicas'] ?? '-')
+const pausedOrigMax = computed(() => props.initialData?.metadata?.annotations?.['gkube.io/paused-max-replicas'] ?? '-')
 
 function parseInitialData(data: any) {
   form.value.name = data.metadata?.name || ''
@@ -297,6 +304,12 @@ async function handleSubmit() {
 
   loading.value = true
   try {
+    // Validate at least one metric is configured
+    if (form.value.cpuUtilization <= 0 && form.value.memoryUtilization <= 0 && form.value.customMetrics.length === 0) {
+      ElMessage.warning('请至少配置一个伸缩指标（CPU、内存或自定义指标）')
+      loading.value = false
+      return
+    }
     const yaml = buildYaml()
     if (props.isEdit) {
       await updateHpa({ namespace: form.value.namespace, yaml })
@@ -359,6 +372,15 @@ onMounted(() => {
 
 <template>
   <div class="hpa-form">
+    <el-alert
+      v-if="isPaused"
+      title="HPA 当前已暂停"
+      :description="`自动伸缩已冻结。暂停前的副本范围为 ${pausedOrigMin} - ${pausedOrigMax}，恢复后将自动还原。`"
+      type="warning"
+      show-icon
+      :closable="false"
+      style="margin-bottom: 16px;"
+    />
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
       <!-- Section 1: Basic Info -->
       <div class="form-section">

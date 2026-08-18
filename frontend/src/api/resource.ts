@@ -296,6 +296,10 @@ export function getServicePods(params: { namespace: string; name: string }) {
   return request.get('/k8s/service/pods', { params })
 }
 
+export function getServiceEndpoints(params: { namespace: string; name: string }) {
+  return request.get('/k8s/service/endpoints', { params })
+}
+
 // Node
 export interface NodeInfo {
   name: string
@@ -807,6 +811,14 @@ export function deleteHpa(params: { namespace: string; name: string }) {
 
 export function getHpaEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/hpa/events', { params })
+}
+
+export function pauseHpa(params: { namespace: string; name: string }) {
+  return request.post('/k8s/hpa/pause', null, { params })
+}
+
+export function resumeHpa(params: { namespace: string; name: string }) {
+  return request.post('/k8s/hpa/resume', null, { params })
 }
 
 // NetworkPolicy

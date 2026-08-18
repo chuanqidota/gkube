@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Plus, Delete, FullScreen, Aim } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getHpaList,
   getHpaDetail,
   getHpaYaml,
   updateHpa,
   deleteHpa,
-  getDeploymentDetail,
-  getStatefulSetDetail,
+  pauseHpa,
+  resumeHpa,
 } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
@@ -59,17 +59,15 @@ const {
 // Status filter
 const statusFilter = ref('')
 
-// Orphan tracking
-const orphanMap = ref<Record<string, boolean>>({})
-
 // Edit drawer
 const editDrawerVisible = ref(false)
 const editFullscreen = ref(false)
 const editRow = ref<any>(null)
 
-// Status helpers
-function getStatus(row: any): 'active' | 'inactive' | 'orphan' {
-  if (orphanMap.value[`${row.namespace}/${row.name}`]) return 'orphan'
+// Status helpers — now reads from backend-provided fields
+function getStatus(row: any): 'paused' | 'active' | 'inactive' | 'orphan' {
+  if (row.paused) return 'paused'
+  if (row.target_exists === false) return 'orphan'
   const conditions = row.conditions || []
   const scalingActive = conditions.find((c: any) => c.type === 'ScalingActive')
   if (scalingActive?.status === 'True') return 'active'
@@ -78,6 +76,7 @@ function getStatus(row: any): 'active' | 'inactive' | 'orphan' {
 
 function getStatusText(row: any): string {
   const s = getStatus(row)
+  if (s === 'paused') return '已暂停'
   if (s === 'active') return '正常'
   if (s === 'inactive') return '未激活'
   return '孤立'
@@ -85,6 +84,7 @@ function getStatusText(row: any): string {
 
 function getStatusType(row: any): string {
   const s = getStatus(row)
+  if (s === 'paused') return 'warning'
   if (s === 'active') return 'success'
   if (s === 'inactive') return 'danger'
   return 'warning'
@@ -117,49 +117,7 @@ const displayList = computed(() => {
   return filteredList.value.filter((row: any) => getStatus(row) === statusFilter.value)
 })
 
-// Orphan detection
-async function detectOrphans() {
-  const rows = list.value || []
-  const newOrphanMap: Record<string, boolean> = {}
-
-  const checks = rows.map(async (row: any) => {
-    const key = `${row.namespace}/${row.name}`
-    const kind = row.target_kind
-    const targetName = row.target
-    const ns = row.namespace
-
-    if (!kind || !targetName) {
-      newOrphanMap[key] = true
-      return
-    }
-
-    try {
-      if (kind === 'Deployment') {
-        await getDeploymentDetail({ namespace: ns, name: targetName })
-      } else if (kind === 'StatefulSet') {
-        await getStatefulSetDetail({ namespace: ns, name: targetName })
-      } else if (kind === 'ReplicaSet') {
-        // ReplicaSet orphan detection — skip (rare case)
-        return
-      }
-      newOrphanMap[key] = false
-    } catch {
-      newOrphanMap[key] = true
-    }
-  })
-
-  await Promise.allSettled(checks)
-  orphanMap.value = { ...orphanMap.value, ...newOrphanMap }
-}
-
-// Wrap fetchResources to include orphan detection
-const originalFetch = fetchResources
-async function fetchWithOrphans() {
-  await originalFetch()
-  await detectOrphans()
-}
-
-const { isRunning: arRunning, countdown: arCountdown, currentInterval: arInterval, availableIntervals: arIntervals, toggle: arToggle, refresh: arRefresh, setIntervalOption: arSetInterval } = useAutoRefresh(fetchWithOrphans, { interval: 30000 })
+const { isRunning: arRunning, countdown: arCountdown, currentInterval: arInterval, availableIntervals: arIntervals, toggle: arToggle, refresh: arRefresh, setIntervalOption: arSetInterval } = useAutoRefresh(fetchResources, { interval: 30000 })
 
 // Workload route mapping
 function getWorkloadRoute(row: any): string | null {
@@ -189,12 +147,40 @@ async function handleEdit(row: any) {
 function handleEditSuccess() {
   editDrawerVisible.value = false
   editRow.value = null
-  fetchWithOrphans()
+  fetchResources()
 }
 
 function handleEditCancel() {
   editDrawerVisible.value = false
   editRow.value = null
+}
+
+// Pause / Resume
+async function handlePause(row: any) {
+  try {
+    await ElMessageBox.confirm(
+      `暂停后 HPA 将停止自动伸缩，副本数固定在当前值（${row.current_replicas}）。确定暂停吗？`,
+      '确认暂停',
+      { type: 'warning', confirmButtonText: '暂停', cancelButtonText: '取消' }
+    )
+    await pauseHpa({ namespace: row.namespace, name: row.name })
+    ElMessage.success('HPA 已暂停')
+    fetchResources()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e?.message || '暂停失败')
+    }
+  }
+}
+
+async function handleResume(row: any) {
+  try {
+    await resumeHpa({ namespace: row.namespace, name: row.name })
+    ElMessage.success('HPA 已恢复')
+    fetchResources()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '恢复失败')
+  }
 }
 </script>
 
@@ -217,6 +203,7 @@ function handleEditCancel() {
           style="width: 130px;"
         >
           <el-option label="正常" value="active" />
+          <el-option label="已暂停" value="paused" />
           <el-option label="未激活" value="inactive" />
           <el-option label="孤立" value="orphan" />
         </el-select>
@@ -283,10 +270,24 @@ function handleEditCancel() {
           <template #default="{ row }">{{ row.current_replicas }} ({{ row.min_replicas }}-{{ row.max_replicas }})</template>
         </el-table-column>
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column label="操作" width="320" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button size="small" type="info" @click="handleEdit(row)">编辑</el-button>
+              <el-button
+                v-if="row.paused"
+                size="small"
+                type="success"
+                plain
+                @click="handleResume(row)"
+              >恢复</el-button>
+              <el-button
+                v-else
+                size="small"
+                type="warning"
+                plain
+                @click="handlePause(row)"
+              >暂停</el-button>
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
               <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
             </div>

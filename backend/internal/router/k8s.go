@@ -161,6 +161,8 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.PUT("hpa/update", k8s.Hpa.UpdateHPA)
 	rg.DELETE("hpa/delete", k8s.Hpa.DeleteHPA)
 	rg.GET("hpa/events", k8s.Hpa.GetHPAEvents)
+	rg.POST("hpa/pause", k8s.Hpa.PauseHPA)
+	rg.POST("hpa/resume", k8s.Hpa.ResumeHPA)
 }
 
 func registerNetworkRoutes(rg *gin.RouterGroup) {
@@ -170,6 +172,7 @@ func registerNetworkRoutes(rg *gin.RouterGroup) {
 	rg.GET("service/get-yaml", k8s.Service.GetServicesYaml)
 	rg.GET("service/events", k8s.Service.GetServiceEvents)
 	rg.GET("service/pods", k8s.Service.ServicePodList)
+	rg.GET("service/endpoints", k8s.Service.GetServiceEndpoints)
 	rg.POST("service/create", k8s.Service.CreateService)
 	rg.PUT("service/update", k8s.Service.UpdateService)
 	rg.DELETE("service/delete", k8s.Service.DeleteService)

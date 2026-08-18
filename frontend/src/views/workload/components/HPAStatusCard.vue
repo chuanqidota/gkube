@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { deleteHpa } from '@/api/resource'
+import { deleteHpa, pauseHpa, resumeHpa } from '@/api/resource'
 
 const props = defineProps<{
   hpa: any
@@ -11,10 +11,16 @@ const emit = defineEmits<{
   edit: []
   yaml: []
   deleted: []
+  refreshed: []
 }>()
 
 // Status
+const isPaused = computed(() => {
+  return props.hpa?.metadata?.annotations?.['gkube.io/paused'] === 'true'
+})
+
 const statusTagType = computed(() => {
+  if (isPaused.value) return 'warning'
   const conditions = props.hpa?.status?.conditions || []
   const scalingActive = conditions.find((c: any) => c.type === 'ScalingActive')
   if (scalingActive?.status === 'True') return 'success'
@@ -22,6 +28,7 @@ const statusTagType = computed(() => {
 })
 
 const statusText = computed(() => {
+  if (isPaused.value) return '已暂停'
   const conditions = props.hpa?.status?.conditions || []
   const scalingActive = conditions.find((c: any) => c.type === 'ScalingActive')
   if (scalingActive?.status === 'True') return '正常'
@@ -87,6 +94,11 @@ const metricInfos = computed<MetricInfo[]>(() => {
       displayName = name
       targetType = m.pods?.target?.type || '-'
       targetValue = Number(m.pods?.target?.averageValue ?? 0)
+    } else if (m.type === 'Object') {
+      name = m.object?.metric?.name || '-'
+      displayName = name
+      targetType = m.object?.target?.type || '-'
+      targetValue = Number(m.object?.target?.value ?? 0)
     } else if (m.type === 'External') {
       name = m.external?.metric?.name || '-'
       displayName = name
@@ -133,6 +145,38 @@ async function handleDelete() {
     }
   }
 }
+
+async function handlePause() {
+  const ns = props.hpa?.metadata?.namespace || ''
+  const name = props.hpa?.metadata?.name || ''
+  const current = props.hpa?.status?.currentReplicas
+  try {
+    await ElMessageBox.confirm(
+      `暂停后 HPA 将停止自动伸缩，副本数固定在当前值（${current ?? '-'}）。确定暂停吗？`,
+      '确认暂停',
+      { type: 'warning', confirmButtonText: '暂停', cancelButtonText: '取消' }
+    )
+    await pauseHpa({ namespace: ns, name })
+    ElMessage.success('HPA 已暂停')
+    emit('refreshed')
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e?.message || '暂停失败')
+    }
+  }
+}
+
+async function handleResume() {
+  const ns = props.hpa?.metadata?.namespace || ''
+  const name = props.hpa?.metadata?.name || ''
+  try {
+    await resumeHpa({ namespace: ns, name })
+    ElMessage.success('HPA 已恢复')
+    emit('refreshed')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '恢复失败')
+  }
+}
 </script>
 
 <template>
@@ -145,6 +189,8 @@ async function handleDelete() {
       </div>
       <div class="header-actions">
         <el-button size="small" type="info" @click="emit('edit')">编辑</el-button>
+        <el-button v-if="isPaused" size="small" type="success" plain @click="handleResume">恢复</el-button>
+        <el-button v-else size="small" type="warning" plain @click="handlePause">暂停</el-button>
         <el-button size="small" @click="emit('yaml')">YAML</el-button>
         <el-button size="small" type="danger" plain @click="handleDelete">删除</el-button>
       </div>

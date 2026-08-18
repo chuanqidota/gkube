@@ -1,0 +1,184 @@
+{
+  "logs": [
+    {
+      "id": "audit-1787063765643112000",
+      "timestamp": "2026-08-18T22:36:05.643543+08:00",
+      "user": "admin",
+      "action": "create",
+      "resource": "hpa",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "76.667459ms",
+        "method": "POST",
+        "path": "/v1/k8s/hpa/create"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1787064091137505000",
+      "timestamp": "2026-08-18T22:41:31.137521+08:00",
+      "user": "admin",
+      "action": "pause",
+      "resource": "hpa",
+      "name": "my-app-hpa",
+      "namespace": "default",
+      "cluster": "",
+      "details": {
+        "duration": "182.69225ms",
+        "method": "POST",
+        "path": "/v1/k8s/hpa/pause"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1787064092514601000",
+      "timestamp": "2026-08-18T22:41:32.51461+08:00",
+      "user": "admin",
+      "action": "resume",
+      "resource": "hpa",
+      "name": "my-app-hpa",
+      "namespace": "default",
+      "cluster": "",
+      "details": {
+        "duration": "25.48625ms",
+        "method": "POST",
+        "path": "/v1/k8s/hpa/resume"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1787064095407623000",
+      "timestamp": "2026-08-18T22:41:35.407674+08:00",
+      "user": "admin",
+      "action": "pause",
+      "resource": "hpa",
+      "name": "my-app-hpa",
+      "namespace": "default",
+      "cluster": "",
+      "details": {
+        "duration": "53.243917ms",
+        "method": "POST",
+        "path": "/v1/k8s/hpa/pause"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1787064098094847000",
+      "timestamp": "2026-08-18T22:41:38.094865+08:00",
+      "user": "admin",
+      "action": "resume",
+      "resource": "hpa",
+      "name": "my-app-hpa",
+      "namespace": "default",
+      "cluster": "",
+      "details": {
+        "duration": "31.095167ms",
+        "method": "POST",
+        "path": "/v1/k8s/hpa/resume"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1787064662025654000",
+      "timestamp": "2026-08-18T22:51:02.027173+08:00",
+      "user": "admin",
+      "action": "pause",
+      "resource": "hpa",
+      "name": "my-app-hpa",
+      "namespace": "default",
+      "cluster": "",
+      "details": {
+        "duration": "79.913833ms",
+        "method": "POST",
+        "path": "/v1/k8s/hpa/pause"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1787064664565123000",
+      "timestamp": "2026-08-18T22:51:04.565126+08:00",
+      "user": "admin",
+      "action": "resume",
+      "resource": "hpa",
+      "name": "my-app-hpa",
+      "namespace": "default",
+      "cluster": "",
+      "details": {
+        "duration": "29.11375ms",
+        "method": "POST",
+        "path": "/v1/k8s/hpa/resume"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1787064672816849000",
+      "timestamp": "2026-08-18T22:51:12.816877+08:00",
+      "user": "admin",
+      "action": "pause",
+      "resource": "hpa",
+      "name": "my-app-hpa",
+      "namespace": "default",
+      "cluster": "",
+      "details": {
+        "duration": "54.164875ms",
+        "method": "POST",
+        "path": "/v1/k8s/hpa/pause"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1787065073268509000",
+      "timestamp": "2026-08-18T22:57:53.268519+08:00",
+      "user": "admin",
+      "action": "resume",
+      "resource": "cronjob",
+      "name": "job1",
+      "namespace": "default",
+      "cluster": "",
+      "details": {
+        "duration": "60.167541ms",
+        "method": "PUT",
+        "path": "/v1/k8s/cronjob/resume"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1787065081710048000",
+      "timestamp": "2026-08-18T22:58:01.710069+08:00",
+      "user": "admin",
+      "action": "suspend",
+      "resource": "cronjob",
+      "name": "job1",
+      "namespace": "default",
+      "cluster": "",
+      "details": {
+        "duration": "59.359292ms",
+        "method": "PUT",
+        "path": "/v1/k8s/cronjob/suspend"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      "status": "success"
+    }
+  ]
+}

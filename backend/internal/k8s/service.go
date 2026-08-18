@@ -220,6 +220,30 @@ func (s *service) ServicePodList(c *gin.Context) {
 	response.Success(c, "执行成功", podList)
 }
 
+// GetServiceEndpoints
+//
+//	@Description: 获取service的endpoints
+//	@receiver s
+//	@param c
+func (s *service) GetServiceEndpoints(c *gin.Context) {
+	var query ServiceQueryByNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		return
+	}
+	endpoints, err := k8sService.GetServiceEndpoints(client, query.Namespace, query.Name)
+	if err != nil {
+		response.Fail(c, err.Error())
+		return
+	}
+	response.Success(c, "获取成功", endpoints)
+}
+
 type ServiceQueryListParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`

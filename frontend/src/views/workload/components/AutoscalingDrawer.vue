@@ -105,6 +105,10 @@ function handleDeleted() {
   emit('deleted')
 }
 
+function handleRefreshed() {
+  fetchHpaData()
+}
+
 async function handleEdit() {
   if (!matchedHpa.value) return
   editHpaDetail.value = matchedHpa.value
@@ -178,6 +182,7 @@ function handleCancelYaml() {
           @edit="handleEdit"
           @yaml="handleViewYaml"
           @deleted="handleDeleted"
+          @refreshed="handleRefreshed"
         />
       </template>
 

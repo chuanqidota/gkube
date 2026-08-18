@@ -7,6 +7,7 @@ import {
   deleteService,
   getServiceEvents,
   getServicePods,
+  getServiceEndpoints,
   deletePod,
 } from '@/api/resource'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
@@ -15,6 +16,7 @@ import PodListPanel from '@/components/PodListPanel.vue'
 import ServiceForm from './components/ServiceForm.vue'
 import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useResizable } from '@/composables/useResizable'
 
 const clusterStore = useClusterStore()
 
@@ -32,9 +34,16 @@ const eventsLoading = ref(false)
 const pods = ref<any[]>([])
 const podsLoading = ref(false)
 
+// Endpoints
+const endpoints = ref<any[]>([])
+const endpointsLoading = ref(false)
+
 // Edit dialog
 const editDialogVisible = ref(false)
 const editFullscreen = ref(false)
+
+// Left panel tab
+const leftTab = ref<'info' | 'endpoint'>('info')
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
@@ -47,8 +56,17 @@ const service = computed(() => {
   const meta = raw.metadata || {}
   const status = raw.status || {}
 
-  const ports = (spec.ports || [])
-    .map((p: any) => `${p.port}${p.nodePort ? ':' + p.nodePort : ''}/${p.protocol || 'TCP'}`)
+  // Structured ports for the mapping table
+  const portList = (spec.ports || []).map((p: any) => ({
+    name: p.name || '',
+    port: p.port,
+    targetPort: p.targetPort || p.port,
+    protocol: p.protocol || 'TCP',
+    nodePort: p.nodePort || null,
+  }))
+
+  const ports = portList
+    .map((p: any) => `${p.port}${p.nodePort ? ':' + p.nodePort : ''}/${p.protocol}`)
     .join(', ')
 
   let externalIP = ''
@@ -64,14 +82,49 @@ const service = computed(() => {
     clusterIP: spec.clusterIP || '',
     externalIP,
     ports,
+    portList,
     sessionAffinity: spec.sessionAffinity || 'None',
     selector: spec.selector || {},
     labels: meta.labels || {},
   }
 })
 
+// Whether to show NodePort column in port mapping table
+const showNodePort = computed(() => {
+  const t = service.value?.type
+  return t === 'NodePort' || t === 'LoadBalancer'
+})
+
 const statusTagType = computed(() => {
   return service.value?.type === 'LoadBalancer' ? 'success' : 'info'
+})
+
+// Endpoint flat list for the table
+const endpointRows = computed(() => {
+  const rows: any[] = []
+  for (const subset of endpoints.value) {
+    for (const addr of subset.addresses || []) {
+      rows.push({
+        ip: addr.ip,
+        port: subset.ports?.map((p: any) => p.port).join(', ') || '-',
+        protocol: subset.ports?.map((p: any) => p.protocol).join(', ') || 'TCP',
+        podName: addr.pod_name || '-',
+        nodeName: addr.node_name || '-',
+        ready: true,
+      })
+    }
+    for (const addr of subset.not_ready_addresses || []) {
+      rows.push({
+        ip: addr.ip,
+        port: subset.ports?.map((p: any) => p.port).join(', ') || '-',
+        protocol: subset.ports?.map((p: any) => p.protocol).join(', ') || 'TCP',
+        podName: addr.pod_name || '-',
+        nodeName: addr.node_name || '-',
+        ready: false,
+      })
+    }
+  }
+  return rows
 })
 
 async function fetchDetail() {
@@ -107,6 +160,18 @@ async function fetchPods() {
     pods.value = []
   } finally {
     podsLoading.value = false
+  }
+}
+
+async function fetchEndpoints() {
+  endpointsLoading.value = true
+  try {
+    const res: any = await getServiceEndpoints({ namespace, name })
+    endpoints.value = res.data || []
+  } catch (e) {
+    endpoints.value = []
+  } finally {
+    endpointsLoading.value = false
   }
 }
 
@@ -193,67 +258,28 @@ function handleEditSuccess() {
   editDialogVisible.value = false
   fetchDetail()
   fetchPods()
+  fetchEndpoints()
 }
 
 function handleEditCancel() {
   editDialogVisible.value = false
 }
 
-// ---- Resize: left-right ----
-const leftWidth = ref(300)
-const resizingH = ref(false)
-let startX = 0, startW = 0
-function onHResizeStart(e: MouseEvent) {
-  e.preventDefault()
-  resizingH.value = true
-  startX = e.clientX
-  startW = leftWidth.value
-  const onMove = (ev: MouseEvent) => {
-    leftWidth.value = Math.min(Math.max(startW + ev.clientX - startX, 220), 500)
-  }
-  const onUp = () => {
-    resizingH.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-  }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
-}
-
-// ---- Resize: top-bottom (Pods / Events) ----
-const rightTopHeight = ref<number | null>(null)
-const resizingV = ref(false)
-let startY = 0, startH = 0
-function onVResizeStart(e: MouseEvent) {
-  e.preventDefault()
-  const rightPanel = (e.target as HTMLElement).closest('.right-panel')
-  if (!rightPanel) return
-  resizingV.value = true
-  startY = e.clientY
-  startH = rightPanel.getBoundingClientRect().height
-  const onMove = (ev: MouseEvent) => {
-    const delta = ev.clientY - startY
-    rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
-  }
-  const onUp = () => {
-    resizingV.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-  }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
-}
+// ---- Resize: left-right + top-bottom (Pods / Events) ----
+const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
   fetchDetail()
   fetchPods()
   fetchEvents()
+  fetchEndpoints()
 }, { autoStart: false })
 
 onMounted(() => {
   fetchDetail()
   fetchPods()
   fetchEvents()
+  fetchEndpoints()
 })
 </script>
 
@@ -317,19 +343,52 @@ onMounted(() => {
     <template v-if="service">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
 
-        <!-- 左侧：基本信息 -->
+        <!-- 左侧面板 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
-          <div class="panel-title">基本信息</div>
-          <div class="info-body">
+          <!-- 切换标签 -->
+          <div class="left-tabs">
+            <el-segmented
+              v-model="leftTab"
+              :options="[
+                { label: '基本信息', value: 'info' },
+                { label: 'Endpoint', value: 'endpoint' },
+              ]"
+              size="small"
+            />
+          </div>
+
+          <!-- 信息视图 -->
+          <div v-show="leftTab === 'info'" class="left-content">
             <el-descriptions :column="1" border size="small">
               <el-descriptions-item label="名称">{{ service.name }}</el-descriptions-item>
               <el-descriptions-item label="命名空间">{{ service.namespace }}</el-descriptions-item>
               <el-descriptions-item label="类型">{{ service.type || '-' }}</el-descriptions-item>
               <el-descriptions-item label="Cluster IP">{{ service.clusterIP || '-' }}</el-descriptions-item>
               <el-descriptions-item label="External IP">{{ service.externalIP || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="端口">{{ service.ports || '-' }}</el-descriptions-item>
               <el-descriptions-item label="Session Affinity">{{ service.sessionAffinity || '-' }}</el-descriptions-item>
             </el-descriptions>
+
+            <!-- 端口映射表 -->
+            <div v-if="service.portList && service.portList.length > 0" style="margin-top: 16px;">
+              <h4 style="margin: 0 0 8px; font-size: 13px;">端口映射</h4>
+              <el-table :data="service.portList" size="small" border stripe>
+                <el-table-column prop="name" label="名称" width="80">
+                  <template #default="{ row }">{{ row.name || '-' }}</template>
+                </el-table-column>
+                <el-table-column prop="port" label="Port" width="70" align="center" />
+                <el-table-column label="→" width="30" align="center">
+                  <template #default><span style="color: var(--el-text-color-placeholder);">→</span></template>
+                </el-table-column>
+                <el-table-column prop="targetPort" label="TargetPort" width="90" align="center" />
+                <el-table-column prop="protocol" label="协议" width="70" align="center" />
+                <el-table-column v-if="showNodePort" prop="nodePort" label="NodePort" width="90" align="center">
+                  <template #default="{ row }">
+                    <el-tag v-if="row.nodePort" size="small" type="warning">{{ row.nodePort }}</el-tag>
+                    <span v-else>-</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
 
             <!-- Selector -->
             <div v-if="service.selector && Object.keys(service.selector).length > 0" style="margin-top: 16px;">
@@ -356,6 +415,27 @@ onMounted(() => {
               >
                 {{ key }}={{ val }}
               </el-tag>
+            </div>
+          </div>
+
+          <!-- Endpoint 视图 -->
+          <div v-show="leftTab === 'endpoint'" class="left-content endpoint-tab">
+            <div v-loading="endpointsLoading" class="endpoint-table-wrapper">
+              <el-table v-if="endpointRows.length > 0" :data="endpointRows" size="small" stripe>
+                <el-table-column prop="ip" label="IP" width="130" />
+                <el-table-column prop="port" label="Port" width="70" align="center" />
+                <el-table-column prop="protocol" label="协议" width="65" align="center" />
+                <el-table-column prop="podName" label="Pod" min-width="140" show-overflow-tooltip />
+                <el-table-column prop="nodeName" label="Node" min-width="100" show-overflow-tooltip />
+                <el-table-column label="状态" width="75" align="center">
+                  <template #default="{ row }">
+                    <el-tag :type="row.ready ? 'success' : 'warning'" size="small">
+                      {{ row.ready ? 'Ready' : 'NotReady' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <div v-else-if="!endpointsLoading" class="empty-hint">暂无 Endpoint</div>
             </div>
           </div>
         </div>
@@ -567,6 +647,36 @@ onMounted(() => {
   background: var(--el-bg-color);
 }
 
+.left-tabs {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  flex-shrink: 0;
+}
+
+.left-tabs :deep(.el-segmented) {
+  width: 100%;
+}
+
+.left-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  min-height: 0;
+}
+
+.endpoint-tab {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.endpoint-table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 14px;
+}
+
 .panel-title {
   font-size: 13px;
   font-weight: 600;
@@ -583,12 +693,6 @@ onMounted(() => {
   font-weight: 400;
   font-size: 12px;
   color: var(--el-text-color-secondary);
-}
-
-.info-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 14px;
 }
 
 /* Right Panel */
