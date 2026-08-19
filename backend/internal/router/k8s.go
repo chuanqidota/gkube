@@ -182,6 +182,7 @@ func registerNetworkRoutes(rg *gin.RouterGroup) {
 	rg.GET("ingress/detail", k8s.Ingress.GetIngressByName)
 	rg.GET("ingress/get-yaml", k8s.Ingress.GetIngressYaml)
 	rg.GET("ingress/events", k8s.Ingress.GetIngressEvents)
+	rg.GET("ingress/tls-status", k8s.Ingress.CheckIngressTLSCertStatus)
 	rg.POST("ingress/create", k8s.Ingress.CreateIngress)
 	rg.PUT("ingress/update", k8s.Ingress.UpdateIngress)
 	rg.DELETE("ingress/delete", k8s.Ingress.DeleteIngressByName)

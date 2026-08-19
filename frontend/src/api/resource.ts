@@ -465,6 +465,10 @@ export function getIngressEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/ingress/events', { params })
 }
 
+export function getIngressTLSCertStatus(params: { namespace: string; name: string }) {
+  return request.get('/k8s/ingress/tls-status', { params })
+}
+
 // Service create
 export function createService(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/service/create', data)

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getIngressDetail, deleteIngress, getIngressEvents } from '@/api/resource'
+import { getIngressDetail, deleteIngress, getIngressEvents, getIngressTLSCertStatus } from '@/api/resource'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import IngressForm from './components/IngressForm.vue'
@@ -17,6 +17,10 @@ const yamlDialogVisible = ref(false)
 // Events
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
+
+// TLS Cert Status
+const tlsCerts = ref<any[]>([])
+const tlsCertsLoading = ref(false)
 
 // Edit dialog
 const editDialogVisible = ref(false)
@@ -48,11 +52,25 @@ const ingress = computed(() => {
     secretName: t.secretName || '',
   }))
 
+  const defaultBackend = spec.defaultBackend
+    ? {
+        serviceName: spec.defaultBackend.service?.name || '',
+        servicePort: spec.defaultBackend.service?.port?.number || spec.defaultBackend.service?.port?.name || '',
+      }
+    : null
+
+  const address = (raw.status?.loadBalancer?.ingress || [])
+    .map((i: any) => i.ip || i.hostname)
+    .filter(Boolean)
+    .join(', ')
+
   return {
     name: meta.name || '',
     namespace: meta.namespace || '',
     ingressClassName: spec.ingressClassName || '',
     labels: meta.labels || {},
+    address,
+    defaultBackend,
     rules,
     tls,
   }
@@ -63,6 +81,12 @@ async function fetchDetail() {
   try {
     const res: any = await getIngressDetail({ namespace, name })
     ingressRaw.value = res.data
+    // Only fetch TLS cert status when ingress actually has TLS config
+    if (res.data?.spec?.tls?.length > 0) {
+      fetchTLSCerts()
+    } else {
+      tlsCerts.value = []
+    }
   } catch (e: any) {
     ElMessage.error(e?.message || '加载 Ingress 详情失败')
   } finally {
@@ -79,6 +103,18 @@ async function fetchEvents() {
     events.value = []
   } finally {
     eventsLoading.value = false
+  }
+}
+
+async function fetchTLSCerts() {
+  tlsCertsLoading.value = true
+  try {
+    const res: any = await getIngressTLSCertStatus({ namespace, name })
+    tlsCerts.value = res.data || []
+  } catch (e) {
+    tlsCerts.value = []
+  } finally {
+    tlsCertsLoading.value = false
   }
 }
 
@@ -119,6 +155,39 @@ function handleEditSuccess() {
 function handleEditCancel() {
   editDialogVisible.value = false
 }
+
+function certStatusType(status: string) {
+  switch (status) {
+    case 'valid': return 'success'
+    case 'expiring': return 'warning'
+    case 'expired': return 'danger'
+    case 'error': return 'danger'
+    default: return 'info'
+  }
+}
+
+function certStatusText(status: string) {
+  switch (status) {
+    case 'valid': return '有效'
+    case 'expiring': return '即将过期'
+    case 'expired': return '已过期'
+    case 'error': return '异常'
+    default: return '未知'
+  }
+}
+
+function formatDate(iso: string) {
+  if (!iso) return '-'
+  return iso.replace('T', ' ').replace(/Z$/, '').replace(/\+.*/, '')
+}
+
+const tlsCertMap = computed(() => {
+  const map: Record<string, any> = {}
+  for (const cert of tlsCerts.value) {
+    map[cert.secretName] = cert
+  }
+  return map
+})
 
 // ---- Resize: left-right ----
 const leftWidth = ref(300)
@@ -244,6 +313,10 @@ onMounted(() => {
               <el-descriptions-item label="名称">{{ ingress.name }}</el-descriptions-item>
               <el-descriptions-item label="命名空间">{{ ingress.namespace }}</el-descriptions-item>
               <el-descriptions-item label="Ingress Class">{{ ingress.ingressClassName || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="地址">
+                <span v-if="ingress.address">{{ ingress.address }}</span>
+                <span v-else class="text-muted">-</span>
+              </el-descriptions-item>
             </el-descriptions>
 
             <!-- Labels -->
@@ -263,6 +336,27 @@ onMounted(() => {
 
         <!-- 右侧：Rules + TLS + Events -->
         <div class="right-panel">
+
+          <!-- Default Backend -->
+          <div class="right-section" v-if="ingress.defaultBackend">
+            <div class="panel-title">默认后端</div>
+            <div class="rules-body">
+              <el-alert type="info" :closable="false" show-icon>
+                <template #title>
+                  所有未匹配规则的流量将转发至
+                  <el-button
+                    v-if="ingress.defaultBackend.serviceName"
+                    link
+                    type="primary"
+                    size="small"
+                    @click="router.push(`/network/services/${namespace}/${ingress.defaultBackend.serviceName}`)"
+                  >{{ ingress.defaultBackend.serviceName }}</el-button>
+                  <span v-else>-</span>
+                  :{{ ingress.defaultBackend.servicePort || '-' }}
+                </template>
+              </el-alert>
+            </div>
+          </div>
 
           <!-- Rules -->
           <div class="right-section" v-if="ingress.rules && ingress.rules.length > 0" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
@@ -302,14 +396,38 @@ onMounted(() => {
               TLS
               <span class="count-badge">{{ ingress.tls.length }} 条</span>
             </div>
-            <div class="rules-body">
+            <div class="rules-body" v-loading="tlsCertsLoading">
               <el-table :data="ingress.tls" border stripe size="small">
-                <el-table-column label="Hosts" min-width="200">
+                <el-table-column label="Hosts" min-width="180">
                   <template #default="{ row }">
                     <el-tag v-for="h in (row.hosts || [])" :key="h" size="small" style="margin-right: 4px;">{{ h }}</el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="secretName" label="Secret Name" min-width="200" />
+                <el-table-column prop="secretName" label="Secret Name" min-width="160" />
+                <el-table-column label="证书状态" min-width="160">
+                  <template #default="{ row }">
+                    <template v-if="tlsCertMap[row.secretName]">
+                      <el-tag
+                        :type="certStatusType(tlsCertMap[row.secretName].status)"
+                        size="small"
+                        effect="dark"
+                      >
+                        {{ certStatusText(tlsCertMap[row.secretName].status) }}
+                      </el-tag>
+                      <div class="cert-detail">{{ tlsCertMap[row.secretName].message }}</div>
+                    </template>
+                    <span v-else class="text-muted">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="过期时间" min-width="160">
+                  <template #default="{ row }">
+                    <template v-if="tlsCertMap[row.secretName]?.notAfter">
+                      <div>{{ formatDate(tlsCertMap[row.secretName].notAfter) }}</div>
+                      <div class="cert-issuer">签发: {{ tlsCertMap[row.secretName].issuer || '-' }}</div>
+                    </template>
+                    <span v-else class="text-muted">-</span>
+                  </template>
+                </el-table-column>
               </el-table>
             </div>
           </div>
@@ -603,6 +721,24 @@ onMounted(() => {
   text-align: center;
   color: var(--el-text-color-secondary);
   font-size: 13px;
+}
+
+.text-muted {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.cert-detail {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.cert-issuer {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  margin-top: 2px;
 }
 
 /* Responsive */
