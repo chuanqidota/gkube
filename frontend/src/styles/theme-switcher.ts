@@ -20,6 +20,8 @@ export function getTheme(): Theme {
  */
 export function setTheme(theme: Theme): void {
   document.documentElement.setAttribute('data-theme', theme)
+  // Element Plus dark mode is activated via the `dark` class on <html>
+  document.documentElement.classList.toggle('dark', theme === 'dark')
   localStorage.setItem(THEME_KEY, theme)
 }
 

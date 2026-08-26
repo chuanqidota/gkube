@@ -1,7 +1,7 @@
 <template>
   <div class="sidebar-container">
     <div class="sidebar-logo">
-      <Logo :size="32" :show-text="!isCollapse" :text-size="20" tone="light" />
+      <Logo :size="32" :show-text="!isCollapse" :text-size="20" :tone="logoTone" />
     </div>
     <el-menu
       :default-active="activeMenu"
@@ -155,6 +155,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import { useTheme } from '@/styles/theme-switcher'
 import Logo from '@/components/Logo.vue'
 import {
   Odometer,
@@ -191,6 +192,9 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { isDark } = useTheme()
+
+const logoTone = computed(() => isDark.value ? 'light' : 'dark')
 
 // 仅管理员可见系统管理（用户/审计）入口；未加载到用户信息时默认可见，避免误隐藏。
 const isAdmin = computed(() => authStore.user?.isAdmin !== false)
@@ -226,7 +230,7 @@ function navigateTo(path: string) {
   align-items: center;
   padding: 0 var(--gk-space-4);
   gap: var(--gk-space-3);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--gk-color-border);
   flex-shrink: 0;
 }
 
@@ -284,15 +288,24 @@ function navigateTo(path: string) {
 }
 
 .sidebar-menu::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--gk-neutral-300);
   border-radius: 2px;
 }
 
 .sidebar-menu::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--gk-neutral-400);
 }
 
 .sidebar-menu::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Dark theme scrollbar */
+[data-theme="dark"] .sidebar-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .sidebar-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 </style>

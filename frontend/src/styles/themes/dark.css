@@ -27,8 +27,9 @@
   --gk-color-text-placeholder: #64748b;
   --gk-color-border: #334155;
 
-  /* Sidebar specific - darker theme adjustments */
+  /* Sidebar — dark theme */
   --gk-sidebar-text: rgba(255, 255, 255, 0.6);
+  --gk-sidebar-text-active: #ffffff;
   --gk-sidebar-hover-bg: rgba(255, 255, 255, 0.06);
   --gk-sidebar-active-bg: rgba(59, 130, 246, 0.25);
   --gk-sidebar-active-indicator: #60a5fa;

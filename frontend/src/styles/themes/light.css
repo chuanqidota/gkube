@@ -21,10 +21,17 @@
   /* Semantic Overrides */
   --gk-color-bg-page: #f8fafc;
   --gk-color-bg-card: #ffffff;
-  --gk-color-bg-sidebar: #0f172a;
+  --gk-color-bg-sidebar: #ffffff;
   --gk-color-bg-header: #ffffff;
   --gk-color-text-primary: #0f172a;
   --gk-color-text-secondary: #64748b;
   --gk-color-text-placeholder: #94a3b8;
   --gk-color-border: #e2e8f0;
+
+  /* Sidebar — light theme */
+  --gk-sidebar-text: #475569;
+  --gk-sidebar-text-active: #1d4ed8;
+  --gk-sidebar-hover-bg: #f1f5f9;
+  --gk-sidebar-active-bg: #eff6ff;
+  --gk-sidebar-active-indicator: #3b82f6;
 }
