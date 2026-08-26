@@ -52,7 +52,7 @@ function handleBrowse(row: any) {
   const group = row.group
   const version = row.versions?.[0] || 'v1'
   const resource = row.plural
-  router.push(`/crd/resources?group=${group}&version=${version}&resource=${resource}&scope=${row.scope}`)
+  router.push(`/crd/resources?group=${group}&version=${version}&resource=${resource}&scope=${row.scope}&kind=${row.kind}`)
 }
 
 async function handleDelete(row: any) {
@@ -140,7 +140,11 @@ onMounted(fetchCrds)
             <el-button link type="primary" @click="handleBrowse(row)">{{ row.kind }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="名称" min-width="280" show-overflow-tooltip />
+        <el-table-column prop="name" label="名称" min-width="280" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-button link type="primary" @click="router.push(`/crd/detail?name=${row.name}`)">{{ row.name }}</el-button>
+          </template>
+        </el-table-column>
         <el-table-column prop="group" label="API 组" min-width="180" show-overflow-tooltip />
         <el-table-column label="版本" width="140">
           <template #default="{ row }">

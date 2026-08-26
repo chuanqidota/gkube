@@ -86,7 +86,11 @@ watch(() => props.initialData, (newData) => {
 })
 
 const rules: FormRules = {
-  name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
+  name: [
+    { required: true, message: '请输入名称', trigger: 'blur' },
+    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符，以字母开头', trigger: 'blur' },
+    { max: 253, message: '最长 253 个字符', trigger: 'blur' },
+  ],
   provisioner: [{ required: true, message: '请输入 Provisioner', trigger: 'blur' }],
 }
 

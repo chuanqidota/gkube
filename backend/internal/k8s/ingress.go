@@ -335,3 +335,25 @@ type IngressDeleteByNameParams struct {
 	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
 	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
 }
+
+// GetIngressClassList 返回集群中所有 IngressClass 名称
+func (i *ingress) GetIngressClassList(c *gin.Context) {
+	var query struct {
+		ClusterName string `form:"clusterName" binding:"required"`
+	}
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		response.Fail(c, "获取k8s客户端失败")
+		return
+	}
+	names, err := k8sIngress.ListIngressClasses(client)
+	if err != nil {
+		response.Fail(c, err.Error())
+		return
+	}
+	response.Success(c, "执行成功", names)
+}

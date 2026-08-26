@@ -523,6 +523,24 @@ const router = createRouter({
           component: () => import('@/views/crd/CustomResourceList.vue'),
           meta: { title: '自定义资源', parent: 'CRDList' },
         },
+        {
+          path: 'crd/detail',
+          name: 'CRDDetail',
+          component: () => import('@/views/crd/CRDDetail.vue'),
+          meta: { title: 'CRD详情', parent: 'CRDList' },
+        },
+        {
+          path: 'crd/resources/create',
+          name: 'CustomResourceCreate',
+          component: () => import('@/views/crd/CustomResourceCreate.vue'),
+          meta: { title: '创建自定义资源', parent: 'CustomResourceList' },
+        },
+        {
+          path: 'crd/resources/detail',
+          name: 'CustomResourceDetail',
+          component: () => import('@/views/crd/CustomResourceDetail.vue'),
+          meta: { title: '自定义资源详情', parent: 'CustomResourceList' },
+        },
         // System - Users
         {
           path: 'users',

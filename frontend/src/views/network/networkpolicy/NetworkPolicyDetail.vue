@@ -24,6 +24,10 @@ const loading = ref(false)
 const npRaw = ref<any>(null)
 const yamlDialogVisible = ref(false)
 
+// Collapse state for rules
+const ingressCollapse = ref<number[]>([0])
+const egressCollapse = ref<number[]>([0])
+
 // Events
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
@@ -266,6 +270,7 @@ onMounted(() => {
       </div>
       <div class="header-actions">
         <el-button type="info" @click="handleEdit">编辑</el-button>
+        <el-button @click="$router.push(`/network/networkpolicies/create?clone=${name}&namespace=${namespace}`)">克隆</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" plain @click="handleDelete">删除</el-button>
         <div class="action-divider" />
@@ -335,70 +340,119 @@ onMounted(() => {
               </el-tag>
             </div>
 
+            <!-- Semantic tags: Deny All / Allow All -->
+            <div style="margin-top: 16px;" v-if="np.policyTypes.includes('Ingress') || np.policyTypes.includes('Egress')">
+              <h4 style="margin: 0 0 8px; font-size: 13px;">策略语义</h4>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <el-tag v-if="np.policyTypes.includes('Ingress') && np.ingress.length === 0" type="danger" effect="dark" size="default">
+                  🔴 Deny All Ingress
+                </el-tag>
+                <el-tag v-else-if="np.policyTypes.includes('Ingress') && np.ingress.length > 0" type="success" effect="dark" size="default">
+                  🟢 Ingress 规则已配置
+                </el-tag>
+                <el-tag v-if="np.policyTypes.includes('Egress') && np.egress.length === 0" type="danger" effect="dark" size="default">
+                  🔴 Deny All Egress
+                </el-tag>
+                <el-tag v-else-if="np.policyTypes.includes('Egress') && np.egress.length > 0" type="success" effect="dark" size="default">
+                  🟢 Egress 规则已配置
+                </el-tag>
+              </div>
+            </div>
+
             <!-- Ingress Rules -->
             <div v-if="np.ingress && np.ingress.length > 0" style="margin-top: 16px;">
               <h4 style="margin: 0 0 8px; font-size: 13px;">Ingress 规则</h4>
-              <div v-for="(rule, i) in np.ingress" :key="i" class="rule-summary">
-                <div v-if="rule.from && rule.from.length > 0">
-                  <div v-for="(from, j) in rule.from" :key="j" style="margin-bottom: 4px;">
-                    <template v-if="from.podSelector">
-                      <el-tag type="info" size="small" style="margin-right: 4px;">
-                        Pod: {{ Object.entries(from.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
-                        <template v-if="from.podSelector.matchExpressions && from.podSelector.matchExpressions.length > 0">
-                          , {{ from.podSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
-                        </template>
+              <el-collapse v-model="ingressCollapse">
+                <el-collapse-item v-for="(rule, i) in np.ingress" :key="i" :name="Number(i)">
+                  <template #title>
+                    <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                      <span style="font-size: 13px; font-weight: 500;">规则 {{ Number(i) + 1 }}</span>
+                      <el-tag v-if="!rule.from || rule.from.length === 0" type="success" size="small" effect="plain">Allow All</el-tag>
+                      <el-tag v-else-if="rule.ports && rule.ports.length > 0" size="small" effect="plain" type="info">
+                        {{ rule.ports.map((p: any) => p.protocol + '/' + p.port).join(', ') }}
                       </el-tag>
-                    </template>
-                    <template v-if="from.namespaceSelector">
-                      <el-tag type="warning" size="small" style="margin-right: 4px;">
-                        NS: {{ Object.entries(from.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
-                        <template v-if="from.namespaceSelector.matchExpressions && from.namespaceSelector.matchExpressions.length > 0">
-                          , {{ from.namespaceSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                    </div>
+                  </template>
+                  <div class="rule-summary">
+                    <div v-if="rule.from && rule.from.length > 0">
+                      <div v-for="(from, j) in rule.from" :key="j" style="margin-bottom: 4px;">
+                        <template v-if="from.podSelector">
+                          <el-tag type="info" size="small" style="margin-right: 4px;">
+                            Pod: {{ Object.entries(from.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
+                            <template v-if="from.podSelector.matchExpressions && from.podSelector.matchExpressions.length > 0">
+                              , {{ from.podSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                            </template>
+                          </el-tag>
                         </template>
-                      </el-tag>
-                    </template>
-                    <el-tag v-if="from.ipBlock" type="success" size="small" style="margin-right: 4px;">
-                      IP: {{ from.ipBlock.cidr }}<template v-if="from.ipBlock.except && from.ipBlock.except.length > 0"> (except: {{ from.ipBlock.except.join(', ') }})</template>
-                    </el-tag>
+                        <template v-if="from.namespaceSelector">
+                          <el-tag type="warning" size="small" style="margin-right: 4px;">
+                            NS: {{ Object.entries(from.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
+                            <template v-if="from.namespaceSelector.matchExpressions && from.namespaceSelector.matchExpressions.length > 0">
+                              , {{ from.namespaceSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                            </template>
+                          </el-tag>
+                        </template>
+                        <el-tag v-if="from.ipBlock" type="success" size="small" style="margin-right: 4px;">
+                          IP: {{ from.ipBlock.cidr }}<template v-if="from.ipBlock.except && from.ipBlock.except.length > 0"> (except: {{ from.ipBlock.except.join(', ') }})</template>
+                        </el-tag>
+                      </div>
+                    </div>
+                    <div v-else style="color: var(--el-color-success); font-size: 12px; margin-bottom: 4px;">允许所有来源</div>
+                    <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 4px;">
+                      <el-tag v-for="(port, j) in rule.ports" :key="j" size="small" style="margin-right: 4px;">{{ port.protocol }}/{{ port.port }}<template v-if="port.endPort">-{{ port.endPort }}</template></el-tag>
+                    </div>
+                    <div v-else style="color: var(--el-color-warning); font-size: 12px; margin-top: 4px;">允许所有端口</div>
                   </div>
-                </div>
-                <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 4px;">
-                  <el-tag v-for="(port, j) in rule.ports" :key="j" size="small" style="margin-right: 4px;">{{ port.protocol }}/{{ port.port }}<template v-if="port.endPort">-{{ port.endPort }}</template></el-tag>
-                </div>
-              </div>
+                </el-collapse-item>
+              </el-collapse>
             </div>
 
             <!-- Egress Rules -->
             <div v-if="np.egress && np.egress.length > 0" style="margin-top: 16px;">
               <h4 style="margin: 0 0 8px; font-size: 13px;">Egress 规则</h4>
-              <div v-for="(rule, i) in np.egress" :key="i" class="rule-summary">
-                <div v-if="rule.to && rule.to.length > 0">
-                  <div v-for="(to, j) in rule.to" :key="j" style="margin-bottom: 4px;">
-                    <template v-if="to.podSelector">
-                      <el-tag type="info" size="small" style="margin-right: 4px;">
-                        Pod: {{ Object.entries(to.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
-                        <template v-if="to.podSelector.matchExpressions && to.podSelector.matchExpressions.length > 0">
-                          , {{ to.podSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
-                        </template>
+              <el-collapse v-model="egressCollapse">
+                <el-collapse-item v-for="(rule, i) in np.egress" :key="i" :name="Number(i)">
+                  <template #title>
+                    <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                      <span style="font-size: 13px; font-weight: 500;">规则 {{ Number(i) + 1 }}</span>
+                      <el-tag v-if="!rule.to || rule.to.length === 0" type="success" size="small" effect="plain">Allow All</el-tag>
+                      <el-tag v-else-if="rule.ports && rule.ports.length > 0" size="small" effect="plain" type="info">
+                        {{ rule.ports.map((p: any) => p.protocol + '/' + p.port).join(', ') }}
                       </el-tag>
-                    </template>
-                    <template v-if="to.namespaceSelector">
-                      <el-tag type="warning" size="small" style="margin-right: 4px;">
-                        NS: {{ Object.entries(to.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
-                        <template v-if="to.namespaceSelector.matchExpressions && to.namespaceSelector.matchExpressions.length > 0">
-                          , {{ to.namespaceSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                    </div>
+                  </template>
+                  <div class="rule-summary">
+                    <div v-if="rule.to && rule.to.length > 0">
+                      <div v-for="(to, j) in rule.to" :key="j" style="margin-bottom: 4px;">
+                        <template v-if="to.podSelector">
+                          <el-tag type="info" size="small" style="margin-right: 4px;">
+                            Pod: {{ Object.entries(to.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
+                            <template v-if="to.podSelector.matchExpressions && to.podSelector.matchExpressions.length > 0">
+                              , {{ to.podSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                            </template>
+                          </el-tag>
                         </template>
-                      </el-tag>
-                    </template>
-                    <el-tag v-if="to.ipBlock" type="success" size="small" style="margin-right: 4px;">
-                      IP: {{ to.ipBlock.cidr }}<template v-if="to.ipBlock.except && to.ipBlock.except.length > 0"> (except: {{ to.ipBlock.except.join(', ') }})</template>
-                    </el-tag>
+                        <template v-if="to.namespaceSelector">
+                          <el-tag type="warning" size="small" style="margin-right: 4px;">
+                            NS: {{ Object.entries(to.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
+                            <template v-if="to.namespaceSelector.matchExpressions && to.namespaceSelector.matchExpressions.length > 0">
+                              , {{ to.namespaceSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                            </template>
+                          </el-tag>
+                        </template>
+                        <el-tag v-if="to.ipBlock" type="success" size="small" style="margin-right: 4px;">
+                          IP: {{ to.ipBlock.cidr }}<template v-if="to.ipBlock.except && to.ipBlock.except.length > 0"> (except: {{ to.ipBlock.except.join(', ') }})</template>
+                        </el-tag>
+                      </div>
+                    </div>
+                    <div v-else style="color: var(--el-color-success); font-size: 12px; margin-bottom: 4px;">允许所有目标</div>
+                    <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 4px;">
+                      <el-tag v-for="(port, j) in rule.ports" :key="j" size="small" style="margin-right: 4px;">{{ port.protocol }}/{{ port.port }}<template v-if="port.endPort">-{{ port.endPort }}</template></el-tag>
+                    </div>
+                    <div v-else style="color: var(--el-color-warning); font-size: 12px; margin-top: 4px;">允许所有端口</div>
                   </div>
-                </div>
-                <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 4px;">
-                  <el-tag v-for="(port, j) in rule.ports" :key="j" size="small" style="margin-right: 4px;">{{ port.protocol }}/{{ port.port }}<template v-if="port.endPort">-{{ port.endPort }}</template></el-tag>
-                </div>
-              </div>
+                </el-collapse-item>
+              </el-collapse>
             </div>
           </div>
         </div>
@@ -711,8 +765,33 @@ onMounted(() => {
   padding: 8px;
   border: 1px solid var(--el-border-color-extra-light);
   border-radius: 6px;
-  margin-bottom: 8px;
+  margin-bottom: 0;
   background: var(--el-fill-color-lighter);
+}
+
+/* Collapse styling */
+.left-panel :deep(.el-collapse) {
+  border: none;
+}
+
+.left-panel :deep(.el-collapse-item__header) {
+  background: var(--el-fill-color-lighter);
+  border: 1px solid var(--el-border-color-extra-light);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  height: auto;
+  min-height: 40px;
+}
+
+.left-panel :deep(.el-collapse-item__wrap) {
+  border: none;
+  background: transparent;
+}
+
+.left-panel :deep(.el-collapse-item__content) {
+  padding-bottom: 8px;
 }
 
 /* Responsive */

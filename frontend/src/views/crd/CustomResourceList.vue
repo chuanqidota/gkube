@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Plus } from '@element-plus/icons-vue'
 import { getCustomResourceList, getCustomResourceYaml, deleteCustomResource, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -24,6 +24,8 @@ const group = route.query.group as string
 const version = route.query.version as string
 const resource = route.query.resource as string
 const scope = route.query.scope as string
+
+const kind = ref((route.query.kind as string) || '')
 
 const filteredList = computed(() => {
   if (!searchName.value) return resourceList.value
@@ -73,6 +75,16 @@ async function handleDelete(row: any) {
   } catch { /* cancelled */ }
 }
 
+function handleCreate() {
+  router.push(`/crd/resources/create?group=${group}&version=${version}&resource=${resource}&scope=${scope}&kind=${kind.value}`)
+}
+
+function handleViewDetail(row: any) {
+  let url = `/crd/resources/detail?group=${group}&version=${version}&resource=${resource}&scope=${scope}&name=${row.name}`
+  if (row.namespace) url += `&namespace=${row.namespace}`
+  router.push(url)
+}
+
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
 
 onMounted(() => { fetchNamespaces(); fetchResources() })
@@ -82,7 +94,12 @@ onMounted(() => { fetchNamespaces(); fetchResources() })
   <div class="page-container">
     <div class="page-header">
       <h2 style="margin: 0;">{{ resource }} <span style="color: var(--gk-color-text-secondary); font-size: 14px;">({{ group }}/{{ version }})</span></h2>
-      <el-button @click="router.push('/crd')">Back to CRDs</el-button>
+      <div style="display: flex; gap: 8px;">
+        <el-button type="success" @click="handleCreate">
+          <el-icon><Plus /></el-icon> 创建
+        </el-button>
+        <el-button @click="router.push('/crd')">Back to CRDs</el-button>
+      </div>
     </div>
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
@@ -106,7 +123,11 @@ onMounted(() => { fetchNamespaces(); fetchResources() })
     </el-card>
     <el-card shadow="never" class="table-card">
       <el-table :data="filteredList" v-loading="loading" stripe>
-        <el-table-column prop="name" label="Name" min-width="250" show-overflow-tooltip />
+        <el-table-column prop="name" label="Name" min-width="250" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-button link type="primary" @click="handleViewDetail(row)">{{ row.name }}</el-button>
+          </template>
+        </el-table-column>
         <el-table-column v-if="scope === 'Namespaced'" prop="namespace" label="Namespace" width="140" />
         <el-table-column prop="age" label="Age" width="180" />
         <el-table-column label="Actions" width="160" fixed="right">

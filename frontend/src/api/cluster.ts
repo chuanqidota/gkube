@@ -12,6 +12,7 @@ export interface UpdateClusterData {
   displayName?: string | null
   description?: string | null
   labels?: Record<string, string> | null
+  kubeConfig?: string | null
 }
 
 export function getClusterList(params?: { page?: number; size?: number }) {

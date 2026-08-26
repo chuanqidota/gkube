@@ -33,7 +33,7 @@ import {
   getDeploymentYaml, updateDeploymentYaml,
   getStatefulSetYaml, updateStatefulSetYaml,
   getDaemonSetYaml, updateDaemonSetYaml,
-  getPodYaml, updatePodYaml,
+  getPodYaml,
   getJobYaml, updateJobYaml,
   getCronJobYaml, updateCronJobYaml,
   getReplicaSetYaml,
@@ -117,7 +117,7 @@ const resourceApis: Record<ResourceType, ResourceApi> = {
   deployment: { getYaml: getDeploymentYaml, updateYaml: updateDeploymentYaml },
   statefulset: { getYaml: getStatefulSetYaml, updateYaml: updateStatefulSetYaml },
   daemonset: { getYaml: getDaemonSetYaml, updateYaml: updateDaemonSetYaml },
-  pod: { getYaml: getPodYaml, updateYaml: updatePodYaml },
+  pod: { getYaml: getPodYaml, updateYaml: null },  // Pod spec 创建后不可变,只读
   job: { getYaml: getJobYaml, updateYaml: updateJobYaml },
   cronjob: { getYaml: getCronJobYaml, updateYaml: updateCronJobYaml },
   replicaset: { getYaml: getReplicaSetYaml, updateYaml: null },

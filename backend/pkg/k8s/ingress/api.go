@@ -187,3 +187,17 @@ func DeleteIngressByField(client *kubernetes.Clientset, namespace string, fieldM
 	}
 	return nil
 }
+
+// ListIngressClasses 返回集群中所有 IngressClass 的名称列表。
+// 集群级资源，无需 namespace。
+func ListIngressClasses(client *kubernetes.Clientset) ([]string, error) {
+	list, err := client.NetworkingV1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取IngressClass列表失败:%s", err.Error())
+	}
+	names := make([]string, 0, len(list.Items))
+	for _, ic := range list.Items {
+		names = append(names, ic.Name)
+	}
+	return names, nil
+}

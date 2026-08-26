@@ -61,6 +61,9 @@ defineExpose({ open })
 
 <template>
   <el-dialog v-model="visible" title="管理标签" width="650px">
+    <el-alert type="warning" :closable="false" show-icon style="margin-bottom: 16px;">
+      <template #title>保存时，未包含在列表中的用户标签将被删除。系统标签（kubernetes.io/ 前缀等）不受影响。</template>
+    </el-alert>
     <div v-for="(label, index) in labelsArray" :key="index" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
       <el-input v-model="label.key" placeholder="Key（如 app）" style="flex: 2;" />
       <el-input v-model="label.value" placeholder="Value（可空）" style="flex: 2;" />

@@ -70,7 +70,7 @@ const formRef = ref<FormInstance>()
 const formRules = computed<FormRules>(() => ({
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符，以字母开头', trigger: 'blur' },
+    { pattern: /^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/, message: '仅支持小写字母、数字、点号、下划线和连字符', trigger: 'blur' },
     { max: 253, message: '最长 253 个字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],

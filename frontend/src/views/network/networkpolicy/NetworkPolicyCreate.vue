@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { FullScreen } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import NetworkPolicyForm from '@/views/network/networkpolicy/components/NetworkPolicyForm.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
-import { createNetworkPolicy } from '@/api/resource'
+import { createNetworkPolicy, getNetworkPolicyYaml } from '@/api/resource'
 
+const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const mode = ref<'form' | 'yaml'>('form')
@@ -42,6 +43,38 @@ spec:
           port: 443
 `)
 const submitting = ref(false)
+
+// Clone support
+const cloneData = ref<any>(null)
+
+async function loadCloneSource() {
+  const cloneName = route.query.clone as string
+  const cloneNs = route.query.namespace as string || 'default'
+  if (!cloneName) return
+  try {
+    const res: any = await getNetworkPolicyYaml({ namespace: cloneNs, name: cloneName })
+    const raw = res.data
+    const parsed = yaml.load(raw) as any
+    if (parsed) {
+      // Clear name and metadata for clone, but keep namespace for pre-selection
+      parsed.metadata = parsed.metadata || {}
+      delete parsed.metadata.name
+      delete parsed.metadata.resourceVersion
+      delete parsed.metadata.uid
+      delete parsed.metadata.creationTimestamp
+      delete parsed.metadata.managedFields
+      yamlContent.value = yaml.dump(parsed, { indent: 2, lineWidth: -1, noRefs: true })
+      cloneData.value = parsed
+    }
+    ElMessage.success(`已从 ${cloneName} 加载配置，请修改名称后创建`)
+  } catch (e: any) {
+    ElMessage.error(e?.message || '加载克隆源失败')
+  }
+}
+
+onMounted(() => {
+  loadCloneSource()
+})
 
 async function handleYamlSubmit() {
   if (!yamlContent.value.trim()) {
@@ -85,7 +118,7 @@ function handleMaximize() {
       <el-segmented v-model="mode" :options="[{ label: t('common.formCreate'), value: 'form' }, { label: t('common.yamlCreate'), value: 'yaml' }]" size="small" />
     </div>
 
-    <NetworkPolicyForm v-if="mode === 'form'" />
+    <NetworkPolicyForm v-if="mode === 'form'" :initial-data="cloneData" />
 
     <div v-else class="yaml-mode">
       <div class="yaml-card">

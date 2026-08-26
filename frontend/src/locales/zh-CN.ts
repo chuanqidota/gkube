@@ -130,7 +130,7 @@ export default {
     nodeCapacity: '节点容量',
     cpuAllocated: 'CPU',
     memAllocated: '内存',
-    storageAllocated: '存储',
+    storageAllocated: '临时存储',
     core: '核',
     roles: '角色',
     internalIp: '内网 IP',

@@ -33,8 +33,11 @@ const reasonSearch = ref('')
 const clusterId = computed(() => Number(clusterStore.currentCluster?.id) || 0)
 const isSingleCluster = computed(() => clusterId.value > 0)
 
-// Auto-refresh
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchEvents)
+// Auto-refresh — shorter intervals for near-realtime event monitoring
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchEvents, {
+  interval: 10000,
+  intervalOptions: [3, 5, 10, 15, 30, 60],
+})
 
 // Event detail drawer
 const drawerVisible = ref(false)
@@ -61,10 +64,10 @@ async function fetchEvents() {
     }
     if (isSingleCluster.value) {
       params.clusterId = clusterId.value
-      // Token used to load the current page (empty for the first page)
-      const token = pageTokens.value[currentPage.value - 1] || ''
-      if (token) params.continue = token
     }
+    // Token used to load the current page (empty for the first page)
+    const token = pageTokens.value[currentPage.value - 1] || ''
+    if (token) params.continue = token
     if (selectedType.value) params.type = selectedType.value
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
 
@@ -384,8 +387,8 @@ onMounted(() => {
         />
       </el-table>
 
-      <!-- Pagination (token-based: forward-only prev/next) — only in single-cluster mode -->
-      <div v-if="isSingleCluster" class="pagination-wrapper">
+      <!-- Pagination (token-based: forward-only prev/next) -->
+      <div class="pagination-wrapper">
         <el-select
           v-model="pageSize"
           size="small"

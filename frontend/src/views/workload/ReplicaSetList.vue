@@ -37,7 +37,9 @@ const {
   totalCount,
   yamlContent,
   yamlLoading,
+  hasMore,
   fetchResources,
+  fetchNextPage,
   handleNamespaceChange,
   handleSelectionChange,
   handleViewYaml,
@@ -52,6 +54,8 @@ const {
   deleteResource: deleteReplicaSet,
   detailRoute: '/workloads/replicasets',
   autoRefreshInterval: 30000,
+  paginated: true,
+  pageSize: 50,
 })
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
@@ -117,6 +121,11 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
           </template>
         </el-table-column>
       </el-table>
+      <div v-if="hasMore" class="load-more">
+        <el-button @click="fetchNextPage" :loading="loading" link type="primary">
+          加载更多
+        </el-button>
+      </div>
     </el-card>
 
     <!-- YAML Drawer -->
@@ -135,6 +144,10 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 }
 .table-card {
   border-radius: 8px;
+}
+.load-more {
+  text-align: center;
+  padding: 12px 0;
 }
 </style>
 

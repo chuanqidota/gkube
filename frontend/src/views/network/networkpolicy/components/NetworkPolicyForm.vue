@@ -46,9 +46,16 @@ const hasMatchExpressions = computed(() => {
 
 interface Label { key: string; value: string }
 
+interface MatchExpression {
+  key: string
+  operator: 'In' | 'NotIn' | 'Exists' | 'DoesNotExist'
+  values: string
+}
+
 interface FromToEntry {
-  type: 'podSelector' | 'namespaceSelector' | 'ipBlock'
+  type: 'podSelector' | 'namespaceSelector' | 'ipBlock' | 'allowAll'
   labels: Label[]
+  matchExpressions: MatchExpression[]
   cidr: string
   except: string[]
 }
@@ -71,11 +78,11 @@ const form = reactive({
   policyTypes: ['Ingress', 'Egress'] as string[],
   podSelectorLabels: [{ key: 'app', value: '' }] as Label[],
   ingressRules: [{
-    fromTo: [{ type: 'podSelector', labels: [{ key: 'app', value: '' }], cidr: '', except: [] }],
+    fromTo: [{ type: 'podSelector', labels: [{ key: 'app', value: '' }], matchExpressions: [], cidr: '', except: [] }],
     ports: [{ protocol: 'TCP', port: 80, endPort: null }],
   }] as RuleItem[],
   egressRules: [{
-    fromTo: [{ type: 'ipBlock', labels: [], cidr: '0.0.0.0/0', except: [] }],
+    fromTo: [{ type: 'ipBlock', labels: [], matchExpressions: [], cidr: '0.0.0.0/0', except: [] }],
     ports: [{ protocol: 'TCP', port: 443, endPort: null }],
   }] as RuleItem[],
 })
@@ -87,14 +94,14 @@ const formRef = ref<FormInstance>()
 const formRules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z]([a-z0-9-]*[a-z0-9])?$/, message: '仅支持小写字母、数字和连字符，以字母开头、字母或数字结尾', trigger: 'blur' },
+    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符，以字母开头', trigger: 'blur' },
     { max: 253, message: '最长 253 个字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
 }
 
-// CIDR format validation
-const cidrPattern = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/
+// CIDR format validation (IPv4 and IPv6)
+const cidrPattern = /^((\d{1,3}\.){3}\d{1,3}|([0-9a-fA-F:]+))\/\d{1,3}$/
 
 // K8s label key validation: optional DNS prefix + "/" + name (letters, digits, -, _, .)
 const labelKeyPattern = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\/)?[a-z0-9A-Z]([a-z0-9A-Z._-]*[a-z0-9A-Z])?$/
@@ -115,7 +122,7 @@ async function fetchNamespaces() {
 
 onMounted(() => {
   fetchNamespaces()
-  if (props.isEdit && props.initialData) {
+  if (props.initialData) {
     parseInitialData(props.initialData)
   }
 })
@@ -136,7 +143,7 @@ function addIngressRule() {
 function removeIngressRule(i: number) { form.ingressRules.splice(i, 1) }
 
 function addIngressFrom(ruleIdx: number) {
-  form.ingressRules[ruleIdx].fromTo.push({ type: 'podSelector', labels: [{ key: '', value: '' }], cidr: '', except: [] })
+  form.ingressRules[ruleIdx].fromTo.push({ type: 'podSelector', labels: [{ key: '', value: '' }], matchExpressions: [], cidr: '', except: [] })
 }
 function removeIngressFrom(ruleIdx: number, fromIdx: number) {
   form.ingressRules[ruleIdx].fromTo.splice(fromIdx, 1)
@@ -153,14 +160,14 @@ function removeIngressPort(ruleIdx: number, portIdx: number) {
 
 function addEgressRule() {
   form.egressRules.push({
-    fromTo: [{ type: 'ipBlock', labels: [], cidr: '0.0.0.0/0', except: [] }],
+    fromTo: [{ type: 'ipBlock', labels: [], matchExpressions: [], cidr: '0.0.0.0/0', except: [] }],
     ports: [{ protocol: 'TCP', port: null, endPort: null }],
   })
 }
 function removeEgressRule(i: number) { form.egressRules.splice(i, 1) }
 
 function addEgressTo(ruleIdx: number) {
-  form.egressRules[ruleIdx].fromTo.push({ type: 'podSelector', labels: [{ key: '', value: '' }], cidr: '', except: [] })
+  form.egressRules[ruleIdx].fromTo.push({ type: 'podSelector', labels: [{ key: '', value: '' }], matchExpressions: [], cidr: '', except: [] })
 }
 function removeEgressTo(ruleIdx: number, toIdx: number) {
   form.egressRules[ruleIdx].fromTo.splice(toIdx, 1)
@@ -182,6 +189,15 @@ function removeFromToLabel(rule: RuleItem, fromIdx: number, labelIdx: number) {
   rule.fromTo[fromIdx].labels.splice(labelIdx, 1)
 }
 
+// ---- MatchExpression Management ----
+
+function addMatchExpression(rule: RuleItem, fromIdx: number) {
+  rule.fromTo[fromIdx].matchExpressions.push({ key: '', operator: 'In', values: '' })
+}
+function removeMatchExpression(rule: RuleItem, fromIdx: number, exprIdx: number) {
+  rule.fromTo[fromIdx].matchExpressions.splice(exprIdx, 1)
+}
+
 // ---- Except Management (ipBlock) ----
 
 function addExcept(rule: RuleItem, fromIdx: number) {
@@ -194,19 +210,32 @@ function removeExcept(rule: RuleItem, fromIdx: number, exceptIdx: number) {
 function buildFromTo(entries: FromToEntry[]): Record<string, any>[] {
   return entries
     .filter(e => {
+      if (e.type === 'allowAll') return true
       if (e.type === 'ipBlock') return !!e.cidr.trim()
-      return e.labels.some(l => l.key.trim())
+      return e.labels.some(l => l.key.trim()) || e.matchExpressions.some(m => m.key.trim())
     })
     .map(e => {
+      if (e.type === 'allowAll') return {}
       if (e.type === 'ipBlock') {
         const ipBlock: Record<string, any> = { cidr: e.cidr.trim() }
         const validExcept = e.except.filter(x => x.trim())
         if (validExcept.length > 0) ipBlock.except = validExcept
         return { ipBlock }
       }
+      const selector: Record<string, any> = {}
       const labels: Record<string, string> = {}
       e.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
-      const selector = { matchLabels: labels }
+      if (Object.keys(labels).length > 0) selector.matchLabels = labels
+      const expressions = e.matchExpressions
+        .filter(m => m.key.trim())
+        .map(m => {
+          const expr: Record<string, any> = { key: m.key.trim(), operator: m.operator }
+          if (m.operator === 'In' || m.operator === 'NotIn') {
+            expr.values = m.values.split(',').map(s => s.trim()).filter(Boolean)
+          }
+          return expr
+        })
+      if (expressions.length > 0) selector.matchExpressions = expressions
       return e.type === 'podSelector' ? { podSelector: selector } : { namespaceSelector: selector }
     })
 }
@@ -278,6 +307,15 @@ function buildNetworkPolicy(): Record<string, any> {
 
 // ---- Parse Initial Data (Edit Mode) ----
 
+function parseMatchExpressions(exprs: any[] | undefined): MatchExpression[] {
+  if (!exprs || !Array.isArray(exprs)) return []
+  return exprs.map((e: any) => ({
+    key: e.key || '',
+    operator: (e.operator || 'In') as MatchExpression['operator'],
+    values: (e.values || []).join(', '),
+  }))
+}
+
 function parseInitialData(data: any) {
   const spec = data.spec || {}
   const meta = data.metadata || {}
@@ -306,26 +344,26 @@ function parseInitialData(data: any) {
   form.ingressRules = ingress.length > 0
     ? ingress.map((rule: any) => ({
         fromTo: (rule.from || []).map((f: any) => {
-          if (f.ipBlock) return { type: 'ipBlock' as const, labels: [], cidr: f.ipBlock.cidr || '', except: f.ipBlock.except || [] }
-          if (f.namespaceSelector) return { type: 'namespaceSelector' as const, labels: Object.entries(f.namespaceSelector.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), cidr: '', except: [] }
-          return { type: 'podSelector' as const, labels: Object.entries(f.podSelector?.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), cidr: '', except: [] }
+          if (f.ipBlock) return { type: 'ipBlock' as const, labels: [], matchExpressions: [], cidr: f.ipBlock.cidr || '', except: f.ipBlock.except || [] }
+          if (f.namespaceSelector) return { type: 'namespaceSelector' as const, labels: Object.entries(f.namespaceSelector.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), matchExpressions: parseMatchExpressions(f.namespaceSelector.matchExpressions), cidr: '', except: [] }
+          return { type: 'podSelector' as const, labels: Object.entries(f.podSelector?.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), matchExpressions: parseMatchExpressions(f.podSelector?.matchExpressions), cidr: '', except: [] }
         }),
         ports: (rule.ports || []).map((p: any) => ({ protocol: p.protocol || 'TCP', port: p.port ?? null, endPort: p.endPort ?? null })),
       }))
-    : [{ fromTo: [{ type: 'podSelector' as const, labels: [{ key: 'app', value: '' }], cidr: '', except: [] }], ports: [{ protocol: 'TCP', port: 80, endPort: null }] }]
+    : [{ fromTo: [{ type: 'podSelector' as const, labels: [{ key: 'app', value: '' }], matchExpressions: [], cidr: '', except: [] }], ports: [{ protocol: 'TCP', port: 80, endPort: null }] }]
 
   // Egress rules
   const egress = spec.egress || []
   form.egressRules = egress.length > 0
     ? egress.map((rule: any) => ({
         fromTo: (rule.to || []).map((t: any) => {
-          if (t.ipBlock) return { type: 'ipBlock' as const, labels: [], cidr: t.ipBlock.cidr || '', except: t.ipBlock.except || [] }
-          if (t.namespaceSelector) return { type: 'namespaceSelector' as const, labels: Object.entries(t.namespaceSelector.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), cidr: '', except: [] }
-          return { type: 'podSelector' as const, labels: Object.entries(t.podSelector?.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), cidr: '', except: [] }
+          if (t.ipBlock) return { type: 'ipBlock' as const, labels: [], matchExpressions: [], cidr: t.ipBlock.cidr || '', except: t.ipBlock.except || [] }
+          if (t.namespaceSelector) return { type: 'namespaceSelector' as const, labels: Object.entries(t.namespaceSelector.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), matchExpressions: parseMatchExpressions(t.namespaceSelector.matchExpressions), cidr: '', except: [] }
+          return { type: 'podSelector' as const, labels: Object.entries(t.podSelector?.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), matchExpressions: parseMatchExpressions(t.podSelector?.matchExpressions), cidr: '', except: [] }
         }),
         ports: (rule.ports || []).map((p: any) => ({ protocol: p.protocol || 'TCP', port: p.port ?? null, endPort: p.endPort ?? null })),
       }))
-    : [{ fromTo: [{ type: 'ipBlock' as const, labels: [], cidr: '0.0.0.0/0', except: [] }], ports: [{ protocol: 'TCP', port: 443, endPort: null }] }]
+    : [{ fromTo: [{ type: 'ipBlock' as const, labels: [], matchExpressions: [], cidr: '0.0.0.0/0', except: [] }], ports: [{ protocol: 'TCP', port: 443, endPort: null }] }]
 }
 
 // ---- Submit ----
@@ -385,9 +423,10 @@ async function handleSubmit() {
     // In edit mode, merge with original spec to preserve fields the form can't edit
     // (e.g. matchExpressions, which are only editable via YAML)
     if (props.isEdit && originalSpec) {
+      const origSpec = originalSpec
       // Preserve podSelector.matchExpressions
-      if (originalSpec.podSelector?.matchExpressions) {
-        resource.spec.podSelector.matchExpressions = originalSpec.podSelector.matchExpressions
+      if (origSpec.podSelector?.matchExpressions) {
+        resource.spec.podSelector.matchExpressions = origSpec.podSelector.matchExpressions
       }
 
       // Preserve matchExpressions in ingress/egress from/to entries
@@ -397,22 +436,22 @@ async function handleSubmit() {
         return formSel
       }
 
-      if (resource.spec.ingress && originalSpec.ingress) {
+      if (resource.spec.ingress && origSpec.ingress) {
         resource.spec.ingress.forEach((rule: any, ri: number) => {
-          if (!rule.from || !originalSpec.ingress[ri]?.from) return
+          if (!rule.from || !origSpec.ingress[ri]?.from) return
           rule.from.forEach((entry: any, fi: number) => {
-            const orig = originalSpec.ingress[ri].from[fi]
+            const orig = origSpec.ingress[ri].from[fi]
             if (entry.podSelector) mergeSelector(entry.podSelector, orig?.podSelector)
             if (entry.namespaceSelector) mergeSelector(entry.namespaceSelector, orig?.namespaceSelector)
           })
         })
       }
 
-      if (resource.spec.egress && originalSpec.egress) {
+      if (resource.spec.egress && origSpec.egress) {
         resource.spec.egress.forEach((rule: any, ri: number) => {
-          if (!rule.to || !originalSpec.egress[ri]?.to) return
+          if (!rule.to || !origSpec.egress[ri]?.to) return
           rule.to.forEach((entry: any, ti: number) => {
-            const orig = originalSpec.egress[ri].to[ti]
+            const orig = origSpec.egress[ri].to[ti]
             if (entry.podSelector) mergeSelector(entry.podSelector, orig?.podSelector)
             if (entry.namespaceSelector) mergeSelector(entry.namespaceSelector, orig?.namespaceSelector)
           })
@@ -566,14 +605,21 @@ function handleCancel() {
                     <el-option label="Pod Selector" value="podSelector" />
                     <el-option label="Namespace Selector" value="namespaceSelector" />
                     <el-option label="IP Block" value="ipBlock" />
+                    <el-option label="允许所有流量" value="allowAll" />
                   </el-select>
                   <el-button type="danger" text circle size="small" @click="removeIngressFrom(ri, fi)">
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
 
+                <!-- allowAll hint -->
+                <div v-if="entry.type === 'allowAll'" class="fromto-body">
+                  <span style="font-size: 12px; color: var(--el-text-color-secondary);">匹配所有流量（K8s 中空对象 {} 表示允许所有）</span>
+                </div>
+
                 <!-- podSelector / namespaceSelector labels -->
-                <div v-if="entry.type === 'podSelector' || entry.type === 'namespaceSelector'" class="fromto-body">
+                <div v-else-if="entry.type === 'podSelector' || entry.type === 'namespaceSelector'" class="fromto-body">
+                  <div class="rule-subtitle" style="margin-bottom: 4px;">matchLabels</div>
                   <div v-for="(label, li) in entry.labels" :key="li" class="kv-row">
                     <el-input v-model="label.key" placeholder="Key" size="small" />
                     <el-input v-model="label.value" placeholder="Value" size="small" />
@@ -583,6 +629,23 @@ function handleCancel() {
                   </div>
                   <el-button text type="primary" size="small" @click="addFromToLabel(rule, fi)">
                     <el-icon><Plus /></el-icon> 添加标签
+                  </el-button>
+                  <div class="rule-subtitle" style="margin-top: 8px; margin-bottom: 4px;">matchExpressions</div>
+                  <div v-for="(expr, ei) in entry.matchExpressions" :key="ei" class="kv-row">
+                    <el-input v-model="expr.key" placeholder="Key" size="small" style="flex: 1;" />
+                    <el-select v-model="expr.operator" style="width: 130px;" size="small">
+                      <el-option label="In" value="In" />
+                      <el-option label="NotIn" value="NotIn" />
+                      <el-option label="Exists" value="Exists" />
+                      <el-option label="DoesNotExist" value="DoesNotExist" />
+                    </el-select>
+                    <el-input v-if="expr.operator === 'In' || expr.operator === 'NotIn'" v-model="expr.values" placeholder="值(逗号分隔)" size="small" style="flex: 1;" />
+                    <el-button type="danger" text circle size="small" @click="removeMatchExpression(rule, fi, ei)">
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </div>
+                  <el-button text type="primary" size="small" @click="addMatchExpression(rule, fi)">
+                    <el-icon><Plus /></el-icon> 添加表达式
                   </el-button>
                 </div>
 
@@ -661,13 +724,20 @@ function handleCancel() {
                     <el-option label="Pod Selector" value="podSelector" />
                     <el-option label="Namespace Selector" value="namespaceSelector" />
                     <el-option label="IP Block" value="ipBlock" />
+                    <el-option label="允许所有流量" value="allowAll" />
                   </el-select>
                   <el-button type="danger" text circle size="small" @click="removeEgressTo(ri, ti)">
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
 
-                <div v-if="entry.type === 'podSelector' || entry.type === 'namespaceSelector'" class="fromto-body">
+                <!-- allowAll hint -->
+                <div v-if="entry.type === 'allowAll'" class="fromto-body">
+                  <span style="font-size: 12px; color: var(--el-text-color-secondary);">匹配所有流量（K8s 中空对象 {} 表示允许所有）</span>
+                </div>
+
+                <div v-else-if="entry.type === 'podSelector' || entry.type === 'namespaceSelector'" class="fromto-body">
+                  <div class="rule-subtitle" style="margin-bottom: 4px;">matchLabels</div>
                   <div v-for="(label, li) in entry.labels" :key="li" class="kv-row">
                     <el-input v-model="label.key" placeholder="Key" size="small" />
                     <el-input v-model="label.value" placeholder="Value" size="small" />
@@ -677,6 +747,23 @@ function handleCancel() {
                   </div>
                   <el-button text type="primary" size="small" @click="addFromToLabel(rule, ti)">
                     <el-icon><Plus /></el-icon> 添加标签
+                  </el-button>
+                  <div class="rule-subtitle" style="margin-top: 8px; margin-bottom: 4px;">matchExpressions</div>
+                  <div v-for="(expr, ei) in entry.matchExpressions" :key="ei" class="kv-row">
+                    <el-input v-model="expr.key" placeholder="Key" size="small" style="flex: 1;" />
+                    <el-select v-model="expr.operator" style="width: 130px;" size="small">
+                      <el-option label="In" value="In" />
+                      <el-option label="NotIn" value="NotIn" />
+                      <el-option label="Exists" value="Exists" />
+                      <el-option label="DoesNotExist" value="DoesNotExist" />
+                    </el-select>
+                    <el-input v-if="expr.operator === 'In' || expr.operator === 'NotIn'" v-model="expr.values" placeholder="值(逗号分隔)" size="small" style="flex: 1;" />
+                    <el-button type="danger" text circle size="small" @click="removeMatchExpression(rule, ti, ei)">
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </div>
+                  <el-button text type="primary" size="small" @click="addMatchExpression(rule, ti)">
+                    <el-icon><Plus /></el-icon> 添加表达式
                   </el-button>
                 </div>
 

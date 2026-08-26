@@ -465,6 +465,10 @@ export function getIngressEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/ingress/events', { params })
 }
 
+export function getIngressClassList(params: { clusterName?: string }) {
+  return request.get('/k8s/ingress/ingressclasses', { params })
+}
+
 export function getIngressTLSCertStatus(params: { namespace: string; name: string }) {
   return request.get('/k8s/ingress/tls-status', { params })
 }
@@ -506,10 +510,6 @@ export function getPodDetail(params: { namespace: string; name: string }) {
 
 export function getPodYaml(params: { namespace: string; name: string }) {
   return request.get('/k8s/pod/get-yaml', { params })
-}
-
-export function updatePodYaml(data: { namespace: string; name: string; yaml: string }) {
-  return request.put('/k8s/pod/update-yaml', data)
 }
 
 export function deletePod(data: { namespace: string; name: string; force?: boolean }) {
@@ -966,6 +966,10 @@ export function getCustomResourceList(params: { group: string; version: string; 
 
 export function getCustomResourceYaml(params: { group: string; version: string; resource: string; namespace?: string; name: string }) {
   return request.get('/k8s/crd/resource/yaml', { params })
+}
+
+export function getCustomResourceDetail(params: { group: string; version: string; resource: string; namespace?: string; name: string }) {
+  return request.get('/k8s/crd/resource/detail', { params })
 }
 
 export function createCustomResource(data: { group: string; version: string; resource: string; namespace?: string; yaml: string }) {

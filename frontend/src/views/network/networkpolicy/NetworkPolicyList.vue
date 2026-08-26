@@ -101,13 +101,20 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
             <el-tag v-for="pt in (row.policy_types || [])" :key="pt" size="small" style="margin-right: 4px;">{{ pt }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="规则" width="120">
-          <template #default="{ row }">Ingress: {{ row.ingress_rules }}, Egress: {{ row.egress_rules }}</template>
+        <el-table-column label="规则" min-width="220">
+          <template #default="{ row }">
+            <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
+              <span style="font-size: 12px; color: var(--el-text-color-regular);">Ingress: {{ row.ingress_rules }}, Egress: {{ row.egress_rules }}</span>
+              <el-tag v-if="row.policy_types?.includes('Ingress') && row.ingress_rules === 0" type="danger" size="small" effect="dark">Deny All Ingress</el-tag>
+              <el-tag v-if="row.policy_types?.includes('Egress') && row.egress_rules === 0" type="danger" size="small" effect="dark">Deny All Egress</el-tag>
+            </div>
+          </template>
         </el-table-column>
         <el-table-column prop="age" label="存活时间" width="120" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
+            <el-button size="small" @click="$router.push(`/network/networkpolicies/create?clone=${row.name}&namespace=${row.namespace}`)">克隆</el-button>
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>

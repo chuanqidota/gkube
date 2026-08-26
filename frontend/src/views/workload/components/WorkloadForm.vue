@@ -62,12 +62,14 @@ interface FormData {
   containers: Container[]; initContainers: Container[]; volumes: Volume[]
   strategyType: string; maxSurge: string; maxUnavailable: string
   serviceName: string; updateStrategy: string; dsUpdateStrategy: string
+  podManagementPolicy: string
   nodeSelector: Label[]; tolerations: Tolerance[]; annotations: Annotation[]
   serviceAccountName: string; terminationGracePeriodSeconds: number | null
   imagePullSecrets: string[]
   volumeClaimTemplates: VolumeClaimTemplate[]
   podAffinityRules: AffinityRule[]; podAntiAffinityRules: AffinityRule[]
   topologySpreadConstraints: TopologySpreadConstraint[]
+  dnsPolicy: string; hostNetwork: boolean; priorityClassName: string
 }
 
 function createEmptyProbe(): Probe {
@@ -102,11 +104,13 @@ const form = reactive<FormData>({
   volumes: [],
   strategyType: 'RollingUpdate', maxSurge: '25%', maxUnavailable: '25%',
   serviceName: '', updateStrategy: 'RollingUpdate', dsUpdateStrategy: 'RollingUpdate',
+  podManagementPolicy: 'OrderedReady',
   nodeSelector: [], tolerations: [], annotations: [],
   serviceAccountName: '', terminationGracePeriodSeconds: null, imagePullSecrets: [],
   volumeClaimTemplates: [],
   podAffinityRules: [], podAntiAffinityRules: [],
   topologySpreadConstraints: [],
+  dnsPolicy: 'ClusterFirst', hostNetwork: false, priorityClassName: '',
 })
 
 const formRef = ref<FormInstance>()
@@ -259,6 +263,11 @@ function parseInitialData(data: any) {
   // Termination grace period
   form.terminationGracePeriodSeconds = podSpec.terminationGracePeriodSeconds || null
 
+  // DNS policy & host network
+  form.dnsPolicy = podSpec.dnsPolicy || 'ClusterFirst'
+  form.hostNetwork = podSpec.hostNetwork || false
+  form.priorityClassName = podSpec.priorityClassName || ''
+
   // Image pull secrets
   const imagePullSecrets = podSpec.imagePullSecrets || []
   form.imagePullSecrets = imagePullSecrets.map((s: any) => s.name || '')
@@ -311,6 +320,7 @@ function parseInitialData(data: any) {
   if (props.kind === 'StatefulSet') {
     form.serviceName = spec.serviceName || ''
     form.updateStrategy = spec.updateStrategy?.type || 'RollingUpdate'
+    form.podManagementPolicy = spec.podManagementPolicy || 'OrderedReady'
   }
 
   // Update strategy (DaemonSet)
@@ -493,6 +503,9 @@ function buildK8sResource(): Record<string, any> {
   if (form.serviceAccountName) podSpec.serviceAccountName = form.serviceAccountName
   if (form.terminationGracePeriodSeconds) podSpec.terminationGracePeriodSeconds = form.terminationGracePeriodSeconds
   if (imagePullSecrets.length > 0) podSpec.imagePullSecrets = imagePullSecrets
+  if (form.dnsPolicy && form.dnsPolicy !== 'ClusterFirst') podSpec.dnsPolicy = form.dnsPolicy
+  if (form.hostNetwork) podSpec.hostNetwork = true
+  if (form.priorityClassName) podSpec.priorityClassName = form.priorityClassName
 
   // Pod Affinity
   const buildAffinityTerm = (rule: AffinityRule) => {
@@ -545,7 +558,7 @@ function buildK8sResource(): Record<string, any> {
     resource.spec = { replicas: form.replicas, selector: { matchLabels: selectorLabels }, template: podTemplate, strategy: { type: form.strategyType } }
     if (form.strategyType === 'RollingUpdate') resource.spec.strategy.rollingUpdate = { maxSurge: form.maxSurge, maxUnavailable: form.maxUnavailable }
   } else if (props.kind === 'StatefulSet') {
-    resource.spec = { replicas: form.replicas, selector: { matchLabels: selectorLabels }, template: podTemplate, serviceName: form.serviceName || form.name, updateStrategy: { type: form.updateStrategy } }
+    resource.spec = { replicas: form.replicas, selector: { matchLabels: selectorLabels }, template: podTemplate, serviceName: form.serviceName || form.name, updateStrategy: { type: form.updateStrategy }, podManagementPolicy: form.podManagementPolicy }
     const vcts = form.volumeClaimTemplates.filter(v => v.name).map(v => {
       const vct: any = { metadata: { name: v.name }, spec: { accessModes: v.accessModes, resources: { requests: { storage: v.storageSize } } } }
       if (v.storageClassName) vct.spec.storageClassName = v.storageClassName
@@ -559,6 +572,29 @@ function buildK8sResource(): Record<string, any> {
   return resource
 }
 
+// Resource validation helpers
+function parseCpuToMillicores(cpu: string): number | null {
+  if (!cpu) return null
+  cpu = cpu.trim()
+  if (cpu.endsWith('m')) return parseInt(cpu.slice(0, -1), 10)
+  const val = parseFloat(cpu)
+  return isNaN(val) ? null : Math.round(val * 1000)
+}
+
+function parseMemoryToBytes(mem: string): number | null {
+  if (!mem) return null
+  mem = mem.trim()
+  const units: Record<string, number> = { 'Ki': 1024, 'Mi': 1024**2, 'Gi': 1024**3, 'Ti': 1024**4, 'K': 1000, 'M': 1000**2, 'G': 1000**3, 'T': 1000**4 }
+  for (const [suffix, multiplier] of Object.entries(units)) {
+    if (mem.endsWith(suffix)) {
+      const val = parseFloat(mem.slice(0, -suffix.length))
+      return isNaN(val) ? null : Math.round(val * multiplier)
+    }
+  }
+  const val = parseFloat(mem)
+  return isNaN(val) ? null : val
+}
+
 async function handleSubmit() {
   // Validate basic fields
   const valid = await formRef.value?.validate().catch(() => false)
@@ -567,6 +603,22 @@ async function handleSubmit() {
   for (let i = 0; i < form.containers.length; i++) {
     if (!form.containers[i].name) { ElMessage.error(`容器 ${i + 1}: 名称不能为空`); return }
     if (!form.containers[i].image) { ElMessage.error(`容器 ${i + 1}: 镜像不能为空`); return }
+    // Validate resource requests <= limits
+    const c = form.containers[i]
+    if (c.resources.requests.cpu && c.resources.limits.cpu) {
+      const reqCpu = parseCpuToMillicores(c.resources.requests.cpu)
+      const limCpu = parseCpuToMillicores(c.resources.limits.cpu)
+      if (reqCpu !== null && limCpu !== null && reqCpu > limCpu) {
+        ElMessage.error(`容器 ${i + 1}: CPU requests 不能大于 limits`); return
+      }
+    }
+    if (c.resources.requests.memory && c.resources.limits.memory) {
+      const reqMem = parseMemoryToBytes(c.resources.requests.memory)
+      const limMem = parseMemoryToBytes(c.resources.limits.memory)
+      if (reqMem !== null && limMem !== null && reqMem > limMem) {
+        ElMessage.error(`容器 ${i + 1}: Memory requests 不能大于 limits`); return
+      }
+    }
   }
 
   submitting.value = true
@@ -1416,6 +1468,12 @@ function handleCancel() {
               <el-form-item label="服务名称">
                 <el-input v-model="form.serviceName" placeholder="Headless service 名称" />
               </el-form-item>
+              <el-form-item label="Pod 管理策略">
+                <el-select v-model="form.podManagementPolicy" style="width: 100%;">
+                  <el-option label="OrderedReady - 顺序创建/删除" value="OrderedReady" />
+                  <el-option label="Parallel - 并行创建/删除" value="Parallel" />
+                </el-select>
+              </el-form-item>
               <el-form-item label="更新策略">
                 <el-select v-model="form.updateStrategy" style="width: 100%;">
                   <el-option label="RollingUpdate" value="RollingUpdate" />
@@ -1431,11 +1489,27 @@ function handleCancel() {
                 <el-option label="OnDelete" value="OnDelete" />
               </el-select>
             </el-form-item>
+            <el-form-item label="主机网络">
+              <el-switch v-model="form.hostNetwork" />
+              <div class="form-help">启用后 Pod 直接使用主机网络命名空间，常用于需要访问主机网络的 DaemonSet（如监控 agent、日志收集器）</div>
+            </el-form-item>
           </template>
 
           <el-divider />
 
           <div class="fields-grid">
+            <el-form-item label="DNS 策略">
+              <el-select v-model="form.dnsPolicy" style="width: 100%;">
+                <el-option label="ClusterFirst - 集群 DNS 优先（默认）" value="ClusterFirst" />
+                <el-option label="Default - 继承节点 DNS" value="Default" />
+                <el-option label="ClusterFirstWithHostNet - 主机网络下仍用集群 DNS" value="ClusterFirstWithHostNet" />
+                <el-option label="None - 必须手动配置 dnsConfig" value="None" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="优先级类名 (PriorityClassName)">
+              <el-input v-model="form.priorityClassName" placeholder="留空使用默认优先级" />
+              <div class="form-help">如 system-node-critical, system-cluster-critical 等，决定资源不足时的驱逐顺序</div>
+            </el-form-item>
             <el-form-item label="优雅终止时间(秒)">
               <el-input-number v-model="form.terminationGracePeriodSeconds" :min="0" :max="300" style="width: 100%;" />
             </el-form-item>
@@ -1514,6 +1588,12 @@ function handleCancel() {
   gap: 12px;
   padding-top: 24px;
   border-top: 1px solid var(--el-border-color-light);
+}
+
+.form-help {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-top: 4px;
 }
 
 .fields-grid {

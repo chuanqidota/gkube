@@ -154,6 +154,31 @@ func (c *crd) GetCustomResourceYaml(ginCtx *gin.Context) {
 	response.Success(ginCtx, "执行成功", map[string]string{"yaml": yamlContent})
 }
 
+func (c *crd) GetCustomResourceDetail(ginCtx *gin.Context) {
+	group := ginCtx.Query("group")
+	version := ginCtx.Query("version")
+	resource := ginCtx.Query("resource")
+	namespace := ginCtx.Query("namespace")
+	name := ginCtx.Query("name")
+	clusterName := ginCtx.Query("clusterName")
+	if group == "" || version == "" || resource == "" || name == "" {
+		response.Fail(ginCtx, "参数不能为空")
+		return
+	}
+	config, err := k8sclient.GetRestConfigByName(clusterName)
+	if err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("获取k8s配置失败:%s", err.Error()))
+		return
+	}
+	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
+	detail, err := k8sCrd.GetCustomResourceDetail(config, gvr, namespace, name)
+	if err != nil {
+		response.Fail(ginCtx, fmt.Sprintf("获取自定义资源详情失败:%s", err.Error()))
+		return
+	}
+	response.Success(ginCtx, "执行成功", detail)
+}
+
 func (c *crd) DeleteCustomResource(ginCtx *gin.Context) {
 	group := ginCtx.Query("group")
 	version := ginCtx.Query("version")

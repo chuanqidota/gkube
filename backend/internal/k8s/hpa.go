@@ -11,12 +11,26 @@ import (
 
 	k8sclient "gkube/pkg/k8s"
 	k8sHpa "gkube/pkg/k8s/hpa"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
 
 type hpa struct{}
 
 var Hpa = new(hpa)
+
+// HPAListParams GET /hpa/list
+type HPAListParams struct {
+	ClusterName string `form:"clusterName" binding:"required" label:"集群名称"`
+	Namespace   string `form:"namespace"`
+}
+
+// HPANamespacedNameParams GET /hpa/detail, /hpa/get-yaml, /hpa/events, /hpa/delete, /hpa/pause, /hpa/resume
+type HPANamespacedNameParams struct {
+	ClusterName string `form:"clusterName" binding:"required" label:"集群名称"`
+	Namespace   string `form:"namespace"`
+	Name        string `form:"name" binding:"required" label:"名称"`
+}
 
 type nsKindName struct {
 	namespace string
@@ -85,14 +99,18 @@ func buildTargetSet(client *kubernetes.Clientset, hpaList []map[string]any) (map
 }
 
 func (h *hpa) GetHPAList(c *gin.Context) {
-	namespace := c.Query("namespace")
-	clusterName := c.Query("clusterName")
-	client, err := k8sclient.GetK8sClientByName(clusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+	var query HPAListParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-	hpaList, err := k8sHpa.GetHPAList(client, namespace)
+	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	if err != nil {
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
+		return
+	}
+	hpaList, err := k8sHpa.GetHPAList(client, query.Namespace)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取HPA列表失败:%s", err.Error()))
 		return
@@ -148,19 +166,18 @@ func (h *hpa) GetHPAList(c *gin.Context) {
 }
 
 func (h *hpa) GetHPADetail(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
-		response.Fail(c, "name参数不能为空")
+	var query HPANamespacedNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
+	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	hpa, err := k8sHpa.GetHPADetail(client, namespace, name)
+	hpa, err := k8sHpa.GetHPADetail(client, query.Namespace, query.Name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取HPA详情失败:%s", err.Error()))
 		return
@@ -169,19 +186,18 @@ func (h *hpa) GetHPADetail(c *gin.Context) {
 }
 
 func (h *hpa) GetHPAYaml(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
-		response.Fail(c, "name参数不能为空")
+	var query HPANamespacedNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
+	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	yamlContent, err := k8sHpa.GetHPAYaml(client, namespace, name)
+	yamlContent, err := k8sHpa.GetHPAYaml(client, query.Namespace, query.Name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取HPA YAML失败:%s", err.Error()))
 		return
@@ -234,19 +250,18 @@ func (h *hpa) UpdateHPA(c *gin.Context) {
 }
 
 func (h *hpa) DeleteHPA(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
-		response.Fail(c, "name参数不能为空")
+	var query HPANamespacedNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
+	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	if err := k8sHpa.DeleteHPA(client, namespace, name); err != nil {
+	if err := k8sHpa.DeleteHPA(client, query.Namespace, query.Name); err != nil {
 		response.Fail(c, fmt.Sprintf("删除HPA失败:%s", err.Error()))
 		return
 	}
@@ -254,19 +269,18 @@ func (h *hpa) DeleteHPA(c *gin.Context) {
 }
 
 func (h *hpa) GetHPAEvents(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
-		response.Fail(c, "name参数不能为空")
+	var query HPANamespacedNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
+	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	events, err := k8sHpa.GetHPAEvents(client, namespace, name)
+	events, err := k8sHpa.GetHPAEvents(client, query.Namespace, query.Name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取HPA事件失败:%s", err.Error()))
 		return
@@ -275,19 +289,18 @@ func (h *hpa) GetHPAEvents(c *gin.Context) {
 }
 
 func (h *hpa) PauseHPA(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
-		response.Fail(c, "name参数不能为空")
+	var query HPANamespacedNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
+	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	if err := k8sHpa.PauseHPA(client, namespace, name); err != nil {
+	if err := k8sHpa.PauseHPA(client, query.Namespace, query.Name); err != nil {
 		response.Fail(c, fmt.Sprintf("暂停HPA失败:%s", err.Error()))
 		return
 	}
@@ -295,19 +308,18 @@ func (h *hpa) PauseHPA(c *gin.Context) {
 }
 
 func (h *hpa) ResumeHPA(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
-		response.Fail(c, "name参数不能为空")
+	var query HPANamespacedNameParams
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
+	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	if err := k8sHpa.ResumeHPA(client, namespace, name); err != nil {
+	if err := k8sHpa.ResumeHPA(client, query.Namespace, query.Name); err != nil {
 		response.Fail(c, fmt.Sprintf("恢复HPA失败:%s", err.Error()))
 		return
 	}

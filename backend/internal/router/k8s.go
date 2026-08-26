@@ -60,7 +60,7 @@ func registerCoreRoutes(rg *gin.RouterGroup) {
 	rg.GET("pod/get-yaml", k8s.Pod.GetPodYaml)
 	rg.GET("pod/events", k8s.Pod.ListPodEvents)
 	rg.POST("pod/create", k8s.Pod.CreatePod)
-	rg.PUT("pod/update-yaml", k8s.Pod.UpdatePod)
+	rg.PUT("pod/update-yaml", k8s.Pod.PatchPodMetadata)
 	rg.DELETE("pod/delete", k8s.Pod.DeletePodByName)
 
 	// Event
@@ -183,6 +183,7 @@ func registerNetworkRoutes(rg *gin.RouterGroup) {
 	rg.GET("ingress/get-yaml", k8s.Ingress.GetIngressYaml)
 	rg.GET("ingress/events", k8s.Ingress.GetIngressEvents)
 	rg.GET("ingress/tls-status", k8s.Ingress.CheckIngressTLSCertStatus)
+	rg.GET("ingress/ingressclasses", k8s.Ingress.GetIngressClassList)
 	rg.POST("ingress/create", k8s.Ingress.CreateIngress)
 	rg.PUT("ingress/update", k8s.Ingress.UpdateIngress)
 	rg.DELETE("ingress/delete", k8s.Ingress.DeleteIngressByName)
@@ -284,6 +285,7 @@ func registerCrdRoutes(rg *gin.RouterGroup) {
 	rg.PUT("crd/update", k8s.Crd.UpdateCRD)
 	rg.DELETE("crd/delete", k8s.Crd.DeleteCRD)
 	rg.GET("crd/resources", k8s.Crd.GetCustomResourceList)
+	rg.GET("crd/resource/detail", k8s.Crd.GetCustomResourceDetail)
 	rg.GET("crd/resource/yaml", k8s.Crd.GetCustomResourceYaml)
 	rg.POST("crd/resource/create", k8s.Crd.CreateCustomResource)
 	rg.DELETE("crd/resource", k8s.Crd.DeleteCustomResource)

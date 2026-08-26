@@ -234,13 +234,13 @@ function buildProbe(probe: Probe | null): any {
   const p: any = { initialDelaySeconds: probe.initialDelaySeconds, periodSeconds: probe.periodSeconds, timeoutSeconds: probe.timeoutSeconds, failureThreshold: probe.failureThreshold }
   if (probe.type === 'httpGet') { p.httpGet = { path: probe.httpGetPath, port: probe.httpGetPort } }
   else if (probe.type === 'tcpSocket') { p.tcpSocket = { port: probe.tcpSocketPort } }
-  else if (probe.type === 'exec') { p.exec = { command: probe.execCommand.split(' ').filter(Boolean) } }
+  else if (probe.type === 'exec') { p.exec = { command: probe.execCommand.split('\n').map(s => s.trim()).filter(Boolean) } }
   return p
 }
 
 function buildLifecycleHandler(handler: LifecycleHandler | null): any {
   if (!handler) return undefined
-  if (handler.type === 'exec') return { exec: { command: handler.execCommand.split(' ').filter(Boolean) } }
+  if (handler.type === 'exec') return { exec: { command: handler.execCommand.split('\n').map(s => s.trim()).filter(Boolean) } }
   if (handler.type === 'httpGet') return { httpGet: { path: handler.httpGetPath, port: handler.httpGetPort } }
   if (handler.type === 'tcpSocket') return { tcpSocket: { port: handler.tcpSocketPort } }
   return undefined
@@ -248,8 +248,8 @@ function buildLifecycleHandler(handler: LifecycleHandler | null): any {
 
 function buildContainer(c: Container): Record<string, any> {
   const container: Record<string, any> = { name: c.name, image: c.image, imagePullPolicy: c.imagePullPolicy }
-  if (c.command) container.command = c.command.split(' ').filter(Boolean)
-  if (c.args) container.args = c.args.split(' ').filter(Boolean)
+  if (c.command) container.command = c.command.split('\n').map(s => s.trim()).filter(Boolean)
+  if (c.args) container.args = c.args.split('\n').map(s => s.trim()).filter(Boolean)
   const ports = c.ports.filter(p => p.containerPort).map(p => { const port: any = { containerPort: p.containerPort, protocol: p.protocol }; if (p.name) port.name = p.name; return port })
   if (ports.length > 0) container.ports = ports
   const env = c.env.filter(e => e.name.trim()).map(e => {
@@ -341,7 +341,7 @@ function parseProbe(probeData: any): Probe | null {
     httpGetPath: probeData.httpGet?.path || '/',
     httpGetPort: probeData.httpGet?.port || 80,
     tcpSocketPort: probeData.tcpSocket?.port || null,
-    execCommand: probeData.exec?.command?.join(' ') || '',
+    execCommand: probeData.exec?.command?.join('\n') || '',
     initialDelaySeconds: probeData.initialDelaySeconds || 15,
     periodSeconds: probeData.periodSeconds || 10,
     timeoutSeconds: probeData.timeoutSeconds || 5,
@@ -353,7 +353,7 @@ function parseLifecycleHandler(data: any): LifecycleHandler | null {
   if (!data) return null
   return {
     type: data.exec ? 'exec' : data.httpGet ? 'httpGet' : 'tcpSocket',
-    execCommand: data.exec?.command?.join(' ') || '',
+    execCommand: data.exec?.command?.join('\n') || '',
     httpGetPath: data.httpGet?.path || '/',
     httpGetPort: data.httpGet?.port || 80,
     tcpSocketPort: data.tcpSocket?.port || null,
@@ -806,10 +806,12 @@ function handleCancel() {
                 </el-select>
               </el-form-item>
               <el-form-item label="启动命令 (Command)">
-                <el-input v-model="container.command" placeholder="/bin/sh -c" />
+                <el-input v-model="container.command" type="textarea" :rows="2" placeholder="/bin/sh&#10;-c" />
+                <div class="form-help">每行一个参数，例如：&#10;/bin/sh&#10;-c&#10;echo hello</div>
               </el-form-item>
               <el-form-item label="命令参数 (Args)">
-                <el-input v-model="container.args" placeholder="arg1 arg2" />
+                <el-input v-model="container.args" type="textarea" :rows="2" placeholder="arg1&#10;arg2" />
+                <div class="form-help">每行一个参数</div>
               </el-form-item>
             </div>
 
@@ -914,10 +916,12 @@ function handleCancel() {
                 </el-select>
               </el-form-item>
               <el-form-item label="启动命令 (Command)">
-                <el-input v-model="container.command" placeholder="/bin/sh -c" />
+                <el-input v-model="container.command" type="textarea" :rows="2" placeholder="/bin/sh&#10;-c" />
+                <div class="form-help">每行一个参数</div>
               </el-form-item>
               <el-form-item label="命令参数 (Args)">
-                <el-input v-model="container.args" placeholder="arg1 arg2" />
+                <el-input v-model="container.args" type="textarea" :rows="2" placeholder="arg1&#10;arg2" />
+                <div class="form-help">每行一个参数</div>
               </el-form-item>
             </div>
             <el-divider content-position="left">环境变量</el-divider>
@@ -1077,7 +1081,8 @@ function handleCancel() {
                     <el-input-number v-model="container.livenessProbe.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
                   </el-form-item>
                   <el-form-item v-if="container.livenessProbe.type === 'exec'" label="命令">
-                    <el-input v-model="container.livenessProbe.execCommand" placeholder="cat /tmp/healthy" />
+                    <el-input v-model="container.livenessProbe.execCommand" type="textarea" :rows="2" placeholder="cat /tmp/healthy" />
+                    <div class="form-help">每行一个参数</div>
                   </el-form-item>
                   <el-form-item label="初始延迟(秒)">
                     <el-input-number v-model="container.livenessProbe.initialDelaySeconds" :min="0" style="width: 100%;" />
@@ -1117,7 +1122,8 @@ function handleCancel() {
                     <el-input-number v-model="container.readinessProbe.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
                   </el-form-item>
                   <el-form-item v-if="container.readinessProbe.type === 'exec'" label="命令">
-                    <el-input v-model="container.readinessProbe.execCommand" placeholder="cat /tmp/healthy" />
+                    <el-input v-model="container.readinessProbe.execCommand" type="textarea" :rows="2" placeholder="cat /tmp/healthy" />
+                    <div class="form-help">每行一个参数</div>
                   </el-form-item>
                   <el-form-item label="初始延迟(秒)">
                     <el-input-number v-model="container.readinessProbe.initialDelaySeconds" :min="0" style="width: 100%;" />
@@ -1157,7 +1163,8 @@ function handleCancel() {
                     <el-input-number v-model="container.startupProbe.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
                   </el-form-item>
                   <el-form-item v-if="container.startupProbe.type === 'exec'" label="命令">
-                    <el-input v-model="container.startupProbe.execCommand" placeholder="cat /tmp/healthy" />
+                    <el-input v-model="container.startupProbe.execCommand" type="textarea" :rows="2" placeholder="cat /tmp/healthy" />
+                    <div class="form-help">每行一个参数</div>
                   </el-form-item>
                   <el-form-item label="初始延迟(秒)">
                     <el-input-number v-model="container.startupProbe.initialDelaySeconds" :min="0" style="width: 100%;" />

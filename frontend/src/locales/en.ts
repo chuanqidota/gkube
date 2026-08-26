@@ -130,7 +130,7 @@ export default {
     nodeCapacity: 'Node Capacity',
     cpuAllocated: 'CPU',
     memAllocated: 'Memory',
-    storageAllocated: 'Storage',
+    storageAllocated: 'Ephemeral Storage',
     core: 'Core',
     roles: 'Roles',
     internalIp: 'Internal IP',

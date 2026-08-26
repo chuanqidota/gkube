@@ -41,6 +41,9 @@ interface FormData {
   nfsPath: string
   hostPath: string
   localPath: string
+  csiDriver: string
+  csiVolumeHandle: string
+  csiFsType: string
   nodeAffinityRequired: string
   labels: Label[]
 }
@@ -58,6 +61,9 @@ const form = reactive<FormData>({
   nfsPath: '',
   hostPath: '',
   localPath: '',
+  csiDriver: '',
+  csiVolumeHandle: '',
+  csiFsType: '',
   nodeAffinityRequired: '',
   labels: [{ key: '', value: '' }],
 })
@@ -100,6 +106,11 @@ function parseInitialData(data: any) {
   } else if (spec.local) {
     form.storageType = 'local'
     form.localPath = spec.local.path || ''
+  } else if (spec.csi) {
+    form.storageType = 'csi'
+    form.csiDriver = spec.csi.driver || ''
+    form.csiVolumeHandle = spec.csi.volumeHandle || ''
+    form.csiFsType = spec.csi.fsType || ''
   } else {
     form.storageType = 'nfs'
   }
@@ -212,6 +223,13 @@ function buildK8sPV(): Record<string, any> {
     spec.local = {
       path: form.localPath.trim(),
     }
+  } else if (form.storageType === 'csi') {
+    const csi: Record<string, any> = {
+      driver: form.csiDriver.trim(),
+      volumeHandle: form.csiVolumeHandle.trim(),
+    }
+    if (form.csiFsType.trim()) csi.fsType = form.csiFsType.trim()
+    spec.csi = csi
   }
 
   const resource: Record<string, any> = {
@@ -251,6 +269,15 @@ async function handleSubmit() {
   } else if (form.storageType === 'local') {
     if (!form.localPath.trim()) {
       ElMessage.error('请输入本地路径')
+      return
+    }
+  } else if (form.storageType === 'csi') {
+    if (!form.csiDriver.trim()) {
+      ElMessage.error('请输入 CSI Driver 名称')
+      return
+    }
+    if (!form.csiVolumeHandle.trim()) {
+      ElMessage.error('请输入 Volume Handle')
       return
     }
   }
@@ -305,9 +332,8 @@ function handleCancel() {
             </el-form-item>
             <el-form-item label="回收策略">
               <el-select v-model="form.reclaimPolicy" style="width: 100%;">
-                <el-option label="Retain" value="Retain" />
-                <el-option label="Recycle" value="Recycle" />
-                <el-option label="Delete" value="Delete" />
+                <el-option label="Retain - 手动回收" value="Retain" />
+                <el-option label="Delete - 自动删除" value="Delete" />
               </el-select>
             </el-form-item>
             <el-form-item label="卷模式">
@@ -374,6 +400,7 @@ function handleCancel() {
               <el-option label="NFS" value="nfs" />
               <el-option label="Host Path" value="hostPath" />
               <el-option label="Local" value="local" />
+              <el-option label="CSI" value="csi" />
             </el-select>
           </el-form-item>
 
@@ -401,6 +428,21 @@ function handleCancel() {
               <el-input v-model="form.nodeAffinityRequired" placeholder="节点名称，多个用逗号分隔" />
               <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">Local PV 必须指定节点亲和性，用逗号分隔多个节点名</div>
             </el-form-item>
+          </template>
+
+          <!-- CSI -->
+          <template v-if="form.storageType === 'csi'">
+            <div class="fields-grid">
+              <el-form-item label="CSI Driver" required>
+                <el-input v-model="form.csiDriver" placeholder="例如: csi.example.com" />
+              </el-form-item>
+              <el-form-item label="Volume Handle" required>
+                <el-input v-model="form.csiVolumeHandle" placeholder="集群内唯一的卷标识" />
+              </el-form-item>
+              <el-form-item label="文件系统类型">
+                <el-input v-model="form.csiFsType" placeholder="例如: ext4, xfs（可选）" />
+              </el-form-item>
+            </div>
           </template>
         </div>
       </div>

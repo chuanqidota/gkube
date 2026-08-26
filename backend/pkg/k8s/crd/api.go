@@ -79,6 +79,23 @@ func GetCustomResourceYaml(config *rest.Config, gvr schema.GroupVersionResource,
 	return string(out), nil
 }
 
+func GetCustomResourceDetail(config *rest.Config, gvr schema.GroupVersionResource, namespace, name string) (map[string]any, error) {
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	var obj *unstructured.Unstructured
+	if namespace != "" {
+		obj, err = dynamicClient.Resource(gvr).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	} else {
+		obj, err = dynamicClient.Resource(gvr).Get(context.TODO(), name, metav1.GetOptions{})
+	}
+	if err != nil {
+		return nil, err
+	}
+	return obj.Object, nil
+}
+
 func DeleteCustomResource(config *rest.Config, gvr schema.GroupVersionResource, namespace, name string) error {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {

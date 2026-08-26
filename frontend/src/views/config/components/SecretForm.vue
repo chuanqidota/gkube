@@ -64,6 +64,12 @@ const tlsData = ref({ cert: '', key: '' })
 // Docker Config JSON specific data
 const dockerConfig = ref({ server: '', username: '', password: '', email: '' })
 
+// Basic Auth specific data
+const basicAuthData = ref({ username: '', password: '' })
+
+// SSH Auth specific data
+const sshAuthData = ref({ privateKey: '' })
+
 function triggerFileInput(event: Event) {
   const btn = event.currentTarget as HTMLElement
   const input = btn.closest('.file-upload-btn')?.querySelector('input[type="file"]') as HTMLInputElement | null
@@ -90,6 +96,18 @@ function handleTlsFileUpload(field: 'cert' | 'key', event: Event) {
   const reader = new FileReader()
   reader.onload = (e) => {
     tlsData.value[field] = e.target?.result as string
+  }
+  reader.readAsText(file)
+  input.value = ''
+}
+
+function handleSshKeyUpload(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    sshAuthData.value.privateKey = e.target?.result as string
   }
   reader.readAsText(file)
   input.value = ''
@@ -163,6 +181,11 @@ function parseInitialData(data: any) {
         email: auth.email || '',
       }
     } catch { /* ignore parse errors */ }
+  } else if (form.type === 'kubernetes.io/basic-auth') {
+    basicAuthData.value.username = entries['username'] ? base64Decode(entries['username']) : ''
+    basicAuthData.value.password = entries['password'] ? base64Decode(entries['password']) : ''
+  } else if (form.type === 'kubernetes.io/ssh-auth') {
+    sshAuthData.value.privateKey = entries['ssh-privatekey'] ? base64Decode(entries['ssh-privatekey']) : ''
   } else {
     form.data = Object.entries(entries).map(([k, v]) => ({ key: k, value: base64Decode(String(v ?? '')) }))
     if (form.data.length === 0) form.data.push({ key: '', value: '' })
@@ -184,7 +207,7 @@ if (props.isEdit && props.initialData) {
 const rules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符', trigger: 'blur' },
+    { pattern: /^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/, message: '仅支持小写字母、数字、点号、下划线和连字符', trigger: 'blur' },
     { max: 253, message: '最多253个字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
@@ -247,6 +270,11 @@ function buildYamlStr(): string {
     if (dockerConfig.value.server && dockerConfig.value.username && dockerConfig.value.password) {
       data['.dockerconfigjson'] = base64Encode(buildDockerConfigJson())
     }
+  } else if (form.type === 'kubernetes.io/basic-auth') {
+    if (basicAuthData.value.username) data['username'] = base64Encode(basicAuthData.value.username)
+    if (basicAuthData.value.password) data['password'] = base64Encode(basicAuthData.value.password)
+  } else if (form.type === 'kubernetes.io/ssh-auth') {
+    if (sshAuthData.value.privateKey) data['ssh-privatekey'] = base64Encode(sshAuthData.value.privateKey)
   } else {
     // Opaque: use generic data entries
     form.data.forEach((entry) => {
@@ -273,6 +301,21 @@ function buildYamlStr(): string {
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
+
+  // Type-specific validation
+  if (form.type === 'kubernetes.io/tls') {
+    if (!tlsData.value.cert.trim()) { ElMessage.error('请输入证书 (tls.crt)'); return }
+    if (!tlsData.value.key.trim()) { ElMessage.error('请输入私钥 (tls.key)'); return }
+  } else if (form.type === 'kubernetes.io/dockerconfigjson') {
+    if (!dockerConfig.value.server.trim()) { ElMessage.error('请输入 Registry 地址'); return }
+    if (!dockerConfig.value.username.trim()) { ElMessage.error('请输入用户名'); return }
+    if (!dockerConfig.value.password.trim()) { ElMessage.error('请输入密码'); return }
+  } else if (form.type === 'kubernetes.io/basic-auth') {
+    if (!basicAuthData.value.username.trim()) { ElMessage.error('请输入用户名'); return }
+    if (!basicAuthData.value.password.trim()) { ElMessage.error('请输入密码'); return }
+  } else if (form.type === 'kubernetes.io/ssh-auth') {
+    if (!sshAuthData.value.privateKey.trim()) { ElMessage.error('请输入 SSH 私钥'); return }
+  }
 
   submitting.value = true
   try {
@@ -415,6 +458,35 @@ function handleCancel() {
                 <el-input v-model="dockerConfig.email" placeholder="user@example.com" />
               </el-form-item>
             </div>
+          </template>
+
+          <!-- Basic Auth 专用表单 -->
+          <template v-else-if="form.type === 'kubernetes.io/basic-auth'">
+            <el-alert title="基本认证信息，K8s 要求包含 username 和 password 两个 key。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+            <div class="fields-grid">
+              <el-form-item label="用户名" required>
+                <el-input v-model="basicAuthData.username" placeholder="用户名" />
+              </el-form-item>
+              <el-form-item label="密码" required>
+                <el-input v-model="basicAuthData.password" type="password" show-password placeholder="密码" />
+              </el-form-item>
+            </div>
+          </template>
+
+          <!-- SSH Auth 专用表单 -->
+          <template v-else-if="form.type === 'kubernetes.io/ssh-auth'">
+            <el-alert title="SSH 认证信息，K8s 要求包含 ssh-privatekey key。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+            <el-form-item label="SSH 私钥" required>
+              <div style="width: 100%;">
+                <el-input v-model="sshAuthData.privateKey" type="textarea" :rows="8" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" />
+                <div style="margin-top: 8px;">
+                  <div class="file-upload-btn">
+                    <input type="file" accept=".pem,.key,.txt" style="display: none;" @change="handleSshKeyUpload($event)" />
+                    <el-button size="small" type="primary" plain @click="triggerFileInput">上传私钥文件</el-button>
+                  </div>
+                </div>
+              </div>
+            </el-form-item>
           </template>
 
           <!-- 通用数据表单 (Opaque) -->

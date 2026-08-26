@@ -2,12 +2,13 @@ package pod
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 
 	"gkube/pkg/yamlutil"
@@ -82,15 +83,10 @@ func CreatePod(client *kubernetes.Clientset, namespace, podYaml string) error {
 	return nil
 }
 
-// UpdatePod
-//
-//	@Description: 更新pod
-//	@param client
-//	@param namespace 以请求参数为准
-//	@param name 校验与 YAML 中名称一致,避免误更新同名空间下的其他资源
-//	@param podYaml
-//	@return error
-func UpdatePod(client *kubernetes.Clientset, namespace, name, podYaml string) error {
+// PatchPodMetadata 仅更新 Pod 的 labels 和 annotations（metadata patch）。
+// Pod spec 创建后基本不可变,全量 Update 会被 K8s API 拒绝,
+// 因此这里用 Strategic Merge Patch 只修补可变的 metadata 字段。
+func PatchPodMetadata(client *kubernetes.Clientset, namespace, name, podYaml string) error {
 	pod := &corev1.Pod{}
 	if err := yaml.Unmarshal([]byte(podYaml), pod); err != nil {
 		return fmt.Errorf("yaml文件错误:%s", err.Error())
@@ -98,23 +94,24 @@ func UpdatePod(client *kubernetes.Clientset, namespace, name, podYaml string) er
 	if pod.Name != name {
 		return fmt.Errorf("资源名称不匹配: 请求指定 %s, YAML 中为 %s", name, pod.Name)
 	}
-	pod.Namespace = namespace
-	// 冲突时自动重试(参照 deployment restart/scale 的 RetryOnConflict 模式)。
-	// 闭包内 re-Get 最新对象(带新 resourceVersion),再用用户 YAML 的 spec 覆盖后 Update,
-	// 否则重试会发同一个过期 resourceVersion 持续 409 直到 backoff 耗尽(死重试)。
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest, err := client.CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("获取pod资源失败:%s", err.Error())
-		}
-		// 用用户 YAML 的 spec 与可变 metadata 覆盖最新对象,保留最新 resourceVersion
-		latest.Spec = pod.Spec
-		latest.Labels = pod.Labels
-		latest.Annotations = pod.Annotations
-		_, err = client.CoreV1().Pods(namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
-		return err
-	}); err != nil {
-		return fmt.Errorf("更新pod资源失败:%s", err.Error())
+
+	// 构造只包含 metadata 的 patch 对象
+	patchObj := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:      pod.Labels,
+			Annotations: pod.Annotations,
+		},
+	}
+	patchBytes, err := json.Marshal(patchObj)
+	if err != nil {
+		return fmt.Errorf("序列化patch失败:%s", err.Error())
+	}
+
+	_, err = client.CoreV1().Pods(namespace).Patch(
+		context.TODO(), name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{},
+	)
+	if err != nil {
+		return fmt.Errorf("更新pod元数据失败:%s", err.Error())
 	}
 	return nil
 }

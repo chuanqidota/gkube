@@ -30,6 +30,7 @@ type UpdateClusterParams struct {
 	DisplayName *string            `json:"displayName" label:"显示名称"`
 	Description *string            `json:"description" label:"描述"`
 	Labels      *map[string]string `json:"labels" label:"标签"`
+	KubeConfig  *string            `json:"kubeConfig" label:"KubeConfig"`
 }
 
 type ClusterQueryParams struct {
@@ -243,6 +244,42 @@ func (cl *clusterHandler) Update(c *gin.Context) {
 			response.FailWithStatus(c, http.StatusInternalServerError, "序列化标签失败")
 			return
 		}
+	}
+	if p.KubeConfig != nil {
+		kc := *p.KubeConfig
+		if len(kc) > 12800 {
+			response.Fail(c, "kubeconfig 内容超出最大长度(12.8KB)")
+			return
+		}
+		// 验证连通性
+		client, err := k8s.GetK8sClient(kc)
+		if err != nil {
+			logger.Error(err.Error())
+			response.Fail(c, "kubeconfig验证失败")
+			return
+		}
+		version, err := k8sCluster.GetClusterVersion(client)
+		if err != nil {
+			logger.Error(err.Error())
+			response.Fail(c, "获取集群版本失败")
+			return
+		}
+		nodes, err := k8sCluster.GetClusterNodesInfo(client)
+		if err != nil {
+			logger.Error(err.Error())
+			response.Fail(c, "获取集群节点信息失败")
+			return
+		}
+		encryptedConfig, err := auth.EncryptAES(kc)
+		if err != nil {
+			logger.Error(err.Error())
+			response.FailWithStatus(c, http.StatusInternalServerError, "加密kubeconfig失败")
+			return
+		}
+		updates["kube_config"] = encryptedConfig
+		updates["cluster_version"] = version
+		updates["node_count"] = len(nodes)
+		updates["status"] = "online"
 	}
 
 	if len(updates) > 0 {

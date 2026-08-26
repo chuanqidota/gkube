@@ -603,7 +603,7 @@ onMounted(() => {
           <el-descriptions-item label="就绪">{{ deployment?.status?.readyReplicas ?? '-' }}</el-descriptions-item>
         </el-descriptions>
         <el-form-item label="目标">
-          <el-input-number v-model="scaleReplicas" :min="0" :max="100" style="width: 200px;" />
+          <el-input-number v-model="scaleReplicas" :min="0" :max="10000" style="width: 200px;" />
         </el-form-item>
         <el-alert v-if="scaleReplicas === 0" title="设为 0 将停止所有 Pod。" type="warning" :closable="false" show-icon style="margin-top: 8px;" />
       </div>

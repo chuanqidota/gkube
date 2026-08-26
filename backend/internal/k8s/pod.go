@@ -113,8 +113,8 @@ func (p *pod) CreatePod(c *gin.Context) {
 	response.Success(c, "执行成功", nil)
 }
 
-// UpdatePod 更新pod
-func (p *pod) UpdatePod(c *gin.Context) {
+// PatchPodMetadata 仅更新 Pod 的 labels 和 annotations
+func (p *pod) PatchPodMetadata(c *gin.Context) {
 	var query PodUpdateParams
 	if err := c.ShouldBindJSON(&query); err != nil {
 		response.Fail(c, "参数校验失败")
@@ -126,9 +126,9 @@ func (p *pod) UpdatePod(c *gin.Context) {
 		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	if err := k8sPod.UpdatePod(client, query.Namespace, query.Name, query.Yaml); err != nil {
+	if err := k8sPod.PatchPodMetadata(client, query.Namespace, query.Name, query.Yaml); err != nil {
 		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "更新pod失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "更新pod元数据失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)

@@ -88,7 +88,7 @@ if (props.isEdit && props.initialData) {
 const rules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符', trigger: 'blur' },
+    { pattern: /^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/, message: '仅支持小写字母、数字、点号、下划线和连字符', trigger: 'blur' },
     { max: 253, message: '最多253个字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
@@ -133,6 +133,14 @@ function removeEntry(index: number) {
 
 // ---- Build & Submit ----
 
+function base64Encode(str: string): string {
+  try {
+    return btoa(str)
+  } catch {
+    return btoa(unescape(encodeURIComponent(str)))
+  }
+}
+
 function buildYamlStr(): string {
   const data: Record<string, string> = {}
   form.data.forEach((entry) => {
@@ -141,7 +149,7 @@ function buildYamlStr(): string {
 
   const binaryData: Record<string, string> = {}
   form.binaryData.forEach((entry) => {
-    if (entry.key.trim()) binaryData[entry.key.trim()] = entry.value
+    if (entry.key.trim()) binaryData[entry.key.trim()] = base64Encode(entry.value)
   })
 
   const labels: Record<string, string> = {}

@@ -14,6 +14,8 @@ import {
   getLimitRangeList,
   createResourceQuota,
   createLimitRange,
+  deleteResourceQuota,
+  deleteLimitRange,
 } from '@/api/resource'
 import { useNamespaceStore } from '@/stores/namespace'
 import YamlDrawer from '@/components/YamlDrawer.vue'
@@ -101,6 +103,28 @@ async function fetchLimitRanges() {
     const res: any = await getLimitRangeList({ namespace: name })
     limitRanges.value = res.data || []
   } catch { /* ignore */ }
+}
+
+async function handleDeleteRq(rqName: string) {
+  try {
+    await ElMessageBox.confirm(`确定要删除 ResourceQuota "${rqName}" 吗？`, '确认删除', { type: 'warning' })
+    await deleteResourceQuota({ namespace: name, name: rqName })
+    ElMessage.success('ResourceQuota 已删除')
+    fetchResourceQuotas()
+  } catch (e: any) {
+    if (e !== 'cancel') ElMessage.error(e?.message || '删除失败')
+  }
+}
+
+async function handleDeleteLr(lrName: string) {
+  try {
+    await ElMessageBox.confirm(`确定要删除 LimitRange "${lrName}" 吗？`, '确认删除', { type: 'warning' })
+    await deleteLimitRange({ namespace: name, name: lrName })
+    ElMessage.success('LimitRange 已删除')
+    fetchLimitRanges()
+  } catch (e: any) {
+    if (e !== 'cancel') ElMessage.error(e?.message || '删除失败')
+  }
 }
 
 function handleOpenYaml() {
@@ -504,6 +528,11 @@ onMounted(() => {
                   </template>
                 </el-table-column>
                 <el-table-column prop="age" :label="t('namespace.ageLabel')" width="180" />
+                <el-table-column label="操作" width="100" fixed="right">
+                  <template #default="{ row }">
+                    <el-button size="small" type="danger" text @click="handleDeleteRq(row.name)">删除</el-button>
+                  </template>
+                </el-table-column>
               </el-table>
               <div v-else class="empty-hint">
                 {{ t('namespace.noResourceQuotas') }}
@@ -537,6 +566,11 @@ onMounted(() => {
                   </template>
                 </el-table-column>
                 <el-table-column prop="age" :label="t('namespace.ageLabel')" width="180" />
+                <el-table-column label="操作" width="100" fixed="right">
+                  <template #default="{ row }">
+                    <el-button size="small" type="danger" text @click="handleDeleteLr(row.name)">删除</el-button>
+                  </template>
+                </el-table-column>
               </el-table>
               <div v-else class="empty-hint">
                 {{ t('namespace.noLimitRanges') }}

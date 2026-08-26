@@ -39,6 +39,10 @@ type Config struct {
 		Bucket          string `json:"bucket" comment:"桶名字"`
 	} `json:"s3"`
 	Security Security `json:"security"`
+	Dashboard struct {
+		// RestartThreshold 重启异常阈值:restartCount 达到此值视为异常,默认 10。
+		RestartThreshold int `json:"restart_threshold" mapstructure:"restart_threshold" comment:"重启异常阈值"`
+	} `json:"dashboard"`
 }
 
 // Security 安全相关配置：密钥、CORS 白名单、管理员白名单。

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gkube/config"
 	"gkube/internal/cluster/model"
 	"gkube/pkg/database"
 	"gkube/pkg/k8s"
@@ -455,8 +456,14 @@ func (d *dashboard) Namespaces(c *gin.Context) {
 	response.Success(c, "获取命名空间资源占用成功", data)
 }
 
-// 重启异常阈值:restartCount 达到此值视为异常
-const restartThreshold = 10
+// 重启异常阈值:restartCount 达到此值视为异常（从 config 读取,默认 10）。
+func getRestartThreshold() int {
+	t := config.Conf.Dashboard.RestartThreshold
+	if t <= 0 {
+		return 10
+	}
+	return t
+}
 
 // 异常容器 waiting reason 集合（不包含过渡态 ContainerCreating，避免假阳性）。
 var abnormalWaitingReasons = map[string]bool{
@@ -555,7 +562,7 @@ func (d *dashboard) Health(c *gin.Context) {
 							reason = cs.State.Waiting.Reason
 						}
 					}
-					if cs.RestartCount >= restartThreshold {
+					if cs.RestartCount >= int32(getRestartThreshold()) {
 						if len(lRestartPods) < maxHealthEntities {
 							lRestartPods = append(lRestartPods, restartingPod{
 								Name:         pod.Name,

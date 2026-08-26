@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import { getNamespaceList, createIngress, updateIngress, extractNamespaceNames } from '@/api/resource'
+import { getNamespaceList, createIngress, updateIngress, extractNamespaceNames, getIngressClassList } from '@/api/resource'
 
 const props = withDefaults(defineProps<{
   isEdit?: boolean
@@ -24,17 +24,23 @@ const router = useRouter()
 const submitting = ref(false)
 const namespaceLoading = ref(false)
 const namespaces = ref<string[]>([])
+const ingressClasses = ref<string[]>([])
+const ingressClassLoading = ref(false)
 
 // ---- Form Data ----
 
 interface Label { key: string; value: string }
 
-interface IngressRule {
-  host: string
+interface IngressPath {
   path: string
   pathType: string
   backendService: string
   backendPort: number | null
+}
+
+interface IngressHostRule {
+  host: string
+  paths: IngressPath[]
 }
 
 interface TlsConfig {
@@ -53,7 +59,7 @@ interface FormData {
   defaultBackendEnabled: boolean
   defaultBackendService: string
   defaultBackendPort: number | null
-  rules: IngressRule[]
+  rules: IngressHostRule[]
   tlsEnabled: boolean
   tls: TlsConfig[]
 }
@@ -63,11 +69,11 @@ const form = reactive<FormData>({
   namespace: 'default',
   labels: [{ key: 'app', value: '' }],
   annotations: [],
-  ingressClassName: 'nginx',
+  ingressClassName: '',
   defaultBackendEnabled: false,
   defaultBackendService: '',
   defaultBackendPort: null,
-  rules: [{ host: '', path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }],
+  rules: [{ host: '', paths: [{ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }] }],
   tlsEnabled: false,
   tls: [{ hosts: '', secretName: '' }],
 })
@@ -83,7 +89,7 @@ const formRules: FormRules = {
     { max: 253, message: '最长 253 个字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
-  ingressClassName: [{ required: true, message: '请输入 Ingress Class 名称', trigger: 'blur' }],
+  ingressClassName: [{ required: true, message: '请选择 IngressClass', trigger: 'change' }],
 }
 
 // ---- Namespace Fetch ----
@@ -100,8 +106,21 @@ async function fetchNamespaces() {
   }
 }
 
+async function fetchIngressClasses() {
+  ingressClassLoading.value = true
+  try {
+    const res: any = await getIngressClassList({})
+    ingressClasses.value = res.data || []
+  } catch {
+    ingressClasses.value = []
+  } finally {
+    ingressClassLoading.value = false
+  }
+}
+
 onMounted(() => {
   fetchNamespaces()
+  fetchIngressClasses()
   if (props.isEdit && props.initialData) {
     parseInitialData(props.initialData)
   }
@@ -120,11 +139,18 @@ function removeLabel(i: number) { form.labels.splice(i, 1) }
 // ---- Rule Management ----
 
 function addRule() {
-  form.rules.push({ host: '', path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 })
+  form.rules.push({ host: '', paths: [{ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }] })
 }
 function removeRule(i: number) {
   if (form.rules.length <= 1) { ElMessage.warning('至少需要一条规则'); return }
   form.rules.splice(i, 1)
+}
+function addPath(ruleIdx: number) {
+  form.rules[ruleIdx].paths.push({ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 })
+}
+function removePath(ruleIdx: number, pathIdx: number) {
+  if (form.rules[ruleIdx].paths.length <= 1) { ElMessage.warning('每个 Host 至少需要一条路径'); return }
+  form.rules[ruleIdx].paths.splice(pathIdx, 1)
 }
 
 // ---- TLS Management ----
@@ -151,16 +177,18 @@ function buildK8sIngress(): Record<string, any> {
     .map(r => ({
       host: r.host.trim(),
       http: {
-        paths: [{
-          path: r.path,
-          pathType: r.pathType,
-          backend: {
-            service: {
-              name: r.backendService,
-              port: { number: r.backendPort },
+        paths: r.paths
+          .filter(p => p.backendService.trim())
+          .map(p => ({
+            path: p.path,
+            pathType: p.pathType,
+            backend: {
+              service: {
+                name: p.backendService,
+                port: { number: p.backendPort },
+              },
             },
-          },
-        }],
+          })),
       },
     }))
 
@@ -213,7 +241,7 @@ function parseInitialData(data: any) {
 
   form.name = meta.name || ''
   form.namespace = meta.namespace || 'default'
-  form.ingressClassName = spec.ingressClassName || 'nginx'
+  form.ingressClassName = spec.ingressClassName || ''
 
   // Labels
   const labels = meta.labels || {}
@@ -235,19 +263,28 @@ function parseInitialData(data: any) {
     form.defaultBackendPort = defaultBackend.service?.port?.number ?? null
   }
 
-  // Rules
-  const rules = spec.rules || []
-  form.rules = rules.length > 0
-    ? rules.flatMap((rule: any) =>
-        (rule.http?.paths || []).map((p: any) => ({
-          host: rule.host || '',
+  // Rules — group by host to preserve multi-path structure
+  const specRules = spec.rules || []
+  if (specRules.length > 0) {
+    const hostMap = new Map<string, IngressPath[]>()
+    for (const rule of specRules) {
+      const host = rule.host || ''
+      for (const p of (rule.http?.paths || [])) {
+        const path: IngressPath = {
           path: p.path || '/',
           pathType: p.pathType || 'Prefix',
           backendService: p.backend?.service?.name || '',
           backendPort: p.backend?.service?.port?.number ?? null,
-        }))
-      )
-    : [{ host: '', path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }]
+        }
+        const existing = hostMap.get(host)
+        if (existing) existing.push(path)
+        else hostMap.set(host, [path])
+      }
+    }
+    form.rules = Array.from(hostMap.entries()).map(([host, paths]) => ({ host, paths }))
+  } else {
+    form.rules = [{ host: '', paths: [{ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }] }]
+  }
 
   // TLS
   const tls = spec.tls || []
@@ -268,8 +305,11 @@ async function handleSubmit() {
   for (let i = 0; i < form.rules.length; i++) {
     const r = form.rules[i]
     if (!r.host.trim()) { ElMessage.error(`规则 ${i + 1}: Host 不能为空`); return }
-    if (!r.backendService.trim()) { ElMessage.error(`规则 ${i + 1}: 后端 Service 名称不能为空`); return }
-    if (!r.backendPort) { ElMessage.error(`规则 ${i + 1}: 后端端口不能为空`); return }
+    for (let j = 0; j < r.paths.length; j++) {
+      const p = r.paths[j]
+      if (!p.backendService.trim()) { ElMessage.error(`规则 ${i + 1}, 路径 ${j + 1}: 后端 Service 名称不能为空`); return }
+      if (!p.backendPort) { ElMessage.error(`规则 ${i + 1}, 路径 ${j + 1}: 后端端口不能为空`); return }
+    }
   }
 
   submitting.value = true
@@ -319,7 +359,10 @@ function handleCancel() {
               </el-select>
             </el-form-item>
             <el-form-item label="Ingress Class Name" prop="ingressClassName">
-              <el-input v-model="form.ingressClassName" placeholder="nginx" />
+              <el-select v-model="form.ingressClassName" filterable allow-create placeholder="选择或输入 IngressClass" style="width: 100%;" :loading="ingressClassLoading">
+                <el-option v-for="ic in ingressClasses" :key="ic" :label="ic" :value="ic" />
+              </el-select>
+              <div class="form-tip" v-if="ingressClasses.length === 0 && !ingressClassLoading">未检测到 IngressClass，可手动输入名称</div>
             </el-form-item>
           </div>
         </div>
@@ -383,21 +426,27 @@ function handleCancel() {
               <div v-for="(rule, ri) in form.rules" :key="ri" class="rule-card">
                 <div class="rule-row-top">
                   <el-input v-model="rule.host" placeholder="Host (如 example.com)" style="flex: 2;" />
-                  <el-input v-model="rule.path" placeholder="Path" style="flex: 1;" />
-                  <el-select v-model="rule.pathType" style="width: 160px;">
-                    <el-option label="Prefix" value="Prefix" />
-                    <el-option label="Exact" value="Exact" />
-                    <el-option label="ImplementationSpecific" value="ImplementationSpecific" />
-                  </el-select>
                   <el-button type="danger" text circle @click="removeRule(ri)">
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
-                <div class="rule-row-bottom">
-                  <span class="backend-label">后端:</span>
-                  <el-input v-model="rule.backendService" placeholder="Service 名称" style="flex: 1;" />
-                  <el-input-number v-model="rule.backendPort" :min="1" :max="65535" placeholder="端口" style="width: 140px;" />
+                <div v-for="(path, pi) in rule.paths" :key="pi" class="path-row">
+                  <el-input v-model="path.path" placeholder="Path" style="flex: 1;" />
+                  <el-select v-model="path.pathType" style="width: 160px;">
+                    <el-option label="Prefix" value="Prefix" />
+                    <el-option label="Exact" value="Exact" />
+                    <el-option label="ImplementationSpecific" value="ImplementationSpecific" />
+                  </el-select>
+                  <span class="backend-label">→</span>
+                  <el-input v-model="path.backendService" placeholder="Service 名称" style="flex: 1;" />
+                  <el-input-number v-model="path.backendPort" :min="1" :max="65535" placeholder="端口" style="width: 140px;" />
+                  <el-button type="danger" text circle size="small" @click="removePath(ri, pi)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
                 </div>
+                <el-button text type="primary" size="small" @click="addPath(ri)" style="margin-top: 4px;">
+                  <el-icon><Plus /></el-icon> 添加路径
+                </el-button>
               </div>
               <el-button text type="primary" size="small" @click="addRule">
                 <el-icon><Plus /></el-icon> 添加规则
@@ -562,10 +611,12 @@ function handleCancel() {
   margin-bottom: 8px;
 }
 
-.rule-row-bottom {
+.path-row {
   display: flex;
   gap: 8px;
   align-items: center;
+  margin-bottom: 8px;
+  padding-left: 16px;
 }
 
 .backend-label {
