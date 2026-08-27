@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 
 	"gkube/pkg/yamlutil"
@@ -21,7 +22,7 @@ import (
 //	@return []corev1.PersistentVolume
 //	@return error
 func GetPVList(client *kubernetes.Clientset) ([]corev1.PersistentVolume, error) {
-	pvList, err := client.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
+	pvList, err := client.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +54,8 @@ func GetPVByName(client *kubernetes.Clientset, name string) (*corev1.PersistentV
 func GetPVByLabel(client *kubernetes.Clientset, labelMap map[string]string) ([]corev1.PersistentVolume, error) {
 	labelSelector := labels.SelectorFromSet(labelMap)
 	pvList, err := client.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
+		LabelSelector:  labelSelector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err
@@ -71,7 +73,8 @@ func GetPVByLabel(client *kubernetes.Clientset, labelMap map[string]string) ([]c
 func GetPVByField(client *kubernetes.Clientset, fieldMap map[string]string) ([]corev1.PersistentVolume, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
 	pvList, err := client.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{
-		FieldSelector: fieldSelector.String(),
+		FieldSelector:  fieldSelector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err
@@ -123,15 +126,28 @@ func CreatePV(client *kubernetes.Clientset, pvYaml string) error {
 //	@param pvYaml
 //	@return error
 func UpdatePV(client *kubernetes.Clientset, pvYaml string) error {
-	var persistentVolume corev1.PersistentVolume
-	if err := yaml.Unmarshal([]byte(pvYaml), &persistentVolume); err != nil {
+	var pv corev1.PersistentVolume
+	if err := yaml.Unmarshal([]byte(pvYaml), &pv); err != nil {
 		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
-	_, err := client.CoreV1().PersistentVolumes().Update(context.Background(), &persistentVolume, metav1.UpdateOptions{})
-	if err != nil {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.CoreV1().PersistentVolumes().Get(context.Background(), pv.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("获取PV资源失败:%s", err.Error())
+		}
+		// 用用户 YAML 的可变字段覆盖最新对象,保留最新 resourceVersion
+		latest.Spec.Capacity = pv.Spec.Capacity
+		latest.Spec.AccessModes = pv.Spec.AccessModes
+		latest.Spec.PersistentVolumeReclaimPolicy = pv.Spec.PersistentVolumeReclaimPolicy
+		latest.Spec.StorageClassName = pv.Spec.StorageClassName
+		latest.Spec.MountOptions = pv.Spec.MountOptions
+		latest.Spec.VolumeMode = pv.Spec.VolumeMode
+		latest.Spec.PersistentVolumeSource = pv.Spec.PersistentVolumeSource
+		latest.Labels = pv.Labels
+		latest.Annotations = pv.Annotations
+		_, err = client.CoreV1().PersistentVolumes().Update(context.Background(), latest, metav1.UpdateOptions{})
 		return err
-	}
-	return nil
+	})
 }
 
 // DeletePVByName
@@ -141,11 +157,18 @@ func UpdatePV(client *kubernetes.Clientset, pvYaml string) error {
 //	@param name
 //	@return error
 func DeletePVByName(client *kubernetes.Clientset, name string) error {
-	err := client.CoreV1().PersistentVolumes().Delete(context.Background(), name, metav1.DeleteOptions{})
+	// 检查 PV 绑定状态,bound 状态下拒绝删除并给出引导性错误
+	pv, err := client.CoreV1().PersistentVolumes().Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
-	return nil
+	if pv.Status.Phase == corev1.VolumeBound && pv.Spec.ClaimRef != nil {
+		return fmt.Errorf("PV %s 正在绑定 PVC %s/%s,请先删除关联的 PVC", name, pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name)
+	}
+	propagation := metav1.DeletePropagationForeground
+	return client.CoreV1().PersistentVolumes().Delete(context.Background(), name, metav1.DeleteOptions{
+		PropagationPolicy: &propagation,
+	})
 }
 
 // DeletePVByLabel

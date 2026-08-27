@@ -3,17 +3,19 @@ package replicaset
 import (
 	"fmt"
 
+	k8sEvent "gkube/pkg/k8s/event"
 	"gkube/pkg/yamlutil"
 	"context"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 )
 
 func GetReplicaSetList(client *kubernetes.Clientset, namespace string) ([]appsv1.ReplicaSet, error) {
-	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), metav1.ListOptions{})
+	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +47,8 @@ func GetReplicaSetPodList(client *kubernetes.Clientset, namespace, name string) 
 	}
 	selector := metav1.FormatLabelSelector(rs.Spec.Selector)
 	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: selector,
+		LabelSelector:  selector,
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list Pods: %w", err)
@@ -75,7 +78,8 @@ func GetReplicaSetDetail(client *kubernetes.Clientset, namespace, name string) (
 
 	selector := metav1.FormatLabelSelector(rs.Spec.Selector)
 	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: selector,
+		LabelSelector:  selector,
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err
@@ -100,4 +104,18 @@ func GetReplicaSetDetail(client *kubernetes.Clientset, namespace, name string) (
 		Pods:         pods,
 		ControllerOf: controllerOf,
 	}, nil
+}
+
+// GetReplicaSetEvents returns the events associated with a ReplicaSet.
+// 用 fields.Selector 防注入。
+func GetReplicaSetEvents(client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
+	selector := fields.AndSelectors(
+		fields.OneTermEqualSelector("involvedObject.name", name),
+		fields.OneTermEqualSelector("involvedObject.kind", "ReplicaSet"),
+	).String()
+	events, _, _, err := k8sEvent.ListEvents(client, namespace, selector, 0, "")
+	if err != nil {
+		return nil, fmt.Errorf("获取replicaset事件失败:%s", err.Error())
+	}
+	return events, nil
 }

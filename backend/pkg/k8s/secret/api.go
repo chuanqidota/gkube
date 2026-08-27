@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
@@ -20,7 +21,7 @@ import (
 //	@return []corev1.Secret
 //	@return error
 func GetSecretsList(client *kubernetes.Clientset, namespace string) ([]corev1.Secret, error) {
-	secrets, err := client.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{})
+	secrets, err := client.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,16 @@ func GetSecretsList(client *kubernetes.Clientset, namespace string) ([]corev1.Se
 //	@return *corev1.Secret
 //	@return error
 func GetSecretByName(client *kubernetes.Clientset, namespace, name string) (*corev1.Secret, error) {
-	return client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	// 清除敏感数据，用占位符替代
+	for key := range secret.Data {
+		secret.Data[key] = []byte("***")
+	}
+	secret.StringData = nil
+	return secret, nil
 }
 
 // GetSecretYaml
@@ -57,6 +67,11 @@ func GetSecretYaml(client *kubernetes.Clientset, namespace, name string) (string
 	if err != nil {
 		return "", err
 	}
+	// 清除敏感数据，用占位符替代
+	for key := range secret.Data {
+		secret.Data[key] = []byte("***")
+	}
+	secret.StringData = nil
 	secret.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"}
 	secretYAML, err := yamlutil.MarshalWithoutManagedFields(secret)
 	if err != nil {
@@ -97,16 +112,34 @@ func UpdateSecretFromYaml(client *kubernetes.Clientset, namespace, yamlContent s
 	if secret.Namespace == "" {
 		secret.Namespace = namespace
 	}
-	// YAML 编辑器精简视图会删除 resourceVersion，从集群获取当前值自动补全
-	if secret.ResourceVersion == "" {
-		current, err := client.CoreV1().Secrets(secret.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.CoreV1().Secrets(secret.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to get current Secret for resourceVersion: %w", err)
+			return fmt.Errorf("failed to get current Secret: %w", err)
 		}
-		secret.ResourceVersion = current.ResourceVersion
-	}
-	_, err := client.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), &secret, metav1.UpdateOptions{})
-	return err
+		// 合并 Data: 用户 YAML 中的值覆盖集群值,占位符 "***" 保留集群原值
+		// 用户 YAML 中删除的 key 同步删除(替换整个 Data map)
+		if secret.Data != nil {
+			newData := make(map[string][]byte, len(secret.Data))
+			for key, val := range secret.Data {
+				if string(val) == "***" && latest.Data != nil {
+					// 占位符,保留集群原值
+					if orig, exists := latest.Data[key]; exists {
+						newData[key] = orig
+						continue
+					}
+				}
+				newData[key] = val
+			}
+			latest.Data = newData
+		}
+		latest.StringData = secret.StringData
+		latest.Labels = secret.Labels
+		latest.Annotations = secret.Annotations
+		latest.Type = secret.Type
+		_, err = client.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 // CreateSecretFromYaml

@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 
 	"gkube/pkg/yamlutil"
@@ -22,7 +23,7 @@ import (
 //	@return []corev1.PersistentVolumeClaim
 //	@return error
 func GetPVCList(client *kubernetes.Clientset, namespace string) ([]corev1.PersistentVolumeClaim, error) {
-	pvcList, err := client.CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), metav1.ListOptions{})
+	pvcList, err := client.CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,8 @@ func GetPVCListByStorageClass(client *kubernetes.Clientset, storageClassName str
 		"spec.storageClassName": storageClassName,
 	})
 	pvcList, err := client.CoreV1().PersistentVolumeClaims("").List(context.Background(), metav1.ListOptions{
-		FieldSelector: fieldSelector.String(),
+		FieldSelector:  fieldSelector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err
@@ -76,7 +78,8 @@ func GetPVCByName(client *kubernetes.Clientset, namespace, name string) (*corev1
 func GetPVCByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]corev1.PersistentVolumeClaim, error) {
 	labelSelector := labels.SelectorFromSet(labelMap)
 	pvcList, err := client.CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
+		LabelSelector:  labelSelector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err
@@ -95,7 +98,8 @@ func GetPVCByLabel(client *kubernetes.Clientset, namespace string, labelMap map[
 func GetPVCByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]corev1.PersistentVolumeClaim, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
 	pvcList, err := client.CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), metav1.ListOptions{
-		FieldSelector: fieldSelector.String(),
+		FieldSelector:  fieldSelector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err
@@ -154,11 +158,17 @@ func UpdatePVC(client *kubernetes.Clientset, namespace, pvcYaml string) error {
 	if err := yaml.Unmarshal([]byte(pvcYaml), &pvc); err != nil {
 		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
-	_, err := client.CoreV1().PersistentVolumeClaims(namespace).Update(context.Background(), &pvc, metav1.UpdateOptions{})
-	if err != nil {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvc.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("获取PVC资源失败:%s", err.Error())
+		}
+		// PVC 的 resources/storageClassName/volumeName/selector/volumeMode 不可变,只更新可变字段
+		latest.Labels = pvc.Labels
+		latest.Annotations = pvc.Annotations
+		_, err = client.CoreV1().PersistentVolumeClaims(namespace).Update(context.Background(), latest, metav1.UpdateOptions{})
 		return err
-	}
-	return nil
+	})
 }
 
 // DeletePVCByName

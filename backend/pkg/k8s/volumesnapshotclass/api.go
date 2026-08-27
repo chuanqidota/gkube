@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
@@ -25,7 +26,7 @@ var VolumeSnapshotClassGVR = schema.GroupVersionResource{
 //	@return []unstructured.Unstructured
 //	@return error
 func GetVolumeSnapshotClassList(client dynamic.Interface) ([]unstructured.Unstructured, error) {
-	list, err := client.Resource(VolumeSnapshotClassGVR).List(context.TODO(), metav1.ListOptions{})
+	list, err := client.Resource(VolumeSnapshotClassGVR).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -96,12 +97,20 @@ func UpdateVolumeSnapshotClass(client dynamic.Interface, yamlContent string) err
 	if err := yaml.Unmarshal([]byte(yamlContent), &obj); err != nil {
 		return fmt.Errorf("YAML解析错误: %w", err)
 	}
-	unstructuredObj := &unstructured.Unstructured{Object: obj}
-	_, err := client.Resource(VolumeSnapshotClassGVR).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
-	if err != nil {
-		return err
+	name, found, err := unstructured.NestedString(obj, "metadata", "name")
+	if err != nil || !found {
+		return fmt.Errorf("metadata.name is required")
 	}
-	return nil
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.Resource(VolumeSnapshotClassGVR).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: obj}
+		unstructuredObj.SetResourceVersion(latest.GetResourceVersion())
+		_, err = client.Resource(VolumeSnapshotClassGVR).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 // DeleteVolumeSnapshotClassByName

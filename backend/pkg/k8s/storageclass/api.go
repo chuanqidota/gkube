@@ -17,7 +17,7 @@ import (
 //	@return []storagev1.StorageClass
 //	@return error
 func GetStorageClassList(client *kubernetes.Clientset) ([]storagev1.StorageClass, error) {
-	scList, err := client.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{})
+	scList, err := client.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,8 @@ func GetStorageClassYaml(client *kubernetes.Clientset, name string) (string, err
 func GetStorageClassByField(client *kubernetes.Clientset, fieldMap map[string]string) ([]storagev1.StorageClass, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
 	scList, err := client.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fieldSelector.String(),
+		FieldSelector:  fieldSelector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err
@@ -86,7 +87,8 @@ func GetStorageClassByField(client *kubernetes.Clientset, fieldMap map[string]st
 func GetStorageClassByLabel(client *kubernetes.Clientset, labelMap map[string]string) ([]storagev1.StorageClass, error) {
 	labelSelector := fields.SelectorFromSet(labelMap)
 	scList, err := client.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
+		LabelSelector:  labelSelector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err

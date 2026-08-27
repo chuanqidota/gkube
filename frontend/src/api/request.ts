@@ -2,6 +2,13 @@ import axios, { type AxiosResponse, type InternalAxiosRequestConfig } from 'axio
 import { getToken, removeToken, getRefreshToken, setToken, setRefreshToken } from '@/utils/auth'
 import { useClusterStore } from '@/stores/cluster'
 
+// 扩展 axios 内部配置类型，声明 _retry 标志
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    _retry?: boolean
+  }
+}
+
 const request = axios.create({
   baseURL: '/api/v1',
   timeout: 15000,

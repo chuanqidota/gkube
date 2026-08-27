@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	k8sEvent "gkube/pkg/k8s/event"
 	"gkube/pkg/yamlutil"
 
 	"k8s.io/apimachinery/pkg/fields"
@@ -12,6 +13,7 @@ import (
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
@@ -23,7 +25,7 @@ import (
 //	@return []netv1.Ingress
 //	@return error
 func GetIngressList(client *kubernetes.Clientset, namespace string) ([]netv1.Ingress, error) {
-	ingress, err := client.NetworkingV1().Ingresses(namespace).List(context.TODO(), metav1.ListOptions{})
+	ingress, err := client.NetworkingV1().Ingresses(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +59,8 @@ func GetIngressByName(client *kubernetes.Clientset, namespace, name string) (*ne
 func GetIngressByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]netv1.Ingress, error) {
 	labelSelector := labels.SelectorFromSet(labelMap) // 创建标签选择器
 	ingress, err := client.NetworkingV1().Ingresses(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
+		LabelSelector:  labelSelector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err
@@ -76,7 +79,8 @@ func GetIngressByLabel(client *kubernetes.Clientset, namespace string, labelMap 
 func GetIngressByFiled(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]netv1.Ingress, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap) // 创建标签选择器
 	ingress, err := client.NetworkingV1().Ingresses(namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fieldSelector.String(),
+		FieldSelector:  fieldSelector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err
@@ -95,7 +99,7 @@ func GetIngressByFiled(client *kubernetes.Clientset, namespace string, fieldMap 
 func GetIngressYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
 	ingress, err := client.NetworkingV1().Ingresses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	ingress.TypeMeta = metav1.TypeMeta{APIVersion: "networking.k8s.io/v1", Kind: "Ingress"}
 	ingressYAML, err := yamlutil.MarshalWithoutManagedFields(ingress)
@@ -124,16 +128,29 @@ func CreateIngress(client *kubernetes.Clientset, namespace, ingressYAML string) 
 	return nil
 }
 
-func UpdateIngress(client *kubernetes.Clientset, ingressYaml string) error {
+func UpdateIngress(client *kubernetes.Clientset, namespace, ingressYaml string) error {
 	var ingress netv1.Ingress
 	if err := yaml.Unmarshal([]byte(ingressYaml), &ingress); err != nil {
 		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
-	_, err := client.NetworkingV1().Ingresses(ingress.Namespace).Update(context.TODO(), &ingress, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("更新ingress资源失败:%s", err.Error())
+	// 以请求参数的 namespace 为准,防止 YAML 内嵌 namespace 与请求不一致
+	if namespace != "" {
+		ingress.Namespace = namespace
 	}
-	return nil
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.NetworkingV1().Ingresses(ingress.Namespace).Get(context.TODO(), ingress.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("获取ingress资源失败:%s", err.Error())
+		}
+		latest.Spec = ingress.Spec
+		latest.Labels = ingress.Labels
+		latest.Annotations = ingress.Annotations
+		_, err = client.NetworkingV1().Ingresses(ingress.Namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("更新ingress资源失败:%s", err.Error())
+		}
+		return nil
+	})
 }
 
 // DeleteIngressByName
@@ -191,7 +208,7 @@ func DeleteIngressByField(client *kubernetes.Clientset, namespace string, fieldM
 // ListIngressClasses 返回集群中所有 IngressClass 的名称列表。
 // 集群级资源，无需 namespace。
 func ListIngressClasses(client *kubernetes.Clientset) ([]string, error) {
-	list, err := client.NetworkingV1().IngressClasses().List(context.TODO(), metav1.ListOptions{})
+	list, err := client.NetworkingV1().IngressClasses().List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, fmt.Errorf("获取IngressClass列表失败:%s", err.Error())
 	}
@@ -200,4 +217,18 @@ func ListIngressClasses(client *kubernetes.Clientset) ([]string, error) {
 		names = append(names, ic.Name)
 	}
 	return names, nil
+}
+
+// GetIngressEvents returns the events associated with an Ingress.
+// 用 fields.Selector 防注入。
+func GetIngressEvents(client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
+	selector := fields.AndSelectors(
+		fields.OneTermEqualSelector("involvedObject.name", name),
+		fields.OneTermEqualSelector("involvedObject.kind", "Ingress"),
+	).String()
+	events, _, _, err := k8sEvent.ListEvents(client, namespace, selector, 0, "")
+	if err != nil {
+		return nil, fmt.Errorf("获取ingress事件失败:%s", err.Error())
+	}
+	return events, nil
 }

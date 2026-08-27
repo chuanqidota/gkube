@@ -21,7 +21,7 @@ import (
 
 // ListDeployments returns a paginated deployment list with metadata
 func ListDeployments(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*appsv1.DeploymentList, error) {
-	listOpts := metav1.ListOptions{}
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
 	}
@@ -118,7 +118,10 @@ func UpdateDeployment(client *kubernetes.Clientset, namespace, name, deploymentY
 //	@param name
 //	@return error
 func DeleteDeployment(client *kubernetes.Clientset, namespace, name string) error {
-	err := client.AppsV1().Deployments(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	propagation := metav1.DeletePropagationForeground
+	err := client.AppsV1().Deployments(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{
+		PropagationPolicy: &propagation,
+	})
 	if err != nil {
 		return fmt.Errorf("删除deployment资源失败:%s", err.Error())
 	}
@@ -243,7 +246,8 @@ func RollbackDeployment(client *kubernetes.Clientset, namespace, name string, re
 		return fmt.Errorf("deployment selector 为空,无法定位关联 ReplicaSet")
 	}
 	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: selector.String(),
+		LabelSelector:  selector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return fmt.Errorf("获取ReplicaSet列表失败:%s", err.Error())
@@ -305,7 +309,8 @@ func GetDeploymentPods(client *kubernetes.Clientset, namespace, name string) (*c
 		return &corev1.PodList{Items: []corev1.Pod{}}, nil
 	}
 	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: selector.String(),
+		LabelSelector:  selector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
@@ -332,7 +337,8 @@ func GetDeploymentReplicaSets(client *kubernetes.Clientset, namespace, name stri
 		return []appsv1.ReplicaSet{}, nil
 	}
 	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: selector.String(),
+		LabelSelector:  selector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("获取ReplicaSet列表失败:%s", err.Error())

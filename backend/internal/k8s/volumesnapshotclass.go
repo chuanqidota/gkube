@@ -149,7 +149,7 @@ func (v *volumeSnapshotClass) UpdateVolumeSnapshotClass(c *gin.Context) {
 //	@param c
 func (v *volumeSnapshotClass) DeleteVolumeSnapshotClassByName(c *gin.Context) {
 	var body VolumeSnapshotClassDeleteByNameParams
-	if err := c.ShouldBindJSON(&body); err != nil {
+	if err := c.ShouldBindQuery(&body); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}

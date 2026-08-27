@@ -8,12 +8,16 @@ import (
 	"gkube/pkg/audit"
 )
 
-// auditSkipPaths 审计自身 + 终端/日志(有独立记录)
+// auditSkipPaths 不需要审计记录的精确路径(终端/日志有独立记录机制,audit/create 会自引用)
 var auditSkipPaths = map[string]bool{
-	"audit":          true,
 	"container/exec": true,
-	"log":            true,
 	"log/stream":     true,
+	"audit/create":   true, // 避免自引用审计条目
+}
+
+// auditSkipResources 跳过整个子树的资源前缀
+var auditSkipResources = map[string]bool{
+	"log": true, // log 和 log/stream 都跳过,log 有独立记录
 }
 
 // AuditLog 自动记录 K8s 写操作的审计日志。
@@ -39,8 +43,8 @@ func AuditLog() gin.HandlerFunc {
 		resource := segments[0]
 		action := segments[1]
 
-		// 跳过审计自身和终端/日志
-		if auditSkipPaths[resource] || auditSkipPaths[resource+"/"+action] {
+		// 跳过终端/日志等有独立记录的路径
+		if auditSkipResources[resource] || auditSkipPaths[resource+"/"+action] {
 			return
 		}
 

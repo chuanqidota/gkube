@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -114,6 +115,10 @@ func (h *authHandler) WsTicket(c *gin.Context) {
 	uid, _ := userID.(uint)
 	name, _ := username.(string)
 
-	ticket := auth.IssueTicket(uid, name)
+	ticket, err := auth.IssueTicket(uid, name)
+	if err != nil {
+		response.Fail(c, fmt.Sprintf("签发ticket失败:%s", err.Error()))
+		return
+	}
 	response.Success(c, "ok", gin.H{"ticket": ticket})
 }

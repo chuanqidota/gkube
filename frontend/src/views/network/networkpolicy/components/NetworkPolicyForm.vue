@@ -136,7 +136,7 @@ function removePodSelectorLabel(i: number) { form.podSelectorLabels.splice(i, 1)
 
 function addIngressRule() {
   form.ingressRules.push({
-    fromTo: [{ type: 'podSelector', labels: [{ key: '', value: '' }], cidr: '', except: [] }],
+    fromTo: [{ type: 'podSelector', labels: [{ key: '', value: '' }], matchExpressions: [], cidr: '', except: [] }],
     ports: [{ protocol: 'TCP', port: null, endPort: null }],
   })
 }

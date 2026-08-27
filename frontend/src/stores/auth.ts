@@ -48,13 +48,15 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
-    // 通知后端注销（若接口未实现则静默失败），再清除本地凭证
+    // 先清除本地凭证,确保路由守卫立即看到无 token 状态
+    token.value = null
+    user.value = null
+    removeToken()
+    // 通知后端注销（若接口未实现则静默失败）
     try {
       await logoutApi()
-    } finally {
-      token.value = null
-      user.value = null
-      removeToken()
+    } catch {
+      // 后端无 /auth/logout 路由时静默忽略
     }
   }
 

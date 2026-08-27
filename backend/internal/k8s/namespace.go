@@ -242,8 +242,8 @@ func (n *namespace) DeleteNamespace(c *gin.Context) {
 }
 
 type NamespaceCreateParams struct {
-	ClusterName string            `json:"clusterName" label:"集群名称"`
-	Namespace   string            `json:"namespace" label:"名称"`
+	ClusterName string            `json:"clusterName" binding:"required" label:"集群名称"`
+	Namespace   string            `json:"namespace" binding:"required" label:"名称"`
 	Labels      map[string]string `json:"labels"`
 	Annotations map[string]string `json:"annotations"`
 }

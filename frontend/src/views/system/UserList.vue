@@ -163,11 +163,15 @@ async function handleSave() {
 async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确定删除用户 "${row.username}" 吗？`, '确认删除', { type: 'warning' })
+  } catch {
+    return // 用户取消确认框
+  }
+  try {
     await request.delete('/users', { data: { id: row.id } })
     ElMessage.success('已删除')
     fetchUsers()
-  } catch {
-    // cancelled
+  } catch (e: any) {
+    ElMessage.error(e?.message || '删除失败')
   }
 }
 

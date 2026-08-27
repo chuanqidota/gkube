@@ -3,6 +3,7 @@ package job
 import (
 	"context"
 	"fmt"
+	k8sEvent "gkube/pkg/k8s/event"
 	"gkube/pkg/yamlutil"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
@@ -23,7 +25,7 @@ import (
 //	@return []batchv1.Job
 //	@return error
 func GetJobList(client *kubernetes.Clientset, namespace string) ([]batchv1.Job, error) {
-	jobList, err := client.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{})
+	jobList, err := client.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +34,7 @@ func GetJobList(client *kubernetes.Clientset, namespace string) ([]batchv1.Job, 
 
 // ListJobs returns a paginated job list with metadata
 func ListJobs(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*batchv1.JobList, error) {
-	listOpts := metav1.ListOptions{}
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
 	}
@@ -69,7 +71,8 @@ func GetJobByName(client *kubernetes.Clientset, namespace string, name string) (
 func GetJobByFiled(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]batchv1.Job, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
 	jobList, err := client.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fieldSelector.String(),
+		FieldSelector:  fieldSelector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err
@@ -88,7 +91,8 @@ func GetJobByFiled(client *kubernetes.Clientset, namespace string, fieldMap map[
 func GetJobByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]batchv1.Job, error) {
 	labelSelector := labels.SelectorFromSet(labelMap)
 	jobList, err := client.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
+		LabelSelector:  labelSelector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err
@@ -146,11 +150,36 @@ func UpdateJob(client *kubernetes.Clientset, jobYaml string) error {
 	if err := yaml.Unmarshal([]byte(jobYaml), &job); err != nil {
 		return fmt.Errorf("yaml文件错误:%s", err.Error())
 	}
-	_, err := client.BatchV1().Jobs(job.Namespace).Update(context.Background(), &job, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("更新失败:%s", err.Error())
-	}
-	return nil
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.BatchV1().Jobs(job.Namespace).Get(context.TODO(), job.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("获取job资源失败:%s", err.Error())
+		}
+		// Job: spec.template 和 spec.selector 不可变,只更新可变字段
+		latest.Labels = job.Labels
+		latest.Annotations = job.Annotations
+		if job.Spec.BackoffLimit != nil {
+			latest.Spec.BackoffLimit = job.Spec.BackoffLimit
+		}
+		if job.Spec.ActiveDeadlineSeconds != nil {
+			latest.Spec.ActiveDeadlineSeconds = job.Spec.ActiveDeadlineSeconds
+		}
+		if job.Spec.TTLSecondsAfterFinished != nil {
+			latest.Spec.TTLSecondsAfterFinished = job.Spec.TTLSecondsAfterFinished
+		}
+		if job.Spec.Parallelism != nil {
+			latest.Spec.Parallelism = job.Spec.Parallelism
+		}
+		if job.Spec.Completions != nil {
+			latest.Spec.Completions = job.Spec.Completions
+		}
+		latest.Spec.Suspend = job.Spec.Suspend
+		_, err = client.BatchV1().Jobs(job.Namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("更新失败:%s", err.Error())
+		}
+		return nil
+	})
 }
 
 // DeleteJob
@@ -161,7 +190,10 @@ func UpdateJob(client *kubernetes.Clientset, jobYaml string) error {
 //	@param name
 //	@return error
 func DeleteJob(client *kubernetes.Clientset, namespace, name string) error {
-	err := client.BatchV1().Jobs(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	propagation := metav1.DeletePropagationForeground
+	err := client.BatchV1().Jobs(namespace).Delete(context.Background(), name, metav1.DeleteOptions{
+		PropagationPolicy: &propagation,
+	})
 	if err != nil {
 		return fmt.Errorf("删除job资源失败:%s", err.Error())
 	}
@@ -219,7 +251,11 @@ func JobPodList(client *kubernetes.Clientset, namespace, name string) (*corev1.P
 	}
 	var labelSelector string
 	if job.Spec.Selector != nil {
-		selector := labels.Set(job.Spec.Selector.MatchLabels).AsSelectorPreValidated()
+		// 使用完整 selector(matchLabels + matchExpressions),与 deployment 行为对齐
+		selector, err := metav1.LabelSelectorAsSelector(job.Spec.Selector)
+		if err != nil {
+			return nil, fmt.Errorf("解析job selector失败:%s", err.Error())
+		}
 		labelSelector = selector.String()
 	} else {
 		// Fallback: use controller-uid from the job's own labels
@@ -230,7 +266,8 @@ func JobPodList(client *kubernetes.Clientset, namespace, name string) (*corev1.P
 		}
 	}
 	podList, err := client.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: labelSelector,
+		LabelSelector:  labelSelector,
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
@@ -277,4 +314,18 @@ func RerunJob(client *kubernetes.Clientset, namespace, name string) error {
 		return fmt.Errorf("重跑job失败:%s", err.Error())
 	}
 	return nil
+}
+
+// GetJobEvents returns the events associated with a Job.
+// 用 fields.Selector 防注入。
+func GetJobEvents(client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
+	selector := fields.AndSelectors(
+		fields.OneTermEqualSelector("involvedObject.name", name),
+		fields.OneTermEqualSelector("involvedObject.kind", "Job"),
+	).String()
+	events, _, _, err := k8sEvent.ListEvents(client, namespace, selector, 0, "")
+	if err != nil {
+		return nil, fmt.Errorf("获取job事件失败:%s", err.Error())
+	}
+	return events, nil
 }

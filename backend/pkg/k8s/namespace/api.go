@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
@@ -18,7 +19,7 @@ import (
 //	@return *corev1.NamespaceList
 //	@return error
 func GetNamespaceList(client *kubernetes.Clientset) (*corev1.NamespaceList, error) {
-	namespace, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	namespace, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -55,13 +56,15 @@ func CreateNamespace(client *kubernetes.Clientset, name string, labels map[strin
 //	@param labels
 //	@return error
 func UpdateNamespaceLabels(client *kubernetes.Clientset, name string, labels map[string]string) error {
-	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		ns, err := client.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		ns.Labels = labels
+		_, err = client.CoreV1().Namespaces().Update(context.TODO(), ns, metav1.UpdateOptions{})
 		return err
-	}
-	ns.Labels = labels
-	_, err = client.CoreV1().Namespaces().Update(context.TODO(), ns, metav1.UpdateOptions{})
-	return err
+	})
 }
 
 // GetNamespaceDetail
@@ -106,8 +109,16 @@ func UpdateNamespace(client *kubernetes.Clientset, yamlContent string) error {
 	if err := yaml.Unmarshal([]byte(yamlContent), &ns); err != nil {
 		return fmt.Errorf("failed to unmarshal Namespace YAML: %w", err)
 	}
-	_, err := client.CoreV1().Namespaces().Update(context.TODO(), &ns, metav1.UpdateOptions{})
-	return err
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.CoreV1().Namespaces().Get(context.TODO(), ns.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("获取命名空间失败: %w", err)
+		}
+		latest.Labels = ns.Labels
+		latest.Annotations = ns.Annotations
+		_, err = client.CoreV1().Namespaces().Update(context.TODO(), latest, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 // DeleteNamespace
@@ -117,5 +128,8 @@ func UpdateNamespace(client *kubernetes.Clientset, yamlContent string) error {
 //	@param name
 //	@return error
 func DeleteNamespace(client *kubernetes.Clientset, name string) error {
-	return client.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{})
+	propagation := metav1.DeletePropagationForeground
+	return client.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{
+		PropagationPolicy: &propagation,
+	})
 }

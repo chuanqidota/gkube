@@ -842,10 +842,6 @@ export function createNetworkPolicy(data: { namespace: string; yaml: string }) {
   return request.post('/k8s/networkpolicy/create', data)
 }
 
-export function updateNetworkPolicy(data: { namespace: string; yaml: string }) {
-  return request.put('/k8s/networkpolicy/update', data)
-}
-
 export function updateNetworkPolicyYaml(data: { namespace: string; name: string; yaml: string }) {
   return request.put('/k8s/networkpolicy/update', data)
 }
@@ -1212,9 +1208,6 @@ export function deleteCronJob(data: any) {
 }
 export function getCronJobEvents(params: { namespace: string; name: string }) {
   return request.get('/k8s/cronjob/events', { params })
-}
-export function getCronJobJobs(params: { namespace: string; name: string }) {
-  return request.get('/k8s/cronjob/jobs', { params })
 }
 export function getCronJobExecutionHistory(params: { namespace: string; name: string }) {
   return request.get('/k8s/cronjob/jobs', { params })

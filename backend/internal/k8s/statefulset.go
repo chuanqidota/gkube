@@ -8,6 +8,7 @@ import (
 	k8sStatefulSet "gkube/pkg/k8s/statefulset"
 	"gkube/pkg/response"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 type statefulSet struct {
@@ -199,7 +200,10 @@ func (s *statefulSet) GetStatefulSetEvents(c *gin.Context) {
 		return
 	}
 	events, err := client.CoreV1().Events(query.Namespace).List(context.Background(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=StatefulSet", query.Name),
+		FieldSelector: fields.AndSelectors(
+			fields.OneTermEqualSelector("involvedObject.name", query.Name),
+			fields.OneTermEqualSelector("involvedObject.kind", "StatefulSet"),
+		).String(),
 	})
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取statefulset事件失败:%v", err.Error()))

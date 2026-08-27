@@ -10,6 +10,7 @@ import (
 	k8sNp "gkube/pkg/k8s/networkpolicy"
 	"gkube/pkg/response"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 type networkPolicy struct{}
@@ -209,7 +210,10 @@ func (np *networkPolicy) GetNetworkPolicyEvents(c *gin.Context) {
 		return
 	}
 	events, err := client.CoreV1().Events(namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=NetworkPolicy", name),
+		FieldSelector: fields.AndSelectors(
+			fields.OneTermEqualSelector("involvedObject.name", name),
+			fields.OneTermEqualSelector("involvedObject.kind", "NetworkPolicy"),
+		).String(),
 	})
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取NetworkPolicy事件失败:%s", err.Error()))

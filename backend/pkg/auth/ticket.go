@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -22,10 +23,10 @@ var (
 )
 
 // IssueTicket 为指定用户签发一个 30 秒有效的一次性 ticket。
-func IssueTicket(userID uint, username string) string {
+func IssueTicket(userID uint, username string) (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		b = []byte(time.Now().String() + username)
+		return "", fmt.Errorf("生成 ticket 失败: %w", err)
 	}
 	ticket := hex.EncodeToString(b)
 
@@ -44,7 +45,7 @@ func IssueTicket(userID uint, username string) string {
 	}
 	ticketsMu.Unlock()
 
-	return ticket
+	return ticket, nil
 }
 
 // ConsumeTicket 校验并消费 ticket,成功后立即删除(一次性),返回 userID 与 username。

@@ -94,7 +94,11 @@ func (e *EsRecord) ReadData(key string) []map[string]any {
         }`
 
 		query = fmt.Sprintf(query, key, from, pageSize)
-		res, _ := es.Search(index, query)
+		res, _, err := es.Search(index, query)
+		if err != nil {
+			logger.Error(fmt.Sprintf("查询ES记录失败-%s", err.Error()))
+			break
+		}
 		if len(res) == 0 {
 			break
 		}

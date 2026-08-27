@@ -236,6 +236,8 @@ func (h *auditHandler) CreateAuditLog(c *gin.Context) {
 		return
 	}
 
+	// 以 JWT 注入的身份为准,防止请求体伪造用户名
+	log.User = c.GetString("username")
 	log.IP = c.ClientIP()
 	log.UserAgent = c.GetHeader("User-Agent")
 

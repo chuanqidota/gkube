@@ -8,11 +8,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
 func GetLimitRangeList(client *kubernetes.Clientset, namespace string) ([]corev1.LimitRange, error) {
-	lrList, err := client.CoreV1().LimitRanges(namespace).List(context.TODO(), metav1.ListOptions{})
+	lrList, err := client.CoreV1().LimitRanges(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +53,17 @@ func UpdateLimitRange(client *kubernetes.Clientset, namespace, yamlContent strin
 	if lr.Namespace == "" {
 		lr.Namespace = namespace
 	}
-	_, err := client.CoreV1().LimitRanges(namespace).Update(context.TODO(), &lr, metav1.UpdateOptions{})
-	return err
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.CoreV1().LimitRanges(namespace).Get(context.TODO(), lr.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get LimitRange: %w", err)
+		}
+		latest.Spec.Limits = lr.Spec.Limits
+		latest.Labels = lr.Labels
+		latest.Annotations = lr.Annotations
+		_, err = client.CoreV1().LimitRanges(namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 func DeleteLimitRange(client *kubernetes.Clientset, namespace, name string) error {

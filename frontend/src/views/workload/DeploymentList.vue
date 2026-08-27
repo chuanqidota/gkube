@@ -120,7 +120,9 @@ async function handleQuickUpdateImage(row: any) {
       imageForm.value.containerName = imageContainers.value[0].name
       imageForm.value.image = imageContainers.value[0].image
     }
-  } catch { /* ignore */ }
+  } catch (e: any) {
+    ElMessage.error('获取容器信息失败: ' + (e?.message || 'unknown error'))
+  }
 }
 
 async function handleImageConfirm() {

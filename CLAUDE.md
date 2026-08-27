@@ -13,7 +13,7 @@ gkube is a Kubernetes management web platform (similar to Kuboard). It's a full-
 ```bash
 go run main.go              # Start the API server (port 8080)
 go run main.go migrate      # Auto-migrate database schema
-go run main.go seed         # Seed default roles, permissions, and admin user
+go run main.go seed         # Seed default admin user
 go build -o gkube .         # Build binary
 go test ./...               # Run tests (none written yet)
 ```
@@ -51,15 +51,14 @@ Handler packages expose singleton vars (e.g. `auth.Auth`, `auth.UserHandler`, `c
 
 **Shared packages** under `pkg/`:
 - `k8s/` — One sub-package per K8s resource type (deployment/, pod/, service/, etc.), each with functions that call `client-go`. Initialized in `pkg/k8s/init.go`.
-- `middleware/` — CORS, JWT auth (`JWTAuth()`), RBAC (`RBAC(resource, action)`)
+- `middleware/` — CORS, JWT auth (`JWTAuth()`), admin check (`RequireAdmin()`), audit logging (`AuditLog()`)
 - `response/` — Standardized JSON response helpers
 - `auth/` — JWT token generation/validation, bcrypt password hashing
 - `database/` — GORM MySQL connection setup
-- `redis/` — Redis client wrapper
 - `es/` — Elasticsearch client for audit logging
 - `logger/` — Logrus with lumberjack log rotation
 
-**Routing** (`router/router.go`): All API routes under `/v1`. Public routes: `POST /v1/auth/login`, `POST /v1/auth/refresh`. All other routes require JWT. RBAC middleware is applied per resource group (user, role, cluster). K8s routes are under `/v1/k8s/` with per-resource prefixes (deployment/, pod/, service/, etc.).
+**Routing** (`router/router.go`): All API routes under `/v1`. Public routes: `POST /v1/auth/login`, `POST /v1/auth/refresh`. All other routes require JWT. K8s write operations (POST/PUT/DELETE) require admin privileges via `RequireAdmin()` middleware. K8s routes are under `/v1/k8s/` with per-resource prefixes (deployment/, pod/, service/, etc.).
 
 **Configuration** (`config/config.yaml`): Server, MySQL, Redis, Elasticsearch, S3 (placeholder), audit settings. Loaded via Viper.
 

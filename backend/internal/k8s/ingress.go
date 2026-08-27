@@ -12,6 +12,7 @@ import (
 	k8sIngress "gkube/pkg/k8s/ingress"
 	"gkube/pkg/response"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 type ingress struct {
@@ -130,7 +131,7 @@ func (i *ingress) UpdateIngress(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	if err := k8sIngress.UpdateIngress(client, body.Yaml); err != nil {
+	if err := k8sIngress.UpdateIngress(client, body.Namespace, body.Yaml); err != nil {
 		response.Fail(c, fmt.Sprintf("更新ingress失败:%v", err.Error()))
 		return
 	}
@@ -179,7 +180,10 @@ func (i *ingress) GetIngressEvents(c *gin.Context) {
 		return
 	}
 	events, err := client.CoreV1().Events(query.Namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Ingress", query.Name),
+		FieldSelector: fields.AndSelectors(
+			fields.OneTermEqualSelector("involvedObject.name", query.Name),
+			fields.OneTermEqualSelector("involvedObject.kind", "Ingress"),
+		).String(),
 	})
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取ingress事件失败:%s", err.Error()))

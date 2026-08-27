@@ -9,6 +9,7 @@ import (
 	"gkube/pkg/response"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 type storageClass struct {
@@ -194,7 +195,10 @@ func (s *storageClass) GetStorageClassEvents(c *gin.Context) {
 	}
 
 	events, err := client.CoreV1().Events(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=StorageClass", query.Name),
+		FieldSelector: fields.AndSelectors(
+			fields.OneTermEqualSelector("involvedObject.name", query.Name),
+			fields.OneTermEqualSelector("involvedObject.kind", "StorageClass"),
+		).String(),
 	})
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取StorageClass事件失败:%v", err.Error()))

@@ -27,7 +27,7 @@ const namespaces = ref<string[]>([])
 // ---- Form Data ----
 
 interface Label { key: string; value: string }
-interface ServicePort { name: string; port: number | null; targetPort: number | null; protocol: string; nodePort: number | null }
+interface ServicePort { name: string; port: number | null; targetPort: number | string | null; protocol: string; nodePort: number | null }
 interface Selector { key: string; value: string }
 interface Annotation { key: string; value: string }
 
@@ -159,7 +159,10 @@ function buildK8sService(): Record<string, any> {
   const ports = form.ports
     .filter(p => p.port && p.targetPort)
     .map(p => {
-      const port: Record<string, any> = { port: p.port, targetPort: p.targetPort, protocol: p.protocol }
+      // targetPort 可以是数字或字符串端口名(如 "http")
+      const rawTarget = p.targetPort
+      const targetPort = typeof rawTarget === 'string' && /^\d+$/.test(rawTarget) ? Number(rawTarget) : rawTarget
+      const port: Record<string, any> = { port: p.port, targetPort, protocol: p.protocol }
       if (p.name) port.name = p.name
       if (form.type === 'NodePort' && p.nodePort) port.nodePort = p.nodePort
       return port
@@ -168,11 +171,12 @@ function buildK8sService(): Record<string, any> {
   const metadata: Record<string, any> = { name: form.name, namespace: form.namespace, labels: { ...labels } }
   if (Object.keys(annotations).length > 0) metadata.annotations = annotations
 
+  const serviceType = form.type === 'Headless' ? 'ClusterIP' : form.type
   const resource: Record<string, any> = {
     apiVersion: 'v1',
     kind: 'Service',
     metadata,
-    spec: { type: form.type, ports },
+    spec: { type: serviceType, ports },
   }
 
   // Selector: not needed for ExternalName
@@ -185,8 +189,10 @@ function buildK8sService(): Record<string, any> {
     resource.spec.externalName = form.externalName
   }
 
-  // ClusterIP
-  if (form.type === 'ClusterIP' && form.clusterIP) {
+  // ClusterIP / Headless
+  if (form.type === 'Headless') {
+    resource.spec.clusterIP = 'None'
+  } else if (form.type === 'ClusterIP' && form.clusterIP) {
     resource.spec.clusterIP = form.clusterIP
   }
 
@@ -218,6 +224,10 @@ function parseInitialData(data: any) {
   form.name = meta.name || ''
   form.namespace = meta.namespace || 'default'
   form.type = spec.type || 'ClusterIP'
+  // Headless Service: clusterIP is "None" with type ClusterIP
+  if (form.type === 'ClusterIP' && spec.clusterIP === 'None') {
+    form.type = 'Headless'
+  }
   form.sessionAffinity = spec.sessionAffinity || 'None'
   form.externalTrafficPolicy = spec.externalTrafficPolicy || 'Cluster'
   form.externalName = spec.externalName || ''
@@ -315,6 +325,7 @@ function handleCancel() {
             <el-form-item label="类型" prop="type">
               <el-select v-model="form.type" style="width: 100%;">
                 <el-option label="ClusterIP" value="ClusterIP" />
+                <el-option label="Headless (ClusterIP=None)" value="Headless" />
                 <el-option label="NodePort" value="NodePort" />
                 <el-option label="LoadBalancer" value="LoadBalancer" />
                 <el-option label="ExternalName" value="ExternalName" />
@@ -323,8 +334,12 @@ function handleCancel() {
             <el-form-item v-if="form.type === 'ExternalName'" label="External Name" required>
               <el-input v-model="form.externalName" placeholder="my.database.example.com" />
             </el-form-item>
-            <el-form-item v-if="form.type === 'ClusterIP'" label="Cluster IP">
-              <el-input v-model="form.clusterIP" placeholder="自动分配或指定 (如 10.96.0.100)" />
+            <el-form-item v-if="form.type === 'ClusterIP' || form.type === 'Headless'" label="Cluster IP">
+              <el-input
+                v-model="form.clusterIP"
+                :disabled="!!isEdit"
+                :placeholder="isEdit ? '创建后不可修改' : '自动分配或指定 (如 10.96.0.100)'"
+              />
             </el-form-item>
             <el-form-item v-if="form.type === 'LoadBalancer'" label="LoadBalancer IP">
               <el-input v-model="form.loadBalancerIP" placeholder="指定 LB IP (可选)" />
@@ -421,7 +436,7 @@ function handleCancel() {
                 <div class="port-row">
                   <el-input v-model="port.name" placeholder="名称 (可选)" style="width: 120px;" />
                   <el-input-number v-model="port.port" :min="1" :max="65535" placeholder="Port" style="flex: 1;" />
-                  <el-input-number v-model="port.targetPort" :min="1" :max="65535" placeholder="Target Port" style="flex: 1;" />
+                  <el-input v-model="port.targetPort" placeholder="Target Port (数字或端口名)" style="flex: 1;" />
                   <el-select v-model="port.protocol" style="width: 100px;">
                     <el-option label="TCP" value="TCP" />
                     <el-option label="UDP" value="UDP" />

@@ -24,7 +24,7 @@ import (
 //	@return *corev1.ConfigMapList
 //	@return error
 func GetConfigMapList(client *kubernetes.Clientset, namespace string, limit int64, continueToken, labelSelector string) (*corev1.ConfigMapList, error) {
-	listOpts := metav1.ListOptions{}
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
 	}

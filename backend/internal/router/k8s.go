@@ -29,7 +29,7 @@ func registerK8sRoutes(rg *gin.RouterGroup) {
 }
 
 func registerCoreRoutes(rg *gin.RouterGroup) {
-	// Cluster
+	// Cluster (read-only)
 	rg.GET("cluster/version", k8s.Cluster.GetClusterVersion)
 	rg.GET("cluster/nodes", k8s.Cluster.GetClusterNodesInfo)
 
@@ -38,32 +38,32 @@ func registerCoreRoutes(rg *gin.RouterGroup) {
 	rg.GET("node/get-yaml", k8s.Node.GetNodeYaml)
 	rg.GET("node/pods", k8s.Node.GetNodePods)
 	rg.GET("node/events", k8s.Node.GetNodeEvents)
-	rg.PUT("node/cordon", k8s.Node.CordonNode)
-	rg.PUT("node/taints", k8s.Node.UpdateNodeTaints)
-	rg.PUT("node/labels", k8s.Node.UpdateNodeLabels)
-	rg.PUT("node/drain", k8s.Node.DrainNode)
-	rg.PUT("node/update-yaml", k8s.Node.UpdateNodeYaml)
-	rg.DELETE("node/delete", k8s.Node.DeleteNode)
+	rg.PUT("node/cordon", middleware.RequireAdmin(), k8s.Node.CordonNode)
+	rg.PUT("node/taints", middleware.RequireAdmin(), k8s.Node.UpdateNodeTaints)
+	rg.PUT("node/labels", middleware.RequireAdmin(), k8s.Node.UpdateNodeLabels)
+	rg.PUT("node/drain", middleware.RequireAdmin(), k8s.Node.DrainNode)
+	rg.PUT("node/update-yaml", middleware.RequireAdmin(), k8s.Node.UpdateNodeYaml)
+	rg.DELETE("node/delete", middleware.RequireAdmin(), k8s.Node.DeleteNode)
 
 	// Namespace
 	rg.GET("namespace/list", k8s.Namespace.GetNamespaceList)
 	rg.GET("namespace/detail", k8s.Namespace.GetNamespaceDetail)
 	rg.GET("namespace/get-yaml", k8s.Namespace.GetNamespaceYaml)
-	rg.POST("namespace/create", k8s.Namespace.CreateNamespace)
-	rg.PUT("namespace/update", k8s.Namespace.UpdateNamespace)
-	rg.PUT("namespace/labels", k8s.Namespace.UpdateNamespaceLabels)
-	rg.DELETE("namespace/delete", k8s.Namespace.DeleteNamespace)
+	rg.POST("namespace/create", middleware.RequireAdmin(), k8s.Namespace.CreateNamespace)
+	rg.PUT("namespace/update", middleware.RequireAdmin(), k8s.Namespace.UpdateNamespace)
+	rg.PUT("namespace/labels", middleware.RequireAdmin(), k8s.Namespace.UpdateNamespaceLabels)
+	rg.DELETE("namespace/delete", middleware.RequireAdmin(), k8s.Namespace.DeleteNamespace)
 
 	// Pod
 	rg.GET("pod/list", k8s.Pod.GetPodList)
 	rg.GET("pod/detail", k8s.Pod.GetPodByName)
 	rg.GET("pod/get-yaml", k8s.Pod.GetPodYaml)
 	rg.GET("pod/events", k8s.Pod.ListPodEvents)
-	rg.POST("pod/create", k8s.Pod.CreatePod)
-	rg.PUT("pod/update-yaml", k8s.Pod.PatchPodMetadata)
-	rg.DELETE("pod/delete", k8s.Pod.DeletePodByName)
+	rg.POST("pod/create", middleware.RequireAdmin(), k8s.Pod.CreatePod)
+	rg.PUT("pod/update-yaml", middleware.RequireAdmin(), k8s.Pod.PatchPodMetadata)
+	rg.DELETE("pod/delete", middleware.RequireAdmin(), k8s.Pod.DeletePodByName)
 
-	// Event
+	// Event (read-only)
 	rg.GET("event/list", k8s.Event.ListEvents)
 	rg.GET("event/watch", k8s.Event.WatchEvents)
 	// Container
@@ -80,13 +80,13 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.GET("deployment/detail", k8s.Deployment.GetDeploymentDetail)
 	rg.GET("deployment/get-yaml", k8s.Deployment.GetDeploymentYaml)
 	rg.GET("deployment/events", k8s.Deployment.GetDeploymentEvents)
-	rg.POST("deployment/create", k8s.Deployment.CreateDeployment)
-	rg.PUT("deployment/update-yaml", k8s.Deployment.UpdateDeployment)
-	rg.DELETE("deployment/delete", k8s.Deployment.DeleteDeployment)
-	rg.PUT("deployment/scale", k8s.Deployment.ScaleDeployment)
-	rg.POST("deployment/restart", k8s.Deployment.RestartDeployment)
-	rg.POST("deployment/rollback", k8s.Deployment.RollbackDeployment)
-	rg.PUT("deployment/update-image", k8s.Deployment.UpdateDeploymentImage)
+	rg.POST("deployment/create", middleware.RequireAdmin(), k8s.Deployment.CreateDeployment)
+	rg.PUT("deployment/update-yaml", middleware.RequireAdmin(), k8s.Deployment.UpdateDeployment)
+	rg.DELETE("deployment/delete", middleware.RequireAdmin(), k8s.Deployment.DeleteDeployment)
+	rg.PUT("deployment/scale", middleware.RequireAdmin(), k8s.Deployment.ScaleDeployment)
+	rg.POST("deployment/restart", middleware.RequireAdmin(), k8s.Deployment.RestartDeployment)
+	rg.POST("deployment/rollback", middleware.RequireAdmin(), k8s.Deployment.RollbackDeployment)
+	rg.PUT("deployment/update-image", middleware.RequireAdmin(), k8s.Deployment.UpdateDeploymentImage)
 	rg.GET("deployment/pods", k8s.Deployment.DeploymentPodList)
 	rg.GET("deployment/replicasets", k8s.Deployment.GetDeploymentReplicaSets)
 
@@ -96,13 +96,13 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.GET("statefulset/get-yaml", k8s.StatefulSet.GetStatefulSetYaml)
 	rg.GET("statefulset/events", k8s.StatefulSet.GetStatefulSetEvents)
 	rg.GET("statefulset/pods", k8s.StatefulSet.StatefulSetPodList)
-	rg.POST("statefulset/create", k8s.StatefulSet.CreateStatefulSet)
-	rg.PUT("statefulset/update", k8s.StatefulSet.UpdateStatefulSet)
-	rg.DELETE("statefulset/delete", k8s.StatefulSet.DeleteStatefulSetByName)
-	rg.PUT("statefulset/scale", k8s.StatefulSet.ScaleStatefulSet)
-	rg.POST("statefulset/restart", k8s.StatefulSet.RestartStatefulSet)
-	rg.POST("statefulset/rollback", k8s.StatefulSet.RollbackStatefulSet)
-	rg.PUT("statefulset/update-image", k8s.StatefulSet.UpdateStatefulSetImage)
+	rg.POST("statefulset/create", middleware.RequireAdmin(), k8s.StatefulSet.CreateStatefulSet)
+	rg.PUT("statefulset/update", middleware.RequireAdmin(), k8s.StatefulSet.UpdateStatefulSet)
+	rg.DELETE("statefulset/delete", middleware.RequireAdmin(), k8s.StatefulSet.DeleteStatefulSetByName)
+	rg.PUT("statefulset/scale", middleware.RequireAdmin(), k8s.StatefulSet.ScaleStatefulSet)
+	rg.POST("statefulset/restart", middleware.RequireAdmin(), k8s.StatefulSet.RestartStatefulSet)
+	rg.POST("statefulset/rollback", middleware.RequireAdmin(), k8s.StatefulSet.RollbackStatefulSet)
+	rg.PUT("statefulset/update-image", middleware.RequireAdmin(), k8s.StatefulSet.UpdateStatefulSetImage)
 	rg.GET("statefulset/rollbacks", k8s.StatefulSet.GetStatefulSetRollbacks)
 	rg.GET("statefulset/pvcs", k8s.StatefulSet.GetStatefulSetPVCs)
 
@@ -112,12 +112,12 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.GET("daemonset/get-yaml", k8s.DaemonSet.GetDaemonSetYaml)
 	rg.GET("daemonset/events", k8s.DaemonSet.GetDaemonSetEvents)
 	rg.GET("daemonset/pods", k8s.DaemonSet.DaemonSetPodList)
-	rg.POST("daemonset/create", k8s.DaemonSet.CreateDaemonSet)
-	rg.PUT("daemonset/update", k8s.DaemonSet.UpdateDaemonSet)
-	rg.DELETE("daemonset/delete", k8s.DaemonSet.DeleteDaemonSetByName)
-	rg.POST("daemonset/restart", k8s.DaemonSet.RestartDaemonSet)
-	rg.POST("daemonset/rollback", k8s.DaemonSet.RollbackDaemonSet)
-	rg.PUT("daemonset/update-image", k8s.DaemonSet.UpdateDaemonSetImage)
+	rg.POST("daemonset/create", middleware.RequireAdmin(), k8s.DaemonSet.CreateDaemonSet)
+	rg.PUT("daemonset/update", middleware.RequireAdmin(), k8s.DaemonSet.UpdateDaemonSet)
+	rg.DELETE("daemonset/delete", middleware.RequireAdmin(), k8s.DaemonSet.DeleteDaemonSetByName)
+	rg.POST("daemonset/restart", middleware.RequireAdmin(), k8s.DaemonSet.RestartDaemonSet)
+	rg.POST("daemonset/rollback", middleware.RequireAdmin(), k8s.DaemonSet.RollbackDaemonSet)
+	rg.PUT("daemonset/update-image", middleware.RequireAdmin(), k8s.DaemonSet.UpdateDaemonSetImage)
 	rg.GET("daemonset/rollbacks", k8s.DaemonSet.GetDaemonSetRollbacks)
 
 	// Job
@@ -126,10 +126,10 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.GET("job/get-yaml", k8s.Job.GetJobYaml)
 	rg.GET("job/events", k8s.Job.GetJobEvents)
 	rg.GET("job/pods", k8s.Job.JobPodList)
-	rg.POST("job/create", k8s.Job.CreateJob)
-	rg.PUT("job/update", k8s.Job.UpdateJob)
-	rg.DELETE("job/delete", k8s.Job.DeleteJob)
-	rg.POST("job/rerun", k8s.Job.RerunJob)
+	rg.POST("job/create", middleware.RequireAdmin(), k8s.Job.CreateJob)
+	rg.PUT("job/update", middleware.RequireAdmin(), k8s.Job.UpdateJob)
+	rg.DELETE("job/delete", middleware.RequireAdmin(), k8s.Job.DeleteJob)
+	rg.POST("job/rerun", middleware.RequireAdmin(), k8s.Job.RerunJob)
 
 	// CronJob
 	rg.GET("cronjob/list", k8s.Cronjob.GetCronJobList)
@@ -137,13 +137,12 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.GET("cronjob/get-yaml", k8s.Cronjob.GetCronJobYaml)
 	rg.GET("cronjob/events", k8s.Cronjob.GetCronJobEvents)
 	rg.GET("cronjob/jobs", k8s.Cronjob.CronJobJobsList)
-	rg.POST("cronjob/create", k8s.Cronjob.CreateCronJob)
-	rg.PUT("cronjob/update", k8s.Cronjob.UpdateCronJob)
-	rg.DELETE("cronjob/delete", k8s.Cronjob.DeleteCronJobByName)
-
-	rg.PUT("cronjob/suspend", k8s.Cronjob.SuspendCronJob)
-	rg.PUT("cronjob/resume", k8s.Cronjob.ResumeCronJob)
-	rg.POST("cronjob/trigger", k8s.Cronjob.TriggerCronJob)
+	rg.POST("cronjob/create", middleware.RequireAdmin(), k8s.Cronjob.CreateCronJob)
+	rg.PUT("cronjob/update", middleware.RequireAdmin(), k8s.Cronjob.UpdateCronJob)
+	rg.DELETE("cronjob/delete", middleware.RequireAdmin(), k8s.Cronjob.DeleteCronJobByName)
+	rg.PUT("cronjob/suspend", middleware.RequireAdmin(), k8s.Cronjob.SuspendCronJob)
+	rg.PUT("cronjob/resume", middleware.RequireAdmin(), k8s.Cronjob.ResumeCronJob)
+	rg.POST("cronjob/trigger", middleware.RequireAdmin(), k8s.Cronjob.TriggerCronJob)
 
 	// ReplicaSet
 	rg.GET("replicaset/list", k8s.ReplicaSet.GetReplicaSetList)
@@ -151,18 +150,18 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	rg.GET("replicaset/detail", k8s.ReplicaSet.GetReplicaSetDetail)
 	rg.GET("replicaset/pods", k8s.ReplicaSet.GetReplicaSetPodList)
 	rg.GET("replicaset/events", k8s.ReplicaSet.GetReplicaSetEvents)
-	rg.DELETE("replicaset/delete", k8s.ReplicaSet.DeleteReplicaSet)
+	rg.DELETE("replicaset/delete", middleware.RequireAdmin(), k8s.ReplicaSet.DeleteReplicaSet)
 
 	// HPA
 	rg.GET("hpa/list", k8s.Hpa.GetHPAList)
 	rg.GET("hpa/detail", k8s.Hpa.GetHPADetail)
 	rg.GET("hpa/get-yaml", k8s.Hpa.GetHPAYaml)
-	rg.POST("hpa/create", k8s.Hpa.CreateHPA)
-	rg.PUT("hpa/update", k8s.Hpa.UpdateHPA)
-	rg.DELETE("hpa/delete", k8s.Hpa.DeleteHPA)
+	rg.POST("hpa/create", middleware.RequireAdmin(), k8s.Hpa.CreateHPA)
+	rg.PUT("hpa/update", middleware.RequireAdmin(), k8s.Hpa.UpdateHPA)
+	rg.DELETE("hpa/delete", middleware.RequireAdmin(), k8s.Hpa.DeleteHPA)
 	rg.GET("hpa/events", k8s.Hpa.GetHPAEvents)
-	rg.POST("hpa/pause", k8s.Hpa.PauseHPA)
-	rg.POST("hpa/resume", k8s.Hpa.ResumeHPA)
+	rg.POST("hpa/pause", middleware.RequireAdmin(), k8s.Hpa.PauseHPA)
+	rg.POST("hpa/resume", middleware.RequireAdmin(), k8s.Hpa.ResumeHPA)
 }
 
 func registerNetworkRoutes(rg *gin.RouterGroup) {
@@ -173,9 +172,9 @@ func registerNetworkRoutes(rg *gin.RouterGroup) {
 	rg.GET("service/events", k8s.Service.GetServiceEvents)
 	rg.GET("service/pods", k8s.Service.ServicePodList)
 	rg.GET("service/endpoints", k8s.Service.GetServiceEndpoints)
-	rg.POST("service/create", k8s.Service.CreateService)
-	rg.PUT("service/update", k8s.Service.UpdateService)
-	rg.DELETE("service/delete", k8s.Service.DeleteService)
+	rg.POST("service/create", middleware.RequireAdmin(), k8s.Service.CreateService)
+	rg.PUT("service/update", middleware.RequireAdmin(), k8s.Service.UpdateService)
+	rg.DELETE("service/delete", middleware.RequireAdmin(), k8s.Service.DeleteService)
 
 	// Ingress
 	rg.GET("ingress/list", k8s.Ingress.GetIngressList)
@@ -184,9 +183,9 @@ func registerNetworkRoutes(rg *gin.RouterGroup) {
 	rg.GET("ingress/events", k8s.Ingress.GetIngressEvents)
 	rg.GET("ingress/tls-status", k8s.Ingress.CheckIngressTLSCertStatus)
 	rg.GET("ingress/ingressclasses", k8s.Ingress.GetIngressClassList)
-	rg.POST("ingress/create", k8s.Ingress.CreateIngress)
-	rg.PUT("ingress/update", k8s.Ingress.UpdateIngress)
-	rg.DELETE("ingress/delete", k8s.Ingress.DeleteIngressByName)
+	rg.POST("ingress/create", middleware.RequireAdmin(), k8s.Ingress.CreateIngress)
+	rg.PUT("ingress/update", middleware.RequireAdmin(), k8s.Ingress.UpdateIngress)
+	rg.DELETE("ingress/delete", middleware.RequireAdmin(), k8s.Ingress.DeleteIngressByName)
 
 	// NetworkPolicy
 	rg.GET("networkpolicy/list", k8s.NetworkPolicy.GetNetworkPolicyList)
@@ -194,9 +193,9 @@ func registerNetworkRoutes(rg *gin.RouterGroup) {
 	rg.GET("networkpolicy/get-yaml", k8s.NetworkPolicy.GetNetworkPolicyYaml)
 	rg.GET("networkpolicy/events", k8s.NetworkPolicy.GetNetworkPolicyEvents)
 	rg.GET("networkpolicy/pods", k8s.NetworkPolicy.GetNetworkPolicyPods)
-	rg.POST("networkpolicy/create", k8s.NetworkPolicy.CreateNetworkPolicy)
-	rg.PUT("networkpolicy/update", k8s.NetworkPolicy.UpdateNetworkPolicy)
-	rg.DELETE("networkpolicy/delete", k8s.NetworkPolicy.DeleteNetworkPolicy)
+	rg.POST("networkpolicy/create", middleware.RequireAdmin(), k8s.NetworkPolicy.CreateNetworkPolicy)
+	rg.PUT("networkpolicy/update", middleware.RequireAdmin(), k8s.NetworkPolicy.UpdateNetworkPolicy)
+	rg.DELETE("networkpolicy/delete", middleware.RequireAdmin(), k8s.NetworkPolicy.DeleteNetworkPolicy)
 }
 
 func registerStorageRoutes(rg *gin.RouterGroup) {
@@ -204,43 +203,43 @@ func registerStorageRoutes(rg *gin.RouterGroup) {
 	rg.GET("pv/list", k8s.Pv.GetPVList)
 	rg.GET("pv/detail", k8s.Pv.GetPVByName)
 	rg.GET("pv/get-yaml", k8s.Pv.GetPVYaml)
-	rg.POST("pv/create", k8s.Pv.CreatePV)
-	rg.PUT("pv/update", k8s.Pv.UpdatePV)
-	rg.DELETE("pv/delete", k8s.Pv.DeletePVByName)
+	rg.POST("pv/create", middleware.RequireAdmin(), k8s.Pv.CreatePV)
+	rg.PUT("pv/update", middleware.RequireAdmin(), k8s.Pv.UpdatePV)
+	rg.DELETE("pv/delete", middleware.RequireAdmin(), k8s.Pv.DeletePVByName)
 
 	// PVC
 	rg.GET("pvc/list", k8s.Pvc.GetPVCList)
 	rg.GET("pvc/list-by-storageclass", k8s.Pvc.GetPVCListByStorageClass)
 	rg.GET("pvc/detail", k8s.Pvc.GetPVCByName)
 	rg.GET("pvc/get-yaml", k8s.Pvc.GetPVCYaml)
-	rg.POST("pvc/create", k8s.Pvc.CreatePVC)
-	rg.PUT("pvc/update", k8s.Pvc.UpdatePVC)
-	rg.DELETE("pvc/delete", k8s.Pvc.DeletePVCByName)
+	rg.POST("pvc/create", middleware.RequireAdmin(), k8s.Pvc.CreatePVC)
+	rg.PUT("pvc/update", middleware.RequireAdmin(), k8s.Pvc.UpdatePVC)
+	rg.DELETE("pvc/delete", middleware.RequireAdmin(), k8s.Pvc.DeletePVCByName)
 
 	// StorageClass
 	rg.GET("storageclass/list", k8s.StorageClass.GetStorageClassList)
 	rg.GET("storageclass/detail", k8s.StorageClass.GetStorageClassByName)
 	rg.GET("storageclass/get-yaml", k8s.StorageClass.GetStorageClassYaml)
-	rg.POST("storageclass/create", k8s.StorageClass.CreateStorageClass)
-	rg.PUT("storageclass/update", k8s.StorageClass.UpdateStorageClass)
-	rg.DELETE("storageclass/delete", k8s.StorageClass.DeleteStorageClassByName)
+	rg.POST("storageclass/create", middleware.RequireAdmin(), k8s.StorageClass.CreateStorageClass)
+	rg.PUT("storageclass/update", middleware.RequireAdmin(), k8s.StorageClass.UpdateStorageClass)
+	rg.DELETE("storageclass/delete", middleware.RequireAdmin(), k8s.StorageClass.DeleteStorageClassByName)
 	rg.GET("storageclass/events", k8s.StorageClass.GetStorageClassEvents)
 
 	// VolumeSnapshot
 	rg.GET("volumesnapshot/list", k8s.VolumeSnapshot.GetVolumeSnapshotList)
 	rg.GET("volumesnapshot/detail", k8s.VolumeSnapshot.GetVolumeSnapshotByName)
 	rg.GET("volumesnapshot/get-yaml", k8s.VolumeSnapshot.GetVolumeSnapshotYaml)
-	rg.POST("volumesnapshot/create", k8s.VolumeSnapshot.CreateVolumeSnapshot)
-	rg.PUT("volumesnapshot/update", k8s.VolumeSnapshot.UpdateVolumeSnapshot)
-	rg.DELETE("volumesnapshot/delete", k8s.VolumeSnapshot.DeleteVolumeSnapshotByName)
+	rg.POST("volumesnapshot/create", middleware.RequireAdmin(), k8s.VolumeSnapshot.CreateVolumeSnapshot)
+	rg.PUT("volumesnapshot/update", middleware.RequireAdmin(), k8s.VolumeSnapshot.UpdateVolumeSnapshot)
+	rg.DELETE("volumesnapshot/delete", middleware.RequireAdmin(), k8s.VolumeSnapshot.DeleteVolumeSnapshotByName)
 
 	// VolumeSnapshotClass
 	rg.GET("volumesnapshotclass/list", k8s.VolumeSnapshotClass.GetVolumeSnapshotClassList)
 	rg.GET("volumesnapshotclass/detail", k8s.VolumeSnapshotClass.GetVolumeSnapshotClassByName)
 	rg.GET("volumesnapshotclass/get-yaml", k8s.VolumeSnapshotClass.GetVolumeSnapshotClassYaml)
-	rg.POST("volumesnapshotclass/create", k8s.VolumeSnapshotClass.CreateVolumeSnapshotClass)
-	rg.PUT("volumesnapshotclass/update", k8s.VolumeSnapshotClass.UpdateVolumeSnapshotClass)
-	rg.DELETE("volumesnapshotclass/delete", k8s.VolumeSnapshotClass.DeleteVolumeSnapshotClassByName)
+	rg.POST("volumesnapshotclass/create", middleware.RequireAdmin(), k8s.VolumeSnapshotClass.CreateVolumeSnapshotClass)
+	rg.PUT("volumesnapshotclass/update", middleware.RequireAdmin(), k8s.VolumeSnapshotClass.UpdateVolumeSnapshotClass)
+	rg.DELETE("volumesnapshotclass/delete", middleware.RequireAdmin(), k8s.VolumeSnapshotClass.DeleteVolumeSnapshotClassByName)
 }
 
 func registerConfigRoutes(rg *gin.RouterGroup) {
@@ -248,49 +247,49 @@ func registerConfigRoutes(rg *gin.RouterGroup) {
 	rg.GET("configmap/list", k8s.ConfigMap.GetConfigMapList)
 	rg.GET("configmap/detail", k8s.ConfigMap.GetConfigMapByName)
 	rg.GET("configmap/get-yaml", k8s.ConfigMap.GetConfigMapYaml)
-	rg.POST("configmap/create", k8s.ConfigMap.CreateConfigMapFromYaml)
-	rg.PUT("configmap/update", k8s.ConfigMap.UpdateConfigMapFromYaml)
-	rg.DELETE("configmap/delete", k8s.ConfigMap.DeleteConfigMapByName)
+	rg.POST("configmap/create", middleware.RequireAdmin(), k8s.ConfigMap.CreateConfigMapFromYaml)
+	rg.PUT("configmap/update", middleware.RequireAdmin(), k8s.ConfigMap.UpdateConfigMapFromYaml)
+	rg.DELETE("configmap/delete", middleware.RequireAdmin(), k8s.ConfigMap.DeleteConfigMapByName)
 
 	// Secret
 	rg.GET("secret/list", k8s.Secret.GetSecretsList)
 	rg.GET("secret/detail", k8s.Secret.GetSecretByName)
 	rg.GET("secret/get-yaml", k8s.Secret.GetSecretYaml)
-	rg.POST("secret/create", k8s.Secret.CreateSecretFromYaml)
-	rg.PUT("secret/update", k8s.Secret.UpdateSecretFromYaml)
-	rg.DELETE("secret/delete", k8s.Secret.DeleteSecret)
+	rg.POST("secret/create", middleware.RequireAdmin(), k8s.Secret.CreateSecretFromYaml)
+	rg.PUT("secret/update", middleware.RequireAdmin(), k8s.Secret.UpdateSecretFromYaml)
+	rg.DELETE("secret/delete", middleware.RequireAdmin(), k8s.Secret.DeleteSecret)
 
 	// ResourceQuota
 	rg.GET("resourcequota/list", k8s.ResourceQuota.GetResourceQuotaList)
 	rg.GET("resourcequota/detail", k8s.ResourceQuota.GetResourceQuotaDetail)
 	rg.GET("resourcequota/get-yaml", k8s.ResourceQuota.GetResourceQuotaYaml)
-	rg.POST("resourcequota/create", k8s.ResourceQuota.CreateResourceQuota)
-	rg.PUT("resourcequota/update", k8s.ResourceQuota.UpdateResourceQuota)
-	rg.DELETE("resourcequota/delete", k8s.ResourceQuota.DeleteResourceQuota)
+	rg.POST("resourcequota/create", middleware.RequireAdmin(), k8s.ResourceQuota.CreateResourceQuota)
+	rg.PUT("resourcequota/update", middleware.RequireAdmin(), k8s.ResourceQuota.UpdateResourceQuota)
+	rg.DELETE("resourcequota/delete", middleware.RequireAdmin(), k8s.ResourceQuota.DeleteResourceQuota)
 
 	// LimitRange
 	rg.GET("limitrange/list", k8s.LimitRange.GetLimitRangeList)
 	rg.GET("limitrange/detail", k8s.LimitRange.GetLimitRangeDetail)
 	rg.GET("limitrange/get-yaml", k8s.LimitRange.GetLimitRangeYaml)
-	rg.POST("limitrange/create", k8s.LimitRange.CreateLimitRange)
-	rg.PUT("limitrange/update", k8s.LimitRange.UpdateLimitRange)
-	rg.DELETE("limitrange/delete", k8s.LimitRange.DeleteLimitRange)
+	rg.POST("limitrange/create", middleware.RequireAdmin(), k8s.LimitRange.CreateLimitRange)
+	rg.PUT("limitrange/update", middleware.RequireAdmin(), k8s.LimitRange.UpdateLimitRange)
+	rg.DELETE("limitrange/delete", middleware.RequireAdmin(), k8s.LimitRange.DeleteLimitRange)
 }
 
 func registerCrdRoutes(rg *gin.RouterGroup) {
 	rg.GET("crd/list", k8s.Crd.GetCRDList)
 	rg.GET("crd/detail", k8s.Crd.GetCRDDetail)
 	rg.GET("crd/get-yaml", k8s.Crd.GetCRDYaml)
-	rg.POST("crd/create", k8s.Crd.CreateCRD)
-	rg.PUT("crd/update", k8s.Crd.UpdateCRD)
-	rg.DELETE("crd/delete", k8s.Crd.DeleteCRD)
+	rg.POST("crd/create", middleware.RequireAdmin(), k8s.Crd.CreateCRD)
+	rg.PUT("crd/update", middleware.RequireAdmin(), k8s.Crd.UpdateCRD)
+	rg.DELETE("crd/delete", middleware.RequireAdmin(), k8s.Crd.DeleteCRD)
 	rg.GET("crd/resources", k8s.Crd.GetCustomResourceList)
 	rg.GET("crd/resource/detail", k8s.Crd.GetCustomResourceDetail)
 	rg.GET("crd/resource/yaml", k8s.Crd.GetCustomResourceYaml)
-	rg.POST("crd/resource/create", k8s.Crd.CreateCustomResource)
-	rg.DELETE("crd/resource", k8s.Crd.DeleteCustomResource)
-	rg.PUT("crd/resource/update", k8s.Crd.UpdateCustomResource)
-	rg.PATCH("crd/resource/patch", k8s.Crd.PatchCustomResource)
+	rg.POST("crd/resource/create", middleware.RequireAdmin(), k8s.Crd.CreateCustomResource)
+	rg.DELETE("crd/resource", middleware.RequireAdmin(), k8s.Crd.DeleteCustomResource)
+	rg.PUT("crd/resource/update", middleware.RequireAdmin(), k8s.Crd.UpdateCustomResource)
+	rg.PATCH("crd/resource/patch", middleware.RequireAdmin(), k8s.Crd.PatchCustomResource)
 }
 
 func registerAuditRoutes(rg *gin.RouterGroup) {

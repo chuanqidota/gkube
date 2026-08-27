@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +10,7 @@ import (
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 type daemonSet struct {
@@ -181,7 +181,10 @@ func (d *daemonSet) GetDaemonSetEvents(c *gin.Context) {
 		return
 	}
 	events, err := client.CoreV1().Events(query.Namespace).List(context.Background(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=DaemonSet", query.Name),
+		FieldSelector: fields.AndSelectors(
+			fields.OneTermEqualSelector("involvedObject.name", query.Name),
+			fields.OneTermEqualSelector("involvedObject.kind", "DaemonSet"),
+		).String(),
 	})
 	if err != nil {
 		logger.Error(err.Error())

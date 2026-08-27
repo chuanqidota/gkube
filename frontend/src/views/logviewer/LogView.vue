@@ -6,7 +6,7 @@ import { useClusterStore } from '@/stores/cluster'
 import { getPodDetail, getPodList, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import { getClusterList } from '@/api/cluster'
 import { ElMessage } from 'element-plus'
-import { getToken } from '@/utils/auth'
+import { getWsTicket } from '@/api/auth'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -146,13 +146,34 @@ async function startLogStream() {
   status.value = 'connecting'
   const gen = ++streamGen
 
-  const token = getToken()
+  // 使用一次性 ticket 鉴权（与 TerminalView 一致），避免长效 access token 进入 URL
+  let ticket = ''
+  try {
+    const res: any = await getWsTicket()
+    ticket = res.data?.ticket || ''
+  } catch (e: any) {
+    if (gen === streamGen) {
+      status.value = 'error'
+      appendLog(`[Error] 获取鉴权票据失败: ${e?.message || 'unknown error'}\n`)
+    }
+    return
+  }
+  if (!ticket) {
+    if (gen === streamGen) {
+      status.value = 'error'
+      appendLog('[Error] 获取鉴权票据失败\n')
+    }
+    return
+  }
+  if (gen !== streamGen) return
+
   const params = new URLSearchParams({
     clusterName: selectedCluster.value,
     namespace: selectedNamespace.value,
     podName: selectedPod.value,
     container: selectedContainer.value,
     tailLines: '100',
+    ticket,
   })
   const url = `/v1/k8s/log/stream?${params.toString()}`
 
@@ -164,7 +185,6 @@ async function startLogStream() {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         Accept: 'text/event-stream',
       },
       signal: myController.signal,

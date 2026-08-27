@@ -39,12 +39,14 @@ func CreateIndex(index string) error {
 	if ElasticSearch == nil {
 		return errors.New("elasticsearch未连接")
 	}
-	createIndex, err := ElasticSearch.CreateIndex(index).Do(context.Background())
-	if err != nil || !createIndex.Acknowledged {
+	result, err := ElasticSearch.CreateIndex(index).Do(context.Background())
+	if err != nil {
 		return err
-	} else {
-		return nil
 	}
+	if !result.Acknowledged {
+		return fmt.Errorf("创建索引 %s 未被确认", index)
+	}
+	return nil
 }
 
 // IsExistsIndex
@@ -66,50 +68,30 @@ func IsExistsIndex(index string) bool {
 
 // CreateMap
 //
-//	@Description: 创建索引
+//	@Description: 创建索引映射
 //	@param index
 //	@param mappings
-//
-/*
-mappings := `{
-			"properties":{
-				"title":{
-					"type":"keyword"
-				},
-				"age":{
-					"type":"keyword"
-				}
-			}
-	}`
-*/
-//		@return error
+//	@return error
 func CreateMap(index string, mappings string) error {
 	if ElasticSearch == nil {
 		return errors.New("elasticsearch未连接")
 	}
-	do, err := ElasticSearch.PutMapping().Index(index).BodyString(mappings).Do(context.Background())
-	if err != nil || !do.Acknowledged {
+	result, err := ElasticSearch.PutMapping().Index(index).BodyString(mappings).Do(context.Background())
+	if err != nil {
 		return err
-	} else {
-		return nil
 	}
+	if !result.Acknowledged {
+		return fmt.Errorf("创建映射 %s 未被确认", index)
+	}
+	return nil
 }
 
-//
 // InsertData
-//  @Description: 插入数据
-//  @param index
-//  @param data
-/*
-data := map[string]interface{}{
-		"title":   "Sample Document",
-		"content": "This is a sample document for Elasticsearch indexing.",
-		"age":     25,
-		"category": "tech",
-	}
-*/
-//  @return error
 //
+//	@Description: 插入数据
+//	@param index
+//	@param data
+//	@return error
 func InsertData(index string, data map[string]any) error {
 	if ElasticSearch == nil {
 		return errors.New("elasticsearch未连接")
@@ -132,46 +114,30 @@ func InsertData(index string, data map[string]any) error {
 //	@Description: 查询
 //	@param index
 //	@param query
-/*
-query := `{
-		"query":{
-			"bool":{
-				"must":[
-					{
-						"wildcard":{ // 通用符匹配
-							"title":"标题*"
-						}
-					}
-				]
-			}
-		},
-		"from":0, // 分页
-		"size":10
-	}`
-*/
-// @return []*elastic.SearchHit
-// @return error
-func Search(index string, query string) (result []map[string]any, count int64) {
+//	@return []map[string]any
+//	@return int64
+//	@return error
+func Search(index string, query string) ([]map[string]any, int64, error) {
+	var result []map[string]any
 	if ElasticSearch == nil {
-		return nil, 0
+		return nil, 0, errors.New("elasticsearch未连接")
 	}
 	searchResult, err := ElasticSearch.Search().
 		Index(index).
 		Source(query).
 		Do(context.Background())
 	if err != nil {
-		return nil, 0
+		return nil, 0, fmt.Errorf("ES查询失败: %w", err)
 	}
 	if searchResult.Hits.TotalHits.Value > 0 {
 		for _, hit := range searchResult.Hits.Hits {
-			//return hit.Source
 			var item map[string]any
-			_ = json.Unmarshal(hit.Source, &item)
+			if err := json.Unmarshal(hit.Source, &item); err != nil {
+				continue
+			}
 			result = append(result, item)
 		}
-		return result, searchResult.Hits.TotalHits.Value
-	} else {
-		return nil, 0
+		return result, searchResult.Hits.TotalHits.Value, nil
 	}
+	return nil, 0, nil
 }
-

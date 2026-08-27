@@ -8,6 +8,7 @@ import (
 	k8sJob "gkube/pkg/k8s/job"
 	"gkube/pkg/response"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 type job struct {
@@ -194,7 +195,10 @@ func (j *job) GetJobEvents(c *gin.Context) {
 		return
 	}
 	events, err := client.CoreV1().Events(query.Namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Job", query.Name),
+		FieldSelector: fields.AndSelectors(
+			fields.OneTermEqualSelector("involvedObject.name", query.Name),
+			fields.OneTermEqualSelector("involvedObject.kind", "Job"),
+		).String(),
 	})
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取job事件失败:%v", err.Error()))

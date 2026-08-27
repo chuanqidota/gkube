@@ -7,7 +7,6 @@ import YamlEditor from '@/components/YamlEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
-const yamlEditorRef = ref()
 const submitting = ref(false)
 
 const group = route.query.group as string
@@ -69,7 +68,6 @@ function handleCancel() {
       </div>
       <div class="yaml-card-body">
         <YamlEditor
-          ref="yamlEditorRef"
           v-model="yamlContent"
           height="calc(100vh - 180px)"
           editable

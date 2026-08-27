@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 type replicaset struct{}
@@ -171,7 +171,10 @@ func (r *replicaset) GetReplicaSetEvents(c *gin.Context) {
 		return
 	}
 	events, err := client.CoreV1().Events(query.Namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=ReplicaSet", query.Name),
+		FieldSelector: fields.AndSelectors(
+			fields.OneTermEqualSelector("involvedObject.name", query.Name),
+			fields.OneTermEqualSelector("involvedObject.kind", "ReplicaSet"),
+		).String(),
 		Limit:         200,
 	})
 	if err != nil {

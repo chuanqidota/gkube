@@ -145,7 +145,7 @@ async function fetchWorkloads() {
 }
 async function fetchNodes() {
   nodesLoading.value = true
-  try { const res = await getNodeList({ clusterName: clusterName.value }); nodeList.value = res.data || [] }
+  try { const res = await getNodeList({ clusterName: clusterStore.clusterName }); nodeList.value = res.data || [] }
   catch (e) { console.error('Failed to fetch nodes:', e) }
   finally { nodesLoading.value = false }
 }

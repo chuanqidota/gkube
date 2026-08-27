@@ -35,7 +35,7 @@ func GetClusterVersion(client *kubernetes.Clientset) (string, error) {
 //	@return []clusterModel.NodeInfo
 //	@return error
 func GetClusterNodesInfo(client *kubernetes.Clientset) ([]clusterModel.NodeInfo, error) {
-	nodes, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	nodes, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func GetClusterNodesInfo(client *kubernetes.Clientset) ([]clusterModel.NodeInfo,
 		mem resource.Quantity
 	}
 	nodeReqs := make(map[string]nodeRequests)
-	pods, podListErr := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+	pods, podListErr := client.CoreV1().Pods(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if podListErr != nil {
 		// 不静默吞掉：失败时记日志，下游 PodCount/CPUUsed/MemUsed 保持 0，
 		// 调用方/前端至少能从日志查到根因，而非误以为节点真的空闲。

@@ -160,9 +160,9 @@ function handleClusterChange(val: any) {
   clusterStore.setCurrentCluster(val || null)
 }
 
-function handleCommand(command: string) {
+async function handleCommand(command: string) {
   if (command === 'logout') {
-    authStore.logout()
+    await authStore.logout()
     router.push('/login')
   }
 }

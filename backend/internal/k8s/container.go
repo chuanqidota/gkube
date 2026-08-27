@@ -184,7 +184,10 @@ func RecordUrl(c *gin.Context) {
 		buffer.WriteByte('\n')
 	}
 	// 上传到s3中-会覆盖更新
-	s3.UploadFile(key, buffer.Bytes())
+	if err := s3.UploadFile(key, buffer.Bytes()); err != nil {
+		response.Fail(c, fmt.Sprintf("上传录制文件失败:%s", err.Error()))
+		return
+	}
 
 	url := fmt.Sprintf("http://%s/%s/%s", endpoint, bucket, key)
 	response.Success(c, "执行成功", url)

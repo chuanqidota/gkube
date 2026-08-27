@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
@@ -194,13 +195,6 @@ func GetNodeYaml(client *kubernetes.Clientset, nodeName string) (string, error) 
 // 用服务端对象的 uid/creationTimestamp/status 覆盖用户编辑值，避免用户改这些
 // immutable/服务端管理字段时 K8s 返回晦涩的 400（field is immutable）。
 func UpdateNodeYaml(client *kubernetes.Clientset, nodeName, yamlStr string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	defer cancel()
-
-	current, err := client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
 	var nodeObj corev1.Node
 	if err := yaml.Unmarshal([]byte(yamlStr), &nodeObj); err != nil {
 		return fmt.Errorf("%w: %s", ErrYamlParse, err.Error())
@@ -208,13 +202,22 @@ func UpdateNodeYaml(client *kubernetes.Clientset, nodeName, yamlStr string) erro
 	if nodeObj.Name != nodeName {
 		return fmt.Errorf("YAML 中 metadata.name(%q) 与目标节点(%q)不一致", nodeObj.Name, nodeName)
 	}
-	// 覆盖 immutable / 服务端管理字段
-	nodeObj.UID = current.UID
-	nodeObj.CreationTimestamp = current.CreationTimestamp
-	nodeObj.Status = current.Status // status 走 status subresource，Update 时应保持原值
-	nodeObj.ResourceVersion = current.ResourceVersion
-	_, err = client.CoreV1().Nodes().Update(ctx, &nodeObj, metav1.UpdateOptions{})
-	return err
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// 每次重试创建新的 context,避免前次超时导致后续重试也超时
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		defer cancel()
+		current, err := client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		// 覆盖 immutable / 服务端管理字段
+		nodeObj.UID = current.UID
+		nodeObj.CreationTimestamp = current.CreationTimestamp
+		nodeObj.Status = current.Status
+		nodeObj.ResourceVersion = current.ResourceVersion
+		_, err = client.CoreV1().Nodes().Update(ctx, &nodeObj, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 // GetNodePods 获取 node 上的非终态 pod，投影为 PodView 仅暴露前端所需字段。
@@ -225,7 +228,8 @@ func GetNodePods(client *kubernetes.Clientset, nodeName string) ([]PodView, erro
 	// 用 OneTermEqualSelector 构造，避免 nodeName 含特殊字符时拼出非法 field selector
 	selector := fields.OneTermEqualSelector("spec.nodeName", nodeName)
 	podList, err := client.CoreV1().Pods(corev1.NamespaceAll).List(ctx, metav1.ListOptions{
-		FieldSelector: selector.String(),
+		FieldSelector:   selector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err
@@ -305,7 +309,8 @@ func DrainNode(client *kubernetes.Clientset, nodeName string, opts DrainOptions)
 	defer listCancel()
 	selector := fields.OneTermEqualSelector("spec.nodeName", nodeName)
 	pods, err := client.CoreV1().Pods(corev1.NamespaceAll).List(listCtx, metav1.ListOptions{
-		FieldSelector: selector.String(),
+		FieldSelector:   selector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("获取节点pod列表失败:%s", err.Error())
@@ -513,7 +518,8 @@ func GetNodeEvents(client *kubernetes.Clientset, nodeName string) ([]EventView, 
 		fields.OneTermEqualSelector("involvedObject.kind", "Node"),
 	)
 	events, err := client.CoreV1().Events(corev1.NamespaceAll).List(ctx, metav1.ListOptions{
-		FieldSelector: selector.String(),
+		FieldSelector:   selector.String(),
+		ResourceVersion: "0",
 	})
 	if err != nil {
 		return nil, err

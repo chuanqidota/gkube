@@ -32,10 +32,15 @@ func Init() {
 }
 
 // UploadFile 上传数据到as3中，文件名key
-func UploadFile(key string, data []byte) {
+func UploadFile(key string, data []byte) error {
+	if As3Client == nil {
+		return fmt.Errorf("S3客户端未初始化")
+	}
 	BucketName := config.Conf.S3.Bucket
 	_, err := As3Client.PutObject(context.Background(), BucketName, key, bytes.NewReader(data), int64(len(data)), minio.PutObjectOptions{})
 	if err != nil {
 		logger.Error(fmt.Sprintf("上传As3文件失败-%s", err.Error()))
+		return fmt.Errorf("上传As3文件失败: %w", err)
 	}
+	return nil
 }

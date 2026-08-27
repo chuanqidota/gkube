@@ -59,8 +59,8 @@ async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
     namespaceList.value = transformNamespaces(res.data || [])
-  } catch {
-    // Silently handle — resource may not exist in cluster
+  } catch (e: any) {
+    ElMessage.error(e?.message || '获取命名空间列表失败')
   } finally {
     loading.value = false
   }

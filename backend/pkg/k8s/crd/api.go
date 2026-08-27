@@ -13,11 +13,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
 func GetCRDList(client *apiextensionsclientset.Clientset) ([]apiextensionsv1.CustomResourceDefinition, error) {
-	crdList, err := client.ApiextensionsV1().CustomResourceDefinitions().List(context.TODO(), metav1.ListOptions{})
+	crdList, err := client.ApiextensionsV1().CustomResourceDefinitions().List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -48,9 +49,9 @@ func GetCustomResourceList(config *rest.Config, gvr schema.GroupVersionResource,
 	}
 	var list *unstructured.UnstructuredList
 	if namespace != "" {
-		list, err = dynamicClient.Resource(gvr).Namespace(namespace).List(context.TODO(), metav1.ListOptions{})
+		list, err = dynamicClient.Resource(gvr).Namespace(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	} else {
-		list, err = dynamicClient.Resource(gvr).List(context.TODO(), metav1.ListOptions{})
+		list, err = dynamicClient.Resource(gvr).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	}
 	if err != nil {
 		return nil, err
@@ -121,8 +122,17 @@ func UpdateCRD(client *apiextensionsclientset.Clientset, yamlContent string) err
 	if err := yaml.Unmarshal([]byte(yamlContent), &crd); err != nil {
 		return fmt.Errorf("failed to unmarshal CRD YAML: %w", err)
 	}
-	_, err := client.ApiextensionsV1().CustomResourceDefinitions().Update(context.TODO(), &crd, metav1.UpdateOptions{})
-	return err
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), crd.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get CRD: %w", err)
+		}
+		latest.Spec = crd.Spec
+		latest.Labels = crd.Labels
+		latest.Annotations = crd.Annotations
+		_, err = client.ApiextensionsV1().CustomResourceDefinitions().Update(context.TODO(), latest, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 func DeleteCRD(client *apiextensionsclientset.Clientset, name string) error {
@@ -152,16 +162,34 @@ func UpdateDynamicResource(client dynamic.Interface, gvr schema.GroupVersionReso
 	if err := yaml.Unmarshal([]byte(yamlContent), &obj); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal custom resource YAML: %w", err)
 	}
-	unstructuredObj := &unstructured.Unstructured{Object: obj}
-	unstructured.RemoveNestedField(unstructuredObj.Object, "status")
+	name, found, err := unstructured.NestedString(obj, "metadata", "name")
+	if err != nil || !found {
+		return nil, fmt.Errorf("metadata.name is required")
+	}
 
 	var result *unstructured.Unstructured
-	var err error
-	if namespace != "" {
-		result, err = client.Resource(gvr).Namespace(namespace).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
-	} else {
-		result, err = client.Resource(gvr).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
-	}
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var latest *unstructured.Unstructured
+		var getErr error
+		if namespace != "" {
+			latest, getErr = client.Resource(gvr).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		} else {
+			latest, getErr = client.Resource(gvr).Get(context.TODO(), name, metav1.GetOptions{})
+		}
+		if getErr != nil {
+			return getErr
+		}
+		unstructuredObj := &unstructured.Unstructured{Object: obj}
+		unstructured.RemoveNestedField(unstructuredObj.Object, "status")
+		unstructuredObj.SetResourceVersion(latest.GetResourceVersion())
+
+		if namespace != "" {
+			result, getErr = client.Resource(gvr).Namespace(namespace).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
+		} else {
+			result, getErr = client.Resource(gvr).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
+		}
+		return getErr
+	})
 	return result, err
 }
 

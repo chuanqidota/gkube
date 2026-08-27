@@ -8,11 +8,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
 func GetResourceQuotaList(client *kubernetes.Clientset, namespace string) ([]corev1.ResourceQuota, error) {
-	rqList, err := client.CoreV1().ResourceQuotas(namespace).List(context.TODO(), metav1.ListOptions{})
+	rqList, err := client.CoreV1().ResourceQuotas(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +53,17 @@ func UpdateResourceQuota(client *kubernetes.Clientset, namespace, yamlContent st
 	if rq.Namespace == "" {
 		rq.Namespace = namespace
 	}
-	_, err := client.CoreV1().ResourceQuotas(namespace).Update(context.TODO(), &rq, metav1.UpdateOptions{})
-	return err
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest, err := client.CoreV1().ResourceQuotas(namespace).Get(context.TODO(), rq.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get ResourceQuota: %w", err)
+		}
+		latest.Spec.Hard = rq.Spec.Hard
+		latest.Labels = rq.Labels
+		latest.Annotations = rq.Annotations
+		_, err = client.CoreV1().ResourceQuotas(namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 func DeleteResourceQuota(client *kubernetes.Clientset, namespace, name string) error {

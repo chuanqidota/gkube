@@ -20,7 +20,6 @@ import HPAForm from './components/HPAForm.vue'
 
 const {
   loading,
-  list,
   filteredList,
   selectedNamespace,
   searchName,
