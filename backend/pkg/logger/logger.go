@@ -55,3 +55,11 @@ func Error(args ...interface{}) {
 func Fatal(args ...interface{}) {
 	logger.Fatal(args...)
 }
+
+func Warn(args ...interface{}) {
+	logger.Warn(args...)
+}
+
+func Debug(args ...interface{}) {
+	logger.Debug(args...)
+}

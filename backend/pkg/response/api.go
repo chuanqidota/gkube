@@ -3,6 +3,7 @@ package response
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gkube/pkg/logger"
@@ -59,6 +60,7 @@ func FailServer(c *gin.Context, msg string, err error) {
 
 // File 文件响应
 func File(c *gin.Context, filename string, res []byte) {
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	safe := strings.ReplaceAll(strings.ReplaceAll(filename, "\n", ""), "\r", "")
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, safe))
 	c.Data(http.StatusOK, "application/octet-stream", res)
 }

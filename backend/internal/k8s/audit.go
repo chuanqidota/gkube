@@ -11,6 +11,7 @@ import (
 	"github.com/olivere/elastic/v7"
 	auditlog "gkube/pkg/audit"
 	"gkube/pkg/es"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
 
@@ -147,7 +148,9 @@ func loadAuditLogs() *auditStore {
 	store := &auditStore{Logs: []auditlog.AuditLog{}}
 	data, err := os.ReadFile(auditFile)
 	if err == nil {
-		json.Unmarshal(data, store)
+		if err := json.Unmarshal(data, store); err != nil {
+			logger.Error(fmt.Sprintf("解析审计日志文件失败: %s", err.Error()))
+		}
 	}
 	return store
 }

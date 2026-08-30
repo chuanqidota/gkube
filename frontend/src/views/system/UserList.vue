@@ -141,10 +141,13 @@ async function handleSave() {
     if (editingId.value) {
       payload.id = editingId.value
       await request.put('/users', payload)
-      // 编辑的是当前登录用户时，同步更新 Header 显示
+      // 编辑的是当前登录用户时，同步更新 Header 显示（reassignment 触发 shallow watch）
       if (authStore.user && editingId.value === authStore.user.id) {
-        if (payload.displayName !== undefined) authStore.user.display_name = payload.displayName
-        if (payload.email !== undefined) authStore.user.email = payload.email
+        authStore.setUser({
+          ...authStore.user,
+          ...(payload.displayName !== undefined ? { display_name: payload.displayName } : {}),
+          ...(payload.email !== undefined ? { email: payload.email } : {}),
+        })
       }
       ElMessage.success('用户已更新')
     } else {

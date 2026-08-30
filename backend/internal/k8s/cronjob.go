@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -12,8 +11,6 @@ import (
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 	batchv1 "k8s.io/api/batch/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 )
 
 type cronjob struct {
@@ -209,27 +206,18 @@ func (cj *cronjob) GetCronJobEvents(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	events, err := client.CoreV1().Events(query.Namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fields.AndSelectors(
-			fields.OneTermEqualSelector("involvedObject.name", query.Name),
-			fields.OneTermEqualSelector("involvedObject.kind", "CronJob"),
-		).String(),
-	})
+	events, err := k8sCronjob.GetCronJobEvents(client, query.Namespace, query.Name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取cronjob事件失败:%v", err.Error()))
 		return
 	}
 	var result []map[string]any
-	for _, event := range events.Items {
-		lastSeen := ""
-		if !event.LastTimestamp.IsZero() {
-			lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
-		}
+	for _, event := range events {
 		result = append(result, map[string]any{
 			"type":      event.Type,
 			"reason":    event.Reason,
 			"message":   event.Message,
-			"last_seen": lastSeen,
+			"last_seen": event.LastTimestamp,
 		})
 	}
 	response.Success(c, "执行成功", result)

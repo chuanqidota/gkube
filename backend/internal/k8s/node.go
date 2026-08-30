@@ -73,6 +73,10 @@ func (n *node) CordonNode(c *gin.Context) {
 		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
+	if body.Cordon == nil {
+		response.Fail(c, "cordon参数不能为空")
+		return
+	}
 	isCordon, err := k8sNode.CordonNode(client, body.Name, *body.Cordon)
 	if err != nil {
 		logger.Error(err.Error())

@@ -18,29 +18,15 @@ const searchQuery = ref('')
 const stats = ref<any>({})
 
 const filteredLogs = computed(() => {
-  let result = auditLogs.value
-  if (selectedUser.value) {
-    result = result.filter(l => l.user === selectedUser.value)
-  }
-  if (selectedAction.value) {
-    result = result.filter(l => l.action === selectedAction.value)
-  }
-  if (selectedResource.value) {
-    result = result.filter(l => l.resource === selectedResource.value)
-  }
-  if (selectedStatus.value) {
-    result = result.filter(l => l.status === selectedStatus.value)
-  }
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(l =>
-      l.user?.toLowerCase().includes(query) ||
-      l.action?.toLowerCase().includes(query) ||
-      l.resource?.toLowerCase().includes(query) ||
-      l.name?.toLowerCase().includes(query)
-    )
-  }
-  return result
+  const kw = searchQuery.value?.trim().toLowerCase()
+  return auditLogs.value.filter(l =>
+    (!selectedUser.value || l.user === selectedUser.value) &&
+    (!selectedAction.value || l.action === selectedAction.value) &&
+    (!selectedResource.value || l.resource === selectedResource.value) &&
+    (!selectedStatus.value || l.status === selectedStatus.value) &&
+    (!kw || l.user?.toLowerCase().includes(kw) || l.action?.toLowerCase().includes(kw) ||
+      l.resource?.toLowerCase().includes(kw) || l.name?.toLowerCase().includes(kw))
+  )
 })
 
 const users = computed(() => {

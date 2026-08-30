@@ -103,7 +103,7 @@ func InsertData(index string, data map[string]any) error {
 	if err != nil {
 		return err
 	}
-	if resp.Result != "created" {
+	if resp.Result != "created" && resp.Result != "updated" {
 		return errors.New("创建出错")
 	}
 	return nil

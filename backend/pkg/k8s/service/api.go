@@ -8,6 +8,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
@@ -66,8 +67,12 @@ func GetServicesByName(client *kubernetes.Clientset, namespace, name string) (*c
 //	@return []map[string]any
 //	@return error
 func GetServiceEvents(client *kubernetes.Clientset, namespace, name string) ([]map[string]any, error) {
+	selector := fields.AndSelectors(
+		fields.OneTermEqualSelector("involvedObject.name", name),
+		fields.OneTermEqualSelector("involvedObject.kind", "Service"),
+	).String()
 	events, err := client.CoreV1().Events(namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector:   fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Service", name),
+		FieldSelector:   selector,
 		ResourceVersion: "0",
 	})
 	if err != nil {
@@ -225,11 +230,13 @@ func ServicePodList(client *kubernetes.Clientset, namespace, name string) (*core
 // 对于 NodePort 类型的服务,如果用户 YAML 中某个端口未指定 nodePort,
 // 保留服务端自动分配的值,避免因编辑导致端口变更中断流量。
 func mergeServicePorts(existing, userDefined []corev1.ServicePort) []corev1.ServicePort {
-	// 构建已有端口的 nodePort 索引 (name -> nodePort)
-	existingNodePorts := make(map[string]int32, len(existing))
+	// 构建已有端口的 nodePort 索引
+	existingNodePortsByName := make(map[string]int32, len(existing))
+	existingNodePortsByPort := make(map[int32]int32, len(existing))
 	for _, p := range existing {
 		if p.NodePort > 0 {
-			existingNodePorts[p.Name] = p.NodePort
+			existingNodePortsByName[p.Name] = p.NodePort
+			existingNodePortsByPort[p.Port] = p.NodePort
 		}
 	}
 	// 对用户定义的端口,补充缺失的 nodePort
@@ -237,7 +244,10 @@ func mergeServicePorts(existing, userDefined []corev1.ServicePort) []corev1.Serv
 	copy(merged, userDefined)
 	for i := range merged {
 		if merged[i].NodePort == 0 {
-			if np, ok := existingNodePorts[merged[i].Name]; ok {
+			// 优先按 name 查找,找不到则按 port 数值查找(处理重命名场景)
+			if np, ok := existingNodePortsByName[merged[i].Name]; ok {
+				merged[i].NodePort = np
+			} else if np, ok := existingNodePortsByPort[merged[i].Port]; ok {
 				merged[i].NodePort = np
 			}
 		}

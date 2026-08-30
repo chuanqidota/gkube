@@ -144,6 +144,10 @@ func (lr *limitRange) DeleteLimitRange(c *gin.Context) {
 		response.Fail(c, "name参数不能为空")
 		return
 	}
+	if clusterName == "" {
+		response.Fail(c, "clusterName参数不能为空")
+		return
+	}
 	client, err := k8sclient.GetK8sClientByName(clusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))

@@ -1,14 +1,11 @@
 package k8s
 
 import (
-	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sJob "gkube/pkg/k8s/job"
 	"gkube/pkg/response"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 )
 
 type job struct {
@@ -194,27 +191,18 @@ func (j *job) GetJobEvents(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	events, err := client.CoreV1().Events(query.Namespace).List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fields.AndSelectors(
-			fields.OneTermEqualSelector("involvedObject.name", query.Name),
-			fields.OneTermEqualSelector("involvedObject.kind", "Job"),
-		).String(),
-	})
+	events, err := k8sJob.GetJobEvents(client, query.Namespace, query.Name)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取job事件失败:%v", err.Error()))
 		return
 	}
 	var result []map[string]any
-	for _, event := range events.Items {
-		lastSeen := ""
-		if !event.LastTimestamp.IsZero() {
-			lastSeen = event.LastTimestamp.Time.Format("2006-01-02 15:04:05")
-		}
+	for _, event := range events {
 		result = append(result, map[string]any{
 			"type":      event.Type,
 			"reason":    event.Reason,
 			"message":   event.Message,
-			"last_seen": lastSeen,
+			"last_seen": event.LastTimestamp,
 		})
 	}
 	response.Success(c, "执行成功", result)

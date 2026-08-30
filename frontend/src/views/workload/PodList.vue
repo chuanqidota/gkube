@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, Delete } from '@element-plus/icons-vue'
 import { getPodList, getPodYaml, deletePod, transformPods } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import { useClusterStore } from '@/stores/cluster'

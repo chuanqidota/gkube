@@ -113,7 +113,7 @@ func GetReplicaSetEvents(client *kubernetes.Clientset, namespace, name string) (
 		fields.OneTermEqualSelector("involvedObject.name", name),
 		fields.OneTermEqualSelector("involvedObject.kind", "ReplicaSet"),
 	).String()
-	events, _, _, err := k8sEvent.ListEvents(client, namespace, selector, 0, "")
+	events, _, _, err := k8sEvent.ListEvents(client, namespace, selector, 200, "")
 	if err != nil {
 		return nil, fmt.Errorf("获取replicaset事件失败:%s", err.Error())
 	}

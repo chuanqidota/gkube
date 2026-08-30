@@ -4,7 +4,7 @@ package model
 // @Description: 终端操作记录表
 type TerminalRecord struct {
 	BaseModel
-	Key         string `json:"key" gorm:"column:key;type:string;size:100;comment:唯一标识"`
+	Key         string `json:"key" gorm:"column:key;type:string;size:100;uniqueIndex;comment:唯一标识"`
 	ClusterName string `json:"clusterName" gorm:"column:cluster_name;type:string;size:100;comment:集群名称"`
 	Namespace   string `json:"namespace" gorm:"column:namespace;type:string;size:100;comment:命名空间"`
 	PodName     string `json:"podName" gorm:"column:pod_name;type:string;size:100;comment:pod名称"`

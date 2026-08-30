@@ -35,7 +35,7 @@ export const useAuthStore = defineStore('auth', () => {
     } else {
       localStorage.removeItem(USER_KEY)
     }
-  }, { deep: true })
+  })
 
   async function login(form: { username: string; password: string }) {
     const res: any = await loginApi(form)

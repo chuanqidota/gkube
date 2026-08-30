@@ -194,8 +194,8 @@ func (n *namespace) GetNamespaceYaml(c *gin.Context) {
 //	@param c
 func (n *namespace) UpdateNamespace(c *gin.Context) {
 	var req struct {
-		ClusterName string `json:"clusterName"`
-		Yaml        string `json:"yaml"`
+		ClusterName string `json:"clusterName" binding:"required"`
+		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
