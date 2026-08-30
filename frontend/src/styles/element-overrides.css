@@ -60,6 +60,7 @@
   --el-fill-color-lighter: var(--gk-neutral-50);
   --el-fill-color-extra-light: var(--gk-neutral-50);
   --el-fill-color-dark: var(--gk-neutral-200);
+  --el-fill-color-darker: var(--gk-neutral-300);
   --el-fill-color-blank: var(--gk-color-bg-card);
 
   /* === Text === */
@@ -75,6 +76,7 @@
   --el-border-color-lighter: var(--gk-color-border-light);
   --el-border-color-extra-light: var(--gk-color-border-light);
   --el-border-color-dark: var(--gk-neutral-300);
+  --el-border-color-darker: var(--gk-neutral-400);
 
   /* === Border Radius === */
   --el-border-radius-base: var(--gk-radius-md);
@@ -114,4 +116,141 @@
 
   /* === Scrollbar === */
   --el-scrollbar-opacity-hover: 0.6;
+}
+
+/* ============================================================
+   Dark Mode: re-assert Element Plus variable mappings
+
+   Element Plus uses  html.dark  (specificity 0-1-1) for its
+   built-in dark vars.  We must match that specificity so source
+   order alone decides the winner — and our file is imported
+   AFTER the EP dark CSS in main.ts, so we win.
+   ============================================================ */
+html[data-theme="dark"] {
+  /* Primary */
+  --el-color-primary: var(--gk-color-primary);
+  --el-color-primary-light-3: var(--gk-color-primary-light);
+  --el-color-primary-light-5: var(--gk-color-primary-bg);
+  --el-color-primary-light-7: var(--gk-color-primary-bg);
+  --el-color-primary-light-8: var(--gk-color-primary-bg);
+  --el-color-primary-light-9: var(--gk-color-primary-bg);
+  --el-color-primary-dark-2: var(--gk-color-primary-dark);
+
+  /* Success */
+  --el-color-success: var(--gk-color-success);
+  --el-color-success-light-3: var(--gk-color-success-light);
+  --el-color-success-light-5: var(--gk-color-success-bg);
+  --el-color-success-light-7: var(--gk-color-success-bg);
+  --el-color-success-light-8: var(--gk-color-success-bg);
+  --el-color-success-light-9: var(--gk-color-success-bg);
+  --el-color-success-dark-2: #4ade80;
+
+  /* Warning */
+  --el-color-warning: var(--gk-color-warning);
+  --el-color-warning-light-3: var(--gk-color-warning-light);
+  --el-color-warning-light-5: var(--gk-color-warning-bg);
+  --el-color-warning-light-7: var(--gk-color-warning-bg);
+  --el-color-warning-light-8: var(--gk-color-warning-bg);
+  --el-color-warning-light-9: var(--gk-color-warning-bg);
+  --el-color-warning-dark-2: #fbbf24;
+
+  /* Danger */
+  --el-color-danger: var(--gk-color-danger);
+  --el-color-danger-light-3: var(--gk-color-danger-light);
+  --el-color-danger-light-5: var(--gk-color-danger-bg);
+  --el-color-danger-light-7: var(--gk-color-danger-bg);
+  --el-color-danger-light-8: var(--gk-color-danger-bg);
+  --el-color-danger-light-9: var(--gk-color-danger-bg);
+  --el-color-danger-dark-2: #f87171;
+
+  /* Info */
+  --el-color-info: var(--gk-color-info);
+  --el-color-info-light-3: var(--gk-color-info-light);
+  --el-color-info-light-5: var(--gk-color-info-bg);
+  --el-color-info-light-7: var(--gk-color-info-bg);
+  --el-color-info-light-8: var(--gk-color-info-bg);
+  --el-color-info-light-9: var(--gk-color-info-bg);
+  --el-color-info-dark-2: #818cf8;
+
+  /* Error (alias of Danger) */
+  --el-color-error: var(--gk-color-danger);
+  --el-color-error-light-3: var(--gk-color-danger-light);
+  --el-color-error-light-5: var(--gk-color-danger-bg);
+  --el-color-error-light-7: var(--gk-color-danger-bg);
+  --el-color-error-light-8: var(--gk-color-danger-bg);
+  --el-color-error-light-9: var(--gk-color-danger-bg);
+  --el-color-error-dark-2: #f87171;
+
+  /* Background */
+  --el-bg-color: var(--gk-color-bg-card);
+  --el-bg-color-page: var(--gk-color-bg-page);
+  --el-bg-color-overlay: var(--gk-color-bg-card);
+
+  /* Fill */
+  --el-fill-color: var(--gk-neutral-100);
+  --el-fill-color-light: var(--gk-neutral-100);
+  --el-fill-color-lighter: var(--gk-neutral-50);
+  --el-fill-color-extra-light: var(--gk-neutral-50);
+  --el-fill-color-dark: var(--gk-neutral-200);
+  --el-fill-color-darker: var(--gk-neutral-300);
+  --el-fill-color-blank: var(--gk-color-bg-card);
+
+  /* Text */
+  --el-text-color-primary: var(--gk-color-text-primary);
+  --el-text-color-regular: var(--gk-color-text-primary);
+  --el-text-color-secondary: var(--gk-color-text-secondary);
+  --el-text-color-placeholder: var(--gk-color-text-placeholder);
+  --el-text-color-disabled: var(--gk-color-text-disabled);
+
+  /* Border */
+  --el-border-color: var(--gk-color-border);
+  --el-border-color-light: var(--gk-color-border);
+  --el-border-color-lighter: var(--gk-color-border-light);
+  --el-border-color-extra-light: var(--gk-color-border-light);
+  --el-border-color-dark: var(--gk-neutral-400);
+  --el-border-color-darker: var(--gk-neutral-500);
+
+  /* Box Shadow */
+  --el-box-shadow: var(--gk-shadow-md);
+  --el-box-shadow-light: var(--gk-shadow-sm);
+  --el-box-shadow-lighter: var(--gk-shadow-sm);
+  --el-box-shadow-dark: var(--gk-shadow-lg);
+
+  /* Mask */
+  --el-mask-color: rgba(0, 0, 0, 0.6);
+  --el-mask-color-extra-light: rgba(0, 0, 0, 0.3);
+
+  /* Menu (Sidebar) */
+  --el-menu-bg-color: var(--gk-color-bg-sidebar);
+  --el-menu-text-color: var(--gk-sidebar-text);
+  --el-menu-active-color: var(--gk-sidebar-text-active);
+  --el-menu-hover-bg-color: var(--gk-sidebar-hover-bg);
+
+  /* Table */
+  --el-table-border-color: var(--gk-color-border);
+  --el-table-header-bg-color: var(--gk-neutral-50);
+  --el-table-row-hover-bg-color: var(--gk-color-primary-bg);
+}
+
+/* Component-level overrides (match html.dark .el-* specificity 0-2-1) */
+html[data-theme="dark"] .el-card {
+  --el-card-bg-color: var(--gk-color-bg-card);
+  --el-fill-color-blank: var(--gk-color-bg-card);
+}
+
+html[data-theme="dark"] .el-button {
+  --el-button-disabled-text-color: var(--gk-color-text-disabled);
+}
+
+html[data-theme="dark"] .el-empty {
+  --el-empty-fill-color-0: var(--gk-neutral-100);
+  --el-empty-fill-color-1: var(--gk-neutral-200);
+  --el-empty-fill-color-2: var(--gk-neutral-300);
+  --el-empty-fill-color-3: var(--gk-neutral-400);
+  --el-empty-fill-color-4: var(--gk-neutral-400);
+  --el-empty-fill-color-5: var(--gk-neutral-500);
+  --el-empty-fill-color-6: var(--gk-neutral-500);
+  --el-empty-fill-color-7: var(--gk-neutral-600);
+  --el-empty-fill-color-8: var(--gk-neutral-600);
+  --el-empty-fill-color-9: var(--gk-neutral-700);
 }
