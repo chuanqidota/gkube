@@ -567,7 +567,7 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const token = getToken()
   if (!to.meta.public && !token) {
     // Preserve the intended destination so login can return the user there
@@ -582,9 +582,23 @@ router.beforeEach((to, _from, next) => {
   // 仅在已加载到用户信息时可判定；未加载（如刷新后未恢复）时放行，避免误锁管理员。
   if (to.meta.requireAdmin) {
     const authStore = useAuthStore()
-    if (authStore.user && authStore.user.isAdmin === false) {
+    if (authStore.user && !authStore.user.isSuperAdmin && !authStore.user.isAdmin) {
       next({ path: '/dashboard' })
       return
+    }
+  }
+  // 首次进入已认证页面时拉取权限（仅一次）
+  if (token) {
+    const authStore = useAuthStore()
+    if (authStore.user && !authStore.user.permissions) {
+      try {
+        await authStore.fetchPermissions()
+      } catch {
+        // 失败时设置空权限，页面照常渲染（后端 403 兜底）
+        if (authStore.user) {
+          authStore.user.permissions = []
+        }
+      }
     }
   }
   next()

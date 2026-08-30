@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	authmodel "gkube/internal/auth/model"
+	rbacmodel "gkube/internal/rbac/model"
 	"gkube/pkg/auth"
 	"gkube/pkg/database"
 	"gkube/pkg/logger"
@@ -54,11 +55,25 @@ func seedAdmin() {
 		Email:        "admin@gkube.local",
 		DisplayName:  "System Administrator",
 		Status:       1,
+		IsSuperAdmin: true,
 	}
 	if err := database.DB.Create(&adminUser).Error; err != nil {
 		logger.Fatal(fmt.Sprintf("Failed to create admin user: %v", err))
 	}
 
 	// 仅打印一次随机口令,请妥善保存
-	logger.Info(fmt.Sprintf("Admin user created successfully (username: admin, password: %s)", password))
+	fmt.Printf("\n*** Admin user created ***\n  Username: admin\n  Password: %s\n  Please save this password now. It will not be shown again.\n\n", password)
+
+	// 写入预置角色（幂等）
+	seedPresetRoles()
+}
+
+// seedPresetRoles 写入6个预置角色（幂等，已存在则跳过）
+func seedPresetRoles() {
+	for _, role := range rbacmodel.PresetRoles {
+		if err := database.DB.Where("name = ?", role.Name).FirstOrCreate(&role).Error; err != nil {
+			logger.Warn(fmt.Sprintf("写入预置角色 %s 失败: %v", role.Name, err))
+		}
+	}
+	logger.Info("预置角色初始化完成")
 }

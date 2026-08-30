@@ -10,7 +10,9 @@ import (
 	authmodel "gkube/internal/auth/model"
 	clustermodel "gkube/internal/cluster/model"
 	"gkube/internal/k8s/model"
+	rbacmodel "gkube/internal/rbac/model"
 	"gkube/pkg/database"
+	"gkube/pkg/logger"
 )
 
 // migrateCmd represents the migrate command
@@ -29,8 +31,10 @@ to quickly create a Cobra application.`,
 			&clustermodel.K8SCluster{},
 			&model.TerminalRecord{},
 			&authmodel.User{},
+			&rbacmodel.Role{},
+			&rbacmodel.PermissionBinding{},
 		); err != nil {
-			fmt.Printf("migrate error:%v", err)
+			logger.Fatal(fmt.Sprintf("migrate error: %v", err))
 		}
 	},
 }

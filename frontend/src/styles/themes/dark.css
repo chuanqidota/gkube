@@ -47,3 +47,8 @@
   --gk-color-danger-bg: rgba(239, 68, 68, 0.15);
   --gk-color-info-bg: rgba(99, 102, 241, 0.15);
 }
+
+/* 暗色主题下表格斑马纹修复：stripe 行使用略深背景，与 card bg 区分 */
+[data-theme="dark"] .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: var(--gk-neutral-100);
+}

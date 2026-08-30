@@ -196,8 +196,8 @@ const { isDark } = useTheme()
 
 const logoTone = computed(() => isDark.value ? 'light' : 'dark')
 
-// 仅管理员可见系统管理（用户/审计）入口；未加载到用户信息时默认可见，避免误隐藏。
-const isAdmin = computed(() => authStore.user?.isAdmin !== false)
+// 仅管理员可见系统管理（用户/审计/权限）入口；未加载到用户信息时默认可见，避免误隐藏。
+const isAdmin = computed(() => authStore.user?.isSuperAdmin !== false)
 
 const activeMenu = computed(() => {
   if (route.path.startsWith('/autoscaling')) return '/autoscaling'

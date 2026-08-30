@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, User } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getClusterList, deleteCluster, checkCluster, updateCluster } from '@/api/cluster'
 import { useClusterStore } from '@/stores/cluster'
@@ -11,6 +11,7 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import ViewModeToggle from '@/components/ViewModeToggle.vue'
+import ClusterMembersDialog from './ClusterMembersDialog.vue'
 const { t } = useI18n()
 const router = useRouter()
 const clusterStore = useClusterStore()
@@ -192,6 +193,17 @@ function parseLabels(raw: unknown): Record<string, string> | null {
 
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchClusters)
 
+// 成员管理弹窗
+const membersDialogVisible = ref(false)
+const membersClusterId = ref(0)
+const membersClusterName = ref('')
+
+function handleMembers(row: any) {
+  membersClusterId.value = row.id
+  membersClusterName.value = row.clusterName
+  membersDialogVisible.value = true
+}
+
 onMounted(fetchClusters)
 onUnmounted(() => clearTimeout(searchDebounce))
 </script>
@@ -227,6 +239,7 @@ onUnmounted(() => clearTimeout(searchDebounce))
 
     <el-card shadow="never" class="table-card">
     <el-table v-if="viewMode === 'table'" :data="clusterList" v-loading="loading" stripe>
+      <el-table-column type="selection" width="45" />
       <el-table-column label="状态" width="100" align="center">
         <template #default="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag></template>
       </el-table-column>
@@ -241,6 +254,9 @@ onUnmounted(() => clearTimeout(searchDebounce))
       </el-table-column>
       <el-table-column label="节点数" width="90" align="center">
         <template #default="{ row }">{{ row.nodeCount || 0 }}</template>
+      </el-table-column>
+      <el-table-column label="成员数" width="90" align="center">
+        <template #default="{ row }">{{ row.memberCount || 0 }}</template>
       </el-table-column>
       <el-table-column label="描述" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">{{ row.description || '-' }}</template>
@@ -258,9 +274,12 @@ onUnmounted(() => clearTimeout(searchDebounce))
           <span v-else style="color: var(--gk-color-text-secondary);">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right" align="center">
+      <el-table-column label="操作" width="280" fixed="right" align="center">
         <template #default="{ row }">
           <div class="action-buttons">
+            <el-button size="small" type="primary" plain @click="handleMembers(row)">
+              <el-icon><User /></el-icon> {{ t('rbac.members') }}
+            </el-button>
             <el-button size="small" @click="handleCheck(row)">{{ t('cluster.checkConnection') }}</el-button>
             <el-button size="small" @click="handleEdit(row)">{{ t('common.edit') }}</el-button>
             <el-button size="small" type="danger" plain @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
@@ -299,6 +318,7 @@ onUnmounted(() => clearTimeout(searchDebounce))
             </div>
           </div>
           <div class="cluster-footer">
+            <el-button size="small" type="primary" plain @click="handleMembers(cluster)"><el-icon><User /></el-icon> {{ t('rbac.members') }}</el-button>
             <el-button size="small" @click="handleCheck(cluster)">{{ t('cluster.checkConnection') }}</el-button>
             <el-button size="small" @click="handleEdit(cluster)">{{ t('common.edit') }}</el-button>
             <el-button size="small" type="danger" plain @click="handleDelete(cluster)">{{ t('common.delete') }}</el-button>
@@ -352,6 +372,13 @@ onUnmounted(() => clearTimeout(searchDebounce))
         <el-button type="primary" :loading="editLoading" @click="handleEditSubmit">{{ t('common.save') }}</el-button>
       </template>
     </el-dialog>
+
+    <!-- 成员管理对话框 -->
+    <ClusterMembersDialog
+      v-model:visible="membersDialogVisible"
+      :cluster-id="membersClusterId"
+      :cluster-name="membersClusterName"
+    />
   </div>
 </template>
 

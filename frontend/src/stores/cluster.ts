@@ -32,6 +32,8 @@ export const useClusterStore = defineStore('cluster', () => {
     currentCluster.value?.clusterName || currentCluster.value?.cluster_name || currentCluster.value?.name || '',
   )
 
+  const clusterId = computed(() => currentCluster.value?.id || 0)
+
   // Persist to localStorage on change
   watch(currentCluster, (val) => {
     if (val) {
@@ -72,5 +74,5 @@ export const useClusterStore = defineStore('cluster', () => {
     }
   }
 
-  return { clusterList, currentCluster, clusterName, fetchClusters, setCurrentCluster }
+  return { clusterList, currentCluster, clusterName, clusterId, fetchClusters, setCurrentCluster }
 })

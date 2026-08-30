@@ -4,10 +4,15 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import { getSecretDetail, deleteSecret } from '@/api/resource'
+import { useAuthStore } from '@/stores/auth'
+import { useClusterStore } from '@/stores/cluster'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import SecretForm from '@/views/config/components/SecretForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useResizable } from '@/composables/useResizable'
+
+const authStore = useAuthStore()
+const clusterStore = useClusterStore()
 
 const { leftWidth, resizingH, onHResizeStart } = useResizable({ initialWidth: 320 })
 
@@ -20,12 +25,29 @@ const yamlDialogVisible = ref(false)
 const namespace = route.params.namespace as string
 const name = route.params.name as string
 
+// 权限检查：当前用户是否有该作用域的写权限
+const canWrite = computed(() => {
+  const clusterId = Number(clusterStore.clusterId)
+  return authStore.canAccess(clusterId, namespace)
+})
+
 // Edit dialog
 const editDialogVisible = ref(false)
 const editFullscreen = ref(false)
 
 // Decode toggle
 const showDecoded = ref(true)
+
+// Secret value masking — 默认隐藏，点击显示
+const revealedKeys = ref<Set<string>>(new Set())
+
+function toggleReveal(key: string) {
+  if (revealedKeys.value.has(key)) {
+    revealedKeys.value.delete(key)
+  } else {
+    revealedKeys.value.add(key)
+  }
+}
 
 function base64Decode(str: string): string {
   try {
@@ -118,9 +140,13 @@ onMounted(fetchDetail)
         </div>
       </div>
       <div class="header-actions">
-        <el-button type="info" @click="handleEdit">编辑</el-button>
+        <el-tooltip :content="canWrite ? '' : '权限不足'" placement="top">
+          <el-button type="info" @click="handleEdit" :disabled="!canWrite">编辑</el-button>
+        </el-tooltip>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" plain @click="handleDelete">删除</el-button>
+        <el-tooltip :content="canWrite ? '' : '权限不足'" placement="top">
+          <el-button type="danger" plain @click="handleDelete" :disabled="!canWrite">删除</el-button>
+        </el-tooltip>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
@@ -233,7 +259,13 @@ onMounted(fetchDetail)
                 <el-table-column prop="key" label="Key" width="220" show-overflow-tooltip />
                 <el-table-column label="Value" min-width="300">
                   <template #default="{ row }">
-                    <div class="value-cell">{{ showDecoded ? row.decodedValue : row.rawValue }}</div>
+                    <div class="value-cell">
+                      <span v-if="!revealedKeys.has(row.key)">•••••••</span>
+                      <span v-else>{{ showDecoded ? row.decodedValue : row.rawValue }}</span>
+                      <el-button link size="small" @click="toggleReveal(row.key)" style="margin-left: 8px;">
+                        {{ revealedKeys.has(row.key) ? '隐藏' : '显示' }}
+                      </el-button>
+                    </div>
                   </template>
                 </el-table-column>
               </el-table>

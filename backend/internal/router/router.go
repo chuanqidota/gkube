@@ -23,6 +23,7 @@ func Engine() *gin.Engine {
 		registerAuthRoutes(authorized)
 		registerClusterRoutes(authorized)
 		registerDashboardRoutes(authorized)
+		registerRbacRoutes(authorized)
 
 		// K8s 路由单独挂载审计中间件,记录所有写操作
 		k8s := authorized.Group("", middleware.AuditLog())

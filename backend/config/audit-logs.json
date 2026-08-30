@@ -179,6 +179,636 @@
       "ip": "::1",
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
       "status": "success"
+    },
+    {
+      "id": "audit-1788076660774544000",
+      "timestamp": "2026-08-30T15:57:40.774794+08:00",
+      "user": "admin",
+      "action": "restart",
+      "resource": "deployment",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "1.892875ms",
+        "method": "POST",
+        "path": "/v1/k8s/deployment/restart"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788076665906350000",
+      "timestamp": "2026-08-30T15:57:45.90637+08:00",
+      "user": "admin",
+      "action": "restart",
+      "resource": "deployment",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "157.792µs",
+        "method": "POST",
+        "path": "/v1/k8s/deployment/restart"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788076669356177000",
+      "timestamp": "2026-08-30T15:57:49.356204+08:00",
+      "user": "admin",
+      "action": "restart",
+      "resource": "deployment",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "148.5µs",
+        "method": "POST",
+        "path": "/v1/k8s/deployment/restart"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788076675940942000",
+      "timestamp": "2026-08-30T15:57:55.940945+08:00",
+      "user": "admin",
+      "action": "restart",
+      "resource": "deployment",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "85.625µs",
+        "method": "POST",
+        "path": "/v1/k8s/deployment/restart"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788076683274806000",
+      "timestamp": "2026-08-30T15:58:03.274812+08:00",
+      "user": "admin",
+      "action": "restart",
+      "resource": "deployment",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "106.542µs",
+        "method": "POST",
+        "path": "/v1/k8s/deployment/restart"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788092807247233000",
+      "timestamp": "2026-08-30T20:26:47.247283+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "20.725042ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788095847894091000",
+      "timestamp": "2026-08-30T21:17:27.894094+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "40.784708ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788095858935769000",
+      "timestamp": "2026-08-30T21:17:38.935772+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "6.059458ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788095881443689000",
+      "timestamp": "2026-08-30T21:18:01.443708+08:00",
+      "user": "admin",
+      "action": "delete-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "6.300625ms",
+        "method": "DELETE",
+        "path": "/v1/rbac/bindings/2"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788095883617177000",
+      "timestamp": "2026-08-30T21:18:03.617179+08:00",
+      "user": "admin",
+      "action": "delete-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "3.992875ms",
+        "method": "DELETE",
+        "path": "/v1/rbac/bindings/3"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788097157658739000",
+      "timestamp": "2026-08-30T21:39:17.658745+08:00",
+      "user": "admin",
+      "action": "delete",
+      "resource": "pod",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "1.45425ms",
+        "method": "DELETE",
+        "path": "/v1/k8s/pod/delete"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788097162823913000",
+      "timestamp": "2026-08-30T21:39:22.823919+08:00",
+      "user": "admin",
+      "action": "delete",
+      "resource": "pod",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "112.75µs",
+        "method": "DELETE",
+        "path": "/v1/k8s/pod/delete"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788097172359842000",
+      "timestamp": "2026-08-30T21:39:32.359857+08:00",
+      "user": "admin",
+      "action": "delete",
+      "resource": "pod",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "196.542µs",
+        "method": "DELETE",
+        "path": "/v1/k8s/pod/delete"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788097172360056000",
+      "timestamp": "2026-08-30T21:39:32.360057+08:00",
+      "user": "admin",
+      "action": "delete",
+      "resource": "pod",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "91.583µs",
+        "method": "DELETE",
+        "path": "/v1/k8s/pod/delete"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788097172360063000",
+      "timestamp": "2026-08-30T21:39:32.360064+08:00",
+      "user": "admin",
+      "action": "delete",
+      "resource": "pod",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "61.959µs",
+        "method": "DELETE",
+        "path": "/v1/k8s/pod/delete"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788097183340334000",
+      "timestamp": "2026-08-30T21:39:43.340396+08:00",
+      "user": "admin",
+      "action": "delete",
+      "resource": "pod",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "356.125µs",
+        "method": "DELETE",
+        "path": "/v1/k8s/pod/delete"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788097308919355000",
+      "timestamp": "2026-08-30T21:41:48.919423+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "26.199583ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788097308930570000",
+      "timestamp": "2026-08-30T21:41:48.930591+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "4.671958ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788097308943978000",
+      "timestamp": "2026-08-30T21:41:48.94398+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "5.45725ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788097308954033000",
+      "timestamp": "2026-08-30T21:41:48.954035+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "5.497334ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788097341237841000",
+      "timestamp": "2026-08-30T21:42:21.237867+08:00",
+      "user": "admin",
+      "action": "delete-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "8.190709ms",
+        "method": "DELETE",
+        "path": "/v1/rbac/bindings/5"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788097343040497000",
+      "timestamp": "2026-08-30T21:42:23.040745+08:00",
+      "user": "admin",
+      "action": "delete-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "1.893916ms",
+        "method": "DELETE",
+        "path": "/v1/rbac/bindings/6"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788097345192187000",
+      "timestamp": "2026-08-30T21:42:25.192194+08:00",
+      "user": "admin",
+      "action": "delete-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "4.250584ms",
+        "method": "DELETE",
+        "path": "/v1/rbac/bindings/7"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788097901044461000",
+      "timestamp": "2026-08-30T21:51:41.044493+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "40.242583ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "failure"
+    },
+    {
+      "id": "audit-1788097901057651000",
+      "timestamp": "2026-08-30T21:51:41.057668+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "6.245666ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788097901068964000",
+      "timestamp": "2026-08-30T21:51:41.068966+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "5.091375ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788097901078733000",
+      "timestamp": "2026-08-30T21:51:41.078747+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "5.68225ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788100262630504000",
+      "timestamp": "2026-08-30T22:31:02.630508+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "6.826834ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788100262647543000",
+      "timestamp": "2026-08-30T22:31:02.647546+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "5.722333ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788100262657603000",
+      "timestamp": "2026-08-30T22:31:02.657887+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "4.5105ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788100262667342000",
+      "timestamp": "2026-08-30T22:31:02.667398+08:00",
+      "user": "admin",
+      "action": "create-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "4.628125ms",
+        "method": "POST",
+        "path": "/v1/rbac/bindings"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788100267775139000",
+      "timestamp": "2026-08-30T22:31:07.775152+08:00",
+      "user": "admin",
+      "action": "delete-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "10.07475ms",
+        "method": "DELETE",
+        "path": "/v1/rbac/bindings/4"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788100269677123000",
+      "timestamp": "2026-08-30T22:31:09.677132+08:00",
+      "user": "admin",
+      "action": "delete-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "2.398666ms",
+        "method": "DELETE",
+        "path": "/v1/rbac/bindings/3"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788100271743229000",
+      "timestamp": "2026-08-30T22:31:11.743231+08:00",
+      "user": "admin",
+      "action": "delete-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "2.313417ms",
+        "method": "DELETE",
+        "path": "/v1/rbac/bindings/2"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788100275743366000",
+      "timestamp": "2026-08-30T22:31:15.743369+08:00",
+      "user": "admin",
+      "action": "delete-binding",
+      "resource": "bindings",
+      "name": "",
+      "namespace": "",
+      "cluster": "",
+      "details": {
+        "duration": "3.543125ms",
+        "method": "DELETE",
+        "path": "/v1/rbac/bindings/1"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
     }
   ]
 }

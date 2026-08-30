@@ -1,4 +1,5 @@
 import axios, { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
+import { ElMessage } from 'element-plus'
 import { getToken, removeToken, getRefreshToken, setToken, setRefreshToken } from '@/utils/auth'
 import { useClusterStore } from '@/stores/cluster'
 
@@ -156,6 +157,11 @@ request.interceptors.response.use(
     }
 
     // 对于非 401 的 HTTP 错误，提取后端返回的错误信息
+    // 403 权限不足：统一提示
+    if (error.response?.status === 403) {
+      ElMessage.error(error.response?.data?.msg || '权限不足')
+      return Promise.reject(new Error('权限不足'))
+    }
     if (error.response?.data?.msg) {
       return Promise.reject(new Error(error.response.data.msg))
     }

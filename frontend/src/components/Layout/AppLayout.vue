@@ -18,13 +18,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useClusterStore } from '@/stores/cluster'
+import { useUIStore } from '@/stores/ui'
 import Sidebar from './Sidebar.vue'
 import Header from './Header.vue'
 
 const clusterStore = useClusterStore()
-const isCollapse = ref(false)
+const uiStore = useUIStore()
+const isCollapse = computed({
+  get: () => uiStore.sidebarCollapsed,
+  set: () => uiStore.toggleSidebar(),
+})
 
 // 使用稳定的集群标识作为 router-view key,仅在不同集群间切换时强制重挂。
 // 同集群属性更新(如健康检查状态)不会触发页面重挂。

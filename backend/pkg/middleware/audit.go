@@ -1,10 +1,12 @@
 package middleware
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"gkube/pkg/audit"
 )
 
@@ -43,6 +45,24 @@ func AuditLog() gin.HandlerFunc {
 		resource := segments[0]
 		action := segments[1]
 
+		// RBAC bindings 路由: /v1/rbac/bindings 或 /v1/rbac/bindings/:id
+		if resource == "bindings" {
+			if action == "" {
+				// POST /v1/rbac/bindings → create-binding
+				if method == "POST" {
+					action = "create-binding"
+				}
+			} else if _, err := strconv.Atoi(action); err == nil {
+				// PUT/DELETE /v1/rbac/bindings/:id → semantic action
+				switch method {
+				case "PUT":
+					action = "update-binding"
+				case "DELETE":
+					action = "delete-binding"
+				}
+			}
+		}
+
 		// 跳过终端/日志等有独立记录的路径
 		if auditSkipResources[resource] || auditSkipPaths[resource+"/"+action] {
 			return
@@ -60,9 +80,19 @@ func AuditLog() gin.HandlerFunc {
 		if namespace == "" {
 			namespace = c.Query("ns")
 		}
-		cluster := c.Query("cluster")
+		cluster := c.Query("clusterName")
+		if cluster == "" {
+			cluster = c.Query("cluster")
+		}
 		if cluster == "" {
 			cluster = c.Query("clusterId")
+		}
+		// RBAC 路由的 clusterName 在 body（POST/PUT）中
+		if cluster == "" && (method == "POST" || method == "PUT") {
+			var body struct{ ClusterName string }
+			if err := c.ShouldBindBodyWith(&body, binding.JSON); err == nil {
+				cluster = body.ClusterName
+			}
 		}
 
 		log := audit.AuditLog{
@@ -88,16 +118,19 @@ func AuditLog() gin.HandlerFunc {
 
 // parseK8sPath 从 URL 路径中提取 resource 和 action。
 // 输入: /v1/k8s/deployment/create  输出: ["deployment", "create"]
+// 输入: /v1/rbac/bindings          输出: ["bindings", ""]
 // 不匹配则返回 nil。
 func parseK8sPath(path string) []string {
-	const prefix = "/v1/k8s/"
-	if !strings.HasPrefix(path, prefix) {
-		return nil
+	prefixes := []string{"/v1/k8s/", "/v1/rbac/"}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(path, prefix) {
+			rest := strings.TrimPrefix(path, prefix)
+			parts := strings.SplitN(rest, "/", 2)
+			if len(parts) == 1 {
+				parts = append(parts, "")
+			}
+			return parts
+		}
 	}
-	rest := strings.TrimPrefix(path, prefix)
-	parts := strings.SplitN(rest, "/", 2)
-	if len(parts) < 2 {
-		return nil
-	}
-	return parts
+	return nil
 }

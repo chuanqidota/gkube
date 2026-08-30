@@ -59,6 +59,7 @@ func (h *authHandler) Login(c *gin.Context) {
 		"accessToken":  tokenPair.AccessToken,
 		"refreshToken": tokenPair.RefreshToken,
 		"isAdmin":      auth.IsAdmin(user.Username),
+		"isSuperAdmin": user.IsSuperAdmin || auth.IsAdmin(user.Username),
 		"user": gin.H{
 			"id":           user.ID,
 			"username":     user.Username,
