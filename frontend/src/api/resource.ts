@@ -485,7 +485,7 @@ export function createIngress(data: { namespace: string; yaml: string }) {
 
 // ConfigMap create
 export function createConfigMap(data: { namespace: string; yaml: string }) {
-  return request.post('/k8s/configmap/create', data)
+  return request.post('/k8s/configmap/create', data, { timeout: 30000 })
 }
 
 // ConfigMap update
@@ -495,7 +495,7 @@ export function updateConfigMap(data: { namespace: string; name: string; yaml: s
 
 // Secret create
 export function createSecret(data: { namespace: string; yaml: string }) {
-  return request.post('/k8s/secret/create', data)
+  return request.post('/k8s/secret/create', data, { timeout: 30000 })
 }
 
 // Secret update

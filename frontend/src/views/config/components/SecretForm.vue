@@ -6,6 +6,8 @@ import { Delete, Plus, Upload } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
 import { createSecret, updateSecret, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import FileImportDialog from '@/components/FileImportDialog.vue'
+import type { FileImportEntry } from '@/components/FileImportDialog.vue'
 
 const props = defineProps<{
   isEdit?: boolean
@@ -28,6 +30,7 @@ const namespaces = ref<string[]>([])
 interface DataEntry {
   key: string
   value: string
+  preEncoded?: boolean  // true if value is already base64 (binary file import)
 }
 
 interface FormData {
@@ -251,6 +254,23 @@ function removeEntry(index: number) {
   form.data.splice(index, 1)
 }
 
+// ---- File Import ----
+
+const showImportDialog = ref(false)
+
+function handleFileImport(entries: FileImportEntry[]) {
+  // Remove trailing empty rows
+  while (form.data.length > 0 && !form.data[form.data.length - 1].key.trim() && !form.data[form.data.length - 1].value) {
+    form.data.pop()
+  }
+  // Append imported entries
+  for (const entry of entries) {
+    form.data.push({ key: entry.key, value: entry.value, preEncoded: entry.preEncoded })
+  }
+  // Ensure at least one row
+  if (form.data.length === 0) form.data.push({ key: '', value: '' })
+}
+
 // ---- Build & Submit ----
 
 function buildYamlStr(): string {
@@ -278,7 +298,7 @@ function buildYamlStr(): string {
   } else {
     // Opaque: use generic data entries
     form.data.forEach((entry) => {
-      if (entry.key.trim()) data[entry.key.trim()] = base64Encode(entry.value)
+      if (entry.key.trim()) data[entry.key.trim()] = entry.preEncoded ? entry.value : base64Encode(entry.value)
     })
   }
 
@@ -507,9 +527,14 @@ function handleCancel() {
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
-                <el-button text type="primary" @click="addEntry" size="small">
-                  <el-icon><Plus /></el-icon> 添加数据项
-                </el-button>
+                <div class="data-actions">
+                  <el-button text type="primary" @click="addEntry" size="small">
+                    <el-icon><Plus /></el-icon> 添加数据项
+                  </el-button>
+                  <el-button text type="primary" @click="showImportDialog = true" size="small">
+                    <el-icon><Upload /></el-icon> 导入文件
+                  </el-button>
+                </div>
               </div>
             </el-form-item>
           </template>
@@ -527,6 +552,7 @@ function handleCancel() {
         </div>
       </div>
     </el-form>
+    <FileImportDialog v-model="showImportDialog" @confirm="handleFileImport" />
   </div>
 </template>
 
@@ -611,6 +637,12 @@ function handleCancel() {
   gap: 8px;
   align-items: flex-start;
   margin-bottom: 8px;
+}
+
+/* Data action buttons row */
+.data-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .file-upload-btn {
