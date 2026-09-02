@@ -280,8 +280,8 @@ onUnmounted(() => clearTimeout(searchDebounce))
             <el-button size="small" type="primary" plain @click="handleMembers(row)">
               <el-icon><User /></el-icon> {{ t('rbac.members') }}
             </el-button>
-            <el-button size="small" @click="handleCheck(row)">{{ t('cluster.checkConnection') }}</el-button>
-            <el-button size="small" @click="handleEdit(row)">{{ t('common.edit') }}</el-button>
+            <el-button size="small" type="success" plain @click="handleCheck(row)">{{ t('cluster.checkConnection') }}</el-button>
+            <el-button size="small" type="warning" plain @click="handleEdit(row)">{{ t('common.edit') }}</el-button>
             <el-button size="small" type="danger" plain @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
           </div>
         </template>
@@ -319,8 +319,8 @@ onUnmounted(() => clearTimeout(searchDebounce))
           </div>
           <div class="cluster-footer">
             <el-button size="small" type="primary" plain @click="handleMembers(cluster)"><el-icon><User /></el-icon> {{ t('rbac.members') }}</el-button>
-            <el-button size="small" @click="handleCheck(cluster)">{{ t('cluster.checkConnection') }}</el-button>
-            <el-button size="small" @click="handleEdit(cluster)">{{ t('common.edit') }}</el-button>
+            <el-button size="small" type="success" plain @click="handleCheck(cluster)">{{ t('cluster.checkConnection') }}</el-button>
+            <el-button size="small" type="warning" plain @click="handleEdit(cluster)">{{ t('common.edit') }}</el-button>
             <el-button size="small" type="danger" plain @click="handleDelete(cluster)">{{ t('common.delete') }}</el-button>
           </div>
         </el-card>

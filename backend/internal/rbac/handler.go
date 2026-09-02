@@ -544,8 +544,10 @@ func (h *rbacHandler) DeleteBindingBatch(c *gin.Context) {
 // RemoveClusterMember 移出集群：删除该用户在该集群下的所有绑定（不限角色）。
 // 路由为 DELETE /rbac/bindings/user/:userId，clusterId 走 query。
 func (h *rbacHandler) RemoveClusterMember(c *gin.Context) {
-	userID, ok := parseID(c)
-	if !ok {
+	userIDStr := c.Param("userId")
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil || userID == 0 {
+		response.Fail(c, "无效的用户ID")
 		return
 	}
 	clusterIDStr := c.Query("clusterId")
