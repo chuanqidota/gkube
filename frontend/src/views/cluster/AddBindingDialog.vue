@@ -3,15 +3,15 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { createBinding, updateBinding, getNamespaceList, searchUsers } from '@/api/rbac'
+import { createBinding, getNamespaceList, searchUsers } from '@/api/rbac'
 
 const { t } = useI18n()
 
 const props = defineProps<{
   visible: boolean
   clusterId: number
-  clusterName: string  // 用于加载命名空间列表
-  binding?: any | null
+  clusterName: string
+  binding?: any | null   // 兼容旧调用（不再使用编辑模式，编辑走 MemberEditDialog）
   roles: any[]
 }>()
 
@@ -22,29 +22,22 @@ const emit = defineEmits<{
 
 const dialogVisible = computed({
   get: () => props.visible,
-  set: (val) => emit('update:visible', val),
+  set: (val: boolean) => emit('update:visible', val),
 })
 
-const isEditMode = computed(() => !!props.binding)
 const formRef = ref<FormInstance>()
 const saving = ref(false)
 
+// scope: 'cluster' | 'namespace'
 const form = ref({
   userId: '' as string | number,
+  scope: 'namespace' as 'cluster' | 'namespace',
   roleId: '' as string | number,
   namespaces: [] as string[],
 })
 
 const userOptions = ref<any[]>([])
 const userLoading = ref(false)
-
-// 默认角色：空间观察者
-function setDefaultRole() {
-  if (!props.roles || props.roles.length === 0) return
-  const viewerRole = props.roles.find((r: any) => r.name === 'ns-viewer')
-    || props.roles.find((r: any) => r.name?.includes('viewer'))
-  if (viewerRole) form.value.roleId = viewerRole.id
-}
 
 const nsList = ref<string[]>([])
 const nsLoading = ref(false)
@@ -53,23 +46,32 @@ const nsLoadError = ref(false)
 const rules = computed<FormRules>(() => ({
   userId: [{ required: true, message: t('rbac.selectUser'), trigger: 'change' }],
   roleId: [{ required: true, message: t('rbac.selectRole'), trigger: 'change' }],
-  namespaces: [{ required: true, type: 'array', min: 1, message: t('rbac.selectNamespace'), trigger: 'change' }],
+  namespaces: [{
+    validator: (_rule: any, _value: any, callback: (err?: Error) => void) => {
+      if (form.value.scope === 'namespace' && form.value.namespaces.length === 0) {
+        callback(new Error(t('rbac.selectNamespace')))
+      } else {
+        callback()
+      }
+    },
+    trigger: 'change',
+  }],
 }))
 
-// 只显示命名空间级角色
+// 角色按作用域过滤：集群级 -> scopeType=cluster；空间级 -> scopeType=namespace
 const filteredRoles = computed(() => {
-  return props.roles.filter(r => r.scopeType === 'namespace')
+  return props.roles.filter(r => r.scopeType === form.value.scope)
 })
 
 const selectedRole = computed(() => {
-  return props.roles.find(r => r.id === form.value.roleId)
+  return filteredRoles.value.find(r => r.id === form.value.roleId)
 })
 
-const roleDescriptionMap: Record<string, string> = {
-  'ns-admin':  t('rbac.roleDesc.nsAdmin'),
-  'ns-editor': t('rbac.roleDesc.nsEditor'),
-  'ns-viewer': t('rbac.roleDesc.nsViewer'),
-}
+// 作用域切换时重置角色选择
+watch(() => form.value.scope, () => {
+  form.value.roleId = ''
+  nextTick(() => formRef.value?.clearValidate('roleId'))
+})
 
 async function loadAllUsers() {
   if (userOptions.value.length > 0) return
@@ -84,31 +86,19 @@ async function loadAllUsers() {
   }
 }
 
-// 新增模式重置
 watch(() => props.visible, (val) => {
-  if (val && !isEditMode.value) {
+  if (val) {
     form.value.userId = ''
+    form.value.scope = 'namespace'
     form.value.roleId = ''
     form.value.namespaces = []
     nextTick(() => formRef.value?.clearValidate())
     loadAllUsers()
-    setDefaultRole()
   }
 })
 
-// 编辑模式
-watch(() => props.binding, (b) => {
-  if (b) {
-    form.value.userId = b.userId
-    form.value.roleId = b.roleId
-    form.value.namespaces = b.namespace ? [b.namespace] : []
-    userOptions.value = [{ id: b.userId, username: b.username, display_name: b.displayName }]
-  }
-}, { immediate: true })
-
-// 加载命名空间列表
 watch(() => props.visible, async (val) => {
-  if (!val || isEditMode.value || !props.clusterName) return
+  if (!val || !props.clusterName) return
   nsLoading.value = true
   nsLoadError.value = false
   try {
@@ -123,45 +113,20 @@ watch(() => props.visible, async (val) => {
   }
 })
 
-// 选择"全部"时自动选中所有命名空间
-function handleSelectAllNs() {
-  form.value.namespaces = [...nsList.value]
-}
-
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 
   saving.value = true
   try {
-    if (isEditMode.value) {
-      await updateBinding(props.binding.id, { roleId: Number(form.value.roleId) })
-      ElMessage.success(t('rbac.updateSuccess'))
-    } else {
-      // 过滤掉 __all__ 标记
-      const namespaces = form.value.namespaces.filter(ns => ns !== '__all__')
-      let succeeded = 0
-      let failed = 0
-      for (const ns of namespaces) {
-        try {
-          await createBinding({
-            userId: Number(form.value.userId),
-            roleId: Number(form.value.roleId),
-            clusterId: props.clusterId,
-            namespace: ns,
-          })
-          succeeded++
-        } catch {
-          failed++
-        }
-      }
-      if (succeeded > 0) {
-        ElMessage.success(t('rbac.createSuccess') + (failed > 0 ? ` (${succeeded}/${succeeded + failed})` : ''))
-      }
-      if (failed > 0 && succeeded === 0) {
-        ElMessage.error(t('common.failed'))
-      }
-    }
+    await createBinding({
+      userId: Number(form.value.userId),
+      roleId: Number(form.value.roleId),
+      clusterId: props.clusterId,
+      // 集群级不传 namespaces（后端归一化为 [""]）；空间级传数组走批量插入
+      ...(form.value.scope === 'namespace' ? { namespaces: form.value.namespaces } : {}),
+    })
+    ElMessage.success(t('rbac.createSuccess'))
     emit('success')
     dialogVisible.value = false
   } catch (e: any) {
@@ -173,49 +138,10 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <el-dialog
-    v-model="dialogVisible"
-    :title="isEditMode ? t('rbac.editBinding') : t('rbac.addUser')"
-    :width="isEditMode ? '480px' : '560px'"
-    :close-on-click-modal="false"
-  >
-    <el-form
-      ref="formRef"
-      :model="form"
-      :rules="rules"
-      label-width="80px"
-      label-position="right"
-    >
-      <!-- 命名空间 -->
-      <el-form-item v-if="!isEditMode" :label="t('rbac.namespace')" prop="namespaces">
-        <el-select
-          v-if="!nsLoadError"
-          v-model="form.namespaces"
-          filterable
-          multiple
-          collapse-tags
-          collapse-tags-tooltip
-          :loading="nsLoading"
-          :placeholder="t('rbac.selectNamespace')"
-          style="width: 100%;"
-        >
-          <el-option :label="t('rbac.all')" value="__all__" @click="handleSelectAllNs" />
-          <el-option v-for="ns in nsList" :key="ns" :label="ns" :value="ns" />
-        </el-select>
-        <template v-else>
-          <el-alert type="warning" :closable="false" style="margin-bottom: 8px;">
-            {{ t('rbac.clusterOfflineNsHint') }}
-          </el-alert>
-        </template>
-      </el-form-item>
-      <el-form-item v-if="isEditMode" :label="t('rbac.namespace')">
-        <el-tag type="info" size="small">{{ binding?.namespace || '—' }}</el-tag>
-      </el-form-item>
-
-      <!-- 用户 -->
+  <el-dialog v-model="dialogVisible" :title="t('rbac.addUser')" width="560px" :close-on-click-modal="false">
+    <el-form ref="formRef" :model="form" :rules="rules" label-width="80px" label-position="right">
       <el-form-item :label="t('rbac.username')" prop="userId">
         <el-select
-          v-if="!isEditMode"
           v-model="form.userId"
           filterable
           :loading="userLoading"
@@ -229,10 +155,36 @@ async function handleSubmit() {
             :value="Number(u.id)"
           />
         </el-select>
-        <el-input v-else :model-value="`${binding?.username} (${binding?.displayName || '-'})`" disabled />
       </el-form-item>
 
-      <!-- 角色 -->
+      <el-form-item :label="t('rbac.scope')">
+        <el-radio-group v-model="form.scope">
+          <el-radio value="namespace">{{ t('rbac.namespaceScope') }}</el-radio>
+          <el-radio value="cluster">{{ t('rbac.clusterScope') }}</el-radio>
+        </el-radio-group>
+      </el-form-item>
+
+      <el-form-item v-if="form.scope === 'namespace'" :label="t('rbac.namespace')" prop="namespaces">
+        <el-select
+          v-if="!nsLoadError"
+          v-model="form.namespaces"
+          filterable
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          :loading="nsLoading"
+          :placeholder="t('rbac.selectNamespace')"
+          style="width: 100%;"
+        >
+          <el-option v-for="ns in nsList" :key="ns" :label="ns" :value="ns" />
+        </el-select>
+        <template v-else>
+          <el-alert type="warning" :closable="false">
+            {{ t('rbac.clusterOfflineNsHint') }}
+          </el-alert>
+        </template>
+      </el-form-item>
+
       <el-form-item :label="t('rbac.role')" prop="roleId">
         <el-select v-model="form.roleId" :placeholder="t('rbac.selectRole')" style="width: 100%;">
           <el-option
@@ -244,30 +196,15 @@ async function handleSubmit() {
         </el-select>
       </el-form-item>
 
-      <!-- 角色说明 -->
-      <el-alert
-        v-if="selectedRole"
-        type="info"
-        :closable="false"
-        style="margin-top: 4px;"
-      >
-        {{ selectedRole.displayName }}: {{ roleDescriptionMap[selectedRole.name] || '' }}
-      </el-alert>
-
-      <el-alert
-        v-if="isEditMode"
-        type="warning"
-        :closable="false"
-        style="margin-top: 12px;"
-      >
-        {{ t('rbac.scopeChangeWarning') }}
+      <el-alert v-if="selectedRole" type="info" :closable="false" style="margin-top: 4px;">
+        {{ selectedRole.displayName }}
       </el-alert>
     </el-form>
 
     <template #footer>
       <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
       <el-button type="primary" :loading="saving" @click="handleSubmit">
-        {{ isEditMode ? t('common.save') : t('common.confirm') }}
+        {{ t('common.confirm') }}
       </el-button>
     </template>
   </el-dialog>

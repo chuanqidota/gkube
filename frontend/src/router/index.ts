@@ -548,6 +548,18 @@ const router = createRouter({
           component: () => import('@/views/system/UserList.vue'),
           meta: { title: '用户管理', icon: 'User', requireAdmin: true },
         },
+        {
+          path: 'roles',
+          name: 'RoleManagement',
+          component: () => import('@/views/rbac/RoleManagement.vue'),
+          meta: { title: '角色管理', icon: 'Avatar', requireAdmin: true },
+        },
+        {
+          path: 'my-permissions',
+          name: 'MyPermissions',
+          component: () => import('@/views/rbac/MyPermissions.vue'),
+          meta: { title: '我的权限', icon: 'Avatar' },
+        },
         // System - Audit
         {
           path: 'audit',

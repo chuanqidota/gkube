@@ -3,12 +3,14 @@ package cluster
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"gkube/internal/cluster/model"
+	rbacmodel "gkube/internal/rbac/model"
 	"gkube/pkg/auth"
 	"gkube/pkg/database"
 	"gkube/pkg/k8s"
@@ -102,8 +104,36 @@ func (cl *clusterHandler) List(c *gin.Context) {
 		return
 	}
 
+	// 统计每个集群的成员数（绑定表按 user 去重）
+	type memberRow struct {
+		ClusterID uint
+		Cnt       int64
+	}
+	var memberRows []memberRow
+	if err := database.DB.Model(&rbacmodel.PermissionBinding{}).
+		Select("cluster_id, COUNT(DISTINCT user_id) AS cnt").
+		Group("cluster_id").Scan(&memberRows).Error; err != nil {
+		logger.Error(fmt.Sprintf("统计集群成员数失败: %v", err))
+		// 统计失败不阻塞列表返回，成员数显示为 0
+		memberRows = nil
+	}
+	memberCount := make(map[uint]int64, len(memberRows))
+	for _, r := range memberRows {
+		memberCount[r.ClusterID] = r.Cnt
+	}
+
+	// 构造带成员数的返回项（不直接改 model，避免污染其他调用方）
+	type clusterItem struct {
+		model.K8SCluster
+		MemberCount int64 `json:"memberCount"`
+	}
+	items := make([]clusterItem, 0, len(clusters))
+	for _, cl := range clusters {
+		items = append(items, clusterItem{K8SCluster: cl, MemberCount: memberCount[cl.ID]})
+	}
+
 	response.Success(c, "获取集群列表成功", gin.H{
-		"items": clusters,
+		"items": items,
 		"total": total,
 	})
 }

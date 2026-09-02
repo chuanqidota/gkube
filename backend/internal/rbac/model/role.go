@@ -16,6 +16,7 @@ type Role struct {
 	ScopeType     string            `gorm:"type:varchar(20);not null;comment:cluster|namespace" json:"scopeType"`
 	IsSystem      bool              `gorm:"not null;default:true;comment:系统预置不可删除" json:"isSystem"`
 	Permissions   string            `gorm:"type:text;not null;comment:JSON权限定义" json:"permissions"`
+	Description   string            `gorm:"type:varchar(255);default:'';comment:角色描述" json:"description"`
 	CreatedAt     time.Time         `json:"createdAt"`
 	UpdatedAt     time.Time         `json:"updatedAt"`
 	PermissionsMap map[string][]string `gorm:"-" json:"-"` // 运行时缓存，不入库
@@ -60,4 +61,29 @@ var PresetRoles = []Role{
 	{Name: "ns-admin", DisplayName: "空间管理员", ScopeType: "namespace", IsSystem: true, Permissions: nsAdminPerms},
 	{Name: "ns-editor", DisplayName: "空间编辑者", ScopeType: "namespace", IsSystem: true, Permissions: nsEditorPerms},
 	{Name: "ns-viewer", DisplayName: "空间观察者", ScopeType: "namespace", IsSystem: true, Permissions: nsViewerPerms},
+}
+
+// ResourceVerbDict 资源组与动词字典（角色矩阵编辑器的唯一事实源）。
+// key = resourceGroup（与 RequirePermission 的 resolveResourceGroup 输出一致）；
+// value = 该资源组允许配置的动词列表。
+// clusterOnly = true 的资源组仅集群级角色可配置。
+var ResourceVerbDict = []ResourceGroupDef{
+	{Group: "workload", Verbs: []string{"read", "create", "update", "delete", "terminal"}, ClusterOnly: false},
+	{Group: "network", Verbs: []string{"read", "create", "update", "delete"}, ClusterOnly: false},
+	{Group: "storage", Verbs: []string{"read", "create", "update", "delete"}, ClusterOnly: false},
+	{Group: "config", Verbs: []string{"read", "create", "update", "delete"}, ClusterOnly: false},
+	{Group: "event", Verbs: []string{"read"}, ClusterOnly: false},
+	{Group: "crd", Verbs: []string{"read", "create", "update", "delete"}, ClusterOnly: false},
+	{Group: "terminal", Verbs: []string{"terminal"}, ClusterOnly: false},
+	{Group: "node", Verbs: []string{"read", "cordon", "taint", "drain", "delete"}, ClusterOnly: true},
+	{Group: "namespace", Verbs: []string{"read", "create", "update", "delete"}, ClusterOnly: true},
+	{Group: "audit", Verbs: []string{"read"}, ClusterOnly: true},
+	{Group: "cluster_mgmt", Verbs: []string{"read"}, ClusterOnly: true},
+}
+
+// ResourceGroupDef 资源组定义
+type ResourceGroupDef struct {
+	Group       string   `json:"group"`
+	Verbs       []string `json:"verbs"`
+	ClusterOnly bool     `json:"clusterOnly"`
 }

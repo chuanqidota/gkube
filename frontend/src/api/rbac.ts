@@ -44,3 +44,57 @@ export const getNamespaceList = (clusterName: string) =>
 // 搜索用户（添加绑定时使用）
 export const searchUsers = (params: { keyword?: string; page?: number; size?: number }) =>
   request.get('/users', { params })
+
+// --- P1 集合级操作 ---
+
+// 按组批量换角色：把某用户在某集群下 fromRoleId 的所有绑定换成 toRoleId
+export const updateBindingBatch = (data: {
+  userId: number
+  clusterId: number
+  fromRoleId: number
+  toRoleId: number
+}) => request.put('/rbac/bindings/batch', data)
+
+// 按组批量删除：删除某用户在某集群下指定角色的全部绑定
+export const deleteBindingBatch = (data: {
+  userId: number
+  clusterId: number
+  roleId: number
+}) => request.delete('/rbac/bindings/batch', { data })
+
+// 移出集群：删除该用户在该集群下所有绑定
+export const removeClusterMember = (userId: number, clusterId: number) =>
+  request.delete(`/rbac/bindings/user/${userId}`, { params: { clusterId } })
+
+// --- P2 角色管理 ---
+
+// 获取资源组×动词字典（角色矩阵编辑器数据源）
+export const getResourceDict = () => request.get('/rbac/resources')
+
+// 创建自定义角色
+export const createRole = (data: {
+  name: string
+  displayName: string
+  scopeType: 'cluster' | 'namespace'
+  description?: string
+  permissions: Record<string, string[]>
+}) => request.post('/rbac/roles', data)
+
+// 更新自定义角色（预置角色不可改）
+export const updateRole = (id: number, data: {
+  displayName: string
+  description?: string
+  permissions: Record<string, string[]>
+}) => request.put(`/rbac/roles/${id}`, data)
+
+// 删除自定义角色
+export const deleteRole = (id: number) => request.delete(`/rbac/roles/${id}`)
+
+// 权限诊断
+export const canI = (data: {
+  userId: number
+  clusterId: number
+  namespace?: string
+  resourceGroup: string
+  verb: string
+}) => request.post('/rbac/can-i', data)

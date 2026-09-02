@@ -83,6 +83,10 @@
               <el-icon><User /></el-icon>
               {{ authStore.user?.username }}
             </el-dropdown-item>
+            <el-dropdown-item command="myPermissions">
+              <el-icon><Avatar /></el-icon>
+              {{ t('rbac.myPermissions') }}
+            </el-dropdown-item>
             <el-dropdown-item divided command="logout">
               <el-icon><SwitchButton /></el-icon>
               {{ t('common.logout') }}
@@ -110,6 +114,7 @@ import {
   Connection,
   Sunny,
   Moon,
+  Avatar,
 } from '@element-plus/icons-vue'
 
 defineEmits(['toggleCollapse'])
@@ -164,6 +169,8 @@ async function handleCommand(command: string) {
   if (command === 'logout') {
     await authStore.logout()
     router.push('/login')
+  } else if (command === 'myPermissions') {
+    router.push('/my-permissions')
   }
 }
 </script>

@@ -2,11 +2,28 @@
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, User } from '@element-plus/icons-vue'
-import { getBindings, deleteBinding, getRoles, getClusterMembers } from '@/api/rbac'
+import { Plus, User } from '@element-plus/icons-vue'
+import { getRoles, getClusterMembers, deleteBinding, removeClusterMember } from '@/api/rbac'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
 import AddBindingDialog from './AddBindingDialog.vue'
+import MemberEditDialog from './MemberEditDialog.vue'
+
+interface MemberBinding {
+  bindingId: number
+  roleId: number
+  roleName: string
+  roleDisplayName: string
+  scopeType: 'cluster' | 'namespace'
+  namespace: string
+}
+interface Member {
+  userId: number
+  username: string
+  displayName: string
+  isSuperAdmin: boolean
+  bindings: MemberBinding[]
+}
 
 const props = defineProps<{
   visible: boolean
@@ -22,18 +39,16 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const uiStore = useUIStore()
 const loading = ref(false)
-const bindings = ref<any[]>([])
+const members = ref<Member[]>([])
 const roles = ref<any[]>([])
-const selectedRows = ref<any[]>([])
 const searchQuery = ref('')
 const addDialogVisible = ref(false)
 const editDialogVisible = ref(false)
-const editingBinding = ref<any>(null)
+const editingMember = ref<Member | null>(null)
 
-// 响应式抽屉宽度：移动端全屏，桌面端 720px
+// 响应式抽屉宽度：移动端全屏，桌面端撑到左侧菜单栏
 const isMobile = ref(window.matchMedia('(max-width: 768px)').matches)
 let mobileHandler: ((e: MediaQueryListEvent) => void) | undefined
-// 抽屉宽度：撑到左侧菜单栏
 const drawerSize = computed(() => {
   if (isMobile.value) return '100%'
   return uiStore.sidebarCollapsed
@@ -53,156 +68,39 @@ onUnmounted(() => {
 
 const isAdmin = computed(() => authStore.user?.isAdmin || authStore.user?.isSuperAdmin || false)
 
-watch(() => props.visible, (val) => {
-  if (val && props.clusterId) {
-    fetchData()
-  }
-})
-
-// 过滤后的数据（仅搜索）
-const filteredData = computed(() => {
-  let data = bindings.value
-
-  if (searchQuery.value.trim()) {
-    const query = searchQuery.value.trim().toLowerCase()
-    data = data.filter(b =>
-      (b.username || '').toLowerCase().includes(query) ||
-      (b.displayName || '').toLowerCase().includes(query)
+const filteredMembers = computed(() => {
+  if (!searchQuery.value.trim()) return members.value
+  const query = searchQuery.value.trim().toLowerCase()
+  return members.value.filter(m =>
+    (m.username || '').toLowerCase().includes(query) ||
+    (m.displayName || '').toLowerCase().includes(query) ||
+    m.bindings.some(b =>
+      (b.roleDisplayName || '').toLowerCase().includes(query) ||
+      (b.namespace || '').toLowerCase().includes(query)
     )
-  }
-
-  return data
+  )
 })
 
-// 统计数据
-const stats = computed(() => ({
-  total: bindings.value.length,
-}))
+watch(() => props.visible, (val) => {
+  if (val && props.clusterId) fetchData()
+})
 
 async function fetchData() {
   loading.value = true
   try {
-    const [bindingsRes, rolesRes, membersRes] = await Promise.allSettled([
-      getBindings({ clusterId: props.clusterId }),
-      getRoles(),
+    const [membersRes, rolesRes] = await Promise.all([
       getClusterMembers(props.clusterId),
+      getRoles(),
     ])
-
-    if (bindingsRes.status === 'fulfilled') {
-      const bRes: any = bindingsRes.value
-      const bData = bRes?.data ?? bRes
-      // getBindings 返回 { items: [...], total }，每项含嵌套 user/role 对象
-      const rawItems: any[] = bData.items || bData || []
-      // 扁平化：把嵌套的 user/role 提取到顶层，保留原始对象用于编辑
-      bindings.value = rawItems.map((b: any) => ({
-        ...b,
-        _raw: b,
-        username: b.user?.username || b.username || '',
-        displayName: b.user?.display_name || b.displayName || '',
-        roleName: b.role?.name || b.roleName || '',
-        roleDisplayName: b.role?.displayName || b.roleDisplayName || '',
-        isSuperAdmin: b.user?.isSuperAdmin || false,
-        userID: b.userId,
-      }))
-    }
-
-    if (rolesRes.status === 'fulfilled') {
-      const rRes: any = rolesRes.value
-      const rData = rRes?.data ?? rRes
-      // getRoles 返回数组
-      roles.value = Array.isArray(rData) ? rData : (rData?.items || [])
-    }
-
-    // 用 members 数据补全未绑定的成员
-    if (membersRes.status === 'fulfilled') {
-      const mRes: any = membersRes.value
-      const mData = mRes?.data ?? mRes
-      // getClusterMembers 返回 { items: [...], total }，拦截器已解包一层到 response.data
-      const members: any[] = mData.items || []
-      const existingIds = new Set(bindings.value.map((b: any) => b.userID || b.userId))
-      const unboundMembers = members
-        .filter((m: any) => !existingIds.has(m.userID || m.userId))
-        .map((m: any) => ({
-          id: `member-${m.userID || m.userId}`,
-          userID: m.userID || m.userId,
-          userId: m.userID || m.userId,
-          username: m.username,
-          displayName: m.displayName,
-          roleName: m.roleName,
-          roleDisplayName: m.roleDisplayName || m.roleName,
-          namespace: m.namespace || '',
-          isSuperAdmin: m.isSuperAdmin,
-          unbound: true,
-        }))
-      if (unboundMembers.length > 0) {
-        bindings.value = [...bindings.value, ...unboundMembers]
-      }
-    }
+    const mData: any = membersRes?.data ?? membersRes
+    members.value = (mData?.items || []) as Member[]
+    const rData: any = rolesRes?.data ?? rolesRes
+    roles.value = Array.isArray(rData) ? rData : (rData?.items || [])
   } catch (e: any) {
     ElMessage.error(e?.message || t('rbac.loadFailed'))
   } finally {
     loading.value = false
   }
-}
-
-async function handleDelete(row: any) {
-  const name = row.displayName || row.username
-  try {
-    await ElMessageBox.confirm(
-      t('rbac.deleteConfirm', { name: escapeHtml(name) }),
-      t('common.confirm'),
-      { type: 'warning', dangerouslyUseHTMLString: true }
-    )
-  } catch {
-    return
-  }
-
-  try {
-    await deleteBinding(row.id)
-    ElMessage.success(t('rbac.bindingDeleted'))
-    fetchData()
-    authStore.fetchPermissions()
-  } catch (e: any) {
-    ElMessage.error(e?.message || t('common.deleteFailed'))
-  }
-}
-
-async function handleBatchDelete() {
-  if (selectedRows.value.length === 0) return
-
-  const names = selectedRows.value.map(r => escapeHtml(r.displayName || r.username))
-  const nameList = names.map(n => `<li>${n}</li>`).join('')
-  try {
-    await ElMessageBox.confirm(
-      `<p>${t('rbac.batchDeleteConfirm', { count: selectedRows.value.length })}</p><ul>${nameList}</ul>`,
-      t('common.confirm'),
-      { type: 'warning', dangerouslyUseHTMLString: true }
-    )
-  } catch {
-    return
-  }
-
-  const deleteResults = await Promise.allSettled(
-    selectedRows.value.map(row => deleteBinding(row.id))
-  )
-
-  const succeeded = deleteResults.filter(r => r.status === 'fulfilled').length
-  const failed = deleteResults.filter(r => r.status === 'rejected').length
-
-  if (succeeded > 0) {
-    ElMessage.success(t('rbac.batchDeleteSuccess', { count: succeeded }))
-    authStore.fetchPermissions()
-  }
-  if (failed > 0) {
-    ElMessage.error(t('rbac.batchDeleteFailed', { count: failed }))
-  }
-
-  selectedRows.value = []
-  fetchData()
-}
-
-function handleSelectionChange(rows: any[]) {
-  selectedRows.value = rows
 }
 
 function handleAdd() {
@@ -214,27 +112,55 @@ function handleAddSuccess() {
   authStore.fetchPermissions()
 }
 
-function handleEdit(row: any) {
-  // 从原始绑定对象中提取编辑所需数据
-  const raw = row._raw || row
-  editingBinding.value = {
-    id: raw.id,
-    userId: raw.userId || raw.user?.id,
-    username: raw.user?.username || row.username,
-    displayName: raw.user?.display_name || row.displayName,
-    roleId: raw.roleId || raw.role?.id,
-    roleName: raw.role?.name || row.roleName,
-    roleDisplayName: raw.role?.displayName || row.roleDisplayName,
-    clusterName: raw.clusterName,
-    scopeType: raw.scopeType || (raw.namespace ? 'namespace' : 'cluster'),
-    namespace: raw.namespace || '',
-  }
+function handleEditMember(m: Member) {
+  editingMember.value = m
   editDialogVisible.value = true
 }
 
 function handleEditSuccess() {
   fetchData()
   authStore.fetchPermissions()
+}
+
+// 按组删除：删除该成员在指定角色下的全部绑定
+async function handleRemoveRole(m: Member, b: MemberBinding) {
+  const label = b.scopeType === 'cluster'
+    ? b.roleDisplayName
+    : `${b.roleDisplayName} (${b.namespace})`
+  try {
+    await ElMessageBox.confirm(
+      t('rbac.removeRoleConfirm', { name: escapeHtml(m.username), role: escapeHtml(label) }),
+      t('common.confirm'),
+      { type: 'warning', dangerouslyUseHTMLString: true }
+    )
+  } catch { return }
+  try {
+    await deleteBinding(b.bindingId)
+    ElMessage.success(t('rbac.removeRoleSuccess'))
+    fetchData()
+    authStore.fetchPermissions()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.deleteFailed'))
+  }
+}
+
+// 移出集群：删除该成员全部绑定
+async function handleRemoveMember(m: Member) {
+  try {
+    await ElMessageBox.confirm(
+      t('rbac.removeMemberConfirm', { name: escapeHtml(m.username) }),
+      t('common.confirm'),
+      { type: 'warning', dangerouslyUseHTMLString: true }
+    )
+  } catch { return }
+  try {
+    await removeClusterMember(m.userId, props.clusterId)
+    ElMessage.success(t('rbac.removeMemberSuccess'))
+    fetchData()
+    authStore.fetchPermissions()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.deleteFailed'))
+  }
 }
 
 function roleTagType(roleName: string): string {
@@ -247,11 +173,7 @@ function roleTagType(roleName: string): string {
 
 function escapeHtml(str: string): string {
   const map: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }
   return str.replace(/[&<>"']/g, c => map[c])
 }
@@ -263,7 +185,6 @@ function escapeHtml(str: string): string {
     @update:model-value="emit('update:visible', $event)"
     :title="t('rbac.clusterMembers', { cluster: clusterName })"
     :size="drawerSize"
-    :close-on-click-modal="!addDialogVisible"
     destroy-on-close
   >
     <template #header>
@@ -273,121 +194,79 @@ function escapeHtml(str: string): string {
           <span>{{ t('rbac.clusterMembers', { cluster: clusterName }) }}</span>
         </div>
         <div class="header-stats">
-          <el-tag size="small" type="info">{{ t('rbac.totalMembers', { count: stats.total }) }}</el-tag>
+          <el-tag size="small" type="info">{{ t('rbac.totalMembers', { count: members.length }) }}</el-tag>
         </div>
       </div>
     </template>
 
     <div class="drawer-body">
-      <!-- 搜索 + 操作栏 -->
       <div class="toolbar">
-        <div class="toolbar-left">
-          <el-input
-            v-model="searchQuery"
-            :placeholder="t('rbac.searchMembers')"
-            clearable
-            style="width: 220px;"
-            size="default"
-          />
-        </div>
-        <div class="toolbar-right">
-          <el-button
-            v-if="isAdmin"
-            type="danger"
-            plain
-            size="default"
-            :disabled="selectedRows.length === 0"
-            @click="handleBatchDelete"
-          >
-            <el-icon><Delete /></el-icon> {{ t('rbac.batchDelete') }}{{ selectedRows.length > 0 ? ` (${selectedRows.length})` : '' }}
-          </el-button>
-          <el-button
-            v-if="isAdmin"
-            type="primary"
-            size="default"
-            @click="handleAdd"
-          >
-            <el-icon><Plus /></el-icon> {{ t('rbac.addMember') }}
-          </el-button>
-        </div>
+        <el-input
+          v-model="searchQuery"
+          :placeholder="t('rbac.searchMembers')"
+          clearable
+          style="width: 220px;"
+          size="default"
+        />
+        <el-button v-if="isAdmin" type="primary" @click="handleAdd">
+          <el-icon><Plus /></el-icon> {{ t('rbac.addMember') }}
+        </el-button>
       </div>
 
-      <!-- 成员列表 -->
-      <el-table
-        :data="filteredData"
-        v-loading="loading"
-        stripe
-        @selection-change="handleSelectionChange"
-        style="width: 100%;"
-        :empty-text="t('rbac.noMembers')"
-      >
-        <el-table-column
-          v-if="isAdmin"
-          type="selection"
-          width="45"
-        />
-        <el-table-column :label="t('rbac.username')" min-width="120" show-overflow-tooltip>
-          <template #default="{ row }">
-            <div class="user-info">
-              <span class="username">{{ row.username }}</span>
-              <span v-if="row.displayName" class="display-name">{{ row.displayName }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column :label="t('rbac.namespace')" width="140" show-overflow-tooltip>
-          <template #default="{ row }">
-            <el-tag v-if="row.namespace" type="warning" size="small">{{ row.namespace }}</el-tag>
-            <span v-else class="no-role">—</span>
-          </template>
-        </el-table-column>
-        <el-table-column :label="t('rbac.roleName')" min-width="130">
-          <template #default="{ row }">
-            <div class="role-cell">
-              <el-tag
-                v-if="row.roleDisplayName"
-                :type="roleTagType(row.roleName)"
-                size="small"
-              >
-                {{ row.roleDisplayName }}
-              </el-tag>
-              <span v-else-if="row.isSuperAdmin" class="super-admin-badge">Super Admin</span>
-              <span v-else class="no-role">{{ t('rbac.noRole') }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column
-          v-if="isAdmin"
-          :label="t('rbac.actions')"
-          width="160"
-          align="center"
-          fixed="right"
+      <div v-loading="loading" class="member-cards">
+        <el-empty v-if="!loading && filteredMembers.length === 0" :description="t('rbac.noMembers')" />
+
+        <el-card
+          v-for="m in filteredMembers"
+          :key="m.userId"
+          shadow="never"
+          class="member-card"
         >
-          <template #default="{ row }">
-            <el-button
-              v-if="!row.unbound"
-              size="small"
-              type="primary"
-              plain
-              @click="handleEdit(row)"
-            >
-              {{ t('common.edit') }}
-            </el-button>
-            <el-button
-              v-if="!row.unbound"
-              size="small"
-              type="danger"
-              plain
-              @click="handleDelete(row)"
-            >
-              {{ t('common.delete') }}
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          <div class="member-head">
+            <div class="member-info">
+              <el-avatar :size="36" class="member-avatar">
+                {{ (m.username || '?')[0].toUpperCase() }}
+              </el-avatar>
+              <div class="member-names">
+                <span class="username">{{ m.username }}</span>
+                <span v-if="m.displayName" class="display-name">{{ m.displayName }}</span>
+              </div>
+            </div>
+            <div v-if="isAdmin" class="member-actions">
+              <el-button size="small" type="primary" plain @click="handleEditMember(m)">
+                {{ t('common.edit') }}
+              </el-button>
+              <el-button size="small" type="danger" plain @click="handleRemoveMember(m)">
+                {{ t('rbac.removeMember') }}
+              </el-button>
+            </div>
+          </div>
+
+          <div class="member-bindings">
+            <div v-for="b in m.bindings" :key="b.bindingId" class="binding-row">
+              <el-tag :type="roleTagType(b.roleName)" size="small">{{ b.roleDisplayName }}</el-tag>
+              <el-tag v-if="b.scopeType === 'cluster'" size="small" type="info">
+                {{ t('rbac.clusterScope') }}
+              </el-tag>
+              <el-tag v-else type="warning" size="small">{{ b.namespace }}</el-tag>
+              <el-button
+                v-if="isAdmin"
+                size="small"
+                type="danger"
+                text
+                @click="handleRemoveRole(m, b)"
+              >
+                {{ t('rbac.removeBinding') }}
+              </el-button>
+            </div>
+            <span v-if="m.bindings.length === 0" class="no-role">{{ t('rbac.noRole') }}</span>
+            <span v-if="m.isSuperAdmin" class="super-admin-badge">Super Admin</span>
+          </div>
+        </el-card>
+      </div>
     </div>
   </el-drawer>
 
-  <!-- 添加成员对话框 -->
   <AddBindingDialog
     v-model:visible="addDialogVisible"
     :cluster-id="clusterId"
@@ -395,84 +274,37 @@ function escapeHtml(str: string): string {
     :roles="roles"
     @success="handleAddSuccess"
   />
-  <!-- 编辑成员对话框 -->
-  <AddBindingDialog
-    v-if="editingBinding"
+  <MemberEditDialog
+    v-if="editingMember"
     v-model:visible="editDialogVisible"
     :cluster-id="clusterId"
-    :cluster-name="clusterName"
+    :member="editingMember"
     :roles="roles"
-    :binding="editingBinding"
     @success="handleEditSuccess"
   />
 </template>
 
 <style scoped>
-.drawer-header {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.header-title {
-  display: flex;
-  align-items: center;
-  font-size: 16px;
-  font-weight: 600;
-}
-.header-stats {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.drawer-body {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  height: 100%;
-}
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.toolbar-left {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.toolbar-right {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.user-info {
-  display: flex;
-  flex-direction: column;
-}
-.username {
-  font-weight: 500;
-}
-.display-name {
-  font-size: 12px;
-  color: var(--gk-color-text-secondary);
-}
-.role-cell {
-  display: flex;
-  align-items: center;
-}
+.drawer-header { display: flex; flex-direction: column; gap: 8px; }
+.header-title { display: flex; align-items: center; font-size: 16px; font-weight: 600; }
+.header-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.drawer-body { display: flex; flex-direction: column; gap: 16px; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.member-cards { display: flex; flex-direction: column; gap: 12px; min-height: 120px; }
+.member-card { border: 1px solid var(--gk-color-border); }
+.member-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.member-info { display: flex; align-items: center; gap: 12px; }
+.member-avatar { background: var(--gk-color-primary); color: #fff; flex-shrink: 0; }
+.member-names { display: flex; flex-direction: column; }
+.username { font-weight: 600; }
+.display-name { font-size: 12px; color: var(--gk-color-text-secondary); }
+.member-actions { display: flex; gap: 8px; }
+.member-bindings { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.binding-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.no-role { color: var(--gk-color-text-disabled); font-size: 12px; }
 .super-admin-badge {
   background: linear-gradient(135deg, #f56c6c 0%, #e6a23c 100%);
-  color: white;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.no-role {
-  color: var(--gk-color-text-disabled);
-  font-size: 12px;
+  color: white; padding: 2px 8px; border-radius: 4px;
+  font-size: 12px; font-weight: 600; align-self: flex-start;
 }
 </style>
