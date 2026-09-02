@@ -777,6 +777,8 @@ export default {
     removeBinding: 'Remove',
     removeRoleConfirm: 'Remove the "{role}" permission of {name}?',
     removeRoleSuccess: 'Permission removed',
+    bindingCount: '{count} binding(s)',
+    collapseBindings: 'Collapse',
     searchRoles: 'Search roles',
     createRole: 'Create Role',
     editRole: 'Edit Role',

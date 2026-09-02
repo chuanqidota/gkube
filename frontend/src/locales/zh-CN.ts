@@ -802,6 +802,8 @@ export default {
     removeBinding: '移除',
     removeRoleConfirm: '确定移除 {name} 的「{role}」授权？',
     removeRoleSuccess: '已移除授权',
+    bindingCount: '共 {count} 个绑定',
+    collapseBindings: '收起',
     searchRoles: '搜索角色',
     createRole: '创建角色',
     editRole: '编辑角色',

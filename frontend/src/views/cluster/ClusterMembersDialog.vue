@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, User } from '@element-plus/icons-vue'
+import { Plus, User, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
 import { getRoles, getClusterMembers, deleteBinding, removeClusterMember } from '@/api/rbac'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
@@ -45,6 +45,7 @@ const searchQuery = ref('')
 const addDialogVisible = ref(false)
 const editDialogVisible = ref(false)
 const editingMember = ref<Member | null>(null)
+const expandedMembers = ref<Set<number>>(new Set())
 
 // 响应式抽屉宽度：移动端全屏，桌面端撑到左侧菜单栏
 const isMobile = ref(window.matchMedia('(max-width: 768px)').matches)
@@ -86,6 +87,7 @@ watch(() => props.visible, (val) => {
 })
 
 async function fetchData() {
+  expandedMembers.value = new Set()
   loading.value = true
   try {
     const [membersRes, rolesRes] = await Promise.all([
@@ -120,6 +122,20 @@ function handleEditMember(m: Member) {
 function handleEditSuccess() {
   fetchData()
   authStore.fetchPermissions()
+}
+
+function toggleExpand(userId: number) {
+  const s = new Set(expandedMembers.value)
+  if (s.has(userId)) {
+    s.delete(userId)
+  } else {
+    s.add(userId)
+  }
+  expandedMembers.value = s
+}
+
+function isExpanded(userId: number) {
+  return expandedMembers.value.has(userId)
 }
 
 // 按组删除：删除该成员在指定角色下的全部绑定
@@ -243,24 +259,43 @@ function escapeHtml(str: string): string {
           </div>
 
           <div class="member-bindings">
-            <div v-for="b in m.bindings" :key="b.bindingId" class="binding-row">
-              <el-tag :type="roleTagType(b.roleName)" size="small">{{ b.roleDisplayName }}</el-tag>
-              <el-tag v-if="b.scopeType === 'cluster'" size="small" type="info">
-                {{ t('rbac.clusterScope') }}
-              </el-tag>
-              <el-tag v-else type="warning" size="small">{{ b.namespace }}</el-tag>
-              <el-button
-                v-if="isAdmin"
-                size="small"
-                type="danger"
-                text
-                @click="handleRemoveRole(m, b)"
-              >
-                {{ t('rbac.removeBinding') }}
-              </el-button>
-            </div>
-            <span v-if="m.bindings.length === 0" class="no-role">{{ t('rbac.noRole') }}</span>
             <span v-if="m.isSuperAdmin" class="super-admin-badge">Super Admin</span>
+
+            <!-- 收起态 -->
+            <div
+              v-if="!isExpanded(m.userId) && m.bindings.length > 0"
+              class="binding-fold-bar"
+              @click="toggleExpand(m.userId)"
+            >
+              <el-icon><ArrowDown /></el-icon>
+              <span>{{ t('rbac.bindingCount', { count: m.bindings.length }) }}</span>
+            </div>
+
+            <!-- 展开态 -->
+            <template v-if="isExpanded(m.userId)">
+              <div v-for="b in m.bindings" :key="b.bindingId" class="binding-row">
+                <el-tag :type="roleTagType(b.roleName)" size="small">{{ b.roleDisplayName }}</el-tag>
+                <el-tag v-if="b.scopeType === 'cluster'" size="small" type="info">
+                  {{ t('rbac.clusterScope') }}
+                </el-tag>
+                <el-tag v-else type="warning" size="small">{{ b.namespace }}</el-tag>
+                <el-button
+                  v-if="isAdmin"
+                  size="small"
+                  type="danger"
+                  text
+                  @click="handleRemoveRole(m, b)"
+                >
+                  {{ t('rbac.removeBinding') }}
+                </el-button>
+              </div>
+              <div class="binding-fold-bar" @click="toggleExpand(m.userId)">
+                <el-icon><ArrowUp /></el-icon>
+                <span>{{ t('rbac.collapseBindings') }}</span>
+              </div>
+            </template>
+
+            <span v-if="m.bindings.length === 0" class="no-role">{{ t('rbac.noRole') }}</span>
           </div>
         </el-card>
       </div>
@@ -302,6 +337,17 @@ function escapeHtml(str: string): string {
 .member-bindings { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
 .binding-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .no-role { color: var(--gk-color-text-disabled); font-size: 12px; }
+.binding-fold-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: var(--gk-color-primary);
+  font-size: 13px;
+  padding: 2px 0;
+  user-select: none;
+}
+.binding-fold-bar:hover { opacity: 0.8; }
 .super-admin-badge {
   background: linear-gradient(135deg, #f56c6c 0%, #e6a23c 100%);
   color: white; padding: 2px 8px; border-radius: 4px;
