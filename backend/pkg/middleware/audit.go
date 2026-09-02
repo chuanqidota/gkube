@@ -10,11 +10,10 @@ import (
 	"gkube/pkg/audit"
 )
 
-// auditSkipPaths 不需要审计记录的精确路径(终端/日志有独立记录机制,audit/create 会自引用)
+// auditSkipPaths 不需要审计记录的精确路径(终端/日志有独立记录机制)
 var auditSkipPaths = map[string]bool{
 	"container/exec": true,
 	"log/stream":     true,
-	"audit/create":   true, // 避免自引用审计条目
 }
 
 // auditSkipResources 跳过整个子树的资源前缀
@@ -87,12 +86,22 @@ func AuditLog() gin.HandlerFunc {
 		if cluster == "" {
 			cluster = c.Query("clusterId")
 		}
-		// RBAC 路由的 clusterName 在 body（POST/PUT）中
+		// RBAC 路由的集群信息在 body（POST/PUT）中：兼容 clusterName 与 clusterId
+		// ShouldBindBodyWith 消费 body 流后，必须用缓存副本重置，否则下游 handler 读到 EOF。
+		// restoreRequestBody 在 ShouldBindBodyWith 未缓存时为空操作（gin.BodyBytesKey 不存在）。
 		if cluster == "" && (method == "POST" || method == "PUT") {
-			var body struct{ ClusterName string }
-			if err := c.ShouldBindBodyWith(&body, binding.JSON); err == nil {
-				cluster = body.ClusterName
+			var body struct {
+				ClusterName string `json:"clusterName"`
+				ClusterID   uint   `json:"clusterId"`
 			}
+			if err := c.ShouldBindBodyWith(&body, binding.JSON); err == nil {
+				if body.ClusterName != "" {
+					cluster = body.ClusterName
+				} else if body.ClusterID != 0 {
+					cluster = strconv.FormatUint(uint64(body.ClusterID), 10)
+				}
+			}
+			restoreRequestBody(c)
 		}
 
 		log := audit.AuditLog{

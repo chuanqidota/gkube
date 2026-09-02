@@ -68,8 +68,6 @@ func registerCoreRoutes(rg *gin.RouterGroup) {
 	rg.GET("event/watch", middleware.RequirePermission(), k8s.Event.WatchEvents)
 	// Container
 	rg.GET("container/exec", middleware.RequirePermission(), k8s.HandleWebSocket)
-	rg.GET("container/record/list", middleware.RequirePermission(), k8s.RecordList)
-	rg.GET("container/record/url", middleware.RequirePermission(), k8s.RecordUrl)
 	rg.GET("log", middleware.RequirePermission(), k8s.PodContainerLog)
 	rg.GET("log/stream", middleware.RequirePermission(), k8s.StreamPodContainerLogs)
 }
@@ -293,10 +291,10 @@ func registerCrdRoutes(rg *gin.RouterGroup) {
 }
 
 func registerAuditRoutes(rg *gin.RouterGroup) {
-	rg.GET("audit/list", k8s.Audit.ListAuditLogs)
-	rg.GET("audit/detail", k8s.Audit.GetAuditLog)
-	rg.POST("audit/create", k8s.Audit.CreateAuditLog)
-	rg.GET("audit/stats", k8s.Audit.GetAuditStats)
+	// 审计属集群级只读资源：集群级角色有 audit:read 权限，ns 角色无
+	rg.GET("audit/list", middleware.RequirePermission(), k8s.Audit.ListAuditLogs)
+	rg.GET("audit/detail", middleware.RequirePermission(), k8s.Audit.GetAuditLog)
+	rg.GET("audit/stats", middleware.RequirePermission(), k8s.Audit.GetAuditStats)
 	// 审计清除属高危操作,需管理员
 	rg.DELETE("audit/clear", middleware.RequireAdmin(), k8s.Audit.ClearAuditLogs)
 }

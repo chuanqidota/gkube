@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -17,6 +19,13 @@ import (
 
 // 集群名 → ID 缓存（集群很少改名，简单缓存即可）
 var clusterIDCache sync.Map // map[string]uint
+
+// InvalidateClusterIDCache 失效指定集群名的 ID 缓存（集群删除后调用）。
+func InvalidateClusterIDCache(clusterName string) {
+	if clusterName != "" {
+		clusterIDCache.Delete(clusterName)
+	}
+}
 
 // RequirePermission 基于 RBAC 的权限检查中间件。
 // 从请求路径自动推断 resourceGroup 和 verb，检查用户是否有对应权限。
@@ -75,7 +84,7 @@ func RequirePermission() gin.HandlerFunc {
 			response.FailWithStatus(c, http.StatusForbidden, "权限不足")
 			return
 		}
-		verb := resolveVerb(resourceGroup, path, c.Request.Method)
+		verb := resolveVerb(path, c.Request.Method)
 
 		// 5. 检查任一绑定的角色 permissions 是否包含 resourceGroup + verb
 		for _, binding := range cached.Bindings {
@@ -102,12 +111,16 @@ func RequirePermission() gin.HandlerFunc {
 }
 
 // extractNamespace 从请求中提取命名空间。
-// GET 从 query 参数读，POST/PUT/DELETE 从 body 读（ShouldBindBodyWith 不消费 body）。
+// GET 从 query 参数读，POST/PUT/DELETE 从 body 读。
+// ShouldBindBodyWith 会把 body 缓存进 context（BodyBytesKey），但 c.Request.Body
+// 流本身已被消费——必须用缓存副本重置回去，否则下游 handler 的
+// ShouldBindJSON 会读到 EOF（历史上曾因此导致全部 JSON 写接口 400）。
 func extractNamespace(c *gin.Context) string {
 	if ns := c.Query("namespace"); ns != "" {
 		return ns
 	}
 	if c.Request.Method != "GET" {
+		defer restoreRequestBody(c)
 		var body struct {
 			Namespace string `json:"namespace"`
 		}
@@ -116,6 +129,16 @@ func extractNamespace(c *gin.Context) string {
 		}
 	}
 	return ""
+}
+
+// restoreRequestBody 用 gin 缓存的 body 副本重置 c.Request.Body，
+// 保证下游 handler 仍可通过 ShouldBindJSON 读到完整请求体。
+func restoreRequestBody(c *gin.Context) {
+	if raw, ok := c.Get(gin.BodyBytesKey); ok {
+		if bodyBytes, ok := raw.([]byte); ok {
+			c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		}
+	}
 }
 
 // resolveResourceGroup 从 URL 路径推断资源组。长前缀优先匹配。
@@ -169,8 +192,13 @@ func resolveResourceGroup(path string) string {
 		return "storage"
 	case strings.Contains(path, "/hpa/"):
 		return "workload"
+	case strings.Contains(path, "/audit/"):
+		return "audit"
 	case strings.Contains(path, "/crd/"):
 		return "crd"
+	// 注意：/cluster/nodes 必须在 /cluster/ 之前，否则节点路由误归 cluster_mgmt
+	case strings.Contains(path, "/cluster/nodes"):
+		return "node"
 	case strings.Contains(path, "/cluster/"):
 		return "cluster_mgmt"
 	case strings.Contains(path, "/log"):
@@ -193,6 +221,8 @@ var specialVerbOverrides = []specialVerbOverride{
 	{"/node/cordon", "PUT", "cordon"},
 	{"/node/taints", "PUT", "taint"},
 	{"/node/drain", "PUT", "drain"},
+	{"/node/labels", "PUT", "taint"},
+	{"/node/update-yaml", "PUT", "taint"},
 	// 工作负载操作
 	{"/deployment/scale", "PUT", "update"},
 	{"/deployment/restart", "POST", "update"},
@@ -218,7 +248,7 @@ var specialVerbOverrides = []specialVerbOverride{
 }
 
 // resolveVerb 根据特殊路由表和 HTTP Method 确定操作 verb。
-func resolveVerb(resourceGroup, path, method string) string {
+func resolveVerb(path, method string) string {
 	// 检查特殊覆写表
 	for _, ov := range specialVerbOverrides {
 		if strings.HasSuffix(path, ov.Suffix) && method == ov.Method {

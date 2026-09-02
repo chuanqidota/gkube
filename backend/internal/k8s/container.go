@@ -2,17 +2,13 @@ package k8s
 
 import (
 	"bufio"
-	"bytes"
-	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"gorm.io/gorm"
 
 	"encoding/json"
 	"gkube/internal/k8s/model"
@@ -23,9 +19,6 @@ import (
 	"gkube/pkg/logger"
 	"gkube/pkg/middleware"
 	"gkube/pkg/response"
-	"gkube/pkg/s3"
-
-	"gkube/config"
 
 	k8sclient "gkube/pkg/k8s"
 )
@@ -129,68 +122,6 @@ func HandleWebSocket(c *gin.Context) {
 		}
 		_ = conn.WriteMessage(websocket.TextMessage, []byte("终端执行失败"))
 	}
-}
-
-// 所有的操作记录
-func RecordList(c *gin.Context) {
-	limit := c.DefaultQuery("limit", "10")
-	offset := c.DefaultQuery("offset", "0")
-	limitInt, _ := strconv.Atoi(limit)
-	offsetInt, _ := strconv.Atoi(offset)
-	if limitInt <= 0 {
-		limitInt = 10
-	}
-	if limitInt > 500 {
-		limitInt = 500
-	}
-	if offsetInt < 0 {
-		offsetInt = 0
-	}
-
-	db := database.DB.Model(&model.TerminalRecord{})
-	var count int64
-	if err := db.Session(&gorm.Session{}).Count(&count).Error; err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusInternalServerError, "获取记录总数失败")
-		return
-	}
-
-	result := make([]model.TerminalRecord, 0)
-	if err := db.Limit(limitInt).Offset(offsetInt).Find(&result).Error; err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusInternalServerError, "获取失败")
-		return
-	}
-	response.Success(c, "获取成功", map[string]any{"count": count, "result": result})
-}
-
-// 获取记录的url
-func RecordUrl(c *gin.Context) {
-	key := c.Query("key")
-	if key == "" {
-		response.Fail(c, "key参数不能为空")
-		return
-	}
-	endpoint := config.Conf.S3.EndPoint
-	bucket := config.Conf.S3.Bucket
-	// 从es中读取数据
-	record := audit.NewEsRecord()
-	result := record.ReadData(key)
-
-	var buffer bytes.Buffer
-	for _, value := range result {
-		history, _ := value["history"].(string)
-		buffer.Write([]byte(history))
-		buffer.WriteByte('\n')
-	}
-	// 上传到s3中-会覆盖更新
-	if err := s3.UploadFile(key, buffer.Bytes()); err != nil {
-		response.Fail(c, fmt.Sprintf("上传录制文件失败:%s", err.Error()))
-		return
-	}
-
-	url := fmt.Sprintf("http://%s/%s/%s", endpoint, bucket, key)
-	response.Success(c, "执行成功", url)
 }
 
 // 获取日志且包含日志行数

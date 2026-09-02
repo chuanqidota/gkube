@@ -191,6 +191,14 @@ func (h *rbacHandler) CreateBinding(c *gin.Context) {
 		}
 	}
 
+	// 拒绝显式空串：namespaces=[""] 会绕过下方 scope 校验，静默创建集群级绑定
+	for _, ns := range nsList {
+		if ns == "" && role.ScopeType == "namespace" {
+			response.Fail(c, "命名空间角色必须指定非空命名空间")
+			return
+		}
+	}
+
 	// 校验角色与作用域匹配
 	if role.ScopeType == "namespace" && len(nsList) == 0 {
 		response.Fail(c, "命名空间角色必须指定命名空间")

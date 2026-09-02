@@ -24,6 +24,7 @@ type UpdateUserParams struct {
 	Email       *string `json:"email" label:"邮箱"`
 	DisplayName *string `json:"displayName" label:"显示名称"`
 	Status      *int    `json:"status" label:"状态"`
+	IsSuperAdmin *bool  `json:"isSuperAdmin" label:"平台管理员"`
 }
 
 type UserQueryParams struct {
@@ -157,6 +158,14 @@ func (u *userHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// 不允许超管通过此接口降级自己（config 白名单超管不受影响，属可接受边界）
+	if p.IsSuperAdmin != nil && !*p.IsSuperAdmin {
+		if uid, ok := getUserID(c); ok && uid == p.ID && user.IsSuperAdmin {
+			response.Fail(c, "不能降级当前登录的超管账号")
+			return
+		}
+	}
+
 	// 更新字段
 	updates := map[string]interface{}{}
 	if p.Email != nil {
@@ -168,6 +177,9 @@ func (u *userHandler) Update(c *gin.Context) {
 	if p.Status != nil {
 		updates["status"] = *p.Status
 	}
+	if p.IsSuperAdmin != nil {
+		updates["is_super_admin"] = *p.IsSuperAdmin
+	}
 
 	if len(updates) > 0 {
 		if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
@@ -175,6 +187,11 @@ func (u *userHandler) Update(c *gin.Context) {
 			response.FailWithStatus(c, http.StatusInternalServerError, "更新用户失败")
 			return
 		}
+	}
+
+	// 提权/降权或启用/禁用后失效该用户权限缓存，避免 5 分钟内权限不一致
+	if p.IsSuperAdmin != nil || p.Status != nil {
+		auth.InvalidateUserPermissions(p.ID)
 	}
 
 	response.Success(c, "更新用户成功", user)

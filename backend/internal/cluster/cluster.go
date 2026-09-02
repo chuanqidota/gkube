@@ -16,6 +16,7 @@ import (
 	"gkube/pkg/k8s"
 	k8sCluster "gkube/pkg/k8s/cluster"
 	"gkube/pkg/logger"
+	"gkube/pkg/middleware"
 	"gkube/pkg/response"
 	"gorm.io/gorm"
 )
@@ -353,6 +354,13 @@ func (cl *clusterHandler) Delete(c *gin.Context) {
 
 	// 删除后失效客户端缓存,释放连接
 	k8s.InvalidateClient(cluster.ClusterName)
+
+	// 删除集群时清理权限绑定，防止孤儿数据；同名重建集群新 ID 不同，
+	// 旧绑定本不应匹配，但必须同时清 clusterIDCache 防止旧 ID 残留命中
+	if err := database.DB.Where("cluster_id = ?", cluster.ID).Delete(&rbacmodel.PermissionBinding{}).Error; err != nil {
+		logger.Warn(fmt.Sprintf("清理集群 %s 的权限绑定失败: %v", cluster.ClusterName, err))
+	}
+	middleware.InvalidateClusterIDCache(cluster.ClusterName)
 
 	response.Success(c, "删除集群成功", nil)
 }

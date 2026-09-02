@@ -187,12 +187,16 @@ async function handleSubmit() {
 
       <el-form-item :label="t('rbac.role')" prop="roleId">
         <el-select v-model="form.roleId" :placeholder="t('rbac.selectRole')" style="width: 100%;">
-          <el-option
-            v-for="r in filteredRoles"
-            :key="r.id"
-            :label="`${r.displayName} (${r.name})`"
-            :value="r.id"
-          />
+          <el-option-group
+            :label="form.scope === 'cluster' ? t('rbac.clusterScope') : t('rbac.namespaceScope')"
+          >
+            <el-option
+              v-for="r in filteredRoles"
+              :key="r.id"
+              :label="`${r.displayName} (${r.name})`"
+              :value="r.id"
+            />
+          </el-option-group>
         </el-select>
       </el-form-item>
 

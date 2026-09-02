@@ -46,7 +46,10 @@ var clusterEditorPerms = `{"workload":["read","create","update","terminal"],"net
 
 var clusterViewerPerms = `{"workload":["read","terminal"],"network":["read"],"storage":["read"],"config":["read"],"node":["read"],"namespace":["read"],"event":["read"],"audit":["read"],"crd":["read"],"terminal":["terminal"]}`
 
-// nsPerms 命名空间级角色权限 JSON
+// nsPerms 命名空间级角色权限 JSON。
+// 注意：crd 为 cluster-scoped 资源，ns 角色的 crd:read 实际不可达（请求不带
+// namespace，绑定永不匹配）；event:read 仅在 event/list?namespace=X 精确匹配时
+// 生效。此处保留声明与设计矩阵一致，可达性问题待产品决策后另行处理。
 var nsAdminPerms = `{"workload":["read","create","update","delete","terminal"],"network":["read","create","update","delete"],"storage":["read","create","update","delete"],"config":["read","create","update","delete"],"event":["read"],"crd":["read","create","update","delete"],"terminal":["terminal"]}`
 
 var nsEditorPerms = `{"workload":["read","create","update","terminal"],"network":["read","create","update"],"storage":["read","create","update"],"config":["read","create","update"],"event":["read"],"crd":["read","create","update"],"terminal":["terminal"]}`

@@ -26,10 +26,7 @@ const namespace = route.params.namespace as string
 const name = route.params.name as string
 
 // 权限检查：当前用户是否有该作用域的写权限
-const canWrite = computed(() => {
-  const clusterId = Number(clusterStore.clusterId)
-  return authStore.canAccess(clusterId, namespace)
-})
+const canWrite = computed(() => authStore.canWrite(Number(clusterStore.clusterId), namespace))
 
 // Edit dialog
 const editDialogVisible = ref(false)

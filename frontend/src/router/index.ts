@@ -599,16 +599,19 @@ router.beforeEach(async (to, _from, next) => {
       return
     }
   }
-  // 首次进入已认证页面时拉取权限（仅一次）
+  // 首次进入已认证页面时拉取权限；permissions === undefined 表示未拉取过。
+  // 失败置 null（区别于已确认的空权限 []），下次路由切换自动重试。
   if (token) {
     const authStore = useAuthStore()
-    if (authStore.user && !authStore.user.permissions) {
+    if (authStore.user && authStore.user.permissions === undefined) {
       try {
         await authStore.fetchPermissions()
+        // loadRoles 内部自行 try-catch，失败不阻塞页面（canDo 安全降级返回 false）。
+        // 不 await：避免 loadRoles 失败时误触发外层 catch 将 permissions 置 null。
+        authStore.loadRoles()
       } catch {
-        // 失败时设置空权限，页面照常渲染（后端 403 兜底）
         if (authStore.user) {
-          authStore.user.permissions = []
+          authStore.user.permissions = null
         }
       }
     }

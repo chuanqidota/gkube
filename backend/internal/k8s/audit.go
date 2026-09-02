@@ -231,23 +231,6 @@ func (h *auditHandler) GetAuditLog(c *gin.Context) {
 	response.Fail(c, "审计日志不存在")
 }
 
-// CreateAuditLog creates a new audit log entry (manual, via API)
-func (h *auditHandler) CreateAuditLog(c *gin.Context) {
-	var log auditlog.AuditLog
-	if err := c.ShouldBindJSON(&log); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
-		return
-	}
-
-	// 以 JWT 注入的身份为准,防止请求体伪造用户名
-	log.User = c.GetString("username")
-	log.IP = c.ClientIP()
-	log.UserAgent = c.GetHeader("User-Agent")
-
-	auditlog.RecordAuditLog(log)
-	response.Success(c, "审计日志已创建", log)
-}
-
 // GetAuditStats gets audit log statistics
 func (h *auditHandler) GetAuditStats(c *gin.Context) {
 	if isElasticsearchAvailable() {

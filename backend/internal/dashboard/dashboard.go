@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gkube/config"
 	"gkube/internal/cluster/model"
+	"gkube/pkg/auth"
 	"gkube/pkg/database"
 	"gkube/pkg/k8s"
 	"gkube/pkg/logger"
@@ -73,12 +74,48 @@ func forEachCluster(c *gin.Context, clusters []model.K8SCluster, fn func(ctx con
 	wg.Wait()
 }
 
-// getTargetClusters 按 clusterID 选取目标集群:
-//   - clusterID 命中:返回该单个集群(无论状态),与 Events 既有行为一致;
-//   - clusterID 为空:返回所有 online 集群(向后兼容,聚合全部)。
-//
-// 找不到指定集群时返回空切片与 nil error,由调用方自然产出零值结果。
-func getTargetClusters(clusterID *uint) ([]model.K8SCluster, error) {
+// getTargetClusters 按 clusterID 选取目标集群，并按当前用户的 RBAC 绑定过滤：
+//   - 超管（config 白名单或 DB 标记）：不过滤；
+//   - 普通用户：仅返回其存在绑定（cluster_id 命中）的集群；
+//   - clusterID 命中但用户无绑定：返回空切片（零值结果，不报错）；
+//   - clusterID 为空：返回用户可见的 online 集群（无绑定时为空，聚合显示 0）。
+func getTargetClusters(c *gin.Context, clusterID *uint) ([]model.K8SCluster, error) {
+	username, _ := c.Get("username")
+	name, _ := username.(string)
+	userIDVal, _ := c.Get("userID")
+	userID, _ := userIDVal.(uint)
+
+	if auth.IsAdmin(name) {
+		return queryTargetClusters(clusterID)
+	}
+	cached := auth.GetUserPermissions(userID)
+	if cached.IsSuperAdmin {
+		return queryTargetClusters(clusterID)
+	}
+
+	allowed := make(map[uint]bool, len(cached.Bindings))
+	for _, b := range cached.Bindings {
+		allowed[b.ClusterID] = true
+	}
+	if len(allowed) == 0 {
+		return []model.K8SCluster{}, nil
+	}
+
+	clusters, err := queryTargetClusters(clusterID)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]model.K8SCluster, 0, len(clusters))
+	for _, cl := range clusters {
+		if allowed[cl.ID] {
+			filtered = append(filtered, cl)
+		}
+	}
+	return filtered, nil
+}
+
+// queryTargetClusters 原有语义：clusterID 命中返回单个集群，否则返回 online 集群。
+func queryTargetClusters(clusterID *uint) ([]model.K8SCluster, error) {
 	var clusters []model.K8SCluster
 	if clusterID != nil {
 		if err := database.DB.Where("id = ?", *clusterID).Find(&clusters).Error; err != nil {
@@ -126,7 +163,7 @@ func (d *dashboard) Overview(c *gin.Context) {
 		return
 	}
 
-	clusters, err := getTargetClusters(query.ClusterID)
+	clusters, err := getTargetClusters(c, query.ClusterID)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
@@ -182,7 +219,7 @@ func (d *dashboard) Resources(c *gin.Context) {
 		return
 	}
 
-	clusters, err := getTargetClusters(query.ClusterID)
+	clusters, err := getTargetClusters(c, query.ClusterID)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
@@ -273,7 +310,7 @@ func (d *dashboard) Workloads(c *gin.Context) {
 		return
 	}
 
-	clusters, err := getTargetClusters(query.ClusterID)
+	clusters, err := getTargetClusters(c, query.ClusterID)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
@@ -340,7 +377,7 @@ func (d *dashboard) Namespaces(c *gin.Context) {
 		return
 	}
 
-	clusters, err := getTargetClusters(query.ClusterID)
+	clusters, err := getTargetClusters(c, query.ClusterID)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
@@ -485,7 +522,7 @@ func (d *dashboard) Health(c *gin.Context) {
 		return
 	}
 
-	clusters, err := getTargetClusters(query.ClusterID)
+	clusters, err := getTargetClusters(c, query.ClusterID)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
@@ -731,7 +768,7 @@ func (d *dashboard) Events(c *gin.Context) {
 	}
 
 	// 获取要查询的集群列表
-	clusters, err := getTargetClusters(query.ClusterID)
+	clusters, err := getTargetClusters(c, query.ClusterID)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群列表失败")
