@@ -1,28 +1,36 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, ArrowDown } from '@element-plus/icons-vue'
 import { getPodDetail, deletePod, getPodEvents, calcAge } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useClusterStore } from '@/stores/cluster'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useDetailPage } from '@/composables/useDetailPage'
+import { useResizable } from '@/composables/useResizable'
 import { getPodStatusType, buildFullscreenUrl } from '@/utils/pod'
 
 const clusterStore = useClusterStore()
 
-const route = useRoute()
-const router = useRouter()
-const loading = ref(false)
-const pod = ref<any>(null)
-const yamlDialogVisible = ref(false)
+const {
+  namespace, name,
+  loading, detail: pod, events, eventsLoading, yamlDialogVisible,
+  isRunning, countdown, currentInterval, availableIntervals,
+  toggle, manualRefresh, setIntervalOption,
+  fetchDetail, handleOpenYaml,
+  router,
+} = useDetailPage({
+  resourceName: 'Pod',
+  fetchDetail: async (params: any) => {
+    const res: any = await getPodDetail(params)
+    return { data: transformPodDetail(res.data) }
+  },
+  fetchEvents: getPodEvents,
+  deleteResource: deletePod,
+  listRoute: '/workloads/pods',
+  buildParams: () => ({ namespace, name }),
+})
 
-// Events
-const events = ref<any[]>([])
-const eventsLoading = ref(false)
-
-const namespace = route.params.namespace as string
-const name = route.params.name as string
+const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
 
 /**
  * Transform raw K8s Pod object into flat display format.
@@ -83,51 +91,6 @@ function transformPodDetail(raw: any): any {
   }
 }
 
-// ---- Resize: left-right ----
-const leftWidth = ref(320)
-const resizingH = ref(false)
-let startX = 0, startW = 0
-function onHResizeStart(e: MouseEvent) {
-  e.preventDefault()
-  resizingH.value = true
-  startX = e.clientX
-  startW = leftWidth.value
-  const onMove = (ev: MouseEvent) => {
-    leftWidth.value = Math.min(Math.max(startW + ev.clientX - startX, 220), 500)
-  }
-  const onUp = () => {
-    resizingH.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-  }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
-}
-
-// ---- Resize: top-bottom (Containers / Events) ----
-const rightTopHeight = ref<number | null>(null)
-const resizingV = ref(false)
-let startY = 0, startH = 0
-function onVResizeStart(e: MouseEvent) {
-  e.preventDefault()
-  const rightPanel = (e.target as HTMLElement).closest('.right-panel')
-  if (!rightPanel) return
-  resizingV.value = true
-  startY = e.clientY
-  startH = rightPanel.getBoundingClientRect().height
-  const onMove = (ev: MouseEvent) => {
-    const delta = ev.clientY - startY
-    rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
-  }
-  const onUp = () => {
-    resizingV.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-  }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
-}
-
 const statusTagType = computed(() => getPodStatusType(pod.value?.status || ''))
 
 function containerStateType(state: string) {
@@ -143,34 +106,6 @@ function getContainerStateLabel(container: any): string {
   if (container.state === 'Waiting') return `等待中 (${container.stateReason || '-'})`
   if (container.state === 'Terminated') return `已终止 (${container.exitCode ?? '-'})`
   return container.state || '-'
-}
-
-async function fetchDetail() {
-  loading.value = true
-  try {
-    const res: any = await getPodDetail({ namespace, name })
-    pod.value = transformPodDetail(res.data)
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 Pod 详情失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function fetchEvents() {
-  eventsLoading.value = true
-  try {
-    const res: any = await getPodEvents({ namespace, name })
-    events.value = res.data || []
-  } catch {
-    events.value = []
-  } finally {
-    eventsLoading.value = false
-  }
-}
-
-function handleOpenYaml() {
-  yamlDialogVisible.value = true
 }
 
 function handleYamlSaved() {
@@ -220,16 +155,6 @@ async function handleDelete(force = false) {
     }
   }
 }
-
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-  fetchDetail()
-  fetchEvents()
-}, { autoStart: false })
-
-onMounted(() => {
-  fetchDetail()
-  fetchEvents()
-})
 </script>
 
 <template>

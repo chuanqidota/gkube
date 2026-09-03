@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import {
@@ -19,23 +18,35 @@ import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
 import DeploymentForm from '@/views/workload/components/DeploymentForm.vue'
 import AutoscalingDrawer from '@/views/workload/components/AutoscalingDrawer.vue'
+import ScaleDialog from './components/ScaleDialog.vue'
+import UpdateImageDialog from './components/UpdateImageDialog.vue'
+import { useDetailPage } from '@/composables/useDetailPage'
+import { useResizable } from '@/composables/useResizable'
 import { useClusterStore } from '@/stores/cluster'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { formatAge } from '@/utils/time'
 import { buildFullscreenUrl } from '@/utils/pod'
 
 const clusterStore = useClusterStore()
-import { useResizable } from '@/composables/useResizable'
-import { formatAge } from '@/utils/time'
 
-const route = useRoute()
-const router = useRouter()
-const loading = ref(false)
-const deployment = ref<any>(null)
-const yamlDialogVisible = ref(false)
-const events = ref<any[]>([])
-const eventsLoading = ref(false)
+// ---- useDetailPage composable ----
+const {
+  namespace, name,
+  loading, detail: deployment, events, eventsLoading, yamlDialogVisible,
+  isRunning, countdown, currentInterval, availableIntervals,
+  toggle, manualRefresh, setIntervalOption,
+  fetchDetail, handleOpenYaml,
+  router,
+} = useDetailPage({
+  resourceName: 'Deployment',
+  fetchDetail: (p) => getDeploymentDetail(p),
+  fetchEvents: (p) => getDeploymentEvents(p),
+  deleteResource: (p) => deleteDeployment(p),
+  listRoute: '/workloads/deployments',
+  buildParams: () => ({ namespace, name }),
+  onRefresh: fetchReplicaSets,
+})
 
-// ReplicaSet & Pod panel state
+// ---- ReplicaSet & Pod panel state ----
 const replicasets = ref<any[]>([])
 const replicasetsLoading = ref(false)
 const selectedReplicaset = ref<any>(null)
@@ -49,29 +60,14 @@ const leftView = ref<'revisions' | 'info'>('revisions')
 // ---- Resize: left-right + top-bottom ----
 const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
 
-// Scale dialog
+// ---- 对话框状态 ----
 const scaleDialogVisible = ref(false)
-const scaleReplicas = ref<number>(1)
-const scaleLoading = ref(false)
-
-// Image update dialog
 const imageDialogVisible = ref(false)
-const imageForm = ref({
-  containerName: '',
-  image: '',
-})
-const imageLoading = ref(false)
-
-// Edit dialog
 const editDialogVisible = ref(false)
 const editFullscreen = ref(false)
-
-// Autoscaling drawer
 const autoscalingDrawerVisible = ref(false)
 
-const namespace = route.params.namespace as string
-const name = route.params.name as string
-
+// ---- Status ----
 const statusTagType = computed(() => {
   const conditions = deployment.value?.status?.conditions || []
   const available = conditions.find((c: any) => c.type === 'Available')
@@ -90,31 +86,18 @@ const statusText = computed(() => {
   return '不可用'
 })
 
-async function fetchDetail() {
-  loading.value = true
-  try {
-    const res: any = await getDeploymentDetail({ namespace, name })
-    deployment.value = res.data
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 Deployment 详情失败')
-  } finally {
-    loading.value = false
-  }
-}
+// ---- 副本数 ----
+const currentReplicas = computed(() => deployment.value?.spec?.replicas ?? 1)
+const readyReplicas = computed(() => deployment.value?.status?.readyReplicas ?? 0)
 
-async function fetchEvents() {
-  eventsLoading.value = true
-  try {
-    const res: any = await getDeploymentEvents({ namespace, name })
-    events.value = res.data || []
-  } catch (e) {
-    console.error('Failed to fetch events:', e)
-    ElMessage.error('加载事件失败')
-  } finally {
-    eventsLoading.value = false
-  }
-}
+const containers = computed(() => {
+  return (deployment.value?.spec?.template?.spec?.containers || []).map((c: any) => ({
+    name: c.name,
+    image: c.image || '',
+  }))
+})
 
+// ---- ReplicaSet 管理 ----
 async function fetchReplicaSets() {
   replicasetsLoading.value = true
   try {
@@ -127,10 +110,8 @@ async function fetchReplicaSets() {
     replicasetsLoading.value = false
   }
 
-  // Always fetch pods, regardless of replicasets count
   await fetchAllPods()
 
-  // If replicasets exist, try to select the current one
   if (replicasets.value.length > 0) {
     const currentRevision = deployment.value?.metadata?.annotations?.['deployment.kubernetes.io/revision']
     const currentRS = replicasets.value.find(
@@ -185,6 +166,7 @@ async function handleReplicasetRollback(rs: any) {
   }
 }
 
+// ---- Pod 操作 ----
 function handlePodLogs(pod: any) {
   const podNs = pod.metadata.namespace || namespace
   window.open(buildFullscreenUrl('logs', { namespace: podNs, pod: pod.metadata.name, cluster: clusterStore.clusterName || undefined }), '_blank')
@@ -233,15 +215,50 @@ async function handlePodDelete(pod: any, force = false) {
   }
 }
 
-function handleOpenYaml() {
-  yamlDialogVisible.value = true
-}
-
+// ---- YAML ----
 function handleYamlSaved() {
   fetchDetail()
   fetchReplicaSets()
 }
 
+// ---- 重启 ----
+async function handleRestart() {
+  try {
+    await ElMessageBox.confirm(
+      `确定要重启 Deployment "${name}" 吗？这将触发滚动更新。`,
+      '确认重启',
+      { type: 'warning' }
+    )
+    await restartDeployment({ namespace, name })
+    ElMessage.success('重启成功')
+    fetchDetail()
+    fetchReplicaSets()
+  } catch {
+    // cancelled
+  }
+}
+
+// ---- 扩缩容 ----
+function handleScale() {
+  scaleDialogVisible.value = true
+}
+
+function handleScaleSuccess() {
+  fetchDetail()
+  fetchReplicaSets()
+}
+
+// ---- 更新镜像 ----
+function handleUpdateImage() {
+  imageDialogVisible.value = true
+}
+
+function handleUpdateImageSuccess() {
+  fetchDetail()
+  fetchReplicaSets()
+}
+
+// ---- 删除 ----
 async function handleDelete() {
   try {
     await ElMessageBox.confirm(
@@ -259,77 +276,7 @@ async function handleDelete() {
   }
 }
 
-async function handleRestart() {
-  try {
-    await ElMessageBox.confirm(
-      `确定要重启 Deployment "${name}" 吗？这将触发滚动更新。`,
-      '确认重启',
-      { type: 'warning' }
-    )
-    await restartDeployment({ namespace, name })
-    ElMessage.success('重启成功')
-    fetchDetail()
-    fetchReplicaSets()
-  } catch {
-    // cancelled
-  }
-}
-
-function handleScale() {
-  scaleReplicas.value = deployment.value?.spec?.replicas ?? 1
-  scaleDialogVisible.value = true
-}
-
-async function handleScaleConfirm() {
-  scaleLoading.value = true
-  try {
-    await scaleDeployment({ namespace, name, replicas: scaleReplicas.value })
-    ElMessage.success(`已扩缩容至 ${scaleReplicas.value} 副本`)
-    scaleDialogVisible.value = false
-    await fetchDetail()
-    await fetchReplicaSets()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '扩缩容失败')
-  } finally {
-    scaleLoading.value = false
-  }
-}
-
-function handleUpdateImage() {
-  const containers = deployment.value?.spec?.template?.spec?.containers || []
-  if (containers.length > 0) {
-    imageForm.value = {
-      containerName: containers[0].name,
-      image: containers[0].image || '',
-    }
-  }
-  imageDialogVisible.value = true
-}
-
-async function handleUpdateImageConfirm() {
-  if (!imageForm.value.containerName || !imageForm.value.image) {
-    ElMessage.warning('请填写容器名称和镜像')
-    return
-  }
-  imageLoading.value = true
-  try {
-    await updateDeploymentImage({
-      namespace,
-      name,
-      containerName: imageForm.value.containerName,
-      image: imageForm.value.image,
-    })
-    ElMessage.success('镜像更新成功')
-    imageDialogVisible.value = false
-    fetchDetail()
-    fetchReplicaSets()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '镜像更新失败')
-  } finally {
-    imageLoading.value = false
-  }
-}
-
+// ---- 编辑 ----
 function handleEdit() {
   editDialogVisible.value = true
 }
@@ -343,19 +290,6 @@ function handleEditSuccess() {
 function handleEditCancel() {
   editDialogVisible.value = false
 }
-
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-  fetchDetail()
-  fetchReplicaSets()
-  fetchEvents()
-}, { autoStart: false })
-
-onMounted(() => {
-  fetchDetail().then(() => {
-    fetchReplicaSets()
-  })
-  fetchEvents()
-})
 </script>
 
 <template>
@@ -595,55 +529,26 @@ onMounted(() => {
       @saved="handleYamlSaved"
     />
 
-    <el-dialog v-model="scaleDialogVisible" title="扩缩容" width="480px" destroy-on-close>
-      <div>
-        <p style="margin-bottom: 16px;">调整 <strong>{{ name }}</strong> 副本数</p>
-        <el-descriptions :column="1" border size="small" style="margin-bottom: 16px;">
-          <el-descriptions-item label="当前">{{ deployment?.spec?.replicas ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="就绪">{{ deployment?.status?.readyReplicas ?? '-' }}</el-descriptions-item>
-        </el-descriptions>
-        <el-form-item label="目标">
-          <el-input-number v-model="scaleReplicas" :min="0" :max="10000" style="width: 200px;" />
-        </el-form-item>
-        <el-alert v-if="scaleReplicas === 0" title="设为 0 将停止所有 Pod。" type="warning" :closable="false" show-icon style="margin-top: 8px;" />
-      </div>
-      <template #footer>
-        <el-button @click="scaleDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="scaleLoading" @click="handleScaleConfirm">确认</el-button>
-      </template>
-    </el-dialog>
+    <ScaleDialog
+      v-model:visible="scaleDialogVisible"
+      resource-name="Deployment"
+      :namespace="namespace"
+      :name="name"
+      :current-replicas="currentReplicas"
+      :ready-replicas="readyReplicas"
+      :scale-fn="scaleDeployment"
+      @scaled="handleScaleSuccess"
+    />
 
-    <el-dialog v-model="imageDialogVisible" title="更新镜像" width="520px" destroy-on-close>
-      <div>
-        <p style="margin-bottom: 16px;">更新 <strong>{{ name }}</strong> 的容器镜像</p>
-        <el-form label-width="80px">
-          <el-form-item label="容器">
-            <el-select v-model="imageForm.containerName" style="width: 100%;">
-              <el-option
-                v-for="container in deployment?.spec?.template?.spec?.containers || []"
-                :key="container.name"
-                :label="container.name"
-                :value="container.name"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="镜像">
-            <el-input v-model="imageForm.image" placeholder="例如: nginx:1.25" />
-          </el-form-item>
-        </el-form>
-        <el-alert
-          v-if="imageForm.containerName"
-          :title="`当前镜像: ${deployment?.spec?.template?.spec?.containers?.find((c: any) => c.name === imageForm.containerName)?.image || '-'}`"
-          type="info"
-          :closable="false"
-          style="margin-top: 8px;"
-        />
-      </div>
-      <template #footer>
-        <el-button @click="imageDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="imageLoading" @click="handleUpdateImageConfirm">确认更新</el-button>
-      </template>
-    </el-dialog>
+    <UpdateImageDialog
+      v-model:visible="imageDialogVisible"
+      resource-name="Deployment"
+      :namespace="namespace"
+      :name="name"
+      :containers="containers"
+      :update-image-fn="updateDeploymentImage"
+      @updated="handleUpdateImageSuccess"
+    />
 
     <el-drawer
       v-model="editDialogVisible"
@@ -868,6 +773,31 @@ onMounted(() => {
 .info-empty {
   font-size: 12px;
   color: var(--el-text-color-placeholder);
+}
+
+.vct-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vct-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.vct-name {
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.vct-meta {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  word-break: break-all;
 }
 
 .conditions-list {

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import {
@@ -19,25 +18,36 @@ import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
 import StatefulSetForm from '@/views/workload/components/StatefulSetForm.vue'
 import AutoscalingDrawer from '@/views/workload/components/AutoscalingDrawer.vue'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
-import { useClusterNameRef } from '@/composables/useClusterName'
+import ScaleDialog from './components/ScaleDialog.vue'
+import UpdateImageDialog from './components/UpdateImageDialog.vue'
+import { useDetailPage } from '@/composables/useDetailPage'
 import { useResizable } from '@/composables/useResizable'
 import { formatAge } from '@/utils/time'
 import { buildFullscreenUrl } from '@/utils/pod'
 
-const clusterName = useClusterNameRef()
+// ---- useDetailPage composable ----
+const {
+  namespace, name,
+  loading, detail: statefulset, events, eventsLoading, yamlDialogVisible,
+  isRunning, countdown, currentInterval, availableIntervals,
+  toggle, manualRefresh, setIntervalOption,
+  fetchDetail, handleDelete, handleOpenYaml,
+  router,
+  clusterName,
+} = useDetailPage({
+  resourceName: 'StatefulSet',
+  fetchDetail: (p) => getStatefulSetDetail(p),
+  fetchEvents: (p) => getStatefulSetEvents(p),
+  deleteResource: (p) => deleteStatefulSet(p),
+  listRoute: '/workloads/statefulsets',
+  buildParams: () => ({ namespace, name }),
+  onRefresh: async () => {
+    await fetchRevisions()
+    await fetchAllPods()
+  },
+})
 
-const route = useRoute()
-const router = useRouter()
-const loading = ref(false)
-const statefulSet = ref<any>(null)
-const yamlDialogVisible = ref(false)
-
-// Events
-const events = ref<any[]>([])
-const eventsLoading = ref(false)
-
-// Revisions & Pods
+// ---- Revisions & Pods ----
 const revisions = ref<any[]>([])
 const revisionsLoading = ref(false)
 const selectedRevision = ref<any>(null)
@@ -48,79 +58,51 @@ const rsPodsLoading = ref(false)
 // 左侧视图切换：修订历史 / 基本信息
 const leftView = ref<'revisions' | 'info'>('revisions')
 
-// Scale dialog
-const scaleDialogVisible = ref(false)
-const scaleReplicas = ref<number>(1)
-const scaleLoading = ref(false)
-
-// Image update dialog
-const imageDialogVisible = ref(false)
-const imageForm = ref({
-  containerName: '',
-  image: '',
-})
-const imageLoading = ref(false)
-
-// Edit dialog
-const editDialogVisible = ref(false)
-const editFullscreen = ref(false)
-
-// Autoscaling drawer
-const autoscalingDrawerVisible = ref(false)
-
-const namespace = route.params.namespace as string
-const name = route.params.name as string
-
 // ---- Resize: left-right + top-bottom ----
 const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
 
+// ---- 对话框状态 ----
+const scaleDialogVisible = ref(false)
+const imageDialogVisible = ref(false)
+const editDialogVisible = ref(false)
+const editFullscreen = ref(false)
+const autoscalingDrawerVisible = ref(false)
+
+// ---- Status ----
 const statusTagType = computed(() => {
-  const ready = statefulSet.value?.status?.readyReplicas || 0
-  const desired = statefulSet.value?.spec?.replicas || 0
+  const ready = statefulset.value?.status?.readyReplicas || 0
+  const desired = statefulset.value?.spec?.replicas || 0
   if (ready === desired && desired > 0) return 'success'
   if (ready > 0) return 'warning'
   return 'danger'
 })
 
 const statusText = computed(() => {
-  const ready = statefulSet.value?.status?.readyReplicas || 0
-  const desired = statefulSet.value?.spec?.replicas || 0
+  const ready = statefulset.value?.status?.readyReplicas || 0
+  const desired = statefulset.value?.spec?.replicas || 0
   if (ready === desired && desired > 0) return 'Ready'
   if (ready > 0) return 'Partial'
   return 'Not Ready'
 })
 
-async function fetchDetail() {
-  loading.value = true
-  try {
-    const res: any = await getStatefulSetDetail({ namespace, name })
-    statefulSet.value = res.data
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 StatefulSet 详情失败')
-  } finally {
-    loading.value = false
-  }
-}
+const currentReplicas = computed(() => statefulset.value?.spec?.replicas ?? 1)
+const readyReplicas = computed(() => statefulset.value?.status?.readyReplicas ?? 0)
 
-async function fetchEvents() {
-  eventsLoading.value = true
-  try {
-    const res: any = await getStatefulSetEvents({ namespace, name })
-    events.value = res.data || []
-  } catch (e) {
-    events.value = []
-  } finally {
-    eventsLoading.value = false
-  }
-}
+const containers = computed(() => {
+  return (statefulset.value?.spec?.template?.spec?.containers || []).map((c: any) => ({
+    name: c.name,
+    image: c.image || '',
+  }))
+})
 
+// ---- Revision management ----
 async function fetchRevisions() {
   revisionsLoading.value = true
   try {
     const res: any = await getStatefulSetRollbacks({ namespace, name })
     revisions.value = res.data || []
     // 自动选中当前 revision
-    const currentRev = statefulSet.value?.status?.currentRevision
+    const currentRev = statefulset.value?.status?.currentRevision
     if (currentRev) {
       const current = revisions.value.find((r: any) => r.name === currentRev)
       if (current) {
@@ -192,6 +174,7 @@ async function handleRevisionRollback(rev: any) {
   }
 }
 
+// ---- Pod operations ----
 function handlePodLogs(pod: any) {
   const cluster = clusterName.value
   window.open(buildFullscreenUrl('logs', { namespace: pod.metadata?.namespace || namespace, pod: pod.metadata?.name, cluster }), '_blank')
@@ -238,32 +221,13 @@ async function handlePodDelete(pod: any, force = false) {
   }
 }
 
-function handleOpenYaml() {
-  yamlDialogVisible.value = true
-}
-
+// ---- YAML ----
 function handleYamlSaved() {
   fetchDetail()
   fetchRevisions()
 }
 
-async function handleDelete() {
-  try {
-    await ElMessageBox.confirm(
-      `确定要删除 StatefulSet "${name}" 吗？此操作不可恢复。`,
-      '确认删除',
-      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
-    )
-    await deleteStatefulSet({ namespace, name })
-    ElMessage.success('StatefulSet 已删除')
-    router.push('/workloads/statefulsets')
-  } catch (e: any) {
-    if (e !== 'cancel') {
-      ElMessage.error(e?.message || '删除失败')
-    }
-  }
-}
-
+// ---- Restart ----
 async function handleRestart() {
   try {
     await ElMessageBox.confirm(
@@ -281,26 +245,20 @@ async function handleRestart() {
   }
 }
 
-function handleScale() {
-  scaleReplicas.value = statefulSet.value?.spec?.replicas ?? 1
-  scaleDialogVisible.value = true
+// ---- Scale ----
+function handleScaleSuccess() {
+  fetchDetail()
+  fetchAllPods()
 }
 
-async function handleScaleConfirm() {
-  scaleLoading.value = true
-  try {
-    await scaleStatefulSet({ namespace, name, replicas: scaleReplicas.value })
-    ElMessage.success(`StatefulSet 已扩缩容至 ${scaleReplicas.value} 个副本`)
-    scaleDialogVisible.value = false
-    fetchDetail()
-    fetchAllPods()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '扩缩容失败')
-  } finally {
-    scaleLoading.value = false
-  }
+// ---- Update image ----
+function handleUpdateImageSuccess() {
+  fetchDetail()
+  fetchRevisions()
+  fetchAllPods()
 }
 
+// ---- Edit ----
 function handleEdit() {
   editDialogVisible.value = true
 }
@@ -315,58 +273,6 @@ function handleEditSuccess() {
 function handleEditCancel() {
   editDialogVisible.value = false
 }
-
-// Image update handlers
-function handleUpdateImage() {
-  const containers = statefulSet.value?.spec?.template?.spec?.containers || []
-  if (containers.length > 0) {
-    imageForm.value = {
-      containerName: containers[0].name,
-      image: containers[0].image || '',
-    }
-  }
-  imageDialogVisible.value = true
-}
-
-async function handleUpdateImageConfirm() {
-  if (!imageForm.value.containerName || !imageForm.value.image) {
-    ElMessage.warning('请填写容器名称和镜像')
-    return
-  }
-  imageLoading.value = true
-  try {
-    await updateStatefulSetImage({
-      namespace,
-      name,
-      containerName: imageForm.value.containerName,
-      image: imageForm.value.image,
-    })
-    ElMessage.success('镜像更新成功')
-    imageDialogVisible.value = false
-    fetchDetail()
-    fetchRevisions()
-    fetchAllPods()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '镜像更新失败')
-  } finally {
-    imageLoading.value = false
-  }
-}
-
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-  fetchDetail()
-  fetchRevisions()
-  fetchAllPods()
-  fetchEvents()
-}, { autoStart: false })
-
-onMounted(() => {
-  fetchDetail().then(() => {
-    fetchRevisions()
-    fetchAllPods()
-  })
-  fetchEvents()
-})
 </script>
 
 <template>
@@ -379,15 +285,15 @@ onMounted(() => {
         <div class="meta-line">
           <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
           <span class="ns-tag">ns/{{ namespace }}</span>
-          <span class="replicas-info" v-if="statefulSet">
-            {{ statefulSet.status?.readyReplicas ?? 0 }}/{{ statefulSet.spec?.replicas ?? 0 }} ready
+          <span class="replicas-info" v-if="statefulset">
+            {{ statefulset.status?.readyReplicas ?? 0 }}/{{ statefulset.spec?.replicas ?? 0 }} ready
           </span>
         </div>
       </div>
       <div class="header-actions">
-        <el-button type="primary" @click="handleScale">扩缩容</el-button>
+        <el-button type="primary" @click="scaleDialogVisible = true">扩缩容</el-button>
         <el-button type="warning" @click="handleRestart">重启</el-button>
-        <el-button type="success" @click="handleUpdateImage">更新镜像</el-button>
+        <el-button type="success" @click="imageDialogVisible = true">更新镜像</el-button>
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="warning" plain @click="autoscalingDrawerVisible = true">弹性伸缩</el-button>
@@ -430,7 +336,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <template v-if="statefulSet">
+    <template v-if="statefulset">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
 
         <!-- 左侧：修订历史 / 基本信息 -->
@@ -462,13 +368,13 @@ onMounted(() => {
                 <span class="rs-rev">v{{ rev.revision }}</span>
                 <span class="rs-replicas">{{ revisionPodCount(rev) }} 个 Pod</span>
                 <el-tag
-                  v-if="rev.name === statefulSet?.status?.currentRevision"
+                  v-if="rev.name === statefulset?.status?.currentRevision"
                   type="success" size="small">当前</el-tag>
                 <el-tag v-else-if="revisionPodCount(rev) > 0" type="primary" size="small">活跃</el-tag>
               </div>
               <div class="rs-image" v-for="(img, i) in (rev.images || [])" :key="i">{{ img }}</div>
               <div class="rs-age">{{ formatAge(rev.createdAt) }}</div>
-              <div class="rs-rollback" v-if="rev.name !== statefulSet?.status?.currentRevision">
+              <div class="rs-rollback" v-if="rev.name !== statefulset?.status?.currentRevision">
                 <el-button size="small" type="warning" @click.stop="handleRevisionRollback(rev)">回滚</el-button>
               </div>
             </div>
@@ -477,41 +383,41 @@ onMounted(() => {
           <!-- 基本信息 -->
           <div v-show="leftView === 'info'" class="info-body">
             <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="名称">{{ statefulSet?.metadata?.name || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="命名空间">{{ statefulSet?.metadata?.namespace || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="名称">{{ statefulset?.metadata?.name || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="命名空间">{{ statefulset?.metadata?.namespace || '-' }}</el-descriptions-item>
               <el-descriptions-item label="副本">
-                {{ statefulSet?.spec?.replicas ?? '-' }} 期望 ·
-                {{ statefulSet?.status?.readyReplicas ?? 0 }} 就绪 ·
-                {{ statefulSet?.status?.currentReplicas ?? 0 }} 当前 ·
-                {{ statefulSet?.status?.updatedReplicas ?? 0 }} 更新中
+                {{ statefulset?.spec?.replicas ?? '-' }} 期望 ·
+                {{ statefulset?.status?.readyReplicas ?? 0 }} 就绪 ·
+                {{ statefulset?.status?.currentReplicas ?? 0 }} 当前 ·
+                {{ statefulset?.status?.updatedReplicas ?? 0 }} 更新中
               </el-descriptions-item>
-              <el-descriptions-item label="serviceName">{{ statefulSet?.spec?.serviceName || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="Pod 管理策略">{{ statefulSet?.spec?.podManagementPolicy || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="serviceName">{{ statefulset?.spec?.serviceName || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="Pod 管理策略">{{ statefulset?.spec?.podManagementPolicy || '-' }}</el-descriptions-item>
               <el-descriptions-item label="更新策略">
-                {{ statefulSet?.spec?.updateStrategy?.type || '-' }}
-                <span v-if="statefulSet?.spec?.updateStrategy?.type === 'RollingUpdate'" class="info-sub">
-                  (partition {{ statefulSet.spec.updateStrategy?.rollingUpdate?.partition ?? 0 }})
+                {{ statefulset?.spec?.updateStrategy?.type || '-' }}
+                <span v-if="statefulset?.spec?.updateStrategy?.type === 'RollingUpdate'" class="info-sub">
+                  (partition {{ statefulset.spec.updateStrategy?.rollingUpdate?.partition ?? 0 }})
                 </span>
               </el-descriptions-item>
-              <el-descriptions-item label="当前 revision">{{ statefulSet?.status?.currentRevision || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="更新 revision">{{ statefulSet?.status?.updateRevision || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="历史上限">{{ statefulSet?.spec?.revisionHistoryLimit ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="创建时间">{{ statefulSet?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="UID">{{ statefulSet?.metadata?.uid || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="当前 revision">{{ statefulset?.status?.currentRevision || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="更新 revision">{{ statefulset?.status?.updateRevision || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="历史上限">{{ statefulset?.spec?.revisionHistoryLimit ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item label="创建时间">{{ statefulset?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="UID">{{ statefulset?.metadata?.uid || '-' }}</el-descriptions-item>
             </el-descriptions>
 
             <div class="info-section-title">容器镜像</div>
             <div class="vct-list">
-              <div v-for="c in (statefulSet?.spec?.template?.spec?.containers || [])" :key="c.name" class="vct-item">
+              <div v-for="c in (statefulset?.spec?.template?.spec?.containers || [])" :key="c.name" class="vct-item">
                 <span class="vct-name">{{ c.name }}</span>
                 <span class="vct-meta">{{ c.image || '-' }}</span>
               </div>
-              <div v-if="!statefulSet?.spec?.template?.spec?.containers?.length" class="info-empty">无</div>
+              <div v-if="!statefulset?.spec?.template?.spec?.containers?.length" class="info-empty">无</div>
             </div>
 
             <div class="info-section-title">Conditions</div>
-            <div v-if="statefulSet?.status?.conditions?.length" class="conditions-list">
-              <div v-for="cond in statefulSet.status.conditions" :key="cond.type" class="condition-item">
+            <div v-if="statefulset?.status?.conditions?.length" class="conditions-list">
+              <div v-for="cond in statefulset.status.conditions" :key="cond.type" class="condition-item">
                 <div class="condition-head">
                   <span class="condition-type">{{ cond.type }}</span>
                   <el-tag :type="cond.status === 'True' ? 'success' : (cond.status === 'False' ? 'danger' : 'info')" size="small">{{ cond.status }}</el-tag>
@@ -526,8 +432,8 @@ onMounted(() => {
             <div v-else class="info-empty">无</div>
 
             <div class="info-section-title">volumeClaimTemplates</div>
-            <div v-if="statefulSet?.spec?.volumeClaimTemplates?.length" class="vct-list">
-              <div v-for="vct in statefulSet.spec.volumeClaimTemplates" :key="vct.name" class="vct-item">
+            <div v-if="statefulset?.spec?.volumeClaimTemplates?.length" class="vct-list">
+              <div v-for="vct in statefulset.spec.volumeClaimTemplates" :key="vct.name" class="vct-item">
                 <span class="vct-name">{{ vct.name }}</span>
                 <span class="vct-meta">{{ vct.spec?.resources?.requests?.storage || '-' }} · {{ (vct.spec?.accessModes || []).join(', ') || '-' }}<span v-if="vct.spec?.storageClassName"> · {{ vct.spec.storageClassName }}</span></span>
               </div>
@@ -536,14 +442,14 @@ onMounted(() => {
 
             <div class="info-section-title">Selector</div>
             <div class="label-list">
-              <el-tag v-for="(v, k) in (statefulSet?.spec?.selector?.matchLabels || {})" :key="k" size="small" class="label-tag">{{ k }}={{ v }}</el-tag>
-              <span v-if="!statefulSet?.spec?.selector?.matchLabels || Object.keys(statefulSet.spec.selector.matchLabels).length === 0" class="info-empty">无</span>
+              <el-tag v-for="(v, k) in (statefulset?.spec?.selector?.matchLabels || {})" :key="k" size="small" class="label-tag">{{ k }}={{ v }}</el-tag>
+              <span v-if="!statefulset?.spec?.selector?.matchLabels || Object.keys(statefulset.spec.selector.matchLabels).length === 0" class="info-empty">无</span>
             </div>
 
             <div class="info-section-title">Labels</div>
             <div class="label-list">
-              <el-tag v-for="(v, k) in (statefulSet?.metadata?.labels || {})" :key="k" size="small" type="info" class="label-tag">{{ k }}={{ v }}</el-tag>
-              <span v-if="!statefulSet?.metadata?.labels || Object.keys(statefulSet.metadata.labels).length === 0" class="info-empty">无</span>
+              <el-tag v-for="(v, k) in (statefulset?.metadata?.labels || {})" :key="k" size="small" type="info" class="label-tag">{{ k }}={{ v }}</el-tag>
+              <span v-if="!statefulset?.metadata?.labels || Object.keys(statefulset.metadata.labels).length === 0" class="info-empty">无</span>
             </div>
           </div>
         </div>
@@ -613,56 +519,27 @@ onMounted(() => {
     />
 
     <!-- Scale Dialog -->
-    <el-dialog v-model="scaleDialogVisible" title="扩缩容" width="480px" destroy-on-close>
-      <div>
-        <p style="margin-bottom: 16px;">调整 <strong>{{ name }}</strong> 副本数</p>
-        <el-descriptions :column="1" border size="small" style="margin-bottom: 16px;">
-          <el-descriptions-item label="当前">{{ statefulSet?.spec?.replicas ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="就绪">{{ statefulSet?.status?.readyReplicas ?? '-' }}</el-descriptions-item>
-        </el-descriptions>
-        <el-form-item label="目标">
-          <el-input-number v-model="scaleReplicas" :min="0" :max="10000" style="width: 200px;" />
-        </el-form-item>
-        <el-alert v-if="scaleReplicas === 0" title="设为 0 将停止所有 Pod。" type="warning" :closable="false" show-icon style="margin-top: 8px;" />
-      </div>
-      <template #footer>
-        <el-button @click="scaleDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="scaleLoading" @click="handleScaleConfirm">确认</el-button>
-      </template>
-    </el-dialog>
+    <ScaleDialog
+      v-model:visible="scaleDialogVisible"
+      resource-name="StatefulSet"
+      :namespace="namespace"
+      :name="name"
+      :current-replicas="currentReplicas"
+      :ready-replicas="readyReplicas"
+      :scale-fn="(p) => scaleStatefulSet(p)"
+      @scaled="handleScaleSuccess"
+    />
 
     <!-- Image Update Dialog -->
-    <el-dialog v-model="imageDialogVisible" title="更新镜像" width="520px" destroy-on-close>
-      <div>
-        <p style="margin-bottom: 16px;">更新 <strong>{{ name }}</strong> 的容器镜像</p>
-        <el-form label-width="80px">
-          <el-form-item label="容器">
-            <el-select v-model="imageForm.containerName" style="width: 100%;">
-              <el-option
-                v-for="container in statefulSet?.spec?.template?.spec?.containers || []"
-                :key="container.name"
-                :label="container.name"
-                :value="container.name"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="镜像">
-            <el-input v-model="imageForm.image" placeholder="例如: nginx:1.25" />
-          </el-form-item>
-        </el-form>
-        <el-alert
-          v-if="imageForm.containerName"
-          :title="`当前镜像: ${statefulSet?.spec?.template?.spec?.containers?.find((c: any) => c.name === imageForm.containerName)?.image || '-'}`"
-          type="info"
-          :closable="false"
-          style="margin-top: 8px;"
-        />
-      </div>
-      <template #footer>
-        <el-button @click="imageDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="imageLoading" @click="handleUpdateImageConfirm">确认更新</el-button>
-      </template>
-    </el-dialog>
+    <UpdateImageDialog
+      v-model:visible="imageDialogVisible"
+      resource-name="StatefulSet"
+      :namespace="namespace"
+      :name="name"
+      :containers="containers"
+      :update-image-fn="(p) => updateStatefulSetImage(p)"
+      @updated="handleUpdateImageSuccess"
+    />
 
     <el-drawer
       v-model="editDialogVisible"
@@ -685,9 +562,9 @@ onMounted(() => {
       </template>
       <div style="height: calc(100vh - 52px); overflow-y: auto;">
         <StatefulSetForm
-          v-if="editDialogVisible && statefulSet"
+          v-if="editDialogVisible && statefulset"
           :is-edit="true"
-          :initial-data="statefulSet"
+          :initial-data="statefulset"
           @success="handleEditSuccess"
           @cancel="handleEditCancel"
         />

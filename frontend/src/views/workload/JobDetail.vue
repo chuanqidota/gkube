@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getJobDetail,
@@ -12,35 +11,43 @@ import {
 } from '@/api/resource'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim, RefreshRight } from '@element-plus/icons-vue'
 import { formatDateTime } from '@/utils/time'
+import { buildFullscreenUrl } from '@/utils/pod'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
 import JobForm from '@/views/workload/components/JobForm.vue'
-import { useClusterStore } from '@/stores/cluster'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useDetailPage } from '@/composables/useDetailPage'
+import { useResizable } from '@/composables/useResizable'
 
-const clusterStore = useClusterStore()
+const {
+  namespace, name,
+  loading, detail: job, events, eventsLoading, yamlDialogVisible,
+  isRunning, countdown, currentInterval, availableIntervals,
+  toggle, manualRefresh, setIntervalOption,
+  fetchDetail, handleOpenYaml,
+  clusterName,
+  router,
+} = useDetailPage({
+  resourceName: 'Job',
+  fetchDetail: getJobDetail,
+  fetchEvents: getJobEvents,
+  deleteResource: deleteJob,
+  listRoute: '/workloads/jobs',
+  buildParams: () => ({ namespace, name }),
+  onRefresh: async () => { await fetchPods() },
+})
 
-const route = useRoute()
-const router = useRouter()
-const loading = ref(false)
-const job = ref<any>(null)
-const yamlDialogVisible = ref(false)
+// ---- Resize ----
+const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 300 })
 
-// Events
-const events = ref<any[]>([])
-const eventsLoading = ref(false)
-
-// Pods
+// ---- Pods ----
 const pods = ref<any[]>([])
 const podsLoading = ref(false)
 
-// Edit dialog
+// ---- Edit dialog ----
 const editDialogVisible = ref(false)
 const editFullscreen = ref(false)
 
-const namespace = route.params.namespace as string
-const name = route.params.name as string
-
+// ---- Job-specific computed ----
 const statusTagType = computed(() => {
   if (job.value?.status?.succeeded > 0) return 'success'
   if (job.value?.status?.active > 0) return 'warning'
@@ -76,30 +83,7 @@ const jobConditions = computed(() => {
   return job.value?.status?.conditions || []
 })
 
-async function fetchDetail() {
-  loading.value = true
-  try {
-    const res: any = await getJobDetail({ namespace, name })
-    job.value = res.data
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 Job 详情失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function fetchEvents() {
-  eventsLoading.value = true
-  try {
-    const res: any = await getJobEvents({ namespace, name })
-    events.value = res.data || []
-  } catch (e: any) {
-    events.value = []
-  } finally {
-    eventsLoading.value = false
-  }
-}
-
+// ---- Job-specific fetches ----
 async function fetchPods() {
   podsLoading.value = true
   try {
@@ -112,10 +96,7 @@ async function fetchPods() {
   }
 }
 
-function handleOpenYaml() {
-  yamlDialogVisible.value = true
-}
-
+// ---- Actions ----
 function handleYamlSaved() {
   fetchDetail()
 }
@@ -167,18 +148,14 @@ function handleEditCancel() {
   editDialogVisible.value = false
 }
 
-function getClusterName(): string {
-  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.cluster_name || clusterStore.currentCluster?.name || ''
-}
-
 function handlePodLogs(pod: any) {
-  const cluster = getClusterName()
-  window.open(`/fullscreen/logs?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  const podNs = pod.metadata?.namespace || namespace
+  window.open(buildFullscreenUrl('logs', { namespace: podNs, pod: pod.metadata.name, cluster: clusterName.value || undefined }), '_blank')
 }
 
 function handlePodExec(pod: any) {
-  const cluster = getClusterName()
-  window.open(`/fullscreen/terminal?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  const podNs = pod.metadata?.namespace || namespace
+  window.open(buildFullscreenUrl('terminal', { namespace: podNs, pod: pod.metadata.name, cluster: clusterName.value || undefined }), '_blank')
 }
 
 async function handleDeletePod(pod: any, force = false) {
@@ -216,64 +193,6 @@ async function handleDeletePod(pod: any, force = false) {
     }
   }
 }
-
-// ---- Resize: left-right ----
-const leftWidth = ref(300)
-const resizingH = ref(false)
-let startX = 0, startW = 0
-function onHResizeStart(e: MouseEvent) {
-  e.preventDefault()
-  resizingH.value = true
-  startX = e.clientX
-  startW = leftWidth.value
-  const onMove = (ev: MouseEvent) => {
-    leftWidth.value = Math.min(Math.max(startW + ev.clientX - startX, 220), 500)
-  }
-  const onUp = () => {
-    resizingH.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-  }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
-}
-
-// ---- Resize: top-bottom (Pods / Events) ----
-const rightTopHeight = ref<number | null>(null)
-const resizingV = ref(false)
-let startY = 0, startH = 0
-function onVResizeStart(e: MouseEvent) {
-  e.preventDefault()
-  const rightPanel = (e.target as HTMLElement).closest('.right-panel')
-  if (!rightPanel) return
-  resizingV.value = true
-  startY = e.clientY
-  startH = rightPanel.getBoundingClientRect().height
-  const onMove = (ev: MouseEvent) => {
-    const delta = ev.clientY - startY
-    rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
-  }
-  const onUp = () => {
-    resizingV.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-  }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
-}
-
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-  fetchDetail()
-  fetchPods()
-  fetchEvents()
-}, { autoStart: false })
-
-onMounted(() => {
-  fetchDetail().then(() => {
-    fetchPods()
-  })
-  fetchEvents()
-})
 </script>
 
 <template>

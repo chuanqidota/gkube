@@ -1169,6 +1169,24 @@
       "ip": "::1",
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
       "status": "success"
+    },
+    {
+      "id": "audit-1788444859149146000",
+      "timestamp": "2026-09-03T22:14:19.149148+08:00",
+      "user": "admin",
+      "action": "scale",
+      "resource": "deployment",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "40.041ms",
+        "method": "PUT",
+        "path": "/v1/k8s/deployment/scale"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
     }
   ]
 }

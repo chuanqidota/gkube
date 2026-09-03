@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import {
   getDaemonSetDetail,
+  getDaemonSetEvents,
   deleteDaemonSet,
   restartDaemonSet,
-  getDaemonSetEvents,
   getDaemonSetPods,
   deletePod,
   updateDaemonSetImage,
@@ -19,23 +18,34 @@ import type { NodeInfo } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
 import DaemonSetForm from '@/views/workload/components/DaemonSetForm.vue'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
-import { useClusterNameRef } from '@/composables/useClusterName'
+import UpdateImageDialog from '@/views/workload/components/UpdateImageDialog.vue'
+import { useDetailPage } from '@/composables/useDetailPage'
 import { useResizable } from '@/composables/useResizable'
 import { formatAge } from '@/utils/time'
 import { buildFullscreenUrl } from '@/utils/pod'
 
-const clusterName = useClusterNameRef()
-
-const route = useRoute()
-const router = useRouter()
-const loading = ref(false)
-const daemonSet = ref<any>(null)
-const yamlDialogVisible = ref(false)
-
-// Events
-const events = ref<any[]>([])
-const eventsLoading = ref(false)
+// useDetailPage handles: loading, detail, events, eventsLoading, yamlDialogVisible,
+// handleDelete, handleOpenYaml, auto-refresh, namespace/name, router, clusterName
+const {
+  namespace, name,
+  loading, detail: daemonset, events, eventsLoading, yamlDialogVisible,
+  isRunning, countdown, currentInterval, availableIntervals,
+  toggle, manualRefresh, setIntervalOption,
+  fetchDetail, handleDelete, handleOpenYaml,
+  router, clusterName,
+} = useDetailPage({
+  resourceName: 'DaemonSet',
+  fetchDetail: getDaemonSetDetail,
+  fetchEvents: getDaemonSetEvents,
+  deleteResource: deleteDaemonSet,
+  listRoute: '/workloads/daemonsets',
+  buildParams: () => ({ namespace, name }),
+  onRefresh: async () => {
+    await fetchRevisions()
+    await fetchAllPods()
+    await fetchNodes()
+  },
+})
 
 // Revisions & Pods
 const revisions = ref<any[]>([])
@@ -54,66 +64,34 @@ const leftView = ref<'revisions' | 'info' | 'nodes'>('revisions')
 
 // Image update dialog
 const imageDialogVisible = ref(false)
-const imageForm = ref({
-  containerName: '',
-  image: '',
-})
-const imageLoading = ref(false)
 
 // Edit dialog
 const editDialogVisible = ref(false)
 const editFullscreen = ref(false)
 
-const namespace = route.params.namespace as string
-const name = route.params.name as string
-
-if (!namespace || !name) {
-  ElMessage.error('缺少必需的路由参数')
-  router.push('/workloads/daemonsets')
-}
-
 // ---- Resize: left-right + top-bottom ----
 const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
 
 const statusTagType = computed(() => {
-  const desired = daemonSet.value?.status?.desiredNumberScheduled || 0
-  const ready = daemonSet.value?.status?.numberReady || 0
+  const desired = daemonset.value?.status?.desiredNumberScheduled || 0
+  const ready = daemonset.value?.status?.numberReady || 0
   if (ready === desired && desired > 0) return 'success'
   if (ready > 0) return 'warning'
   return 'danger'
 })
 
 const statusText = computed(() => {
-  const desired = daemonSet.value?.status?.desiredNumberScheduled || 0
-  const ready = daemonSet.value?.status?.numberReady || 0
+  const desired = daemonset.value?.status?.desiredNumberScheduled || 0
+  const ready = daemonset.value?.status?.numberReady || 0
   if (ready === desired && desired > 0) return 'Ready'
   if (ready > 0) return 'Progressing'
   return 'Unavailable'
 })
 
-async function fetchDetail() {
-  loading.value = true
-  try {
-    const res: any = await getDaemonSetDetail({ namespace, name })
-    daemonSet.value = res.data
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 DaemonSet 详情失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function fetchEvents() {
-  eventsLoading.value = true
-  try {
-    const res: any = await getDaemonSetEvents({ namespace, name })
-    events.value = res.data || []
-  } catch (e) {
-    events.value = []
-  } finally {
-    eventsLoading.value = false
-  }
-}
+const imageContainers = computed(() => {
+  const containers = daemonset.value?.spec?.template?.spec?.containers || []
+  return containers.map((c: any) => ({ name: c.name, image: c.image || '' }))
+})
 
 async function fetchRevisions() {
   revisionsLoading.value = true
@@ -306,30 +284,9 @@ async function handlePodDelete(pod: any, force = false) {
   }
 }
 
-function handleOpenYaml() {
-  yamlDialogVisible.value = true
-}
-
 function handleYamlSaved() {
   fetchDetail()
   fetchRevisions()
-}
-
-async function handleDelete() {
-  try {
-    await ElMessageBox.confirm(
-      `确定要删除 DaemonSet "${name}" 吗？此操作不可恢复。`,
-      '确认删除',
-      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
-    )
-    await deleteDaemonSet({ namespace, name })
-    ElMessage.success('DaemonSet 已删除')
-    router.push('/workloads/daemonsets')
-  } catch (e: any) {
-    if (e !== 'cancel') {
-      ElMessage.error(e?.message || '删除失败')
-    }
-  }
 }
 
 async function handleRestart() {
@@ -366,57 +323,19 @@ function handleEditCancel() {
 
 // Image update handlers
 function handleUpdateImage() {
-  const containers = daemonSet.value?.spec?.template?.spec?.containers || []
-  if (containers.length > 0) {
-    imageForm.value = {
-      containerName: containers[0].name,
-      image: containers[0].image || '',
-    }
-  }
   imageDialogVisible.value = true
 }
 
-async function handleUpdateImageConfirm() {
-  if (!imageForm.value.containerName || !imageForm.value.image) {
-    ElMessage.warning('请填写容器名称和镜像')
-    return
-  }
-  imageLoading.value = true
-  try {
-    await updateDaemonSetImage({
-      namespace,
-      name,
-      containerName: imageForm.value.containerName,
-      image: imageForm.value.image,
-    })
-    ElMessage.success('镜像更新成功')
-    imageDialogVisible.value = false
-    fetchDetail()
-    fetchRevisions()
-    fetchAllPods()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '镜像更新失败')
-  } finally {
-    imageLoading.value = false
-  }
+async function handleImageUpdateFn(data: { namespace: string; name: string; containerName: string; image: string }) {
+  return updateDaemonSetImage(data)
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
+function handleImageUpdated() {
+  imageDialogVisible.value = false
   fetchDetail()
   fetchRevisions()
   fetchAllPods()
-  fetchEvents()
-  fetchNodes()
-}, { autoStart: false })
-
-onMounted(() => {
-  fetchDetail().then(() => {
-    fetchRevisions()
-    fetchAllPods()
-  })
-  fetchEvents()
-  fetchNodes()
-})
+}
 </script>
 
 <template>
@@ -429,8 +348,8 @@ onMounted(() => {
         <div class="meta-line">
           <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
           <span class="ns-tag">ns/{{ namespace }}</span>
-          <span class="replicas-info" v-if="daemonSet">
-            {{ daemonSet.status?.numberReady ?? 0 }}/{{ daemonSet.status?.desiredNumberScheduled ?? 0 }} ready
+          <span class="replicas-info" v-if="daemonset">
+            {{ daemonset.status?.numberReady ?? 0 }}/{{ daemonset.status?.desiredNumberScheduled ?? 0 }} ready
           </span>
         </div>
       </div>
@@ -478,7 +397,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <template v-if="daemonSet">
+    <template v-if="daemonset">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
 
         <!-- 左侧：修订历史 / 基本信息 -->
@@ -526,41 +445,41 @@ onMounted(() => {
           <!-- 基本信息 -->
           <div v-show="leftView === 'info'" class="info-body">
             <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="名称">{{ daemonSet?.metadata?.name || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="命名空间">{{ daemonSet?.metadata?.namespace || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="名称">{{ daemonset?.metadata?.name || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="命名空间">{{ daemonset?.metadata?.namespace || '-' }}</el-descriptions-item>
               <el-descriptions-item label="调度数">
-                {{ daemonSet?.status?.desiredNumberScheduled ?? 0 }} 期望 ·
-                {{ daemonSet?.status?.currentNumberScheduled ?? 0 }} 当前 ·
-                {{ daemonSet?.status?.numberReady ?? 0 }} 就绪 ·
-                {{ daemonSet?.status?.updatedNumberScheduled ?? 0 }} 更新中 ·
-                {{ daemonSet?.status?.numberAvailable ?? 0 }} 可用 ·
-                {{ daemonSet?.status?.numberUnavailable ?? 0 }} 不可用
+                {{ daemonset?.status?.desiredNumberScheduled ?? 0 }} 期望 ·
+                {{ daemonset?.status?.currentNumberScheduled ?? 0 }} 当前 ·
+                {{ daemonset?.status?.numberReady ?? 0 }} 就绪 ·
+                {{ daemonset?.status?.updatedNumberScheduled ?? 0 }} 更新中 ·
+                {{ daemonset?.status?.numberAvailable ?? 0 }} 可用 ·
+                {{ daemonset?.status?.numberUnavailable ?? 0 }} 不可用
               </el-descriptions-item>
               <el-descriptions-item label="更新策略">
-                {{ daemonSet?.spec?.updateStrategy?.type || 'RollingUpdate' }}
-                <span v-if="(daemonSet?.spec?.updateStrategy?.type || 'RollingUpdate') === 'RollingUpdate'" class="info-sub">
-                  (maxUnavailable {{ daemonSet?.spec?.updateStrategy?.rollingUpdate?.maxUnavailable ?? '-' }},
-                  maxSurge {{ daemonSet?.spec?.updateStrategy?.rollingUpdate?.maxSurge ?? '-' }})
+                {{ daemonset?.spec?.updateStrategy?.type || 'RollingUpdate' }}
+                <span v-if="(daemonset?.spec?.updateStrategy?.type || 'RollingUpdate') === 'RollingUpdate'" class="info-sub">
+                  (maxUnavailable {{ daemonset?.spec?.updateStrategy?.rollingUpdate?.maxUnavailable ?? '-' }},
+                  maxSurge {{ daemonset?.spec?.updateStrategy?.rollingUpdate?.maxSurge ?? '-' }})
                 </span>
               </el-descriptions-item>
               <el-descriptions-item label="当前 revision">{{ revisions.find((r: any) => r.isCurrent)?.name || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="历史上限">{{ daemonSet?.spec?.revisionHistoryLimit ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="创建时间">{{ daemonSet?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="UID">{{ daemonSet?.metadata?.uid || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="历史上限">{{ daemonset?.spec?.revisionHistoryLimit ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item label="创建时间">{{ daemonset?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="UID">{{ daemonset?.metadata?.uid || '-' }}</el-descriptions-item>
             </el-descriptions>
 
             <div class="info-section-title">容器镜像</div>
             <div class="vct-list">
-              <div v-for="c in (daemonSet?.spec?.template?.spec?.containers || [])" :key="c.name" class="vct-item">
+              <div v-for="c in (daemonset?.spec?.template?.spec?.containers || [])" :key="c.name" class="vct-item">
                 <span class="vct-name">{{ c.name }}</span>
                 <span class="vct-meta">{{ c.image || '-' }}</span>
               </div>
-              <div v-if="!daemonSet?.spec?.template?.spec?.containers?.length" class="info-empty">无</div>
+              <div v-if="!daemonset?.spec?.template?.spec?.containers?.length" class="info-empty">无</div>
             </div>
 
             <div class="info-section-title">Conditions</div>
-            <div v-if="daemonSet?.status?.conditions?.length" class="conditions-list">
-              <div v-for="cond in daemonSet.status.conditions" :key="cond.type" class="condition-item">
+            <div v-if="daemonset?.status?.conditions?.length" class="conditions-list">
+              <div v-for="cond in daemonset.status.conditions" :key="cond.type" class="condition-item">
                 <div class="condition-head">
                   <span class="condition-type">{{ cond.type }}</span>
                   <el-tag :type="cond.status === 'True' ? 'success' : (cond.status === 'False' ? 'danger' : 'info')" size="small">{{ cond.status }}</el-tag>
@@ -576,14 +495,14 @@ onMounted(() => {
 
             <div class="info-section-title">Selector</div>
             <div class="label-list">
-              <el-tag v-for="(v, k) in (daemonSet?.spec?.selector?.matchLabels || {})" :key="k" size="small" class="label-tag">{{ k }}={{ v }}</el-tag>
-              <span v-if="!daemonSet?.spec?.selector?.matchLabels || Object.keys(daemonSet.spec.selector.matchLabels).length === 0" class="info-empty">无</span>
+              <el-tag v-for="(v, k) in (daemonset?.spec?.selector?.matchLabels || {})" :key="k" size="small" class="label-tag">{{ k }}={{ v }}</el-tag>
+              <span v-if="!daemonset?.spec?.selector?.matchLabels || Object.keys(daemonset.spec.selector.matchLabels).length === 0" class="info-empty">无</span>
             </div>
 
             <div class="info-section-title">Labels</div>
             <div class="label-list">
-              <el-tag v-for="(v, k) in (daemonSet?.metadata?.labels || {})" :key="k" size="small" type="info" class="label-tag">{{ k }}={{ v }}</el-tag>
-              <span v-if="!daemonSet?.metadata?.labels || Object.keys(daemonSet.metadata.labels).length === 0" class="info-empty">无</span>
+              <el-tag v-for="(v, k) in (daemonset?.metadata?.labels || {})" :key="k" size="small" type="info" class="label-tag">{{ k }}={{ v }}</el-tag>
+              <span v-if="!daemonset?.metadata?.labels || Object.keys(daemonset.metadata.labels).length === 0" class="info-empty">无</span>
             </div>
           </div>
 
@@ -706,38 +625,15 @@ onMounted(() => {
       @saved="handleYamlSaved"
     />
 
-    <!-- Image Update Dialog -->
-    <el-dialog v-model="imageDialogVisible" title="更新镜像" width="520px" destroy-on-close>
-      <div>
-        <p style="margin-bottom: 16px;">更新 <strong>{{ name }}</strong> 的容器镜像</p>
-        <el-form label-width="80px">
-          <el-form-item label="容器">
-            <el-select v-model="imageForm.containerName" style="width: 100%;">
-              <el-option
-                v-for="container in daemonSet?.spec?.template?.spec?.containers || []"
-                :key="container.name"
-                :label="container.name"
-                :value="container.name"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="镜像">
-            <el-input v-model="imageForm.image" placeholder="例如: nginx:1.25" />
-          </el-form-item>
-        </el-form>
-        <el-alert
-          v-if="imageForm.containerName"
-          :title="`当前镜像: ${daemonSet?.spec?.template?.spec?.containers?.find((c: any) => c.name === imageForm.containerName)?.image || '-'}`"
-          type="info"
-          :closable="false"
-          style="margin-top: 8px;"
-        />
-      </div>
-      <template #footer>
-        <el-button @click="imageDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="imageLoading" @click="handleUpdateImageConfirm">确认更新</el-button>
-      </template>
-    </el-dialog>
+    <UpdateImageDialog
+      v-model:visible="imageDialogVisible"
+      resource-name="DaemonSet"
+      :namespace="namespace"
+      :name="name"
+      :containers="imageContainers"
+      :update-image-fn="handleImageUpdateFn"
+      @updated="handleImageUpdated"
+    />
 
     <el-drawer
       v-model="editDialogVisible"
@@ -760,9 +656,9 @@ onMounted(() => {
       </template>
       <div style="height: calc(100vh - 52px); overflow-y: auto;">
         <DaemonSetForm
-          v-if="editDialogVisible && daemonSet"
+          v-if="editDialogVisible && daemonset"
           :is-edit="true"
-          :initial-data="daemonSet"
+          :initial-data="daemonset"
           @success="handleEditSuccess"
           @cancel="handleEditCancel"
         />

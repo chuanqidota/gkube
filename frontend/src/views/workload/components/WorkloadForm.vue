@@ -6,6 +6,8 @@ import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import { createDeployment, createStatefulSet, createDaemonSet, updateDeploymentYaml, updateStatefulSetYaml, updateDaemonSetYaml } from '@/api/resource'
+import ProbeForm from './form/ProbeForm.vue'
+import SchedulingForm from './form/SchedulingForm.vue'
 
 const props = withDefaults(defineProps<{
   kind: 'Deployment' | 'StatefulSet' | 'DaemonSet'
@@ -72,10 +74,6 @@ interface FormData {
   dnsPolicy: string; hostNetwork: boolean; priorityClassName: string
 }
 
-function createEmptyProbe(): Probe {
-  return { type: 'httpGet', httpGetPath: '/', httpGetPort: 80, tcpSocketPort: null, execCommand: '', initialDelaySeconds: 15, periodSeconds: 10, timeoutSeconds: 5, failureThreshold: 3 }
-}
-
 function createEmptyLifecycleHandler(): LifecycleHandler {
   return { type: 'exec', execCommand: '', httpGetPath: '/', httpGetPort: 80, tcpSocketPort: null }
 }
@@ -136,14 +134,14 @@ function parseProbe(probeData: any): Probe | null {
   if (!probeData) return null
   return {
     type: probeData.httpGet ? 'httpGet' : probeData.tcpSocket ? 'tcpSocket' : 'exec',
-    httpGetPath: probeData.httpGet?.path || '/',
-    httpGetPort: probeData.httpGet?.port || 80,
-    tcpSocketPort: probeData.tcpSocket?.port || null,
-    execCommand: probeData.exec?.command?.join('\n') || '',
-    initialDelaySeconds: probeData.initialDelaySeconds || 15,
-    periodSeconds: probeData.periodSeconds || 10,
-    timeoutSeconds: probeData.timeoutSeconds || 5,
-    failureThreshold: probeData.failureThreshold || 3,
+    httpGetPath: probeData.httpGet?.path ?? '/',
+    httpGetPort: probeData.httpGet?.port ?? 80,
+    tcpSocketPort: probeData.tcpSocket?.port ?? null,
+    execCommand: probeData.exec?.command?.join('\n') ?? '',
+    initialDelaySeconds: probeData.initialDelaySeconds ?? 15,
+    periodSeconds: probeData.periodSeconds ?? 10,
+    timeoutSeconds: probeData.timeoutSeconds ?? 5,
+    failureThreshold: probeData.failureThreshold ?? 3,
   }
 }
 
@@ -366,28 +364,18 @@ function addPort(ci: number, isInit?: boolean) { (isInit ? form.initContainers[c
 function removePort(ci: number, pi: number, isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).ports.splice(pi, 1) }
 function addEnv(ci: number, isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).env.push(createEmptyEnv()) }
 function removeEnv(ci: number, ei: number, isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).env.splice(ei, 1) }
-function addNodeSelector() { form.nodeSelector.push({ key: '', value: '' }) }
-function removeNodeSelector(i: number) { form.nodeSelector.splice(i, 1) }
 function addVolume() { form.volumes.push({ name: '', type: 'emptyDir', hostPath: '', hostPathType: 'DirectoryOrCreate', configMapName: '', secretName: '', pvcName: '' }) }
 function removeVolume(i: number) { form.volumes.splice(i, 1) }
 function addVolumeMount(ci: number, isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).volumeMounts.push({ name: '', mountPath: '', subPath: '', readOnly: false }) }
 function removeVolumeMount(ci: number, mi: number, isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).volumeMounts.splice(mi, 1) }
-function enableProbe(ci: number, probeType: 'livenessProbe' | 'readinessProbe' | 'startupProbe', isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci])[probeType] = createEmptyProbe() }
-function disableProbe(ci: number, probeType: 'livenessProbe' | 'readinessProbe' | 'startupProbe', isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci])[probeType] = null }
 function enableLifecycle(ci: number, hookType: 'preStop' | 'postStart', isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).lifecycle[hookType] = createEmptyLifecycleHandler() }
 function disableLifecycle(ci: number, hookType: 'preStop' | 'postStart', isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).lifecycle[hookType] = null }
-function addToleration() { form.tolerations.push({ key: '', operator: 'Equal', value: '', effect: 'NoSchedule', tolerationSeconds: null }) }
-function removeToleration(i: number) { form.tolerations.splice(i, 1) }
 function addAnnotation() { form.annotations.push({ key: '', value: '' }) }
 function removeAnnotation(i: number) { form.annotations.splice(i, 1) }
 function addImagePullSecret() { form.imagePullSecrets.push('') }
 function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
 function addVolumeClaimTemplate() { form.volumeClaimTemplates.push({ name: '', storageSize: '1Gi', storageClassName: '', accessModes: ['ReadWriteOnce'] }) }
 function removeVolumeClaimTemplate(i: number) { form.volumeClaimTemplates.splice(i, 1) }
-function addAffinityRule(type: 'podAffinity' | 'podAntiAffinity') { (type === 'podAffinity' ? form.podAffinityRules : form.podAntiAffinityRules).push({ weight: 1, topologyKey: '', namespaces: '', labelKey: '', labelValue: '' }) }
-function removeAffinityRule(type: 'podAffinity' | 'podAntiAffinity', i: number) { (type === 'podAffinity' ? form.podAffinityRules : form.podAntiAffinityRules).splice(i, 1) }
-function addTopologySpreadConstraint() { form.topologySpreadConstraints.push({ maxSkew: 1, topologyKey: '', whenUnsatisfiable: 'DoNotSchedule', labelKey: '', labelValue: '' }) }
-function removeTopologySpreadConstraint(i: number) { form.topologySpreadConstraints.splice(i, 1) }
 function addCapability(sc: Container['securityContext'], type: 'add' | 'drop') { (type === 'add' ? sc.capabilitiesAdd : sc.capabilitiesDrop).push('') }
 function removeCapability(sc: Container['securityContext'], type: 'add' | 'drop', i: number) { (type === 'add' ? sc.capabilitiesAdd : sc.capabilitiesDrop).splice(i, 1) }
 
@@ -1036,127 +1024,25 @@ function handleCancel() {
             <div class="mount-container-name">{{ container.name || `容器 ${ci + 1}` }}</div>
 
             <!-- Liveness -->
-            <div class="probe-card">
-              <div class="probe-header">
-                <div>
-                  <span class="probe-label">存活探针</span>
-                  <span class="probe-desc">容器是否正在运行</span>
-                </div>
-                <el-switch :model-value="!!container.livenessProbe" @update:model-value="(v: boolean) => v ? enableProbe(ci, 'livenessProbe') : disableProbe(ci, 'livenessProbe')" />
-              </div>
-              <template v-if="container.livenessProbe">
-                <div class="fields-grid" style="margin-top: 16px;">
-                  <el-form-item label="检测类型">
-                    <el-select v-model="container.livenessProbe.type" style="width: 100%;">
-                      <el-option label="HTTP GET" value="httpGet" />
-                      <el-option label="TCP Socket" value="tcpSocket" />
-                      <el-option label="Exec" value="exec" />
-                    </el-select>
-                  </el-form-item>
-                  <el-form-item v-if="container.livenessProbe.type === 'httpGet'" label="路径">
-                    <el-input v-model="container.livenessProbe.httpGetPath" placeholder="/" />
-                  </el-form-item>
-                  <el-form-item v-if="container.livenessProbe.type === 'httpGet'" label="端口">
-                    <el-input-number v-model="container.livenessProbe.httpGetPort" :min="1" :max="65535" style="width: 100%;" />
-                  </el-form-item>
-                  <el-form-item v-if="container.livenessProbe.type === 'tcpSocket'" label="端口">
-                    <el-input-number v-model="container.livenessProbe.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
-                  </el-form-item>
-                  <el-form-item v-if="container.livenessProbe.type === 'exec'" label="命令">
-                    <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.livenessProbe.execCommand" placeholder="每行一个参数，如: cat /tmp/healthy" />
-                  </el-form-item>
-                  <el-form-item label="初始延迟(秒)">
-                    <el-input-number v-model="container.livenessProbe.initialDelaySeconds" :min="0" style="width: 100%;" />
-                  </el-form-item>
-                  <el-form-item label="检测周期(秒)">
-                    <el-input-number v-model="container.livenessProbe.periodSeconds" :min="1" style="width: 100%;" />
-                  </el-form-item>
-                </div>
-              </template>
-            </div>
+            <ProbeForm
+              v-model="container.livenessProbe"
+              label="存活探针"
+              description="容器是否正在运行"
+            />
 
             <!-- Readiness -->
-            <div class="probe-card">
-              <div class="probe-header">
-                <div>
-                  <span class="probe-label">就绪探针</span>
-                  <span class="probe-desc">容器是否准备好接收流量</span>
-                </div>
-                <el-switch :model-value="!!container.readinessProbe" @update:model-value="(v: boolean) => v ? enableProbe(ci, 'readinessProbe') : disableProbe(ci, 'readinessProbe')" />
-              </div>
-              <template v-if="container.readinessProbe">
-                <div class="fields-grid" style="margin-top: 16px;">
-                  <el-form-item label="检测类型">
-                    <el-select v-model="container.readinessProbe.type" style="width: 100%;">
-                      <el-option label="HTTP GET" value="httpGet" />
-                      <el-option label="TCP Socket" value="tcpSocket" />
-                      <el-option label="Exec" value="exec" />
-                    </el-select>
-                  </el-form-item>
-                  <el-form-item v-if="container.readinessProbe.type === 'httpGet'" label="路径">
-                    <el-input v-model="container.readinessProbe.httpGetPath" placeholder="/" />
-                  </el-form-item>
-                  <el-form-item v-if="container.readinessProbe.type === 'httpGet'" label="端口">
-                    <el-input-number v-model="container.readinessProbe.httpGetPort" :min="1" :max="65535" style="width: 100%;" />
-                  </el-form-item>
-                  <el-form-item v-if="container.readinessProbe.type === 'tcpSocket'" label="端口">
-                    <el-input-number v-model="container.readinessProbe.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
-                  </el-form-item>
-                  <el-form-item v-if="container.readinessProbe.type === 'exec'" label="命令">
-                    <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.readinessProbe.execCommand" placeholder="每行一个参数，如: cat /tmp/healthy" />
-                  </el-form-item>
-                  <el-form-item label="初始延迟(秒)">
-                    <el-input-number v-model="container.readinessProbe.initialDelaySeconds" :min="0" style="width: 100%;" />
-                  </el-form-item>
-                  <el-form-item label="检测周期(秒)">
-                    <el-input-number v-model="container.readinessProbe.periodSeconds" :min="1" style="width: 100%;" />
-                  </el-form-item>
-                </div>
-              </template>
-            </div>
+            <ProbeForm
+              v-model="container.readinessProbe"
+              label="就绪探针"
+              description="容器是否准备好接收流量"
+            />
 
             <!-- Startup Probe -->
-            <div class="probe-card">
-              <div class="probe-header">
-                <div>
-                  <span class="probe-label">启动探针</span>
-                  <span class="probe-desc">慢启动应用专用，成功后切换到存活探针</span>
-                </div>
-                <el-switch :model-value="!!container.startupProbe" @update:model-value="(v: boolean) => v ? enableProbe(ci, 'startupProbe') : disableProbe(ci, 'startupProbe')" />
-              </div>
-              <template v-if="container.startupProbe">
-                <div class="fields-grid" style="margin-top: 16px;">
-                  <el-form-item label="检测类型">
-                    <el-select v-model="container.startupProbe.type" style="width: 100%;">
-                      <el-option label="HTTP GET" value="httpGet" />
-                      <el-option label="TCP Socket" value="tcpSocket" />
-                      <el-option label="Exec" value="exec" />
-                    </el-select>
-                  </el-form-item>
-                  <el-form-item v-if="container.startupProbe.type === 'httpGet'" label="路径">
-                    <el-input v-model="container.startupProbe.httpGetPath" placeholder="/" />
-                  </el-form-item>
-                  <el-form-item v-if="container.startupProbe.type === 'httpGet'" label="端口">
-                    <el-input-number v-model="container.startupProbe.httpGetPort" :min="1" :max="65535" style="width: 100%;" />
-                  </el-form-item>
-                  <el-form-item v-if="container.startupProbe.type === 'tcpSocket'" label="端口">
-                    <el-input-number v-model="container.startupProbe.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
-                  </el-form-item>
-                  <el-form-item v-if="container.startupProbe.type === 'exec'" label="命令">
-                    <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.startupProbe.execCommand" placeholder="每行一个参数，如: cat /tmp/healthy" />
-                  </el-form-item>
-                  <el-form-item label="初始延迟(秒)">
-                    <el-input-number v-model="container.startupProbe.initialDelaySeconds" :min="0" style="width: 100%;" />
-                  </el-form-item>
-                  <el-form-item label="检测周期(秒)">
-                    <el-input-number v-model="container.startupProbe.periodSeconds" :min="1" style="width: 100%;" />
-                  </el-form-item>
-                  <el-form-item label="失败阈值">
-                    <el-input-number v-model="container.startupProbe.failureThreshold" :min="1" style="width: 100%;" />
-                  </el-form-item>
-                </div>
-              </template>
-            </div>
+            <ProbeForm
+              v-model="container.startupProbe"
+              label="启动探针"
+              description="慢启动应用专用，成功后切换到存活探针"
+            />
 
             <!-- Lifecycle Hooks -->
             <div class="probe-card">
@@ -1331,110 +1217,13 @@ function handleCancel() {
           <div class="section-title">调度配置</div>
         </div>
         <div class="section-content">
-
-          <el-form-item label="节点选择器">
-            <div style="width: 100%;">
-              <div v-for="(ns, i) in form.nodeSelector" :key="i" class="kv-row">
-                <el-input v-model="ns.key" placeholder="Key" />
-                <el-input v-model="ns.value" placeholder="Value" />
-                <el-button type="danger" text circle @click="removeNodeSelector(i)">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </div>
-              <el-button text type="primary" @click="addNodeSelector" size="small">
-                <el-icon><Plus /></el-icon> 添加节点选择器
-              </el-button>
-            </div>
-          </el-form-item>
-
-          <el-form-item label="容忍规则">
-            <div style="width: 100%;">
-              <div v-for="(tol, i) in form.tolerations" :key="i" class="toleration-row">
-                <el-input v-model="tol.key" placeholder="Key" />
-                <el-select v-model="tol.operator" style="width: 100px;">
-                  <el-option label="Equal" value="Equal" /><el-option label="Exists" value="Exists" />
-                </el-select>
-                <el-input v-model="tol.value" placeholder="Value" />
-                <el-select v-model="tol.effect" style="width: 150px;">
-                  <el-option label="NoSchedule" value="NoSchedule" />
-                  <el-option label="PreferNoSchedule" value="PreferNoSchedule" />
-                  <el-option label="NoExecute" value="NoExecute" />
-                </el-select>
-                <el-button type="danger" text circle @click="removeToleration(i)">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </div>
-              <el-button text type="primary" @click="addToleration" size="small">
-                <el-icon><Plus /></el-icon> 添加容忍规则
-              </el-button>
-            </div>
-          </el-form-item>
-
-          <!-- Pod Affinity -->
-          <el-divider />
-          <el-form-item label="Pod 亲和性">
-            <div style="width: 100%;">
-              <div class="affinity-section">
-                <div class="affinity-section-title">亲和规则（Pod Affinity）</div>
-                <div v-for="(rule, i) in form.podAffinityRules" :key="i" class="affinity-row">
-                  <el-input v-model="rule.topologyKey" placeholder="topologyKey" style="flex: 1;" />
-                  <el-input v-model="rule.labelKey" placeholder="标签 Key" style="width: 140px;" />
-                  <el-input v-model="rule.labelValue" placeholder="标签 Value" style="width: 140px;" />
-                  <el-input-number v-model="rule.weight" :min="0" :max="100" placeholder="权重" style="width: 100px;" />
-                  <el-button type="danger" text circle @click="removeAffinityRule('podAffinity', i)">
-                    <el-icon><Delete /></el-icon>
-                  </el-button>
-                </div>
-                <el-button text type="primary" size="small" @click="addAffinityRule('podAffinity')">
-                  <el-icon><Plus /></el-icon> 添加亲和规则
-                </el-button>
-              </div>
-              <div class="affinity-section" style="margin-top: 16px;">
-                <div class="affinity-section-title">反亲和规则（Pod Anti-Affinity）</div>
-                <div v-for="(rule, i) in form.podAntiAffinityRules" :key="i" class="affinity-row">
-                  <el-input v-model="rule.topologyKey" placeholder="topologyKey" style="flex: 1;" />
-                  <el-input v-model="rule.labelKey" placeholder="标签 Key" style="width: 140px;" />
-                  <el-input v-model="rule.labelValue" placeholder="标签 Value" style="width: 140px;" />
-                  <el-input-number v-model="rule.weight" :min="0" :max="100" placeholder="权重" style="width: 100px;" />
-                  <el-button type="danger" text circle @click="removeAffinityRule('podAntiAffinity', i)">
-                    <el-icon><Delete /></el-icon>
-                  </el-button>
-                </div>
-                <el-button text type="primary" size="small" @click="addAffinityRule('podAntiAffinity')">
-                  <el-icon><Plus /></el-icon> 添加反亲和规则
-                </el-button>
-              </div>
-              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 8px;">
-                权重 0 = required（必须满足），权重 1-100 = preferred（优先满足）。topologyKey 常用: kubernetes.io/hostname, topology.kubernetes.io/zone
-              </div>
-            </div>
-          </el-form-item>
-
-          <!-- Topology Spread Constraints -->
-          <el-divider />
-          <el-form-item label="拓扑分布约束">
-            <div style="width: 100%;">
-              <div v-for="(tc, i) in form.topologySpreadConstraints" :key="i" class="topology-row">
-                <el-input v-model="tc.topologyKey" placeholder="topologyKey" style="flex: 1;" />
-                <el-input v-model="tc.labelKey" placeholder="标签 Key" style="width: 140px;" />
-                <el-input v-model="tc.labelValue" placeholder="标签 Value" style="width: 140px;" />
-                <el-input-number v-model="tc.maxSkew" :min="1" placeholder="maxSkew" style="width: 100px;" />
-                <el-select v-model="tc.whenUnsatisfiable" style="width: 150px;">
-                  <el-option label="DoNotSchedule" value="DoNotSchedule" />
-                  <el-option label="ScheduleAnyway" value="ScheduleAnyway" />
-                </el-select>
-                <el-button type="danger" text circle @click="removeTopologySpreadConstraint(i)">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </div>
-              <el-button text type="primary" size="small" @click="addTopologySpreadConstraint">
-                <el-icon><Plus /></el-icon> 添加拓扑约束
-              </el-button>
-              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 8px;">
-                控制 Pod 在不同拓扑域（节点、可用区等）间的分布。maxSkew 表示最大偏差，topologyKey 常用: kubernetes.io/hostname, topology.kubernetes.io/zone
-              </div>
-            </div>
-          </el-form-item>
+          <SchedulingForm
+            v-model:nodeSelector="form.nodeSelector"
+            v-model:tolerations="form.tolerations"
+            v-model:podAffinityRules="form.podAffinityRules"
+            v-model:podAntiAffinityRules="form.podAntiAffinityRules"
+            v-model:topologySpreadConstraints="form.topologySpreadConstraints"
+          />
         </div>
       </div>
 

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getCronJobDetail,
@@ -14,63 +13,31 @@ import {
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim, VideoPause, VideoPlay } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import CronJobForm from '@/views/workload/components/CronJobForm.vue'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useDetailPage } from '@/composables/useDetailPage'
+import { useResizable } from '@/composables/useResizable'
 import { formatAge } from '@/utils/time'
 
-const route = useRoute()
-const router = useRouter()
-const loading = ref(false)
-const cronJob = ref<any>(null)
-const yamlDialogVisible = ref(false)
+// ---- useDetailPage composable ----
+const {
+  namespace, name,
+  loading, detail: cronjob, events, eventsLoading, yamlDialogVisible,
+  isRunning, countdown, currentInterval, availableIntervals,
+  toggle, manualRefresh, setIntervalOption,
+  fetchDetail, handleOpenYaml,
+  router,
+} = useDetailPage({
+  resourceName: 'CronJob',
+  fetchDetail: (p) => getCronJobDetail(p),
+  fetchEvents: (p) => getCronJobEvents(p),
+  deleteResource: (p) => deleteCronJob(p),
+  listRoute: '/workloads/cronjobs',
+  buildParams: () => ({ namespace, name }),
+  onRefresh: async () => { await fetchJobs() },
+})
 
-// Events
-const events = ref<any[]>([])
-const eventsLoading = ref(false)
-
-// Execution history
+// ---- Execution history ----
 const jobs = ref<any[]>([])
 const jobsLoading = ref(false)
-
-// Edit dialog
-const editDialogVisible = ref(false)
-const editFullscreen = ref(false)
-
-const namespace = route.params.namespace as string
-const name = route.params.name as string
-
-const statusTagType = computed(() => {
-  if (cronJob.value?.spec?.suspend) return 'warning'
-  return 'success'
-})
-
-const statusText = computed(() => {
-  if (cronJob.value?.spec?.suspend) return 'Suspended'
-  return 'Active'
-})
-
-async function fetchDetail() {
-  loading.value = true
-  try {
-    const res: any = await getCronJobDetail({ namespace, name })
-    cronJob.value = res.data
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载 CronJob 详情失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function fetchEvents() {
-  eventsLoading.value = true
-  try {
-    const res: any = await getCronJobEvents({ namespace, name })
-    events.value = res.data || []
-  } catch (e: any) {
-    events.value = []
-  } finally {
-    eventsLoading.value = false
-  }
-}
 
 async function fetchJobs() {
   jobsLoading.value = true
@@ -84,9 +51,23 @@ async function fetchJobs() {
   }
 }
 
-function handleOpenYaml() {
-  yamlDialogVisible.value = true
-}
+// ---- Resize: left-right + top-bottom ----
+const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 300 })
+
+// ---- Edit dialog ----
+const editDialogVisible = ref(false)
+const editFullscreen = ref(false)
+
+// ---- Status ----
+const statusTagType = computed(() => {
+  if (cronjob.value?.spec?.suspend) return 'warning'
+  return 'success'
+})
+
+const statusText = computed(() => {
+  if (cronjob.value?.spec?.suspend) return 'Suspended'
+  return 'Active'
+})
 
 function handleYamlSaved() {
   fetchDetail()
@@ -143,8 +124,8 @@ async function handleTrigger() {
 }
 
 async function handleToggleSuspend() {
-  if (!cronJob.value) return
-  const willSuspend = !cronJob.value.spec?.suspend
+  if (!cronjob.value) return
+  const willSuspend = !cronjob.value.spec?.suspend
   const actionLabel = willSuspend ? '暂停' : '恢复'
   try {
     await ElMessageBox.confirm(
@@ -222,64 +203,6 @@ function getJobImages(job: any): string {
 function isManualJob(job: any): boolean {
   return job.metadata?.annotations?.['cronjob.kubernetes.io/instantiate'] === 'manual'
 }
-
-// ---- Resize: left-right ----
-const leftWidth = ref(300)
-const resizingH = ref(false)
-let startX = 0, startW = 0
-function onHResizeStart(e: MouseEvent) {
-  e.preventDefault()
-  resizingH.value = true
-  startX = e.clientX
-  startW = leftWidth.value
-  const onMove = (ev: MouseEvent) => {
-    leftWidth.value = Math.min(Math.max(startW + ev.clientX - startX, 220), 500)
-  }
-  const onUp = () => {
-    resizingH.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-  }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
-}
-
-// ---- Resize: top-bottom (Jobs / Events) ----
-const rightTopHeight = ref<number | null>(null)
-const resizingV = ref(false)
-let startY = 0, startH = 0
-function onVResizeStart(e: MouseEvent) {
-  e.preventDefault()
-  const rightPanel = (e.target as HTMLElement).closest('.right-panel')
-  if (!rightPanel) return
-  resizingV.value = true
-  startY = e.clientY
-  startH = rightPanel.getBoundingClientRect().height
-  const onMove = (ev: MouseEvent) => {
-    const delta = ev.clientY - startY
-    rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
-  }
-  const onUp = () => {
-    resizingV.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-  }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
-}
-
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-  fetchDetail()
-  fetchJobs()
-  fetchEvents()
-}, { autoStart: false })
-
-onMounted(() => {
-  fetchDetail().then(() => {
-    fetchJobs()
-  })
-  fetchEvents()
-})
 </script>
 
 <template>
@@ -292,16 +215,16 @@ onMounted(() => {
         <div class="meta-line">
           <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
           <span class="ns-tag">ns/{{ namespace }}</span>
-          <span class="replicas-info" v-if="cronJob">{{ cronJob.spec?.schedule }}</span>
+          <span class="replicas-info" v-if="cronjob">{{ cronjob.spec?.schedule }}</span>
         </div>
       </div>
       <div class="header-actions">
         <el-button
-          v-if="cronJob"
-          :type="cronJob.spec?.suspend ? 'success' : 'warning'"
-          :icon="cronJob.spec?.suspend ? VideoPlay : VideoPause"
+          v-if="cronjob"
+          :type="cronjob.spec?.suspend ? 'success' : 'warning'"
+          :icon="cronjob.spec?.suspend ? VideoPlay : VideoPause"
           @click="handleToggleSuspend"
-        >{{ cronJob.spec?.suspend ? '恢复' : '暂停' }}</el-button>
+        >{{ cronjob.spec?.suspend ? '恢复' : '暂停' }}</el-button>
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="primary" @click="handleTrigger">触发</el-button>
@@ -344,7 +267,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <template v-if="cronJob">
+    <template v-if="cronjob">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
 
         <!-- 左侧：基本信息 -->
@@ -352,27 +275,27 @@ onMounted(() => {
           <div class="panel-title">基本信息</div>
           <div class="info-body">
             <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="名称">{{ cronJob.metadata?.name }}</el-descriptions-item>
-              <el-descriptions-item label="命名空间">{{ cronJob.metadata?.namespace }}</el-descriptions-item>
-              <el-descriptions-item label="调度计划">{{ cronJob.spec?.schedule || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="暂停">{{ cronJob.spec?.suspend ?? false }}</el-descriptions-item>
-              <el-descriptions-item label="并发策略">{{ cronJob.spec?.concurrencyPolicy || 'Allow' }}</el-descriptions-item>
-              <el-descriptions-item label="成功历史限制">{{ cronJob.spec?.successfulJobsHistoryLimit ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="失败历史限制">{{ cronJob.spec?.failedJobsHistoryLimit ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="最后调度">{{ cronJob.status?.lastScheduleTime || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="名称">{{ cronjob.metadata?.name }}</el-descriptions-item>
+              <el-descriptions-item label="命名空间">{{ cronjob.metadata?.namespace }}</el-descriptions-item>
+              <el-descriptions-item label="调度计划">{{ cronjob.spec?.schedule || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="暂停">{{ cronjob.spec?.suspend ?? false }}</el-descriptions-item>
+              <el-descriptions-item label="并发策略">{{ cronjob.spec?.concurrencyPolicy || 'Allow' }}</el-descriptions-item>
+              <el-descriptions-item label="成功历史限制">{{ cronjob.spec?.successfulJobsHistoryLimit ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item label="失败历史限制">{{ cronjob.spec?.failedJobsHistoryLimit ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item label="最后调度">{{ cronjob.status?.lastScheduleTime || '-' }}</el-descriptions-item>
               <el-descriptions-item label="下次执行时间">
-                <span v-if="cronJob.nextScheduleTime">{{ cronJob.nextScheduleTime }}</span>
-                <el-tag v-else-if="cronJob.spec?.suspend" type="info" size="small">已暂停</el-tag>
+                <span v-if="cronjob.nextScheduleTime">{{ cronjob.nextScheduleTime }}</span>
+                <el-tag v-else-if="cronjob.spec?.suspend" type="info" size="small">已暂停</el-tag>
                 <span v-else>-</span>
               </el-descriptions-item>
-              <el-descriptions-item label="活跃 Job 数">{{ cronJob.status?.active?.length ?? 0 }}</el-descriptions-item>
+              <el-descriptions-item label="活跃 Job 数">{{ cronjob.status?.active?.length ?? 0 }}</el-descriptions-item>
             </el-descriptions>
 
             <!-- Labels -->
-            <div v-if="cronJob.metadata?.labels && Object.keys(cronJob.metadata.labels).length > 0" style="margin-top: 16px;">
+            <div v-if="cronjob.metadata?.labels && Object.keys(cronjob.metadata.labels).length > 0" style="margin-top: 16px;">
               <h4 style="margin: 0 0 8px; font-size: 13px;">Labels</h4>
               <el-tag
-                v-for="(val, key) in cronJob.metadata.labels"
+                v-for="(val, key) in cronjob.metadata.labels"
                 :key="key"
                 style="margin-right: 8px; margin-bottom: 8px;"
                 size="small"
@@ -504,9 +427,9 @@ onMounted(() => {
       </template>
       <div style="height: calc(100vh - 52px); overflow-y: auto;">
         <CronJobForm
-          v-if="editDialogVisible && cronJob"
+          v-if="editDialogVisible && cronjob"
           :is-edit="true"
-          :initial-data="cronJob"
+          :initial-data="cronjob"
           @success="handleEditSuccess"
           @cancel="handleEditCancel"
         />
