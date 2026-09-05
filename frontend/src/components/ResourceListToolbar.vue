@@ -120,14 +120,14 @@ const emit = defineEmits<{
 .right-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   margin-left: auto;
 }
 .action-divider {
   width: 1px;
   height: 20px;
   background: var(--el-border-color-lighter);
-  margin: 0 4px;
+  margin: 0 2px;
 }
 .action-group {
   display: inline-flex;

@@ -2357,6 +2357,582 @@
       "ip": "::1",
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
       "status": "failure"
+    },
+    {
+      "id": "audit-1788587281705795000",
+      "timestamp": "2026-09-05T13:48:01.705796+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "crd",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "8.521125ms",
+        "method": "POST",
+        "path": "/v1/k8s/crd/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587282458447000",
+      "timestamp": "2026-09-05T13:48:02.458718+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "namespace",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "9.24575ms",
+        "method": "POST",
+        "path": "/v1/k8s/namespace/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587301114081000",
+      "timestamp": "2026-09-05T13:48:21.114087+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "namespace",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "11.608ms",
+        "method": "POST",
+        "path": "/v1/k8s/namespace/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587301124393000",
+      "timestamp": "2026-09-05T13:48:21.124395+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "deployment",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "21.919959ms",
+        "method": "POST",
+        "path": "/v1/k8s/deployment/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587301936577000",
+      "timestamp": "2026-09-05T13:48:21.936595+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "statefulset",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "6.269833ms",
+        "method": "POST",
+        "path": "/v1/k8s/statefulset/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587302918825000",
+      "timestamp": "2026-09-05T13:48:22.918827+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "daemonset",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "3.868625ms",
+        "method": "POST",
+        "path": "/v1/k8s/daemonset/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587303809161000",
+      "timestamp": "2026-09-05T13:48:23.809163+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "statefulset",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "4.832625ms",
+        "method": "POST",
+        "path": "/v1/k8s/statefulset/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587304440271000",
+      "timestamp": "2026-09-05T13:48:24.440272+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "deployment",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "4.887417ms",
+        "method": "POST",
+        "path": "/v1/k8s/deployment/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587304964354000",
+      "timestamp": "2026-09-05T13:48:24.964369+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "pod",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "11.779834ms",
+        "method": "POST",
+        "path": "/v1/k8s/pod/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587306214429000",
+      "timestamp": "2026-09-05T13:48:26.214431+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "namespace",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "3.8935ms",
+        "method": "POST",
+        "path": "/v1/k8s/namespace/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587321794853000",
+      "timestamp": "2026-09-05T13:48:41.794904+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "limitrange",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "19.024875ms",
+        "method": "POST",
+        "path": "/v1/k8s/limitrange/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587321795343000",
+      "timestamp": "2026-09-05T13:48:41.795343+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "resourcequota",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "19.569292ms",
+        "method": "POST",
+        "path": "/v1/k8s/resourcequota/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587323939259000",
+      "timestamp": "2026-09-05T13:48:43.93926+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "deployment",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "24.484042ms",
+        "method": "POST",
+        "path": "/v1/k8s/deployment/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587579562295000",
+      "timestamp": "2026-09-05T13:52:59.565202+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "namespace",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "48.447333ms",
+        "method": "POST",
+        "path": "/v1/k8s/namespace/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587579569496000",
+      "timestamp": "2026-09-05T13:52:59.569497+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "statefulset",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "56.496334ms",
+        "method": "POST",
+        "path": "/v1/k8s/statefulset/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587580322993000",
+      "timestamp": "2026-09-05T13:53:00.322995+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "daemonset",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "7.334875ms",
+        "method": "POST",
+        "path": "/v1/k8s/daemonset/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587581037522000",
+      "timestamp": "2026-09-05T13:53:01.037528+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "replicaset",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "8.919667ms",
+        "method": "POST",
+        "path": "/v1/k8s/replicaset/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587581696342000",
+      "timestamp": "2026-09-05T13:53:01.696343+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "job",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "7.19875ms",
+        "method": "POST",
+        "path": "/v1/k8s/job/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587582645818000",
+      "timestamp": "2026-09-05T13:53:02.645906+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "statefulset",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "20.312666ms",
+        "method": "POST",
+        "path": "/v1/k8s/statefulset/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587583359705000",
+      "timestamp": "2026-09-05T13:53:03.359707+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "deployment",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "6.729667ms",
+        "method": "POST",
+        "path": "/v1/k8s/deployment/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587583938925000",
+      "timestamp": "2026-09-05T13:53:03.938937+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "pod",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "44.518458ms",
+        "method": "POST",
+        "path": "/v1/k8s/pod/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587759499770000",
+      "timestamp": "2026-09-05T13:55:59.499772+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "namespace",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "25.014125ms",
+        "method": "POST",
+        "path": "/v1/k8s/namespace/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587759504810000",
+      "timestamp": "2026-09-05T13:55:59.504812+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "deployment",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "29.901583ms",
+        "method": "POST",
+        "path": "/v1/k8s/deployment/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587760092425000",
+      "timestamp": "2026-09-05T13:56:00.092614+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "statefulset",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "5.471791ms",
+        "method": "POST",
+        "path": "/v1/k8s/statefulset/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587760683365000",
+      "timestamp": "2026-09-05T13:56:00.683367+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "daemonset",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "5.928791ms",
+        "method": "POST",
+        "path": "/v1/k8s/daemonset/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587761456726000",
+      "timestamp": "2026-09-05T13:56:01.45673+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "replicaset",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "8.316625ms",
+        "method": "POST",
+        "path": "/v1/k8s/replicaset/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587762622746000",
+      "timestamp": "2026-09-05T13:56:02.622765+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "job",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "9.206459ms",
+        "method": "POST",
+        "path": "/v1/k8s/job/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587764378714000",
+      "timestamp": "2026-09-05T13:56:04.378728+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "cronjob",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "7.164042ms",
+        "method": "POST",
+        "path": "/v1/k8s/cronjob/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587765024986000",
+      "timestamp": "2026-09-05T13:56:05.024989+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "hpa",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "12.060542ms",
+        "method": "POST",
+        "path": "/v1/k8s/hpa/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587767748839000",
+      "timestamp": "2026-09-05T13:56:07.748841+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "service",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "5.787166ms",
+        "method": "POST",
+        "path": "/v1/k8s/service/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587768405999000",
+      "timestamp": "2026-09-05T13:56:08.406004+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "ingress",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "11.9895ms",
+        "method": "POST",
+        "path": "/v1/k8s/ingress/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
+    },
+    {
+      "id": "audit-1788587769036698000",
+      "timestamp": "2026-09-05T13:56:09.0367+08:00",
+      "user": "admin",
+      "action": "list",
+      "resource": "networkpolicy",
+      "name": "",
+      "namespace": "",
+      "cluster": "本地k8s集群",
+      "details": {
+        "duration": "7.49125ms",
+        "method": "POST",
+        "path": "/v1/k8s/networkpolicy/list"
+      },
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+      "status": "success"
     }
   ]
 }

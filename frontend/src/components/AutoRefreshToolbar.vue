@@ -28,48 +28,60 @@ function handleIntervalChange(seconds: number) {
 <template>
   <div class="auto-refresh-toolbar">
     <!-- 自动刷新按钮（图标 + popover） -->
-    <el-popover placement="bottom" :width="200" trigger="click">
-      <template #reference>
-        <el-button
-          :type="isRunning ? 'success' : 'default'"
-          :icon="Timer"
-          @click="emit('toggle')"
-        />
-      </template>
-      <div class="auto-refresh-popover">
-        <div class="popover-title">
-          {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
-        </div>
-        <!-- teleported=false：选项下拉框留在 popover 内部，
-             避免点击选项时被 popover 的 click-outside 判定为外部而关闭 -->
-        <el-select
-          :model-value="currentInterval / 1000"
-          @update:model-value="handleIntervalChange"
-          :teleported="false"
-          size="small"
-          style="width: 100%;"
-        >
-          <el-option
-            v-for="sec in availableIntervals"
-            :key="sec"
-            :value="sec"
-            :label="`每 ${sec} 秒刷新`"
+    <div class="toolbar-first">
+      <el-popover placement="bottom" :width="200" trigger="click">
+        <template #reference>
+          <el-button
+            :type="isRunning ? 'success' : 'default'"
+            :icon="Timer"
+            @click="emit('toggle')"
           />
-        </el-select>
-      </div>
-    </el-popover>
+        </template>
+        <div class="auto-refresh-popover">
+          <div class="popover-title">
+            {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
+          </div>
+          <!-- teleported=false：选项下拉框留在 popover 内部，
+               避免点击选项时被 popover 的 click-outside 判定为外部而关闭 -->
+          <el-select
+            :model-value="currentInterval / 1000"
+            @update:model-value="handleIntervalChange"
+            :teleported="false"
+            size="small"
+            style="width: 100%;"
+          >
+            <el-option
+              v-for="sec in availableIntervals"
+              :key="sec"
+              :value="sec"
+              :label="`每 ${sec} 秒刷新`"
+            />
+          </el-select>
+        </div>
+      </el-popover>
+    </div>
     <!-- 手动刷新按钮（图标 + tooltip） -->
-    <el-tooltip content="刷新" placement="top">
-      <el-button @click="emit('refresh')" :loading="loading" :icon="Refresh" />
-    </el-tooltip>
+    <div class="toolbar-last">
+      <el-tooltip content="刷新" placement="top">
+        <el-button @click="emit('refresh')" :loading="loading" :icon="Refresh" />
+      </el-tooltip>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .auto-refresh-toolbar {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+}
+.toolbar-first :deep(.el-button) {
+  border-radius: 4px 0 0 4px;
+}
+.toolbar-last {
+  margin-left: -1px;
+}
+.toolbar-last :deep(.el-button) {
+  border-radius: 0 4px 4px 0;
 }
 .auto-refresh-popover {
   display: flex;
