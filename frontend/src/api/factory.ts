@@ -15,7 +15,8 @@ export interface ResourceApiOptions {
 export function createResourceApi(basePath: string, options?: ResourceApiOptions) {
   const updateEndpoint = options?.updatePath ?? `${basePath}/update-yaml`
   return {
-    list:       (params?: any) => request.get(`${basePath}/list`, { params }),
+    /** List — POST, body 可含 namespace/limit/continue/labelFilters */
+    list:       (data?: any) => request.post(`${basePath}/list`, data),
     detail:     (params: any) => request.get(`${basePath}/detail`, { params }),
     getYaml:    (params: any) => request.get(`${basePath}/get-yaml`, { params }),
     create:     (data: any) => request.post(`${basePath}/create`, data),

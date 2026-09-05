@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sIngress "gkube/pkg/k8s/ingress"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/response"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -27,7 +28,7 @@ var Ingress = new(ingress)
 //	@param c
 func (i *ingress) GetIngressList(c *gin.Context) {
 	var query IngressQueryListParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := c.ShouldBind(&query); err != nil {
 		response.Fail(c, err.Error())
 		return
 	}
@@ -36,7 +37,16 @@ func (i *ingress) GetIngressList(c *gin.Context) {
 		response.Fail(c, err.Error())
 		return
 	}
-	ingressList, err := k8sIngress.GetIngressList(client, query.Namespace)
+	// 构建 label selector
+	var selector string
+	if len(query.LabelFilters) > 0 {
+		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+	}
+	ingressList, err := k8sIngress.GetIngressList(client, query.Namespace, selector)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("查询ingress失败:%v", err.Error()))
 		return
@@ -312,8 +322,9 @@ func (i *ingress) CheckIngressTLSCertStatus(c *gin.Context) {
 }
 
 type IngressQueryListParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	Namespace    string                  `form:"namespace" json:"namespace" label:"命名空间"`
+	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
 }
 
 type IngressQueryByNameParams struct {

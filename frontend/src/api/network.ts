@@ -66,7 +66,7 @@ export function transformIngresses(items: any[]): Ingress[] {
 // ============ Service API ============
 
 export const serviceApi = {
-  list:    (params?: { namespace?: string; cluster_id?: number }) => request.get<Service[]>('/k8s/service/list', { params }),
+  list:    (data?: any) => request.post('/k8s/service/list', data),
   detail:  (params: { namespace: string; name: string }) => request.get('/k8s/service/detail', { params }),
   getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/service/get-yaml', { params }),
   create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/service/create', data),
@@ -88,7 +88,7 @@ export const getServiceEndpoints = (params: { namespace: string; name: string })
 // ============ Ingress API ============
 
 export const ingressApi = {
-  list:    (params?: { namespace?: string; cluster_id?: number }) => request.get('/k8s/ingress/list', { params }),
+  list:    (data?: any) => request.post('/k8s/ingress/list', data),
   detail:  (params: { namespace: string; name: string }) => request.get('/k8s/ingress/detail', { params }),
   getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/ingress/get-yaml', { params }),
   create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/ingress/create', data),
@@ -110,7 +110,7 @@ export const getIngressTLSCertStatus = (params: { namespace: string; name: strin
 // ============ NetworkPolicy API ============
 
 export const networkPolicyApi = {
-  list:    (params?: { namespace?: string }) => request.get('/k8s/networkpolicy/list', { params }),
+  list:    (data?: any) => request.post('/k8s/networkpolicy/list', data),
   detail:  (params: { namespace: string; name: string }) => request.get('/k8s/networkpolicy/detail', { params }),
   getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/networkpolicy/get-yaml', { params }),
   create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/networkpolicy/create', data),

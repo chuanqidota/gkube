@@ -32,6 +32,8 @@ const {
   handleDetail,
   handleDelete,
   handleBatchDelete,
+  labelConditions,
+  onLabelConditionsChange,
 } = useResourceList({
   resourceName: 'Pod',
   fetchList: getPodList,
@@ -64,8 +66,12 @@ function handleExec(row: any) {
       :total-count="totalCount"
       :selected-count="selectedRows.length"
       :show-create="false"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="pod"
+      :label-conditions="labelConditions"
       @search-input="onSearchInput"
       @namespace-change="handleNamespaceChange"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">

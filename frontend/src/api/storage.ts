@@ -76,7 +76,7 @@ export function transformStorageClasses(items: any[]) {
 // ============ PV API ============
 
 export const pvApi = {
-  list:    (params?: { cluster_id?: number }) => request.get('/k8s/pv/list', { params }),
+  list:    (data?: any) => request.post('/k8s/pv/list', data),
   detail:  (params: { name: string }) => request.get('/k8s/pv/detail', { params }),
   getYaml: (params: { name: string }) => request.get('/k8s/pv/get-yaml', { params }),
   create:  (data: { yaml: string }) => request.post('/k8s/pv/create', data),
@@ -94,7 +94,7 @@ export const deletePv = pvApi.delete
 // ============ PVC API ============
 
 export const pvcApi = {
-  list:    (params?: { namespace?: string; cluster_id?: number }) => request.get('/k8s/pvc/list', { params }),
+  list:    (data?: any) => request.post('/k8s/pvc/list', data),
   detail:  (params: { namespace: string; name: string }) => request.get('/k8s/pvc/detail', { params }),
   getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/pvc/get-yaml', { params }),
   create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/pvc/create', data),
@@ -113,7 +113,7 @@ export const getPvcListByStorageClass = (params: { storageClassName: string }) =
 // ============ StorageClass API ============
 
 export const storageClassApi = {
-  list:    (params?: { cluster_id?: number }) => request.get('/k8s/storageclass/list', { params }),
+  list:    (data?: any) => request.post('/k8s/storageclass/list', data),
   detail:  (params: { name: string }) => request.get('/k8s/storageclass/detail', { params }),
   getYaml: (params: { name: string }) => request.get('/k8s/storageclass/get-yaml', { params }),
   create:  (data: any) => request.post('/k8s/storageclass/create', data),
@@ -133,7 +133,7 @@ export const getStorageClassEvents = storageClassApi.events
 // ============ VolumeSnapshot API ============
 
 export const volumeSnapshotApi = {
-  list:    (params?: { namespace?: string; cluster_id?: number }) => request.get('/k8s/volumesnapshot/list', { params }),
+  list:    (data?: any) => request.post('/k8s/volumesnapshot/list', data),
   detail:  (params: { namespace: string; name: string }) => request.get('/k8s/volumesnapshot/detail', { params }),
   getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/volumesnapshot/get-yaml', { params }),
   create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/volumesnapshot/create', data),
@@ -151,7 +151,7 @@ export const deleteVolumeSnapshot = volumeSnapshotApi.delete
 // ============ VolumeSnapshotClass API ============
 
 export const volumeSnapshotClassApi = {
-  list:    (params?: { cluster_id?: number }) => request.get('/k8s/volumesnapshotclass/list', { params }),
+  list:    (data?: any) => request.post('/k8s/volumesnapshotclass/list', data),
   detail:  (params: { name: string }) => request.get('/k8s/volumesnapshotclass/detail', { params }),
   getYaml: (params: { name: string }) => request.get('/k8s/volumesnapshotclass/get-yaml', { params }),
   create:  (data: { yaml: string }) => request.post('/k8s/volumesnapshotclass/create', data),

@@ -22,8 +22,12 @@ import (
 //	@param namespace
 //	@return []corev1.Service
 //	@return error
-func GetServicesList(client *kubernetes.Clientset, namespace string) ([]corev1.Service, error) {
-	services, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetServicesList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]corev1.Service, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	services, err := client.CoreV1().Services(namespace).List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -31,13 +35,16 @@ func GetServicesList(client *kubernetes.Clientset, namespace string) ([]corev1.S
 }
 
 // ListServices returns a paginated service list with metadata
-func ListServices(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*corev1.ServiceList, error) {
+func ListServices(client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*corev1.ServiceList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
 	}
 	if continueToken != "" {
 		listOpts.Continue = continueToken
+	}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
 	}
 	return client.CoreV1().Services(namespace).List(context.TODO(), listOpts)
 }

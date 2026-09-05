@@ -25,12 +25,16 @@ var VolumeSnapshotClassGVR = schema.GroupVersionResource{
 //	@param client
 //	@return []unstructured.Unstructured
 //	@return error
-func GetVolumeSnapshotClassList(client dynamic.Interface) ([]unstructured.Unstructured, error) {
-	list, err := client.Resource(VolumeSnapshotClassGVR).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetVolumeSnapshotClassList(client dynamic.Interface, labelSelector string) ([]unstructured.Unstructured, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	result, err := client.Resource(VolumeSnapshotClassGVR).List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
-	return list.Items, nil
+	return result.Items, nil
 }
 
 // GetVolumeSnapshotClassByName

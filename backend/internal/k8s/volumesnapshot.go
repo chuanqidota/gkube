@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sVolumeSnapshot "gkube/pkg/k8s/volumesnapshot"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/response"
 	"k8s.io/client-go/dynamic"
 )
@@ -29,7 +30,7 @@ func getDynamicClient(clusterName string) (dynamic.Interface, error) {
 //	@param c
 func (v *volumeSnapshot) GetVolumeSnapshotList(c *gin.Context) {
 	var query VolumeSnapshotQueryListParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := c.ShouldBind(&query); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
@@ -38,7 +39,16 @@ func (v *volumeSnapshot) GetVolumeSnapshotList(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	items, err := k8sVolumeSnapshot.GetVolumeSnapshotList(client, query.Namespace)
+	// 构建 label selector
+	var selector string
+	if len(query.LabelFilters) > 0 {
+		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+	}
+	items, err := k8sVolumeSnapshot.GetVolumeSnapshotList(client, query.Namespace, selector)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取VolumeSnapshot列表失败:%v", err.Error()))
 		return
@@ -176,8 +186,9 @@ func (v *volumeSnapshot) DeleteVolumeSnapshotByName(c *gin.Context) {
 }
 
 type VolumeSnapshotQueryListParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	Namespace    string                  `form:"namespace" json:"namespace" label:"命名空间"`
+	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
 }
 
 type VolumeSnapshotQueryByNameParams struct {

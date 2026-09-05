@@ -12,12 +12,16 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func GetResourceQuotaList(client *kubernetes.Clientset, namespace string) ([]corev1.ResourceQuota, error) {
-	rqList, err := client.CoreV1().ResourceQuotas(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetResourceQuotaList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]corev1.ResourceQuota, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	result, err := client.CoreV1().ResourceQuotas(namespace).List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
-	return rqList.Items, nil
+	return result.Items, nil
 }
 
 func GetResourceQuotaYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {

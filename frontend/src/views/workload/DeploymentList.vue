@@ -14,10 +14,13 @@ import {
   getDeploymentDetail,
 } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
+import { useClusterStore } from '@/stores/cluster'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+
+const clusterStore = useClusterStore()
 
 const {
   loading,
@@ -26,6 +29,8 @@ const {
   searchName,
   onSearchInput,
   selectedRows,
+  labelConditions,
+  onLabelConditionsChange,
   namespaceList,
   yamlDialogVisible,
   yamlContent,
@@ -152,8 +157,12 @@ async function handleImageConfirm() {
       :namespace-list="namespaceList"
       :total-count="totalCount"
       :selected-count="selectedRows.length"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="deployment"
+      :label-conditions="labelConditions"
       @search-input="onSearchInput"
       @namespace-change="handleNamespaceChange"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
         <el-button type="success" @click="$router.push('/workloads/deployments/create')">

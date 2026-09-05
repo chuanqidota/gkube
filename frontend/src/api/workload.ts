@@ -155,7 +155,7 @@ export function transformCronJobs(items: any[]): CronJob[] {
 // ============ 标准 CRUD（工厂生成） ============
 
 export const podApi = {
-  list:    (params?: { namespace?: string; cluster_id?: number; labelSelector?: string }) => request.get<Pod[]>('/k8s/pod/list', { params }),
+  list:    (data?: any) => request.post('/k8s/pod/list', data),
   detail:  (params: { namespace: string; name: string }) => request.get('/k8s/pod/detail', { params }),
   getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/pod/get-yaml', { params }),
   delete:  (data: { namespace: string; name: string; force?: boolean }) => request.delete('/k8s/pod/delete', { data }),
@@ -163,7 +163,7 @@ export const podApi = {
 }
 
 export const deploymentApi = {
-  list:    (params?: { namespace?: string; cluster_id?: number }) => request.get<Deployment[]>('/k8s/deployment/list', { params }),
+  list:    (data?: any) => request.post('/k8s/deployment/list', data),
   detail:  (params: { namespace: string; name: string }) => request.get('/k8s/deployment/detail', { params }),
   getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/deployment/get-yaml', { params }),
   create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/deployment/create', data),
@@ -173,7 +173,7 @@ export const deploymentApi = {
 }
 
 export const statefulSetApi = {
-  list:    (params: any) => request.get('/k8s/statefulset/list', { params }),
+  list:    (data?: any) => request.post('/k8s/statefulset/list', data),
   detail:  (params: any) => request.get('/k8s/statefulset/detail', { params }),
   getYaml: (params: any) => request.get('/k8s/statefulset/get-yaml', { params }),
   create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/statefulset/create', data),
@@ -183,7 +183,7 @@ export const statefulSetApi = {
 }
 
 export const daemonSetApi = {
-  list:    (params: any) => request.get('/k8s/daemonset/list', { params }),
+  list:    (data?: any) => request.post('/k8s/daemonset/list', data),
   detail:  (params: any) => request.get('/k8s/daemonset/detail', { params }),
   getYaml: (params: any) => request.get('/k8s/daemonset/get-yaml', { params }),
   create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/daemonset/create', data),
@@ -193,7 +193,7 @@ export const daemonSetApi = {
 }
 
 export const jobApi = {
-  list:    (params: any) => request.get('/k8s/job/list', { params }),
+  list:    (data?: any) => request.post('/k8s/job/list', data),
   detail:  (params: any) => request.get('/k8s/job/detail', { params }),
   getYaml: (params: any) => request.get('/k8s/job/get-yaml', { params }),
   create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/job/create', data),
@@ -203,7 +203,7 @@ export const jobApi = {
 }
 
 export const cronJobApi = {
-  list:    (params: any) => request.get('/k8s/cronjob/list', { params }),
+  list:    (data?: any) => request.post('/k8s/cronjob/list', data),
   detail:  (params: any) => request.get('/k8s/cronjob/detail', { params }),
   getYaml: (params: any) => request.get('/k8s/cronjob/get-yaml', { params }),
   create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/cronjob/create', data),
@@ -213,7 +213,7 @@ export const cronJobApi = {
 }
 
 export const replicaSetApi = {
-  list:    (params?: { namespace?: string; cluster_id?: number }) => request.get('/k8s/replicaset/list', { params }),
+  list:    (data?: any) => request.post('/k8s/replicaset/list', data),
   detail:  (params: { namespace: string; name: string }) => request.get('/k8s/replicaset/detail', { params }),
   getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/replicaset/get-yaml', { params }),
   delete:  (params: { namespace: string; name: string }) => request.delete('/k8s/replicaset/delete', { params }),
@@ -221,7 +221,7 @@ export const replicaSetApi = {
 }
 
 export const hpaApi = {
-  list:    (params?: { namespace?: string }) => request.get('/k8s/hpa/list', { params }),
+  list:    (data?: any) => request.post('/k8s/hpa/list', data),
   detail:  (params: { namespace: string; name: string }) => request.get('/k8s/hpa/detail', { params }),
   getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/hpa/get-yaml', { params }),
   create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/hpa/create', data),

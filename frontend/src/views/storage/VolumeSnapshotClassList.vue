@@ -9,12 +9,16 @@ import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
+import { useClusterStore } from '@/stores/cluster'
+import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 
 const { t } = useI18n()
 const router = useRouter()
+const clusterStore = useClusterStore()
 const loading = ref(false)
 const classList = ref<any[]>([])
 const searchName = ref('')
+const labelConditions = ref<LabelCondition[]>([])
 const selectedRows = ref<any[]>([])
 const yamlDialogVisible = ref(false)
 const yamlTarget = ref<{ name: string } | null>(null)
@@ -27,10 +31,17 @@ const filteredList = computed(() => {
 
 function onSearchInput(val: string) { searchName.value = val }
 
+function onLabelConditionsChange(conditions: LabelCondition[]) {
+  labelConditions.value = conditions
+  fetchClasses()
+}
+
 async function fetchClasses() {
   loading.value = true
   try {
-    const res: any = await getVolumeSnapshotClassList()
+    const params: any = {}
+    if (labelConditions.value.length > 0) params.labelFilters = labelConditions.value
+    const res: any = await getVolumeSnapshotClassList(params)
     classList.value = res.data || []
   } catch {
     // Silently handle — resource may not exist in cluster
@@ -88,7 +99,11 @@ onMounted(fetchClasses)
       :show-namespace="false"
       :show-total-count="false"
       :selected-count="selectedRows.length"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="volumesnapshotclass"
+      :label-conditions="labelConditions"
       @search-input="onSearchInput"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
         <el-button type="success" @click="router.push('/storage/volumesnapshotclasses/create')"><el-icon><Plus /></el-icon> {{ t('common.create') }}</el-button>

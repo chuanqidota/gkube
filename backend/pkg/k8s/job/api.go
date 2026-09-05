@@ -24,8 +24,12 @@ import (
 //	@param namespace
 //	@return []batchv1.Job
 //	@return error
-func GetJobList(client *kubernetes.Clientset, namespace string) ([]batchv1.Job, error) {
-	jobList, err := client.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetJobList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]batchv1.Job, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	jobList, err := client.BatchV1().Jobs(namespace).List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -33,13 +37,16 @@ func GetJobList(client *kubernetes.Clientset, namespace string) ([]batchv1.Job, 
 }
 
 // ListJobs returns a paginated job list with metadata
-func ListJobs(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*batchv1.JobList, error) {
+func ListJobs(client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*batchv1.JobList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
 	}
 	if continueToken != "" {
 		listOpts.Continue = continueToken
+	}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
 	}
 	return client.BatchV1().Jobs(namespace).List(context.TODO(), listOpts)
 }

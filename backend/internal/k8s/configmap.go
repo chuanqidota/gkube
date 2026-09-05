@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sConfigMap "gkube/pkg/k8s/configmap"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
@@ -22,7 +23,7 @@ var ConfigMap = new(configmap)
 //	@param c
 func (cm *configmap) GetConfigMapList(c *gin.Context) {
 	var query ConfigMapQueryListParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := c.ShouldBind(&query); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
 	}
@@ -32,9 +33,20 @@ func (cm *configmap) GetConfigMapList(c *gin.Context) {
 		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
+	// 构建 label selector
+	var selector string
+	if len(query.LabelFilters) > 0 {
+		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+	}
 
-	limit, continueToken := k8sclient.GetPaginationParams(c)
-	configMapList, err := k8sConfigMap.GetConfigMapList(client, query.Namespace, limit, continueToken, query.LabelSelector)
+
+	limit := query.Limit
+	continueToken := query.Continue
+	configMapList, err := k8sConfigMap.GetConfigMapList(client, query.Namespace, limit, continueToken, selector)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusBadGateway, "获取ConfigMap列表失败")
@@ -185,9 +197,11 @@ func (cm *configmap) CreateConfigMapFromYaml(c *gin.Context) {
 }
 
 type ConfigMapQueryListParams struct {
-	ClusterName   string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace     string `form:"namespace" json:"namespace" label:"命名空间"`
-	LabelSelector string `form:"labelSelector" json:"labelSelector" label:"标签选择器"`
+	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	Namespace    string                  `form:"namespace" json:"namespace" label:"命名空间"`
+	Limit        int64                   `form:"limit" json:"limit" label:"每页条数"`
+	Continue     string                  `form:"continue" json:"continue" label:"分页标记"`
+	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
 }
 
 type ConfigMapQueryByNameParams struct {

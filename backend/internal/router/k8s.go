@@ -11,6 +11,9 @@ import (
 func registerK8sRoutes(rg *gin.RouterGroup) {
 	grp := rg.Group("k8s")
 	{
+		// Labels (shared across all resource types)
+		grp.GET("labels", middleware.RequirePermission(), k8s.Label.GetLabels)
+
 		// ---- Core ----
 		registerCoreRoutes(grp)
 		// ---- Workload ----
@@ -47,6 +50,7 @@ func registerCoreRoutes(rg *gin.RouterGroup) {
 
 	// Namespace
 	rg.GET("namespace/list", middleware.RequirePermission(), k8s.Namespace.GetNamespaceList)
+	rg.POST("namespace/list", middleware.RequirePermission(), k8s.Namespace.GetNamespaceList)
 	rg.GET("namespace/detail", middleware.RequirePermission(), k8s.Namespace.GetNamespaceDetail)
 	rg.GET("namespace/get-yaml", middleware.RequirePermission(), k8s.Namespace.GetNamespaceYaml)
 	rg.POST("namespace/create", middleware.RequirePermission(), k8s.Namespace.CreateNamespace)
@@ -56,6 +60,7 @@ func registerCoreRoutes(rg *gin.RouterGroup) {
 
 	// Pod
 	rg.GET("pod/list", middleware.RequirePermission(), k8s.Pod.GetPodList)
+	rg.POST("pod/list", middleware.RequirePermission(), k8s.Pod.GetPodList)
 	rg.GET("pod/detail", middleware.RequirePermission(), k8s.Pod.GetPodByName)
 	rg.GET("pod/get-yaml", middleware.RequirePermission(), k8s.Pod.GetPodYaml)
 	rg.GET("pod/events", middleware.RequirePermission(), k8s.Pod.ListPodEvents)
@@ -75,6 +80,7 @@ func registerCoreRoutes(rg *gin.RouterGroup) {
 func registerWorkloadRoutes(rg *gin.RouterGroup) {
 	// Deployment
 	rg.GET("deployment/list", middleware.RequirePermission(), k8s.Deployment.GetDeploymentList)
+	rg.POST("deployment/list", middleware.RequirePermission(), k8s.Deployment.GetDeploymentList)
 	rg.GET("deployment/detail", middleware.RequirePermission(), k8s.Deployment.GetDeploymentDetail)
 	rg.GET("deployment/get-yaml", middleware.RequirePermission(), k8s.Deployment.GetDeploymentYaml)
 	rg.GET("deployment/events", middleware.RequirePermission(), k8s.Deployment.GetDeploymentEvents)
@@ -90,6 +96,7 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 
 	// StatefulSet
 	rg.GET("statefulset/list", middleware.RequirePermission(), k8s.StatefulSet.GetStatefulSetList)
+	rg.POST("statefulset/list", middleware.RequirePermission(), k8s.StatefulSet.GetStatefulSetList)
 	rg.GET("statefulset/detail", middleware.RequirePermission(), k8s.StatefulSet.GetStatefulSetByName)
 	rg.GET("statefulset/get-yaml", middleware.RequirePermission(), k8s.StatefulSet.GetStatefulSetYaml)
 	rg.GET("statefulset/events", middleware.RequirePermission(), k8s.StatefulSet.GetStatefulSetEvents)
@@ -106,6 +113,7 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 
 	// DaemonSet
 	rg.GET("daemonset/list", middleware.RequirePermission(), k8s.DaemonSet.GetDaemonSetList)
+	rg.POST("daemonset/list", middleware.RequirePermission(), k8s.DaemonSet.GetDaemonSetList)
 	rg.GET("daemonset/detail", middleware.RequirePermission(), k8s.DaemonSet.GetDaemonSetByName)
 	rg.GET("daemonset/get-yaml", middleware.RequirePermission(), k8s.DaemonSet.GetDaemonSetYaml)
 	rg.GET("daemonset/events", middleware.RequirePermission(), k8s.DaemonSet.GetDaemonSetEvents)
@@ -120,6 +128,7 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 
 	// Job
 	rg.GET("job/list", middleware.RequirePermission(), k8s.Job.GetJobList)
+	rg.POST("job/list", middleware.RequirePermission(), k8s.Job.GetJobList)
 	rg.GET("job/detail", middleware.RequirePermission(), k8s.Job.GetJobByName)
 	rg.GET("job/get-yaml", middleware.RequirePermission(), k8s.Job.GetJobYaml)
 	rg.GET("job/events", middleware.RequirePermission(), k8s.Job.GetJobEvents)
@@ -131,6 +140,7 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 
 	// CronJob
 	rg.GET("cronjob/list", middleware.RequirePermission(), k8s.Cronjob.GetCronJobList)
+	rg.POST("cronjob/list", middleware.RequirePermission(), k8s.Cronjob.GetCronJobList)
 	rg.GET("cronjob/detail", middleware.RequirePermission(), k8s.Cronjob.GetCronJobByName)
 	rg.GET("cronjob/get-yaml", middleware.RequirePermission(), k8s.Cronjob.GetCronJobYaml)
 	rg.GET("cronjob/events", middleware.RequirePermission(), k8s.Cronjob.GetCronJobEvents)
@@ -144,6 +154,7 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 
 	// ReplicaSet
 	rg.GET("replicaset/list", middleware.RequirePermission(), k8s.ReplicaSet.GetReplicaSetList)
+	rg.POST("replicaset/list", middleware.RequirePermission(), k8s.ReplicaSet.GetReplicaSetList)
 	rg.GET("replicaset/get-yaml", middleware.RequirePermission(), k8s.ReplicaSet.GetReplicaSetYaml)
 	rg.GET("replicaset/detail", middleware.RequirePermission(), k8s.ReplicaSet.GetReplicaSetDetail)
 	rg.GET("replicaset/pods", middleware.RequirePermission(), k8s.ReplicaSet.GetReplicaSetPodList)
@@ -152,6 +163,7 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 
 	// HPA
 	rg.GET("hpa/list", middleware.RequirePermission(), k8s.Hpa.GetHPAList)
+	rg.POST("hpa/list", middleware.RequirePermission(), k8s.Hpa.GetHPAList)
 	rg.GET("hpa/detail", middleware.RequirePermission(), k8s.Hpa.GetHPADetail)
 	rg.GET("hpa/get-yaml", middleware.RequirePermission(), k8s.Hpa.GetHPAYaml)
 	rg.POST("hpa/create", middleware.RequirePermission(), k8s.Hpa.CreateHPA)
@@ -165,6 +177,7 @@ func registerWorkloadRoutes(rg *gin.RouterGroup) {
 func registerNetworkRoutes(rg *gin.RouterGroup) {
 	// Service
 	rg.GET("service/list", middleware.RequirePermission(), k8s.Service.GetServicesList)
+	rg.POST("service/list", middleware.RequirePermission(), k8s.Service.GetServicesList)
 	rg.GET("service/detail", middleware.RequirePermission(), k8s.Service.GetServicesByName)
 	rg.GET("service/get-yaml", middleware.RequirePermission(), k8s.Service.GetServicesYaml)
 	rg.GET("service/events", middleware.RequirePermission(), k8s.Service.GetServiceEvents)
@@ -176,6 +189,7 @@ func registerNetworkRoutes(rg *gin.RouterGroup) {
 
 	// Ingress
 	rg.GET("ingress/list", middleware.RequirePermission(), k8s.Ingress.GetIngressList)
+	rg.POST("ingress/list", middleware.RequirePermission(), k8s.Ingress.GetIngressList)
 	rg.GET("ingress/detail", middleware.RequirePermission(), k8s.Ingress.GetIngressByName)
 	rg.GET("ingress/get-yaml", middleware.RequirePermission(), k8s.Ingress.GetIngressYaml)
 	rg.GET("ingress/events", middleware.RequirePermission(), k8s.Ingress.GetIngressEvents)
@@ -187,6 +201,7 @@ func registerNetworkRoutes(rg *gin.RouterGroup) {
 
 	// NetworkPolicy
 	rg.GET("networkpolicy/list", middleware.RequirePermission(), k8s.NetworkPolicy.GetNetworkPolicyList)
+	rg.POST("networkpolicy/list", middleware.RequirePermission(), k8s.NetworkPolicy.GetNetworkPolicyList)
 	rg.GET("networkpolicy/detail", middleware.RequirePermission(), k8s.NetworkPolicy.GetNetworkPolicyDetail)
 	rg.GET("networkpolicy/get-yaml", middleware.RequirePermission(), k8s.NetworkPolicy.GetNetworkPolicyYaml)
 	rg.GET("networkpolicy/events", middleware.RequirePermission(), k8s.NetworkPolicy.GetNetworkPolicyEvents)
@@ -199,6 +214,7 @@ func registerNetworkRoutes(rg *gin.RouterGroup) {
 func registerStorageRoutes(rg *gin.RouterGroup) {
 	// PV
 	rg.GET("pv/list", middleware.RequirePermission(), k8s.Pv.GetPVList)
+	rg.POST("pv/list", middleware.RequirePermission(), k8s.Pv.GetPVList)
 	rg.GET("pv/detail", middleware.RequirePermission(), k8s.Pv.GetPVByName)
 	rg.GET("pv/get-yaml", middleware.RequirePermission(), k8s.Pv.GetPVYaml)
 	rg.POST("pv/create", middleware.RequirePermission(), k8s.Pv.CreatePV)
@@ -207,6 +223,7 @@ func registerStorageRoutes(rg *gin.RouterGroup) {
 
 	// PVC
 	rg.GET("pvc/list", middleware.RequirePermission(), k8s.Pvc.GetPVCList)
+	rg.POST("pvc/list", middleware.RequirePermission(), k8s.Pvc.GetPVCList)
 	rg.GET("pvc/list-by-storageclass", middleware.RequirePermission(), k8s.Pvc.GetPVCListByStorageClass)
 	rg.GET("pvc/detail", middleware.RequirePermission(), k8s.Pvc.GetPVCByName)
 	rg.GET("pvc/get-yaml", middleware.RequirePermission(), k8s.Pvc.GetPVCYaml)
@@ -216,6 +233,7 @@ func registerStorageRoutes(rg *gin.RouterGroup) {
 
 	// StorageClass
 	rg.GET("storageclass/list", middleware.RequirePermission(), k8s.StorageClass.GetStorageClassList)
+	rg.POST("storageclass/list", middleware.RequirePermission(), k8s.StorageClass.GetStorageClassList)
 	rg.GET("storageclass/detail", middleware.RequirePermission(), k8s.StorageClass.GetStorageClassByName)
 	rg.GET("storageclass/get-yaml", middleware.RequirePermission(), k8s.StorageClass.GetStorageClassYaml)
 	rg.POST("storageclass/create", middleware.RequirePermission(), k8s.StorageClass.CreateStorageClass)
@@ -225,6 +243,7 @@ func registerStorageRoutes(rg *gin.RouterGroup) {
 
 	// VolumeSnapshot
 	rg.GET("volumesnapshot/list", middleware.RequirePermission(), k8s.VolumeSnapshot.GetVolumeSnapshotList)
+	rg.POST("volumesnapshot/list", middleware.RequirePermission(), k8s.VolumeSnapshot.GetVolumeSnapshotList)
 	rg.GET("volumesnapshot/detail", middleware.RequirePermission(), k8s.VolumeSnapshot.GetVolumeSnapshotByName)
 	rg.GET("volumesnapshot/get-yaml", middleware.RequirePermission(), k8s.VolumeSnapshot.GetVolumeSnapshotYaml)
 	rg.POST("volumesnapshot/create", middleware.RequirePermission(), k8s.VolumeSnapshot.CreateVolumeSnapshot)
@@ -233,6 +252,7 @@ func registerStorageRoutes(rg *gin.RouterGroup) {
 
 	// VolumeSnapshotClass
 	rg.GET("volumesnapshotclass/list", middleware.RequirePermission(), k8s.VolumeSnapshotClass.GetVolumeSnapshotClassList)
+	rg.POST("volumesnapshotclass/list", middleware.RequirePermission(), k8s.VolumeSnapshotClass.GetVolumeSnapshotClassList)
 	rg.GET("volumesnapshotclass/detail", middleware.RequirePermission(), k8s.VolumeSnapshotClass.GetVolumeSnapshotClassByName)
 	rg.GET("volumesnapshotclass/get-yaml", middleware.RequirePermission(), k8s.VolumeSnapshotClass.GetVolumeSnapshotClassYaml)
 	rg.POST("volumesnapshotclass/create", middleware.RequirePermission(), k8s.VolumeSnapshotClass.CreateVolumeSnapshotClass)
@@ -243,6 +263,7 @@ func registerStorageRoutes(rg *gin.RouterGroup) {
 func registerConfigRoutes(rg *gin.RouterGroup) {
 	// ConfigMap
 	rg.GET("configmap/list", middleware.RequirePermission(), k8s.ConfigMap.GetConfigMapList)
+	rg.POST("configmap/list", middleware.RequirePermission(), k8s.ConfigMap.GetConfigMapList)
 	rg.GET("configmap/detail", middleware.RequirePermission(), k8s.ConfigMap.GetConfigMapByName)
 	rg.GET("configmap/get-yaml", middleware.RequirePermission(), k8s.ConfigMap.GetConfigMapYaml)
 	rg.POST("configmap/create", middleware.RequirePermission(), k8s.ConfigMap.CreateConfigMapFromYaml)
@@ -251,6 +272,7 @@ func registerConfigRoutes(rg *gin.RouterGroup) {
 
 	// Secret
 	rg.GET("secret/list", middleware.RequirePermission(), k8s.Secret.GetSecretsList)
+	rg.POST("secret/list", middleware.RequirePermission(), k8s.Secret.GetSecretsList)
 	rg.GET("secret/detail", middleware.RequirePermission(), k8s.Secret.GetSecretByName)
 	rg.GET("secret/get-yaml", middleware.RequirePermission(), k8s.Secret.GetSecretYaml)
 	rg.POST("secret/create", middleware.RequirePermission(), k8s.Secret.CreateSecretFromYaml)
@@ -259,6 +281,7 @@ func registerConfigRoutes(rg *gin.RouterGroup) {
 
 	// ResourceQuota
 	rg.GET("resourcequota/list", middleware.RequirePermission(), k8s.ResourceQuota.GetResourceQuotaList)
+	rg.POST("resourcequota/list", middleware.RequirePermission(), k8s.ResourceQuota.GetResourceQuotaList)
 	rg.GET("resourcequota/detail", middleware.RequirePermission(), k8s.ResourceQuota.GetResourceQuotaDetail)
 	rg.GET("resourcequota/get-yaml", middleware.RequirePermission(), k8s.ResourceQuota.GetResourceQuotaYaml)
 	rg.POST("resourcequota/create", middleware.RequirePermission(), k8s.ResourceQuota.CreateResourceQuota)
@@ -267,6 +290,7 @@ func registerConfigRoutes(rg *gin.RouterGroup) {
 
 	// LimitRange
 	rg.GET("limitrange/list", middleware.RequirePermission(), k8s.LimitRange.GetLimitRangeList)
+	rg.POST("limitrange/list", middleware.RequirePermission(), k8s.LimitRange.GetLimitRangeList)
 	rg.GET("limitrange/detail", middleware.RequirePermission(), k8s.LimitRange.GetLimitRangeDetail)
 	rg.GET("limitrange/get-yaml", middleware.RequirePermission(), k8s.LimitRange.GetLimitRangeYaml)
 	rg.POST("limitrange/create", middleware.RequirePermission(), k8s.LimitRange.CreateLimitRange)
@@ -276,12 +300,14 @@ func registerConfigRoutes(rg *gin.RouterGroup) {
 
 func registerCrdRoutes(rg *gin.RouterGroup) {
 	rg.GET("crd/list", middleware.RequirePermission(), k8s.Crd.GetCRDList)
+	rg.POST("crd/list", middleware.RequirePermission(), k8s.Crd.GetCRDList)
 	rg.GET("crd/detail", middleware.RequirePermission(), k8s.Crd.GetCRDDetail)
 	rg.GET("crd/get-yaml", middleware.RequirePermission(), k8s.Crd.GetCRDYaml)
 	rg.POST("crd/create", middleware.RequirePermission(), k8s.Crd.CreateCRD)
 	rg.PUT("crd/update", middleware.RequirePermission(), k8s.Crd.UpdateCRD)
 	rg.DELETE("crd/delete", middleware.RequirePermission(), k8s.Crd.DeleteCRD)
 	rg.GET("crd/resources", middleware.RequirePermission(), k8s.Crd.GetCustomResourceList)
+	rg.POST("crd/resources", middleware.RequirePermission(), k8s.Crd.GetCustomResourceList)
 	rg.GET("crd/resource/detail", middleware.RequirePermission(), k8s.Crd.GetCustomResourceDetail)
 	rg.GET("crd/resource/yaml", middleware.RequirePermission(), k8s.Crd.GetCustomResourceYaml)
 	rg.POST("crd/resource/create", middleware.RequirePermission(), k8s.Crd.CreateCustomResource)

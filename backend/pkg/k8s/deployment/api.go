@@ -20,13 +20,16 @@ import (
 )
 
 // ListDeployments returns a paginated deployment list with metadata
-func ListDeployments(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*appsv1.DeploymentList, error) {
+func ListDeployments(client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*appsv1.DeploymentList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
 	}
 	if continueToken != "" {
 		listOpts.Continue = continueToken
+	}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
 	}
 	return client.AppsV1().Deployments(namespace).List(context.TODO(), listOpts)
 }

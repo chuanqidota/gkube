@@ -14,8 +14,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func GetReplicaSetList(client *kubernetes.Clientset, namespace string) ([]appsv1.ReplicaSet, error) {
-	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetReplicaSetList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]appsv1.ReplicaSet, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}

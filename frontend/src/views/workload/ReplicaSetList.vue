@@ -6,6 +6,9 @@ import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useClusterStore } from '@/stores/cluster'
+
+const clusterStore = useClusterStore()
 
 function transformReplicaSets(items: any[]) {
   if (!Array.isArray(items)) return []
@@ -46,6 +49,8 @@ const {
   handleDelete,
   handleBatchDelete,
   handleDetail,
+  labelConditions,
+  onLabelConditionsChange,
 } = useResourceList({
   resourceName: 'ReplicaSet',
   fetchList: getReplicaSetList,
@@ -70,8 +75,12 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
       :show-create="false"
       :total-count="totalCount"
       :selected-count="selectedRows.length"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="replicaset"
+      :label-conditions="labelConditions"
       @search-input="onSearchInput"
       @namespace-change="handleNamespaceChange"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">

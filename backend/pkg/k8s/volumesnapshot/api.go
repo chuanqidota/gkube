@@ -26,18 +26,22 @@ var VolumeSnapshotGVR = schema.GroupVersionResource{
 //	@param namespace
 //	@return []unstructured.Unstructured
 //	@return error
-func GetVolumeSnapshotList(client dynamic.Interface, namespace string) ([]unstructured.Unstructured, error) {
-	var list *unstructured.UnstructuredList
+func GetVolumeSnapshotList(client dynamic.Interface, namespace string, labelSelector string) ([]unstructured.Unstructured, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	var result *unstructured.UnstructuredList
 	var err error
 	if namespace != "" {
-		list, err = client.Resource(VolumeSnapshotGVR).Namespace(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+		result, err = client.Resource(VolumeSnapshotGVR).Namespace(namespace).List(context.TODO(), listOpts)
 	} else {
-		list, err = client.Resource(VolumeSnapshotGVR).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+		result, err = client.Resource(VolumeSnapshotGVR).List(context.TODO(), listOpts)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return list.Items, nil
+	return result.Items, nil
 }
 
 // GetVolumeSnapshotByName

@@ -121,8 +121,8 @@ export function transformNamespaces(items: any[]): Namespace[] {
 
 // ============ Namespace API ============
 
-export function getNamespaceList(params?: { cluster_id?: number }) {
-  return request.get<Namespace[]>('/k8s/namespace/list', { params })
+export function getNamespaceList(data?: any) {
+  return request.post<Namespace[]>('/k8s/namespace/list', data)
 }
 
 export function getNamespaceDetail(params: { name: string }) {
@@ -234,8 +234,8 @@ export function getDashboardEvents(params?: {
 
 // ============ CRD API ============
 
-export function getCrdList() {
-  return request.get('/k8s/crd/list')
+export function getCrdList(data?: any) {
+  return request.post('/k8s/crd/list', data)
 }
 
 export function getCrdDetail(params: { name: string }) {
@@ -258,8 +258,8 @@ export function deleteCrd(params: { name: string }) {
   return request.delete('/k8s/crd/delete', { params })
 }
 
-export function getCustomResourceList(params: { group: string; version: string; resource: string; namespace?: string }) {
-  return request.get('/k8s/crd/resources', { params })
+export function getCustomResourceList(data: any) {
+  return request.post('/k8s/crd/resources', data)
 }
 
 export function getCustomResourceYaml(params: { group: string; version: string; resource: string; namespace?: string; name: string }) {

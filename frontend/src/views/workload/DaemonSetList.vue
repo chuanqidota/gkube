@@ -17,6 +17,9 @@ import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useClusterStore } from '@/stores/cluster'
+
+const clusterStore = useClusterStore()
 
 const {
   loading,
@@ -42,6 +45,8 @@ const {
   handleDetail,
   handleDelete,
   handleBatchDelete,
+  labelConditions,
+  onLabelConditionsChange,
 } = useResourceList({
   resourceName: 'DaemonSet',
   fetchList: getDaemonSetList,
@@ -122,8 +127,12 @@ async function handleImageConfirm() {
       :namespace-list="namespaceList"
       :total-count="totalCount"
       :selected-count="selectedRows.length"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="daemonset"
+      :label-conditions="labelConditions"
       @search-input="onSearchInput"
       @namespace-change="handleNamespaceChange"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
         <el-button type="success" @click="$router.push('/workloads/daemonsets/create')">

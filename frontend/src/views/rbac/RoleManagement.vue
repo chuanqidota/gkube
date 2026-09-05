@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { getRoles, createRole, updateRole, deleteRole, getResourceDict } from '@/api/rbac'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
+import { useUIStore } from '@/stores/ui'
 
 interface RoleItem {
   id: number
@@ -22,10 +23,32 @@ interface ResourceGroupDef {
 }
 
 const { t } = useI18n()
+const uiStore = useUIStore()
 const loading = ref(false)
 const roles = ref<RoleItem[]>([])
 const dict = ref<ResourceGroupDef[]>([])
 const searchName = ref('')
+
+// 响应式抽屉宽度：移动端全屏，桌面端撑到左侧菜单栏
+const isMobile = ref(window.matchMedia('(max-width: 768px)').matches)
+let mobileHandler: ((e: MediaQueryListEvent) => void) | undefined
+const drawerSize = computed(() => {
+  if (isMobile.value) return '100%'
+  return uiStore.sidebarCollapsed
+    ? 'calc(100vw - var(--gk-sidebar-collapsed-width))'
+    : 'calc(100vw - var(--gk-sidebar-width))'
+})
+
+onMounted(() => {
+  fetchData()
+  mobileHandler = (e: MediaQueryListEvent) => { isMobile.value = e.matches }
+  window.matchMedia('(max-width: 768px)').addEventListener('change', mobileHandler)
+})
+onUnmounted(() => {
+  if (mobileHandler) {
+    window.matchMedia('(max-width: 768px)').removeEventListener('change', mobileHandler)
+  }
+})
 
 // 矩阵编辑对话框
 const editVisible = ref(false)
@@ -197,7 +220,6 @@ async function handleSave() {
   }
 }
 
-onMounted(fetchData)
 </script>
 
 <template>
@@ -250,8 +272,8 @@ onMounted(fetchData)
       </el-table>
     </el-card>
 
-    <!-- 矩阵编辑对话框 -->
-    <el-dialog v-model="editVisible" :title="editRole ? t('rbac.editRole') : t('rbac.createRole')" width="720px">
+    <!-- 矩阵编辑抽屉 -->
+    <el-drawer v-model="editVisible" :title="editRole ? t('rbac.editRole') : t('rbac.createRole')" :size="drawerSize" direction="rtl">
       <el-form label-width="80px">
         <el-form-item :label="t('rbac.roleName')">
           <el-input v-model="editForm.displayName" :disabled="!!editRole" style="width: 240px;" />
@@ -293,7 +315,7 @@ onMounted(fetchData)
         <el-button @click="editVisible = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" :loading="saving" @click="handleSave">{{ t('common.save') }}</el-button>
       </template>
-    </el-dialog>
+    </el-drawer>
   </div>
 </template>
 

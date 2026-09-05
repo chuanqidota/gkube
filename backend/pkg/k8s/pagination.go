@@ -7,7 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetPaginationParams extracts limit and continue token from query params
+// GetPaginationParams extracts limit and continue token from query params (GET).
+// For POST list endpoints, handlers should read limit/continue from the bound params struct directly.
 func GetPaginationParams(c *gin.Context) (int64, string) {
 	limitStr := c.DefaultQuery("limit", "0")
 	continueToken := c.DefaultQuery("continue", "")

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sNp "gkube/pkg/k8s/networkpolicy"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/response"
 )
 
@@ -15,14 +16,33 @@ type networkPolicy struct{}
 var NetworkPolicy = new(networkPolicy)
 
 func (np *networkPolicy) GetNetworkPolicyList(c *gin.Context) {
-	namespace := c.Query("namespace")
-	clusterName := c.Query("clusterName")
+	var query struct {
+		Namespace    string                  `form:"namespace" json:"namespace"`
+		ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required"`
+		LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters"`
+	}
+	if err := c.ShouldBind(&query); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	namespace := query.Namespace
+	clusterName := query.ClusterName
+	// 构建 label selector
+	var labelSelector string
+	if len(query.LabelFilters) > 0 {
+		var buildErr error
+		labelSelector, buildErr = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if buildErr != nil {
+			response.Fail(c, buildErr.Error())
+			return
+		}
+	}
 	client, err := k8sclient.GetK8sClientByName(clusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	npList, err := k8sNp.GetNetworkPolicyList(client, namespace)
+	npList, err := k8sNp.GetNetworkPolicyList(client, namespace, labelSelector)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取NetworkPolicy列表失败:%s", err.Error()))
 		return

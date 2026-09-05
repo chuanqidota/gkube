@@ -25,8 +25,12 @@ import (
 //	@param namespace
 //	@return []appsv1.StatefulSet
 //	@return error
-func GetStatefulSetList(client *kubernetes.Clientset, namespace string) ([]appsv1.StatefulSet, error) {
-	statefulSetList, err := client.AppsV1().StatefulSets(namespace).List(context.Background(), metav1.ListOptions{ResourceVersion: "0"})
+func GetStatefulSetList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]appsv1.StatefulSet, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	statefulSetList, err := client.AppsV1().StatefulSets(namespace).List(context.Background(), listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -34,13 +38,16 @@ func GetStatefulSetList(client *kubernetes.Clientset, namespace string) ([]appsv
 }
 
 // ListStatefulSets returns a paginated statefulset list with metadata
-func ListStatefulSets(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*appsv1.StatefulSetList, error) {
+func ListStatefulSets(client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*appsv1.StatefulSetList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
 	}
 	if continueToken != "" {
 		listOpts.Continue = continueToken
+	}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
 	}
 	return client.AppsV1().StatefulSets(namespace).List(context.Background(), listOpts)
 }

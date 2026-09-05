@@ -16,12 +16,16 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func GetNetworkPolicyList(client *kubernetes.Clientset, namespace string) ([]networkingv1.NetworkPolicy, error) {
-	npList, err := client.NetworkingV1().NetworkPolicies(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetNetworkPolicyList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]networkingv1.NetworkPolicy, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	result, err := client.NetworkingV1().NetworkPolicies(namespace).List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
-	return npList.Items, nil
+	return result.Items, nil
 }
 
 func GetNetworkPolicyYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {

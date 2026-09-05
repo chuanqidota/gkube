@@ -21,12 +21,16 @@ import (
 //	@param client
 //	@return []corev1.PersistentVolume
 //	@return error
-func GetPVList(client *kubernetes.Clientset) ([]corev1.PersistentVolume, error) {
-	pvList, err := client.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{ResourceVersion: "0"})
+func GetPVList(client *kubernetes.Clientset, labelSelector string) ([]corev1.PersistentVolume, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	result, err := client.CoreV1().PersistentVolumes().List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
-	return pvList.Items, nil
+	return result.Items, nil
 }
 
 // GetPVByName

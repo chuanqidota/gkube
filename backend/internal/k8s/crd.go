@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sCrd "gkube/pkg/k8s/crd"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/response"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -15,13 +16,31 @@ type crd struct{}
 var Crd = new(crd)
 
 func (c *crd) GetCRDList(ginCtx *gin.Context) {
-	clusterName := ginCtx.Query("clusterName")
+	var query struct {
+		ClusterName  string                  `form:"clusterName" json:"clusterName"`
+		LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters"`
+	}
+	if err := ginCtx.ShouldBind(&query); err != nil {
+		response.Fail(ginCtx, "参数校验失败")
+		return
+	}
+	clusterName := query.ClusterName
+	// 构建 label selector
+	var labelSelector string
+	if len(query.LabelFilters) > 0 {
+		var buildErr error
+		labelSelector, buildErr = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if buildErr != nil {
+			response.Fail(ginCtx, buildErr.Error())
+			return
+		}
+	}
 	client, err := k8sclient.GetApiExtensionsClientByName(clusterName)
 	if err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	crdList, err := k8sCrd.GetCRDList(client)
+	crdList, err := k8sCrd.GetCRDList(client, labelSelector)
 	if err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("获取CRD列表失败:%s", err.Error()))
 		return
@@ -97,22 +116,35 @@ func (c *crd) GetCRDYaml(ginCtx *gin.Context) {
 }
 
 func (c *crd) GetCustomResourceList(ginCtx *gin.Context) {
-	group := ginCtx.Query("group")
-	version := ginCtx.Query("version")
-	resource := ginCtx.Query("resource")
-	namespace := ginCtx.Query("namespace")
-	clusterName := ginCtx.Query("clusterName")
-	if group == "" || version == "" || resource == "" {
-		response.Fail(ginCtx, "group, version, resource参数不能为空")
+	var query struct {
+		Group         string                  `form:"group" json:"group" binding:"required"`
+		Version       string                  `form:"version" json:"version" binding:"required"`
+		Resource      string                  `form:"resource" json:"resource" binding:"required"`
+		Namespace     string                  `form:"namespace" json:"namespace"`
+		ClusterName   string                  `form:"clusterName" json:"clusterName"`
+		LabelFilters  []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters"`
+	}
+	if err := ginCtx.ShouldBind(&query); err != nil {
+		response.Fail(ginCtx, "参数校验失败")
 		return
 	}
-	config, err := k8sclient.GetRestConfigByName(clusterName)
+	// 构建 label selector
+	var labelSelector string
+	if len(query.LabelFilters) > 0 {
+		var buildErr error
+		labelSelector, buildErr = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if buildErr != nil {
+			response.Fail(ginCtx, buildErr.Error())
+			return
+		}
+	}
+	config, err := k8sclient.GetRestConfigByName(query.ClusterName)
 	if err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("获取k8s配置失败:%s", err.Error()))
 		return
 	}
-	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
-	items, err := k8sCrd.GetCustomResourceList(config, gvr, namespace)
+	gvr := schema.GroupVersionResource{Group: query.Group, Version: query.Version, Resource: query.Resource}
+	items, err := k8sCrd.GetCustomResourceList(config, gvr, query.Namespace, labelSelector)
 	if err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("获取自定义资源列表失败:%s", err.Error()))
 		return

@@ -27,8 +27,8 @@ export function transformSecrets(items: any[]) {
 
 // ============ ConfigMap API ============
 
-export function getConfigMapList(params?: { namespace?: string; cluster_id?: number }) {
-  return request.get('/k8s/configmap/list', { params })
+export function getConfigMapList(data?: any) {
+  return request.post('/k8s/configmap/list', data)
 }
 
 export function getConfigMapDetail(params: { namespace: string; name: string }) {
@@ -53,8 +53,8 @@ export function deleteConfigMap(data: { namespace: string; name: string }) {
 
 // ============ Secret API ============
 
-export function getSecretList(params?: { namespace?: string; cluster_id?: number }) {
-  return request.get('/k8s/secret/list', { params })
+export function getSecretList(data?: any) {
+  return request.post('/k8s/secret/list', data)
 }
 
 export function getSecretDetail(params: { namespace: string; name: string }) {
@@ -79,8 +79,8 @@ export function deleteSecret(data: { namespace: string; name: string }) {
 
 // ============ ResourceQuota API ============
 
-export function getResourceQuotaList(params?: { namespace?: string }) {
-  return request.get('/k8s/resourcequota/list', { params })
+export function getResourceQuotaList(data?: any) {
+  return request.post('/k8s/resourcequota/list', data)
 }
 
 export function getResourceQuotaDetail(params: { namespace: string; name: string }) {
@@ -105,8 +105,8 @@ export function deleteResourceQuota(params: { namespace: string; name: string })
 
 // ============ LimitRange API ============
 
-export function getLimitRangeList(params?: { namespace?: string }) {
-  return request.get('/k8s/limitrange/list', { params })
+export function getLimitRangeList(data?: any) {
+  return request.post('/k8s/limitrange/list', data)
 }
 
 export function getLimitRangeDetail(params: { namespace: string; name: string }) {

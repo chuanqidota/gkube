@@ -17,8 +17,12 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func GetCRDList(client *apiextensionsclientset.Clientset) ([]apiextensionsv1.CustomResourceDefinition, error) {
-	crdList, err := client.ApiextensionsV1().CustomResourceDefinitions().List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetCRDList(client *apiextensionsclientset.Clientset, labelSelector string) ([]apiextensionsv1.CustomResourceDefinition, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	crdList, err := client.ApiextensionsV1().CustomResourceDefinitions().List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -42,16 +46,20 @@ func GetCRDYaml(client *apiextensionsclientset.Clientset, name string) (string, 
 	return string(out), nil
 }
 
-func GetCustomResourceList(config *rest.Config, gvr schema.GroupVersionResource, namespace string) ([]unstructured.Unstructured, error) {
+func GetCustomResourceList(config *rest.Config, gvr schema.GroupVersionResource, namespace string, labelSelector string) ([]unstructured.Unstructured, error) {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
 	var list *unstructured.UnstructuredList
 	if namespace != "" {
-		list, err = dynamicClient.Resource(gvr).Namespace(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+		list, err = dynamicClient.Resource(gvr).Namespace(namespace).List(context.TODO(), listOpts)
 	} else {
-		list, err = dynamicClient.Resource(gvr).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+		list, err = dynamicClient.Resource(gvr).List(context.TODO(), listOpts)
 	}
 	if err != nil {
 		return nil, err

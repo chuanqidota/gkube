@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sDaemonSet "gkube/pkg/k8s/daemonset"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
@@ -17,7 +18,7 @@ var DaemonSet = new(daemonSet)
 
 func (d *daemonSet) GetDaemonSetList(c *gin.Context) {
 	var query DaemonSetQueryListParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := c.ShouldBind(&query); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
 	}
@@ -28,9 +29,20 @@ func (d *daemonSet) GetDaemonSetList(c *gin.Context) {
 		return
 	}
 
-	limit, continueToken := k8sclient.GetPaginationParams(c)
+	// 构建 label selector
+	var selector string
+	if len(query.LabelFilters) > 0 {
+		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+	}
+
+	limit := query.Limit
+	continueToken := query.Continue
 	if limit > 0 {
-		dsList, err := k8sDaemonSet.ListDaemonSets(client, query.Namespace, limit, continueToken)
+		dsList, err := k8sDaemonSet.ListDaemonSets(client, query.Namespace, limit, continueToken, selector)
 		if err != nil {
 			logger.Error(err.Error())
 			response.FailWithStatus(c, http.StatusBadGateway, "获取DaemonSet列表失败")
@@ -44,7 +56,7 @@ func (d *daemonSet) GetDaemonSetList(c *gin.Context) {
 		data.Total = len(dsList.Items) + int(remaining)
 		response.Success(c, "执行成功", data)
 	} else {
-		daemonSets, err := k8sDaemonSet.GetDaemonSetList(client, query.Namespace)
+		daemonSets, err := k8sDaemonSet.GetDaemonSetList(client, query.Namespace, selector)
 		if err != nil {
 			logger.Error(err.Error())
 			response.FailWithStatus(c, http.StatusBadGateway, "获取DaemonSet列表失败")
@@ -330,8 +342,11 @@ func (d *daemonSet) GetDaemonSetRollbacks(c *gin.Context) {
 }
 
 type DaemonSetQueryListParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	Namespace    string                  `form:"namespace" json:"namespace" label:"命名空间"`
+	Limit        int64                   `form:"limit" json:"limit" label:"每页条数"`
+	Continue     string                  `form:"continue" json:"continue" label:"分页标记"`
+	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
 }
 
 type DaemonSetQueryByNameParams struct {

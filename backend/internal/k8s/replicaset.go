@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sReplicaSet "gkube/pkg/k8s/replicaset"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
@@ -17,8 +18,9 @@ var ReplicaSet = new(replicaset)
 
 // ReplicaSetListParams 列表查询参数
 type ReplicaSetListParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	Namespace    string                  `form:"namespace" json:"namespace" label:"命名空间"`
+	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
 }
 
 // ReplicaSetNamespacedParams 按命名空间+名称定位资源，供 detail/yaml/pods/events/delete 复用
@@ -30,7 +32,7 @@ type ReplicaSetNamespacedParams struct {
 
 func (r *replicaset) GetReplicaSetList(c *gin.Context) {
 	var query ReplicaSetListParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := c.ShouldBind(&query); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
 	}
@@ -40,7 +42,17 @@ func (r *replicaset) GetReplicaSetList(c *gin.Context) {
 		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	rsList, err := k8sReplicaSet.GetReplicaSetList(client, query.Namespace)
+	// 构建 label selector
+	var selector string
+	if len(query.LabelFilters) > 0 {
+		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+	}
+
+	rsList, err := k8sReplicaSet.GetReplicaSetList(client, query.Namespace, selector)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusBadGateway, "获取ReplicaSet列表失败")

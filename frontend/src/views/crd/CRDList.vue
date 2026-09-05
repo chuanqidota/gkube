@@ -8,11 +8,15 @@ import YamlDrawer from '@/components/YamlDrawer.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useClusterStore } from '@/stores/cluster'
+import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 
 const router = useRouter()
+const clusterStore = useClusterStore()
 const loading = ref(false)
 const crdList = ref<any[]>([])
 const searchName = ref('')
+const labelConditions = ref<LabelCondition[]>([])
 const selectedRows = ref<any[]>([])
 const yamlDialogVisible = ref(false)
 const yamlTarget = ref<{ name: string } | null>(null)
@@ -27,6 +31,11 @@ function onSearchInput(value: string) {
   searchName.value = value
 }
 
+function onLabelConditionsChange(conditions: LabelCondition[]) {
+  labelConditions.value = conditions
+  fetchCrds()
+}
+
 function handleSelectionChange(rows: any[]) {
   selectedRows.value = rows
 }
@@ -34,7 +43,9 @@ function handleSelectionChange(rows: any[]) {
 async function fetchCrds() {
   loading.value = true
   try {
-    const res: any = await getCrdList()
+    const params: any = {}
+    if (labelConditions.value.length > 0) params.labelFilters = labelConditions.value
+    const res: any = await getCrdList(params)
     crdList.value = res.data || []
   } catch {
     // Silently handle — resource may not exist in cluster
@@ -103,7 +114,11 @@ onMounted(fetchCrds)
       :selected-count="selectedRows.length"
       :show-namespace="false"
       search-placeholder="搜索名称或 Kind"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="customresourcedefinition"
+      :label-conditions="labelConditions"
       @search-input="onSearchInput"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
         <el-button type="success" @click="router.push('/crd/create')">

@@ -16,7 +16,10 @@ import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useClusterStore } from '@/stores/cluster'
 import HPAForm from './components/HPAForm.vue'
+
+const clusterStore = useClusterStore()
 
 const {
   loading,
@@ -42,6 +45,8 @@ const {
   handleDetail,
   handleDelete,
   handleBatchDelete,
+  labelConditions,
+  onLabelConditionsChange,
 } = useResourceList({
   resourceName: 'HPA',
   fetchList: getHpaList,
@@ -191,8 +196,12 @@ async function handleResume(row: any) {
       :namespace-list="namespaceList"
       :total-count="totalCount"
       :selected-count="selectedRows.length"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="horizontalpodautoscaler"
+      :label-conditions="labelConditions"
       @search-input="onSearchInput"
       @namespace-change="handleNamespaceChange"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
         <el-select

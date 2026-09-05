@@ -16,13 +16,16 @@ import (
 
 // ListPods returns a paginated pod list with metadata.
 // 传 limit<=0 且 continueToken="" 时等价于全量列举(不分页)。
-func ListPods(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*corev1.PodList, error) {
+func ListPods(client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*corev1.PodList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
 	}
 	if continueToken != "" {
 		listOpts.Continue = continueToken
+	}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
 	}
 	return client.CoreV1().Pods(namespace).List(context.TODO(), listOpts)
 }

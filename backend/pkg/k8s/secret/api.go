@@ -20,8 +20,12 @@ import (
 //	@param namespace
 //	@return []corev1.Secret
 //	@return error
-func GetSecretsList(client *kubernetes.Clientset, namespace string) ([]corev1.Secret, error) {
-	secrets, err := client.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetSecretsList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]corev1.Secret, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	secrets, err := client.CoreV1().Secrets(namespace).List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}

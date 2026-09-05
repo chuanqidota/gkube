@@ -16,12 +16,16 @@ import (
 //	@param client
 //	@return []storagev1.StorageClass
 //	@return error
-func GetStorageClassList(client *kubernetes.Clientset) ([]storagev1.StorageClass, error) {
-	scList, err := client.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetStorageClassList(client *kubernetes.Clientset, labelSelector string) ([]storagev1.StorageClass, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	result, err := client.StorageV1().StorageClasses().List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
-	return scList.Items, nil
+	return result.Items, nil
 }
 
 // GetStorageClassByName

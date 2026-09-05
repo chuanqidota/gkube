@@ -28,8 +28,12 @@ import (
 //	@param namespace
 //	@return []appsv1.DaemonSet
 //	@return error
-func GetDaemonSetList(client *kubernetes.Clientset, namespace string) ([]appsv1.DaemonSet, error) {
-	daemonSetList, err := client.AppsV1().DaemonSets(namespace).List(context.Background(), metav1.ListOptions{ResourceVersion: "0"})
+func GetDaemonSetList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]appsv1.DaemonSet, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	daemonSetList, err := client.AppsV1().DaemonSets(namespace).List(context.Background(), listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -37,13 +41,16 @@ func GetDaemonSetList(client *kubernetes.Clientset, namespace string) ([]appsv1.
 }
 
 // ListDaemonSets returns a paginated daemonset list with metadata
-func ListDaemonSets(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*appsv1.DaemonSetList, error) {
+func ListDaemonSets(client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*appsv1.DaemonSetList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
 	}
 	if continueToken != "" {
 		listOpts.Continue = continueToken
+	}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
 	}
 	return client.AppsV1().DaemonSets(namespace).List(context.Background(), listOpts)
 }

@@ -67,8 +67,12 @@ func jobHistoryTime(job batchv1.Job) time.Time {
 //	@param namespace
 //	@return []batchv1.CronJob
 //	@return error
-func GetCronJobList(client *kubernetes.Clientset, namespace string) ([]batchv1.CronJob, error) {
-	cronJobList, err := client.BatchV1().CronJobs(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetCronJobList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]batchv1.CronJob, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	cronJobList, err := client.BatchV1().CronJobs(namespace).List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -76,13 +80,16 @@ func GetCronJobList(client *kubernetes.Clientset, namespace string) ([]batchv1.C
 }
 
 // ListCronJobs returns a paginated cronjob list with metadata
-func ListCronJobs(client *kubernetes.Clientset, namespace string, limit int64, continueToken string) (*batchv1.CronJobList, error) {
+func ListCronJobs(client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*batchv1.CronJobList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
 	}
 	if continueToken != "" {
 		listOpts.Continue = continueToken
+	}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
 	}
 	return client.BatchV1().CronJobs(namespace).List(context.TODO(), listOpts)
 }

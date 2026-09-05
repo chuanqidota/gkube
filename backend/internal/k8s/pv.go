@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sPv "gkube/pkg/k8s/pv"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
@@ -20,7 +21,7 @@ var Pv = new(pv)
 //	@param c
 func (p *pv) GetPVList(c *gin.Context) {
 	var query PvListParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := c.ShouldBind(&query); err != nil {
 		logger.Error(err.Error())
 		response.Fail(c, "参数错误")
 		return
@@ -31,7 +32,17 @@ func (p *pv) GetPVList(c *gin.Context) {
 		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	pvList, err := k8sPv.GetPVList(client)
+	// 构建 label selector
+	var selector string
+	if len(query.LabelFilters) > 0 {
+		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+	}
+
+	pvList, err := k8sPv.GetPVList(client, selector)
 	if err != nil {
 		logger.Error(err.Error())
 		response.Fail(c, "获取pv列表失败")
@@ -176,7 +187,8 @@ func (p *pv) DeletePVByName(c *gin.Context) {
 }
 
 type PvListParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
 }
 
 type PvQueryByNameParams struct {

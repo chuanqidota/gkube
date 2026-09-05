@@ -9,14 +9,18 @@ import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
+import { useClusterStore } from '@/stores/cluster'
+import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 
 const { t } = useI18n()
 const router = useRouter()
+const clusterStore = useClusterStore()
 const loading = ref(false)
 const snapshotList = ref<any[]>([])
 const namespaceList = ref<string[]>([])
 const selectedNamespace = ref('')
 const searchName = ref('')
+const labelConditions = ref<LabelCondition[]>([])
 const selectedRows = ref<any[]>([])
 const yamlDialogVisible = ref(false)
 const yamlTarget = ref<{ namespace: string; name: string } | null>(null)
@@ -36,11 +40,17 @@ async function fetchNamespaces() {
   } catch { /* ignore */ }
 }
 
+function onLabelConditionsChange(conditions: LabelCondition[]) {
+  labelConditions.value = conditions
+  fetchSnapshots()
+}
+
 async function fetchSnapshots() {
   loading.value = true
   try {
     const params: any = {}
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
+    if (labelConditions.value.length > 0) params.labelFilters = labelConditions.value
     const res: any = await getVolumeSnapshotList(params)
     snapshotList.value = res.data || []
   } catch {
@@ -132,8 +142,12 @@ onMounted(() => { fetchNamespaces(); fetchSnapshots() })
       :namespace-list="namespaceList"
       :show-total-count="false"
       :selected-count="selectedRows.length"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="volumesnapshot"
+      :label-conditions="labelConditions"
       @search-input="onSearchInput"
       @namespace-change="handleNamespaceChange"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
         <el-button type="success" @click="router.push('/storage/volumesnapshots/create')"><el-icon><Plus /></el-icon> {{ t('common.create') }}</el-button>

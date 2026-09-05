@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Search } from '@element-plus/icons-vue'
+import LabelFilterPopover from './LabelFilterPopover.vue'
+import type { LabelCondition } from './LabelFilterPopover.vue'
 
 interface Props {
   searchValue: string
@@ -12,6 +14,12 @@ interface Props {
   showTotalCount?: boolean
   searchPlaceholder?: string
   namespacePlaceholder?: string
+  /** 集群名称（传给 LabelFilterPopover） */
+  clusterName?: string
+  /** 资源类型（传给 LabelFilterPopover） */
+  resourceType?: string
+  /** 当前 label 条件 */
+  labelConditions?: LabelCondition[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -23,6 +31,9 @@ const props = withDefaults(defineProps<Props>(), {
   showTotalCount: true,
   searchPlaceholder: '搜索名称',
   namespacePlaceholder: '所有命名空间',
+  clusterName: '',
+  resourceType: '',
+  labelConditions: () => [],
 })
 
 const emit = defineEmits<{
@@ -32,6 +43,7 @@ const emit = defineEmits<{
   namespaceChange: [value: string]
   create: []
   batchDelete: []
+  'labelSelectorChange': [conditions: LabelCondition[]]
 }>()
 </script>
 
@@ -39,15 +51,6 @@ const emit = defineEmits<{
   <el-card shadow="never" class="filter-card">
     <div class="filter-bar">
       <!-- 左侧筛选区 -->
-      <el-input
-        :model-value="searchValue"
-        @input="emit('searchInput', $event)"
-        :placeholder="searchPlaceholder"
-        style="width: 220px;"
-        clearable
-      >
-        <template #prefix><el-icon><Search /></el-icon></template>
-      </el-input>
       <el-select
         v-if="showNamespace"
         :model-value="namespaceValue"
@@ -59,6 +62,24 @@ const emit = defineEmits<{
       >
         <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
       </el-select>
+      <el-input
+        :model-value="searchValue"
+        @input="emit('searchInput', $event)"
+        :placeholder="searchPlaceholder"
+        style="width: 220px;"
+        clearable
+      >
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
+      <!-- Label 过滤 -->
+      <LabelFilterPopover
+        v-if="clusterName && resourceType"
+        :cluster-name="clusterName"
+        :namespace="namespaceValue"
+        :resource-type="resourceType"
+        :model-value="labelConditions"
+        @update:model-value="emit('labelSelectorChange', $event)"
+      />
       <!-- 总计数 -->
       <span class="total-count" v-if="showTotalCount && totalCount">总计: {{ totalCount }}</span>
 

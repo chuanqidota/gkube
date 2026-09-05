@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
 	k8sclient "gkube/pkg/k8s"
+	k8sLabels "gkube/pkg/k8s/labels"
 	k8sNamespace "gkube/pkg/k8s/namespace"
 	"gkube/pkg/response"
 )
@@ -34,17 +35,30 @@ func namespaceStatus(phase corev1.NamespacePhase) string {
 //	@receiver n
 //	@param c
 func (n *namespace) GetNamespaceList(c *gin.Context) {
-	var query ClusterQueryParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+	var query struct {
+		ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required"`
+		LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters"`
+	}
+	if err := c.ShouldBind(&query); err != nil {
 		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
 		return
+	}
+	// 构建 label selector
+	var labelSelector string
+	if len(query.LabelFilters) > 0 {
+		var buildErr error
+		labelSelector, buildErr = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if buildErr != nil {
+			response.Fail(c, buildErr.Error())
+			return
+		}
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	namespaces, err := k8sNamespace.GetNamespaceList(client)
+	namespaces, err := k8sNamespace.GetNamespaceList(client, labelSelector)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取集群命名空间列表失败:%s", err.Error()))
 		return

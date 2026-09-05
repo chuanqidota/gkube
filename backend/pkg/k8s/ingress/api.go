@@ -24,12 +24,16 @@ import (
 //	@param namespace
 //	@return []netv1.Ingress
 //	@return error
-func GetIngressList(client *kubernetes.Clientset, namespace string) ([]netv1.Ingress, error) {
-	ingress, err := client.NetworkingV1().Ingresses(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetIngressList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]netv1.Ingress, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	result, err := client.NetworkingV1().Ingresses(namespace).List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
-	return ingress.Items, nil
+	return result.Items, nil
 }
 
 // GetIngressByName

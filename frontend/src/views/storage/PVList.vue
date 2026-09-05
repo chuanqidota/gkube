@@ -7,6 +7,9 @@ import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useClusterStore } from '@/stores/cluster'
+
+const clusterStore = useClusterStore()
 
 const {
   loading,
@@ -27,6 +30,8 @@ const {
   handleDetail,
   handleDelete,
   handleBatchDelete,
+  labelConditions,
+  onLabelConditionsChange,
 } = useResourceList({
   resourceName: 'PersistentVolume',
   fetchList: getPvList,
@@ -48,7 +53,11 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
       :show-namespace="false"
       :total-count="totalCount"
       :selected-count="selectedRows.length"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="persistentvolume"
+      :label-conditions="labelConditions"
       @search-input="onSearchInput"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
         <el-button type="success" @click="$router.push('/storage/pvs/create')">

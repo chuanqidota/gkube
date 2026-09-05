@@ -7,14 +7,18 @@ import { getSecretList, getSecretDetail, deleteSecret, getNamespaceList, extract
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
+import { useClusterStore } from '@/stores/cluster'
+import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 
 const router = useRouter()
+const clusterStore = useClusterStore()
 const loading = ref(false)
 const secretList = ref<any[]>([])
 const namespaceList = ref<string[]>([])
 const selectedNamespace = ref('')
 const searchName = ref('')
+const labelConditions = ref<LabelCondition[]>([])
 const selectedRows = ref<any[]>([])
 const yamlDialogVisible = ref(false)
 const yamlTarget = ref<{ namespace: string; name: string } | null>(null)
@@ -37,11 +41,17 @@ async function fetchNamespaces() {
   } catch { /* ignore */ }
 }
 
+function onLabelConditionsChange(conditions: LabelCondition[]) {
+  labelConditions.value = conditions
+  fetchSecrets()
+}
+
 async function fetchSecrets() {
   loading.value = true
   try {
     const params: any = {}
     if (selectedNamespace.value) params.namespace = selectedNamespace.value
+    if (labelConditions.value.length > 0) params.labelFilters = labelConditions.value
     const res: any = await getSecretList(params)
     const items = res.data?.items || res.data || []
     secretList.value = transformSecrets(items)
@@ -112,8 +122,12 @@ onMounted(() => { fetchNamespaces(); fetchSecrets() })
       :namespace-list="namespaceList"
       :show-total-count="false"
       :selected-count="selectedRows.length"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="secret"
+      :label-conditions="labelConditions"
       @search-input="(val: string) => searchName = val"
       @namespace-change="handleNamespaceChange"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
         <el-button type="success" @click="router.push('/config/secrets/create')">

@@ -11,6 +11,7 @@ import (
 
 	k8sclient "gkube/pkg/k8s"
 	k8sHpa "gkube/pkg/k8s/hpa"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
@@ -21,8 +22,9 @@ var Hpa = new(hpa)
 
 // HPAListParams GET /hpa/list
 type HPAListParams struct {
-	ClusterName string `form:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace"`
+	ClusterName  string                  `form:"clusterName" binding:"required" label:"集群名称"`
+	Namespace    string                  `form:"namespace"`
+	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
 }
 
 // HPANamespacedNameParams GET /hpa/detail, /hpa/get-yaml, /hpa/events, /hpa/delete, /hpa/pause, /hpa/resume
@@ -100,7 +102,7 @@ func buildTargetSet(client *kubernetes.Clientset, hpaList []map[string]any) (map
 
 func (h *hpa) GetHPAList(c *gin.Context) {
 	var query HPAListParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := c.ShouldBind(&query); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
 	}
@@ -110,7 +112,17 @@ func (h *hpa) GetHPAList(c *gin.Context) {
 		response.Fail(c, "获取k8s客户端失败")
 		return
 	}
-	hpaList, err := k8sHpa.GetHPAList(client, query.Namespace)
+	// 构建 label selector
+	var selector string
+	if len(query.LabelFilters) > 0 {
+		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+	}
+
+	hpaList, err := k8sHpa.GetHPAList(client, query.Namespace, selector)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取HPA列表失败:%s", err.Error()))
 		return

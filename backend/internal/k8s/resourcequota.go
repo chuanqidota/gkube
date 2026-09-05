@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
+	k8sLabels "gkube/pkg/k8s/labels"
 	k8sRq "gkube/pkg/k8s/resourcequota"
 	"gkube/pkg/response"
 )
@@ -14,14 +15,33 @@ type resourceQuota struct{}
 var ResourceQuota = new(resourceQuota)
 
 func (rq *resourceQuota) GetResourceQuotaList(c *gin.Context) {
-	namespace := c.Query("namespace")
-	clusterName := c.Query("clusterName")
+	var query struct {
+		Namespace    string                  `form:"namespace" json:"namespace"`
+		ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required"`
+		LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters"`
+	}
+	if err := c.ShouldBind(&query); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	namespace := query.Namespace
+	clusterName := query.ClusterName
+	// 构建 label selector
+	var labelSelector string
+	if len(query.LabelFilters) > 0 {
+		builtSelector, buildErr := k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if buildErr != nil {
+			response.Fail(c, buildErr.Error())
+			return
+		}
+		labelSelector = builtSelector
+	}
 	client, err := k8sclient.GetK8sClientByName(clusterName)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	rqList, err := k8sRq.GetResourceQuotaList(client, namespace)
+	rqList, err := k8sRq.GetResourceQuotaList(client, namespace, labelSelector)
 	if err != nil {
 		response.Fail(c, fmt.Sprintf("获取ResourceQuota列表失败:%s", err.Error()))
 		return

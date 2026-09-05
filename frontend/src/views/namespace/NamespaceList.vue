@@ -15,6 +15,8 @@ import {
   type Namespace,
 } from '@/api/resource'
 import { useNamespaceStore } from '@/stores/namespace'
+import { useClusterStore } from '@/stores/cluster'
+import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
@@ -23,9 +25,11 @@ import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 const { t } = useI18n()
 const router = useRouter()
 const namespaceStore = useNamespaceStore()
+const clusterStore = useClusterStore()
 const loading = ref(false)
 const namespaceList = ref<Namespace[]>([])
 const searchName = ref('')
+const labelConditions = ref<LabelCondition[]>([])
 
 // Create dialog
 const createDialogVisible = ref(false)
@@ -54,10 +58,17 @@ const filteredList = computed(() => {
   return namespaceList.value.filter((ns) => ns.name?.toLowerCase().includes(keyword))
 })
 
+function onLabelConditionsChange(conditions: LabelCondition[]) {
+  labelConditions.value = conditions
+  fetchNamespaces()
+}
+
 async function fetchNamespaces() {
   loading.value = true
   try {
-    const res: any = await getNamespaceList()
+    const params: any = {}
+    if (labelConditions.value.length > 0) params.labelFilters = labelConditions.value
+    const res: any = await getNamespaceList(params)
     namespaceList.value = transformNamespaces(res.data || [])
   } catch (e: any) {
     ElMessage.error(e?.message || '获取命名空间列表失败')
@@ -205,7 +216,11 @@ onMounted(fetchNamespaces)
       :total-count="namespaceList.length"
       :show-namespace="false"
       :search-placeholder="t('namespace.searchPlaceholder')"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="namespace"
+      :label-conditions="labelConditions"
       @search-input="searchName = $event"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
         <el-button type="success" @click="createDialogVisible = true">

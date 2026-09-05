@@ -1,7 +1,8 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useNamespaceStore } from '@/stores/namespace'
+import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 
 export interface ResourceListOptions {
   /** Resource display name (e.g. 'Deployment', 'Pod') */
@@ -42,6 +43,9 @@ export function useResourceList(options: ResourceListOptions) {
   const searchName = ref('')
   const debouncedSearch = ref('')
   const selectedRows = ref<any[]>([])
+
+  // Label selector state
+  const labelConditions = ref<LabelCondition[]>([])
 
   // Auto-refresh state
   const autoRefreshEnabled = ref(false)
@@ -122,14 +126,17 @@ export function useResourceList(options: ResourceListOptions) {
   async function fetchResources() {
     loading.value = true
     try {
-      const params: any = {}
-      if (selectedNamespace.value) params.namespace = selectedNamespace.value
-
-      if (options.paginated) {
-        params.limit = pageSize.value
+      const body: any = {}
+      if (selectedNamespace.value) body.namespace = selectedNamespace.value
+      if (labelConditions.value.length > 0) {
+        body.labelFilters = labelConditions.value
       }
 
-      const res: any = await options.fetchList(params)
+      if (options.paginated) {
+        body.limit = pageSize.value
+      }
+
+      const res: any = await options.fetchList(body)
 
       if (options.paginated && res.data?.items) {
         const items = res.data.items || []
@@ -161,12 +168,15 @@ export function useResourceList(options: ResourceListOptions) {
     if (!hasMore.value || continueTokens.value.length === 0) return
     loading.value = true
     try {
-      const params: any = {}
-      if (selectedNamespace.value) params.namespace = selectedNamespace.value
-      params.limit = pageSize.value
-      params.continue = continueTokens.value[continueTokens.value.length - 1]
+      const body: any = {}
+      if (selectedNamespace.value) body.namespace = selectedNamespace.value
+      if (labelConditions.value.length > 0) {
+        body.labelFilters = labelConditions.value
+      }
+      body.limit = pageSize.value
+      body.continue = continueTokens.value[continueTokens.value.length - 1]
 
-      const res: any = await options.fetchList(params)
+      const res: any = await options.fetchList(body)
       if (res.data?.items) {
         const items = res.data.items || []
         const transformed = options.transform ? options.transform(items) : items
@@ -187,6 +197,7 @@ export function useResourceList(options: ResourceListOptions) {
   }
 
   function handleNamespaceChange() {
+    labelConditions.value = [] // 命名空间切换时清空 label 条件
     currentPage.value = 1
     continueTokens.value = []
     fetchResources()
@@ -404,8 +415,53 @@ export function useResourceList(options: ResourceListOptions) {
     }
   }
 
+  // Label conditions change handler
+  function onLabelConditionsChange(conditions: LabelCondition[]) {
+    labelConditions.value = conditions
+    currentPage.value = 1
+    continueTokens.value = []
+    fetchResources()
+  }
+
+  // URL sync: watch labelConditions and sync to query param `ls`
+  // 使用 encodeURIComponent/decodeURIComponent 替代 btoa/atob 以支持 Unicode
+  watch(labelConditions, (val) => {
+    const query = { ...router.currentRoute.value.query }
+    if (val.length > 0) {
+      query.ls = encodeURIComponent(JSON.stringify(val))
+    } else {
+      delete query.ls
+    }
+    router.replace({ query })
+  }, { deep: true })
+
   onMounted(() => {
     fetchNamespaces()
+
+    // Restore label conditions from URL
+    const ls = router.currentRoute.value.query.ls as string
+    if (ls && ls.length <= 2000) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(ls))
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Validate each condition has required fields
+          const validConditions = parsed.filter((c: any) =>
+            c && typeof c.key === 'string' && c.key &&
+            ['=', '!=', 'in', 'notin'].includes(c.operator) &&
+            Array.isArray(c.values) && c.values.length > 0
+          )
+          if (validConditions.length > 0) {
+            labelConditions.value = validConditions
+          }
+        }
+      } catch {
+        // 解析失败，静默清除无效参数
+        const query = { ...router.currentRoute.value.query }
+        delete query.ls
+        router.replace({ query })
+      }
+    }
+
     fetchResources()
     document.addEventListener('keydown', handleKeyboard)
   })
@@ -426,6 +482,9 @@ export function useResourceList(options: ResourceListOptions) {
     searchName,
     onSearchInput,
     selectedRows,
+    // Label selector
+    labelConditions,
+    onLabelConditionsChange,
     // Auto-refresh
     autoRefreshEnabled,
     toggleAutoRefresh,

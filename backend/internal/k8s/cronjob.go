@@ -8,6 +8,7 @@ import (
 	"github.com/robfig/cron/v3"
 	k8sclient "gkube/pkg/k8s"
 	k8sCronjob "gkube/pkg/k8s/cronjob"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 	batchv1 "k8s.io/api/batch/v1"
@@ -25,7 +26,7 @@ var Cronjob = new(cronjob)
 //	@param c
 func (cj *cronjob) GetCronJobList(c *gin.Context) {
 	var query CronjobListParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := c.ShouldBind(&query); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
@@ -35,9 +36,20 @@ func (cj *cronjob) GetCronJobList(c *gin.Context) {
 		return
 	}
 
-	limit, continueToken := k8sclient.GetPaginationParams(c)
+	// 构建 label selector
+	var selector string
+	if len(query.LabelFilters) > 0 {
+		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+	}
+
+	limit := query.Limit
+	continueToken := query.Continue
 	if limit > 0 {
-		cjList, err := k8sCronjob.ListCronJobs(client, query.Namespace, limit, continueToken)
+		cjList, err := k8sCronjob.ListCronJobs(client, query.Namespace, limit, continueToken, selector)
 		if err != nil {
 			response.Fail(c, fmt.Sprintf("获取cronjob列表失败:%s", err.Error()))
 			return
@@ -54,7 +66,7 @@ func (cj *cronjob) GetCronJobList(c *gin.Context) {
 		data.Total = len(cjList.Items)
 		response.Success(c, "执行成功", data)
 	} else {
-		jobList, err := k8sCronjob.GetCronJobList(client, query.Namespace)
+		jobList, err := k8sCronjob.GetCronJobList(client, query.Namespace, selector)
 		if err != nil {
 			response.Fail(c, fmt.Sprintf("获取cronjob列表失败:%s", err.Error()))
 			return
@@ -321,8 +333,11 @@ func (cj *cronjob) TriggerCronJob(c *gin.Context) {
 }
 
 type CronjobListParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	Namespace    string                  `form:"namespace" json:"namespace" label:"命名空间"`
+	Limit        int64                   `form:"limit" json:"limit" label:"每页条数"`
+	Continue     string                  `form:"continue" json:"continue" label:"分页标记"`
+	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
 }
 
 type CronJobCreateParams struct {

@@ -18,12 +18,16 @@ import (
 //	@param client
 //	@return *corev1.NamespaceList
 //	@return error
-func GetNamespaceList(client *kubernetes.Clientset) (*corev1.NamespaceList, error) {
-	namespace, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetNamespaceList(client *kubernetes.Clientset, labelSelector string) (*corev1.NamespaceList, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	result, err := client.CoreV1().Namespaces().List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
-	return namespace, err
+	return result, nil
 }
 
 // CreateNamespace

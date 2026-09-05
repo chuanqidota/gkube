@@ -14,13 +14,17 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import ViewModeToggle from '@/components/ViewModeToggle.vue'
+import { useClusterStore } from '@/stores/cluster'
+import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 
 const router = useRouter()
+const clusterStore = useClusterStore()
 const storedView = localStorage.getItem('gkube.node.viewMode')
 const viewMode = ref<'card' | 'table'>(storedView === 'table' || storedView === 'card' ? storedView : 'card')
 const loading = ref(false)
 const nodeList = ref<NodeInfo[]>([])
 const searchName = ref('')
+const labelConditions = ref<LabelCondition[]>([])
 
 // YAML drawer（复用 YamlDrawer 组件，不再手写 el-drawer + YamlEditor 样板）
 const yamlDrawerVisible = ref(false)
@@ -37,11 +41,18 @@ const filteredList = computed(() => {
   return nodeList.value.filter((n) => n.name?.toLowerCase().includes(keyword))
 })
 
+function onLabelConditionsChange(conditions: LabelCondition[]) {
+  labelConditions.value = conditions
+  fetchNodes()
+}
+
 // silent=true 时不触发页面级 loading 遮罩，用于自动刷新，避免每轮全页转圈
 async function fetchNodes(silent = false) {
   if (!silent) loading.value = true
   try {
-    const res = await getNodeList()
+    const params: any = {}
+    if (labelConditions.value.length > 0) params.labelFilters = labelConditions.value
+    const res = await getNodeList(params)
     nodeList.value = res.data || []
   } catch (e: any) {
     // 不静默吞掉：网络/权限/服务端错误都需要提示，否则用户无法区分"无节点"与"加载失败"
@@ -92,7 +103,11 @@ onMounted(() => fetchNodes())
       :total-count="nodeList.length"
       :show-namespace="false"
       search-placeholder="搜索节点名称"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="node"
+      :label-conditions="labelConditions"
       @search-input="searchName = $event"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #extra>
         <AutoRefreshToolbar

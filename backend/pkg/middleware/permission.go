@@ -245,13 +245,16 @@ var specialVerbOverrides = []specialVerbOverride{
 	{"/container/exec", "GET", "terminal"},
 	{"/log", "GET", "terminal"},
 	{"/log/stream", "GET", "terminal"},
+	// List 路由（兜底 — 必须在最后）：前端统一用 POST 发送 list 请求，
+	// 需要将 verb 映射为 'read' 而非 'create'
+	{"/list", "", "read"},
 }
 
 // resolveVerb 根据特殊路由表和 HTTP Method 确定操作 verb。
 func resolveVerb(path, method string) string {
 	// 检查特殊覆写表
 	for _, ov := range specialVerbOverrides {
-		if strings.HasSuffix(path, ov.Suffix) && method == ov.Method {
+		if strings.HasSuffix(path, ov.Suffix) && (ov.Method == "" || method == ov.Method) {
 			return ov.Verb
 		}
 	}

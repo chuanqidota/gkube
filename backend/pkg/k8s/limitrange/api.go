@@ -12,12 +12,16 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func GetLimitRangeList(client *kubernetes.Clientset, namespace string) ([]corev1.LimitRange, error) {
-	lrList, err := client.CoreV1().LimitRanges(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetLimitRangeList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]corev1.LimitRange, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	result, err := client.CoreV1().LimitRanges(namespace).List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
-	return lrList.Items, nil
+	return result.Items, nil
 }
 
 func GetLimitRangeYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {

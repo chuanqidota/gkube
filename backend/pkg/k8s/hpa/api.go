@@ -22,12 +22,16 @@ const (
 	annotationPausedMax     = "gkube.io/paused-max-replicas"
 )
 
-func GetHPAList(client *kubernetes.Clientset, namespace string) ([]autoscalingv2.HorizontalPodAutoscaler, error) {
-	hpaList, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(context.TODO(), metav1.ListOptions{ResourceVersion: "0"})
+func GetHPAList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]autoscalingv2.HorizontalPodAutoscaler, error) {
+	listOpts := metav1.ListOptions{ResourceVersion: "0"}
+	if labelSelector != "" {
+		listOpts.LabelSelector = labelSelector
+	}
+	result, err := client.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(context.TODO(), listOpts)
 	if err != nil {
 		return nil, err
 	}
-	return hpaList.Items, nil
+	return result.Items, nil
 }
 
 func GetHPAYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {

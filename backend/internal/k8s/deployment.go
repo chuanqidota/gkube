@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sDeployment "gkube/pkg/k8s/deployment"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
@@ -21,7 +22,7 @@ var Deployment = new(deployment)
 //	@param c
 func (dp *deployment) GetDeploymentList(c *gin.Context) {
 	var query DeploymentListParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := c.ShouldBind(&query); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
 	}
@@ -32,8 +33,19 @@ func (dp *deployment) GetDeploymentList(c *gin.Context) {
 		return
 	}
 
-	limit, continueToken := k8sclient.GetPaginationParams(c)
-	deploymentList, err := k8sDeployment.ListDeployments(client, query.Namespace, limit, continueToken)
+	// 构建 label selector
+	var selector string
+	if len(query.LabelFilters) > 0 {
+		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+	}
+
+	limit := query.Limit
+	continueToken := query.Continue
+	deploymentList, err := k8sDeployment.ListDeployments(client, query.Namespace, limit, continueToken, selector)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusBadGateway, "获取deployment列表失败")
@@ -361,8 +373,11 @@ func (dp *deployment) GetDeploymentEvents(c *gin.Context) {
 }
 
 type DeploymentListParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	ClusterName   string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	Namespace     string                  `form:"namespace" json:"namespace" label:"命名空间"`
+	Limit         int64                   `form:"limit" json:"limit" label:"每页条数"`
+	Continue      string                  `form:"continue" json:"continue" label:"分页标记"`
+	LabelFilters  []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
 }
 
 type DeploymentCreateParams struct {

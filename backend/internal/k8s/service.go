@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sService "gkube/pkg/k8s/service"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/response"
 )
 
@@ -20,7 +21,7 @@ var Service = new(service)
 //	@param c
 func (s *service) GetServicesList(c *gin.Context) {
 	var query ServiceQueryListParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := c.ShouldBind(&query); err != nil {
 		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
@@ -29,10 +30,21 @@ func (s *service) GetServicesList(c *gin.Context) {
 		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
+	// 构建 label selector
+	var selector string
+	if len(query.LabelFilters) > 0 {
+		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+	}
 
-	limit, continueToken := k8sclient.GetPaginationParams(c)
+
+	limit := query.Limit
+	continueToken := query.Continue
 	if limit > 0 {
-		svcList, err := k8sService.ListServices(client, query.Namespace, limit, continueToken)
+		svcList, err := k8sService.ListServices(client, query.Namespace, limit, continueToken, selector)
 		if err != nil {
 			response.Fail(c, err.Error())
 			return
@@ -45,7 +57,7 @@ func (s *service) GetServicesList(c *gin.Context) {
 		data.Total = len(svcList.Items) + int(remaining)
 		response.Success(c, "获取成功", data)
 	} else {
-		services, err := k8sService.GetServicesList(client, query.Namespace)
+		services, err := k8sService.GetServicesList(client, query.Namespace, selector)
 		if err != nil {
 			response.Fail(c, err.Error())
 			return
@@ -245,8 +257,11 @@ func (s *service) GetServiceEndpoints(c *gin.Context) {
 }
 
 type ServiceQueryListParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	Namespace    string                  `form:"namespace" json:"namespace" label:"命名空间"`
+	Limit        int64                   `form:"limit" json:"limit" label:"每页条数"`
+	Continue     string                  `form:"continue" json:"continue" label:"分页标记"`
+	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
 }
 
 type ServiceQueryByNameParams struct {

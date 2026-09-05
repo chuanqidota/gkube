@@ -12,6 +12,9 @@ import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useClusterStore } from '@/stores/cluster'
+
+const clusterStore = useClusterStore()
 
 const {
   loading,
@@ -30,6 +33,8 @@ const {
   handleCancelYaml,
   handleDelete,
   handleBatchDelete,
+  labelConditions,
+  onLabelConditionsChange,
 } = useResourceList({
   resourceName: 'StorageClass',
   fetchList: getStorageClassList,
@@ -50,7 +55,11 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
       :show-namespace="false"
       :show-total-count="false"
       :selected-count="selectedRows.length"
+      :cluster-name="clusterStore.clusterName"
+      resource-type="storageclass"
+      :label-conditions="labelConditions"
       @search-input="onSearchInput"
+      @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
         <el-button type="success" @click="$router.push('/storage/storageclasses/create')">

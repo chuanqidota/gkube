@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sSecret "gkube/pkg/k8s/secret"
+	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
@@ -23,7 +24,7 @@ var Secret = new(secret)
 //	@param c
 func (s *secret) GetSecretsList(c *gin.Context) {
 	var query SecretQueryListParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+	if err := c.ShouldBind(&query); err != nil {
 		response.Fail(c, "参数错误")
 		return
 	}
@@ -34,7 +35,17 @@ func (s *secret) GetSecretsList(c *gin.Context) {
 		response.Fail(c, "获取 Kubernetes 客户端失败")
 		return
 	}
-	secrets, err := k8sSecret.GetSecretsList(client, query.Namespace)
+	// 构建 label selector
+	var selector string
+	if len(query.LabelFilters) > 0 {
+		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+		if err != nil {
+			response.Fail(c, err.Error())
+			return
+		}
+	}
+
+	secrets, err := k8sSecret.GetSecretsList(client, query.Namespace, selector)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to get secret list: %v", err))
 		response.Fail(c, "获取 Secret 列表失败")
@@ -190,8 +201,11 @@ func isValidationError(err error) bool {
 }
 
 type SecretQueryListParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
+	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	Namespace    string                  `form:"namespace" json:"namespace" label:"命名空间"`
+	Limit        int64                   `form:"limit" json:"limit" label:"每页条数"`
+	Continue     string                  `form:"continue" json:"continue" label:"分页标记"`
+	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
 }
 
 type SecretQueryByNameParams struct {
