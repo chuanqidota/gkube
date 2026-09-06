@@ -189,10 +189,10 @@ async function handleResume() {
       </div>
       <div class="header-actions">
         <el-button size="small" type="info" @click="emit('edit')">编辑</el-button>
-        <el-button v-if="isPaused" size="small" type="success" plain @click="handleResume">恢复</el-button>
-        <el-button v-else size="small" type="warning" plain @click="handlePause">暂停</el-button>
+        <el-button v-if="isPaused" size="small" type="success" @click="handleResume">恢复</el-button>
+        <el-button v-else size="small" type="warning" @click="handlePause">暂停</el-button>
         <el-button size="small" @click="emit('yaml')">YAML</el-button>
-        <el-button size="small" type="danger" plain @click="handleDelete">删除</el-button>
+        <el-button size="small" type="danger" @click="handleDelete">删除</el-button>
       </div>
     </div>
 
@@ -274,7 +274,7 @@ async function handleResume() {
 
 <style scoped>
 .hpa-status-card {
-  padding: 20px;
+  padding: var(--gk-space-5);
 }
 
 .card-header {

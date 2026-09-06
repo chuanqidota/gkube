@@ -436,7 +436,7 @@ function handleCancel() {
 
           <!-- TLS 专用表单 -->
           <template v-if="form.type === 'kubernetes.io/tls'">
-            <el-alert title="TLS Secret 需要证书 (PEM) 和私钥 (PEM) 两个字段。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+            <el-alert title="TLS Secret 需要证书 (PEM) 和私钥 (PEM) 两个字段。" type="info" :closable="false" show-icon style="margin-bottom: var(--gk-space-4);" />
             <el-form-item label="证书 (tls.crt)" required>
               <div style="width: 100%;">
                 <el-input v-model="tlsData.cert" type="textarea" :rows="6" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----" />
@@ -463,7 +463,7 @@ function handleCancel() {
 
           <!-- Docker Config JSON 专用表单 -->
           <template v-else-if="form.type === 'kubernetes.io/dockerconfigjson'">
-            <el-alert title="Docker Registry 认证信息，将自动编码为 .dockerconfigjson 格式。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+            <el-alert title="Docker Registry 认证信息，将自动编码为 .dockerconfigjson 格式。" type="info" :closable="false" show-icon style="margin-bottom: var(--gk-space-4);" />
             <div class="fields-grid">
               <el-form-item label="Registry 地址" required>
                 <el-input v-model="dockerConfig.server" placeholder="https://index.docker.io/v1/" />
@@ -482,7 +482,7 @@ function handleCancel() {
 
           <!-- Basic Auth 专用表单 -->
           <template v-else-if="form.type === 'kubernetes.io/basic-auth'">
-            <el-alert title="基本认证信息，K8s 要求包含 username 和 password 两个 key。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+            <el-alert title="基本认证信息，K8s 要求包含 username 和 password 两个 key。" type="info" :closable="false" show-icon style="margin-bottom: var(--gk-space-4);" />
             <div class="fields-grid">
               <el-form-item label="用户名" required>
                 <el-input v-model="basicAuthData.username" placeholder="用户名" />
@@ -495,7 +495,7 @@ function handleCancel() {
 
           <!-- SSH Auth 专用表单 -->
           <template v-else-if="form.type === 'kubernetes.io/ssh-auth'">
-            <el-alert title="SSH 认证信息，K8s 要求包含 ssh-privatekey key。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+            <el-alert title="SSH 认证信息，K8s 要求包含 ssh-privatekey key。" type="info" :closable="false" show-icon style="margin-bottom: var(--gk-space-4);" />
             <el-form-item label="SSH 私钥" required>
               <div style="width: 100%;">
                 <el-input v-model="sshAuthData.privateKey" type="textarea" :rows="8" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" />
@@ -511,7 +511,7 @@ function handleCancel() {
 
           <!-- 通用数据表单 (Opaque) -->
           <template v-else>
-            <el-alert title="值将自动进行 Base64 编码后写入 YAML。" type="info" :closable="false" show-icon style="margin-bottom: 16px;" />
+            <el-alert title="值将自动进行 Base64 编码后写入 YAML。" type="info" :closable="false" show-icon style="margin-bottom: var(--gk-space-4);" />
             <el-form-item label="数据项">
               <div style="width: 100%;">
                 <div v-for="(entry, i) in form.data" :key="i" class="data-row">

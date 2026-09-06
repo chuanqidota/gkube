@@ -204,9 +204,9 @@ watch(nodeName, () => {
           <el-button @click="handleOpenYaml">YAML</el-button>
           <el-button type="danger" @click="handleDrain">驱逐</el-button>
           <el-tooltip v-if="node?.status === 'Ready'" content="节点在线，删除后会重新注册（需先停止 kubelet）" placement="top">
-            <span><el-button type="danger" plain disabled>删除</el-button></span>
+            <span><el-button type="danger" disabled>删除</el-button></span>
           </el-tooltip>
-          <el-button v-else type="danger" plain @click="handleDelete(nodeName, node?.status === 'Ready', () => router.push('/nodes'))">删除</el-button>
+          <el-button v-else type="danger" @click="handleDelete(nodeName, node?.status === 'Ready', () => router.push('/nodes'))">删除</el-button>
         </el-button-group>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
@@ -274,7 +274,7 @@ watch(nodeName, () => {
             </el-descriptions>
 
             <!-- Labels -->
-            <div v-if="node.labels && Object.keys(node.labels).length > 0" style="margin-top: 16px;">
+            <div v-if="node.labels && Object.keys(node.labels).length > 0" style="margin-top: var(--gk-space-4);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <h4 style="margin: 0; font-size: 13px;">Labels</h4>
                 <el-button size="small" @click="handleLabels">编辑</el-button>
@@ -290,7 +290,7 @@ watch(nodeName, () => {
             </div>
 
             <!-- Taints -->
-            <div style="margin-top: 16px;">
+            <div style="margin-top: var(--gk-space-4);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <h4 style="margin: 0; font-size: 13px;">Taints</h4>
                 <el-button size="small" @click="handleTaints">编辑</el-button>
@@ -304,7 +304,7 @@ watch(nodeName, () => {
             </div>
 
             <!-- Resource Capacity -->
-            <div v-if="node.capacity || node.allocatable" style="margin-top: 16px;">
+            <div v-if="node.capacity || node.allocatable" style="margin-top: var(--gk-space-4);">
               <h4 style="margin: 0 0 12px; font-size: 13px;">资源容量</h4>
               <div class="resource-cards">
                 <div class="resource-card">
@@ -378,7 +378,7 @@ watch(nodeName, () => {
             </div>
 
             <!-- Conditions -->
-            <div v-if="node.conditions && node.conditions.length > 0" style="margin-top: 16px;">
+            <div v-if="node.conditions && node.conditions.length > 0" style="margin-top: var(--gk-space-4);">
               <h4 style="margin: 0 0 8px; font-size: 13px;">节点状态</h4>
               <el-table :data="node.conditions" size="small" border>
                 <el-table-column prop="type" label="类型" width="120" />
@@ -473,8 +473,8 @@ watch(nodeName, () => {
 
 <style scoped>
 .detail-page {
-  padding: 16px 20px;
-  height: 100vh;
+  padding: var(--gk-space-4) var(--gk-space-5);
+  height: calc(100dvh - var(--gk-header-height));
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -485,19 +485,19 @@ watch(nodeName, () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--gk-space-3);
   flex-shrink: 0;
 }
 
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 
 .res-name {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--gk-font-size-lg);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -533,19 +533,19 @@ watch(nodeName, () => {
 }
 
 .header-actions .el-button:first-child {
-  border-radius: 4px 0 0 4px;
+  border-radius: var(--gk-radius-sm) 0 0 var(--gk-radius-sm);
   margin-left: 0;
 }
 
 .header-actions .el-button:last-of-type {
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 var(--gk-radius-sm) var(--gk-radius-sm) 0;
 }
 
 .action-divider {
   width: 1px;
   height: 20px;
-  background: var(--el-border-color-lighter);
-  margin: 0 4px;
+  background: var(--gk-color-border-light);
+  margin: 0 var(--gk-space-1);
 }
 
 .auto-refresh-popover {
@@ -555,7 +555,7 @@ watch(nodeName, () => {
 }
 
 .popover-title {
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
   font-weight: 500;
   color: var(--el-text-color-primary);
 }
@@ -572,8 +572,8 @@ watch(nodeName, () => {
 
 /* Left Panel */
 .left-panel {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border: 1px solid var(--gk-color-border-light);
+  border-radius: var(--gk-radius-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -581,11 +581,11 @@ watch(nodeName, () => {
 }
 
 .panel-title {
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
   font-weight: 600;
-  padding: 10px 14px;
+  padding: var(--gk-space-2) var(--gk-space-4);
   background: var(--el-fill-color-lighter);
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  border-bottom: 1px solid var(--gk-color-border-light);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -649,7 +649,7 @@ watch(nodeName, () => {
   padding: 24px;
   text-align: center;
   color: var(--el-text-color-secondary);
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
 }
 
 /* Resize handles */
@@ -664,7 +664,7 @@ watch(nodeName, () => {
 
 .resize-handle-h:hover,
 .resize-handle-h.active {
-  background: var(--el-color-primary-light-7);
+  background: var(--gk-color-primary-bg);
 }
 
 .resize-handle-v {
@@ -678,7 +678,7 @@ watch(nodeName, () => {
 
 .resize-handle-v:hover,
 .resize-handle-v.active {
-  background: var(--el-color-primary-light-7);
+  background: var(--gk-color-primary-bg);
 }
 
 .is-resizing {
@@ -701,7 +701,7 @@ watch(nodeName, () => {
   align-items: center;
   padding: 14px;
   background: var(--el-fill-color-lighter);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   border: 1px solid var(--el-border-color-lighter);
 }
 
@@ -718,10 +718,10 @@ watch(nodeName, () => {
   flex-shrink: 0;
 }
 
-.cpu-icon { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.memory-icon { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-.pods-icon { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-.storage-icon { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.cpu-icon { background: linear-gradient(135deg, var(--gk-color-primary-light) 0%, var(--gk-color-primary-dark) 100%); }
+.memory-icon { background: linear-gradient(135deg, var(--gk-color-primary) 0%, var(--gk-color-primary-dark) 100%); }
+.pods-icon { background: linear-gradient(135deg, var(--gk-color-primary-light) 0%, var(--gk-color-primary) 100%); }
+.storage-icon { background: linear-gradient(135deg, var(--gk-color-primary) 0%, var(--gk-color-primary-light) 100%); }
 
 .resource-info {
   flex: 1;
@@ -740,7 +740,7 @@ watch(nodeName, () => {
 .resource-values {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 
 .value-item {

@@ -90,7 +90,7 @@
       <!-- Storage -->
       <el-sub-menu index="storage">
         <template #title>
-          <el-icon><Coin /></el-icon>
+          <el-icon><Box /></el-icon>
           <span>{{ t('sidebar.storage') }}</span>
         </template>
         <el-menu-item index="/storage/pvs" @click="navigateTo('/storage/pvs')">

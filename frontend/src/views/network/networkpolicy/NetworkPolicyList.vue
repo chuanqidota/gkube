@@ -112,8 +112,8 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         </el-table-column>
         <el-table-column label="规则" min-width="220">
           <template #default="{ row }">
-            <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
-              <span style="font-size: 12px; color: var(--el-text-color-regular);">Ingress: {{ row.ingress_rules }}, Egress: {{ row.egress_rules }}</span>
+            <div style="display: flex; flex-wrap: wrap; gap: var(--gk-space-1); align-items: center;">
+              <span style="font-size: 12px; color: var(--gk-color-text-primary);">Ingress: {{ row.ingress_rules }}, Egress: {{ row.egress_rules }}</span>
               <el-tag v-if="row.policy_types?.includes('Ingress') && row.ingress_rules === 0" type="danger" size="small" effect="dark">Deny All Ingress</el-tag>
               <el-tag v-if="row.policy_types?.includes('Egress') && row.egress_rules === 0" type="danger" size="small" effect="dark">Deny All Egress</el-tag>
             </div>
@@ -135,7 +135,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     <!-- YAML Drawer -->
     <el-drawer v-model="yamlDialogVisible" title="NetworkPolicy YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100vh - 52px);">
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px);">
         <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
       </div>
     </el-drawer>
@@ -144,10 +144,10 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 
 <style scoped>
 .page-container {
-  padding: 20px;
+  padding: var(--gk-space-5);
 }
 .table-card {
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
 }
 </style>
 

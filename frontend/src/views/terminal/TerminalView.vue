@@ -236,14 +236,20 @@ function initTerminal() {
     terminal = null
   }
 
+  // Read terminal colors from CSS tokens (always dark, defined in themes)
+  const cs = getComputedStyle(document.documentElement)
+  const bg = cs.getPropertyValue('--gk-color-bg-terminal').trim() || '#1e1e1e'
+  const fg = cs.getPropertyValue('--gk-color-text-terminal').trim() || '#d4d4d4'
+  const monoFont = cs.getPropertyValue('--gk-font-mono').trim() || 'Menlo, Monaco, Consolas, monospace'
+
   terminal = new Terminal({
     cursorBlink: true,
     fontSize: 14,
-    fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
+    fontFamily: monoFont,
     theme: {
-      background: '#1e1e1e',
-      foreground: '#d4d4d4',
-      cursor: '#d4d4d4',
+      background: bg,
+      foreground: fg,
+      cursor: fg,
     },
   })
 
@@ -482,7 +488,7 @@ watch(selectedContainer, (val) => {
 }
 
 .terminal-view > .el-card {
-  padding: 24px;
+  padding: var(--gk-space-6);
   height: 100%;
 }
 
@@ -494,46 +500,46 @@ watch(selectedContainer, (val) => {
 
 .selector-bar {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--gk-space-3);
+  margin-bottom: var(--gk-space-4);
   flex-wrap: wrap;
   align-items: center;
 }
 
 .terminal-container {
-  height: calc(100vh - 300px);
+  height: calc(100dvh - 300px);
   min-height: 400px;
-  background: #1e1e1e;
-  border-radius: 4px;
-  padding: 4px;
+  background: var(--gk-color-bg-terminal);
+  border-radius: var(--gk-radius-sm);
+  padding: var(--gk-space-1);
 }
 
 /* Fullscreen embedded mode */
 .terminal-fullscreen {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background: #1e1e1e;
+  height: 100dvh;
+  background: var(--gk-color-bg-terminal);
 }
 
 .info-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 16px;
-  background: #252526;
-  color: #cccccc;
-  font-size: 13px;
+  padding: 6px var(--gk-space-4);
+  background: var(--gk-color-bg-terminal-bar);
+  color: var(--gk-color-text-terminal-muted);
+  font-size: var(--gk-font-size-sm);
   flex-shrink: 0;
 }
 
 .info-text {
-  font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+  font-family: var(--gk-font-mono);
 }
 
 .terminal-fullscreen-body {
   flex: 1;
-  padding: 4px;
+  padding: var(--gk-space-1);
   min-height: 0;
 }
 </style>

@@ -200,7 +200,7 @@ function initRing(el: HTMLElement): echarts.ECharts {
       axisTick: { show: false },
       axisLabel: { show: false },
       data: [{ value: 0 }],
-      detail: { valueAnimation: true, formatter: '{value}%', fontSize: 26, fontWeight: 500, offsetCenter: [0, '5%'], color: tk('--gk-color-primary'), fontFamily: 'JetBrains Mono, monospace', textShadowBlur: 12, textShadowColor: tk('--gk-color-primary') + '40' },
+      detail: { valueAnimation: true, formatter: '{value}%', fontSize: 26, fontWeight: 500, offsetCenter: [0, '5%'], color: tk('--gk-color-primary'), fontFamily: 'JetBrains Mono, monospace' },
     }],
   })
   return chart
@@ -212,10 +212,10 @@ function updateRing(key: string, pct: number, colorFn: (p: number) => string) {
   const color = colorFn(pct)
   chart.setOption({
     series: [{
-      progress: { itemStyle: { color, shadowBlur: 10, shadowColor: color } },
+      progress: { itemStyle: { color } },
       axisLine: { lineStyle: { color: [[1, tk('--gk-color-border-light')]] } },
       data: [{ value: pct }],
-      detail: { color, textShadowColor: color + '40' },
+      detail: { color },
     }],
   })
 }
@@ -246,12 +246,11 @@ function updateBar() {
         color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
           { offset: 0, color: primaryLight }, { offset: 1, color: primary },
         ]),
-        shadowBlur: 6, shadowColor: primary + '33',
       },
       label: {
         show: true, position: 'right',
         formatter: (p: any) => sortKey.value === 'cpu' ? fmtCpu(p.value) + ' 核' : fmtMem(p.value) + 'G',
-        color: secondary, fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
+        color: secondary, fontSize: 11, fontFamily: tk('--gk-font-mono'),
       },
     }],
   }, true)
@@ -449,7 +448,7 @@ function nodePipClass(n: NodeInfo) {
 
 <style scoped>
 .dash {
-  height: calc(100vh - var(--gk-header-height));
+  height: calc(100dvh - var(--gk-header-height));
   padding: var(--gk-space-4);
   display: flex;
   flex-direction: column;
@@ -492,7 +491,6 @@ function nodePipClass(n: NodeInfo) {
   height: 22px;
   border-radius: var(--gk-radius-full);
   background: linear-gradient(180deg, var(--gk-color-primary-light), var(--gk-color-primary));
-  box-shadow: 0 0 10px var(--gk-color-primary);
   flex-shrink: 0;
 }
 
@@ -559,7 +557,7 @@ function nodePipClass(n: NodeInfo) {
   text-align: center;
   min-width: 76px;
 }
-.stat-pill:hover { border-color: var(--gk-color-primary-light); box-shadow: 0 0 0 3px var(--gk-color-primary-bg); }
+.stat-pill:hover { border-color: var(--gk-color-primary-light); }
 .stat-value { font-size: var(--gk-font-size-lg); font-weight: 700; color: var(--gk-color-text-primary); line-height: 1.2; }
 .stat-label { font-size: 11px; color: var(--gk-color-text-secondary); }
 
@@ -765,10 +763,18 @@ function nodePipClass(n: NodeInfo) {
 
 /* ===== 响应:窄屏退化为单列滚动 ===== */
 @media (max-width: 1200px) {
-  .dash { height: auto; min-height: calc(100vh - var(--gk-header-height)); overflow: visible; }
-  .grip { grid-template-columns: 1fr; }
-  .cmd-stats { display: none; }
+  .dash { height: auto; min-height: calc(100dvh - var(--gk-header-height)); overflow: visible; }
+  .grip { grid-template-columns: 1fr 1fr; }
+  .cmd-stats { gap: var(--gk-space-1); }
+  .stat-pill { min-width: 60px; padding: 3px 8px; }
+  .stat-label { display: none; }
   .ring-chart { min-height: 130px; }
   .bar-chart { min-height: 180px; }
+}
+@media (max-width: 900px) {
+  .grip { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .cmd-stats { display: none; }
 }
 </style>

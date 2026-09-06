@@ -828,7 +828,7 @@ function handleCancel() {
           <div class="section-title">初始化容器</div>
         </div>
         <div class="section-content">
-          <el-alert type="info" :closable="false" style="margin-bottom: 16px;">
+          <el-alert type="info" :closable="false" style="margin-bottom: var(--gk-space-4);">
             初始化容器在主容器启动之前运行，常用于数据迁移、依赖检查等场景。
           </el-alert>
           <div v-for="(container, ci) in form.initContainers" :key="ci" class="container-card">
@@ -991,7 +991,7 @@ function handleCancel() {
 
           <el-form-item v-if="form.volumes.length > 0" label="卷挂载">
             <div style="width: 100%;">
-              <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: 16px;">
+              <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: var(--gk-space-4);">
                 <div class="mount-container-name">{{ container.name || `容器 ${ci + 1}` }}</div>
                 <div v-for="(mount, mi) in container.volumeMounts" :key="mi" class="kv-row">
                   <el-select v-model="mount.name" placeholder="选择卷" style="width: 160px;">
@@ -1145,7 +1145,7 @@ function handleCancel() {
               </div>
             </div>
             <!-- Capabilities -->
-            <div style="margin-top: 16px;">
+            <div style="margin-top: var(--gk-space-4);">
               <el-divider content-position="left">Linux Capabilities</el-divider>
               <div class="fields-grid">
                 <el-form-item label="添加 (Add)">
@@ -1406,7 +1406,7 @@ function handleCancel() {
 /* Container cards */
 .container-card {
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   padding: 16px;
   margin-bottom: 12px;
   background: var(--el-fill-color-blank);
@@ -1473,7 +1473,7 @@ function handleCancel() {
 
 .resource-group {
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   padding: 14px;
   background: var(--el-fill-color-lighter);
 }
@@ -1500,7 +1500,7 @@ function handleCancel() {
 /* Volume cards */
 .volume-card {
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   padding: 14px;
   margin-bottom: 8px;
   background: var(--el-fill-color-lighter);
@@ -1530,7 +1530,7 @@ function handleCancel() {
 /* Probe cards */
 .probe-card {
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   padding: 14px;
   margin-bottom: 10px;
   background: var(--el-fill-color-blank);
@@ -1568,7 +1568,7 @@ function handleCancel() {
   align-items: center;
   padding: 12px 16px;
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   background: var(--el-fill-color-lighter);
 }
 
@@ -1605,7 +1605,7 @@ function handleCancel() {
 .affinity-section {
   padding: 12px;
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   background: var(--el-fill-color-lighter);
 }
 

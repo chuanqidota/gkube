@@ -281,30 +281,28 @@ async function handleResume(row: any) {
         <el-table-column label="操作" width="320" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-button size="small" type="info" @click="handleEdit(row)">编辑</el-button>
+              <el-button size="small" type="warning" @click="handleEdit(row)">编辑</el-button>
               <el-button
                 v-if="row.paused"
                 size="small"
                 type="success"
-                plain
                 @click="handleResume(row)"
               >恢复</el-button>
               <el-button
                 v-else
                 size="small"
                 type="warning"
-                plain
                 @click="handlePause(row)"
               >暂停</el-button>
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-              <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
         </el-table-column>
         <template #empty>
           <el-empty description="暂无 HPA 配置">
             <el-button type="success" @click="$router.push('/autoscaling/hpa/create')">
-              <el-icon><Plus /></el-icon> 创建 HPA
+              <el-icon><Plus /></el-icon> 创建
             </el-button>
           </el-empty>
         </template>
@@ -319,7 +317,7 @@ async function handleResume(row: any) {
     <!-- YAML Drawer -->
     <el-drawer v-model="yamlDialogVisible" title="HPA YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100vh - 60px);">
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 60px);">
         <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
       </div>
     </el-drawer>
@@ -358,13 +356,13 @@ async function handleResume(row: any) {
 
 <style scoped>
 .page-container {
-  padding: 20px;
+  padding: var(--gk-space-5);
 }
 .table-card {
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
 }
 .text-muted {
-  color: var(--el-text-color-placeholder);
+  color: var(--gk-color-text-placeholder);
 }
 .load-more {
   text-align: center;

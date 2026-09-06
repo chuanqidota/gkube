@@ -105,29 +105,30 @@ const emit = defineEmits<{
 
 <style scoped>
 .filter-card {
-  margin-bottom: 16px;
+  margin-bottom: var(--gk-space-4);
+  border: 1px solid var(--gk-color-border-light);
 }
 .filter-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--gk-space-3);
   flex-wrap: wrap;
 }
 .total-count {
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
+  color: var(--gk-color-text-secondary);
+  font-size: var(--gk-font-size-sm);
 }
 .right-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--gk-space-1);
   margin-left: auto;
 }
 .action-divider {
   width: 1px;
   height: 20px;
-  background: var(--el-border-color-lighter);
-  margin: 0 2px;
+  background: var(--gk-color-border-light);
+  margin: 0 var(--gk-space-1);
 }
 .action-group {
   display: inline-flex;
@@ -137,10 +138,10 @@ const emit = defineEmits<{
   margin-left: -1px;
 }
 .action-group :deep(.el-button:first-child) {
-  border-radius: 4px 0 0 4px;
+  border-radius: var(--gk-radius-md) 0 0 var(--gk-radius-md);
   margin-left: 0;
 }
 .action-group :deep(.el-button:last-child) {
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 var(--gk-radius-md) var(--gk-radius-md) 0;
 }
 </style>

@@ -122,7 +122,7 @@ onMounted(fetchCrds)
     >
       <template #actions>
         <el-button type="success" @click="router.push('/crd/create')">
-          <el-icon><Plus /></el-icon> 创建 CRD
+          <el-icon><Plus /></el-icon> 创建
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
           <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
@@ -196,16 +196,16 @@ onMounted(fetchCrds)
 
 <style scoped>
 .page-container {
-  padding: 20px;
+  padding: var(--gk-space-5);
 }
 .table-card {
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
 }
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 .action-buttons .el-button + .el-button {
   margin-left: 0;

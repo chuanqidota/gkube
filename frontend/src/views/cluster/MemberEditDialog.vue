@@ -113,7 +113,7 @@ async function handleRemoveBinding(b: MemberBinding) {
             :value="r.id"
           />
         </el-select>
-        <el-button size="small" type="danger" plain @click="handleRemoveBinding(b)">
+        <el-button size="small" type="danger" @click="handleRemoveBinding(b)">
           {{ t('rbac.removeBinding') }}
         </el-button>
       </div>

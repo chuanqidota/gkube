@@ -12,3 +12,162 @@
 
 /* Element Plus Overrides */
 @import './element-overrides.css';
+
+/* ============================================================
+   Global Utility Classes
+   ============================================================ */
+
+/* Page container - used by all list pages */
+.page-container {
+  padding: var(--gk-space-5);
+  max-width: var(--gk-content-max-width);
+  margin: 0 auto;
+}
+
+/* Filter card - subtle border to distinguish from page bg */
+.filter-card {
+  margin-bottom: var(--gk-space-4);
+  border: 1px solid var(--gk-color-border-light);
+}
+
+/* Filter bar layout */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--gk-space-3);
+  flex-wrap: wrap;
+}
+
+.filter-right {
+  display: flex;
+  align-items: center;
+  gap: var(--gk-space-2);
+  margin-left: auto;
+}
+
+/* Connected button group - replaces per-component border-radius hacks */
+.btn-group {
+  display: inline-flex;
+}
+
+.btn-group :deep(.el-button) {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.btn-group :deep(.el-button:first-child) {
+  border-radius: var(--gk-radius-md) 0 0 var(--gk-radius-md);
+  margin-left: 0;
+}
+
+.btn-group :deep(.el-button:last-child) {
+  border-radius: 0 var(--gk-radius-md) var(--gk-radius-md) 0;
+}
+
+.btn-group :deep(.el-dropdown:last-child .el-button) {
+  border-radius: 0 var(--gk-radius-md) var(--gk-radius-md) 0;
+}
+
+/* Action divider between button groups */
+.action-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--gk-color-border-light);
+  margin: 0 var(--gk-space-1);
+}
+
+/* Table card - used by all list pages */
+.table-card {
+  border-radius: var(--gk-radius-md);
+  border: 1px solid var(--gk-color-border);
+}
+
+.table-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+/* Mono utility */
+.mono {
+  font-family: var(--gk-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Stat value - used by dashboard, audit, etc. */
+.stat-value {
+  font-size: var(--gk-font-size-3xl);
+  font-weight: 700;
+  color: var(--gk-color-text-primary);
+}
+
+.stat-label {
+  font-size: var(--gk-font-size-base);
+  color: var(--gk-color-text-secondary);
+  margin-top: var(--gk-space-1);
+}
+
+/* Pagination wrapper */
+.pagination-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--gk-space-4);
+}
+
+/* Section spacing for detail pages */
+.detail-section + .detail-section {
+  margin-top: var(--gk-space-4);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--gk-space-2);
+}
+
+/* Action buttons row */
+.action-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--gk-space-1);
+}
+
+.action-buttons .el-button + .el-button,
+.action-buttons .el-dropdown + .el-button {
+  margin-left: 0;
+}
+
+/* Load more */
+.load-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--gk-space-3) 0;
+  border-top: 1px solid var(--gk-color-border-light);
+}
+
+/* Main content scrollbar */
+.app-main::-webkit-scrollbar {
+  width: 6px;
+}
+
+.app-main::-webkit-scrollbar-thumb {
+  background: var(--gk-neutral-300);
+  border-radius: 3px;
+}
+
+.app-main::-webkit-scrollbar-thumb:hover {
+  background: var(--gk-neutral-400);
+}
+
+.app-main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-theme="dark"] .app-main::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .app-main::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}

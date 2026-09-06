@@ -141,7 +141,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     <el-drawer v-model="yamlDialogVisible" title="ReplicaSet YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
       <div v-loading="yamlLoading" style="height: 100%;">
-        <YamlEditor v-model="yamlContent" height="calc(100vh - 56px)" read-only auto-format />
+        <YamlEditor v-model="yamlContent" height="calc(100dvh - 56px)" read-only auto-format />
       </div>
     </el-drawer>
   </div>
@@ -149,10 +149,10 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 
 <style scoped>
 .page-container {
-  padding: 20px;
+  padding: var(--gk-space-5);
 }
 .table-card {
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
 }
 .load-more {
   text-align: center;
@@ -165,7 +165,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 .action-buttons .el-button + .el-button {
   margin-left: 0;

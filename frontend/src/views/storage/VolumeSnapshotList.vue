@@ -205,6 +205,6 @@ onMounted(() => { fetchNamespaces(); fetchSnapshots() })
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.table-card { border-radius: 8px; }
+.page-container { padding: var(--gk-space-5); }
+.table-card { border-radius: var(--gk-radius-md); }
 </style>

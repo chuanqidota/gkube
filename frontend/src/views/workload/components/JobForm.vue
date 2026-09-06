@@ -914,7 +914,7 @@ function handleCancel() {
 
           <el-form-item v-if="form.volumes.length > 0" label="卷挂载">
             <div style="width: 100%;">
-              <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: 16px;">
+              <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: var(--gk-space-4);">
                 <div class="mount-container-name">{{ container.name || `容器 ${ci + 1}` }}</div>
                 <div v-for="(mount, mi) in container.volumeMounts" :key="mi" class="kv-row">
                   <el-select v-model="mount.name" placeholder="选择卷" style="width: 160px;">
@@ -956,7 +956,7 @@ function handleCancel() {
                 <el-switch :model-value="!!container.livenessProbe" @update:model-value="(v: boolean) => v ? enableProbe(ci, 'livenessProbe') : disableProbe(ci, 'livenessProbe')" />
               </div>
               <template v-if="container.livenessProbe">
-                <div class="fields-grid" style="margin-top: 16px;">
+                <div class="fields-grid" style="margin-top: var(--gk-space-4);">
                   <el-form-item label="检测类型">
                     <el-select v-model="container.livenessProbe.type" style="width: 100%;">
                       <el-option label="HTTP GET" value="httpGet" />
@@ -997,7 +997,7 @@ function handleCancel() {
                 <el-switch :model-value="!!container.readinessProbe" @update:model-value="(v: boolean) => v ? enableProbe(ci, 'readinessProbe') : disableProbe(ci, 'readinessProbe')" />
               </div>
               <template v-if="container.readinessProbe">
-                <div class="fields-grid" style="margin-top: 16px;">
+                <div class="fields-grid" style="margin-top: var(--gk-space-4);">
                   <el-form-item label="检测类型">
                     <el-select v-model="container.readinessProbe.type" style="width: 100%;">
                       <el-option label="HTTP GET" value="httpGet" />
@@ -1038,7 +1038,7 @@ function handleCancel() {
                 <el-switch :model-value="!!container.startupProbe" @update:model-value="(v: boolean) => v ? enableProbe(ci, 'startupProbe') : disableProbe(ci, 'startupProbe')" />
               </div>
               <template v-if="container.startupProbe">
-                <div class="fields-grid" style="margin-top: 16px;">
+                <div class="fields-grid" style="margin-top: var(--gk-space-4);">
                   <el-form-item label="检测类型">
                     <el-select v-model="container.startupProbe.type" style="width: 100%;">
                       <el-option label="HTTP GET" value="httpGet" />
@@ -1196,7 +1196,7 @@ function handleCancel() {
             <el-button text type="primary" size="small" @click="addAffinityRule('podAffinityRules')"><el-icon><Plus /></el-icon> 添加亲和规则</el-button>
             <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">权重 0 = 必须满足 (required)，1-100 = 优先满足 (preferred)</div>
           </div>
-          <div class="affinity-section" style="margin-top: 16px;">
+          <div class="affinity-section" style="margin-top: var(--gk-space-4);">
             <div class="affinity-section-title">反亲和规则</div>
             <div v-for="(rule, i) in form.podAntiAffinityRules" :key="i" class="affinity-row">
               <el-input-number v-model="rule.weight" :min="0" :max="100" placeholder="权重" style="width: 100px;" />
@@ -1334,7 +1334,7 @@ function handleCancel() {
 /* Container cards */
 .container-card {
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   padding: 16px;
   margin-bottom: 12px;
   background: var(--el-fill-color-blank);
@@ -1401,7 +1401,7 @@ function handleCancel() {
 
 .resource-group {
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   padding: 14px;
   background: var(--el-fill-color-lighter);
 }
@@ -1428,7 +1428,7 @@ function handleCancel() {
 /* Volume cards */
 .volume-card {
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   padding: 14px;
   margin-bottom: 8px;
   background: var(--el-fill-color-lighter);
@@ -1458,7 +1458,7 @@ function handleCancel() {
 /* Probe cards */
 .probe-card {
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   padding: 14px;
   margin-bottom: 10px;
   background: var(--el-fill-color-blank);
@@ -1496,7 +1496,7 @@ function handleCancel() {
   align-items: center;
   padding: 12px 16px;
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   background: var(--el-fill-color-lighter);
 }
 
@@ -1535,7 +1535,7 @@ function handleCancel() {
 
 .cap-group {
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   padding: 12px;
   background: var(--el-fill-color-lighter);
 }

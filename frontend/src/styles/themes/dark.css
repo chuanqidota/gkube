@@ -20,7 +20,7 @@
   /* Semantic Overrides */
   --gk-color-bg-page: #0f172a;
   --gk-color-bg-card: #1e293b;
-  --gk-color-bg-sidebar: #020617;
+  --gk-color-bg-sidebar: #0c1322;
   --gk-color-bg-header: #1e293b;
   --gk-color-text-primary: #f1f5f9;
   --gk-color-text-secondary: #94a3b8;
@@ -46,6 +46,12 @@
   --gk-color-warning-bg: rgba(245, 158, 11, 0.15);
   --gk-color-danger-bg: rgba(239, 68, 68, 0.15);
   --gk-color-info-bg: rgba(13, 148, 136, 0.15);
+
+  /* Terminal colors */
+  --gk-color-bg-terminal: #1e1e1e;
+  --gk-color-bg-terminal-bar: #252526;
+  --gk-color-text-terminal: #d4d4d4;
+  --gk-color-text-terminal-muted: #cccccc;
 }
 
 /* 暗色主题下表格斑马纹修复：stripe 行使用略深背景，与 card bg 区分 */

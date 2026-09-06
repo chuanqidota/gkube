@@ -162,13 +162,13 @@ onMounted(() => { fetchNamespaces(); fetchResourceQuotas() })
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.table-card { border-radius: 8px; }
+.page-container { padding: var(--gk-space-5); }
+.table-card { border-radius: var(--gk-radius-md); }
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 .action-buttons .el-button + .el-button {
   margin-left: 0;

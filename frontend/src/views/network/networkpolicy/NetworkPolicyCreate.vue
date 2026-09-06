@@ -139,7 +139,7 @@ function handleMaximize() {
           </div>
         </div>
         <div class="yaml-card-body">
-          <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="calc(100vh - 180px)" :read-only="false" editable auto-format :show-toolbar="false" title="YAML 配置">
+          <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="calc(100dvh - 180px)" :read-only="false" editable auto-format :show-toolbar="false" title="YAML 配置">
             <template #fullscreen-actions>
               <el-button size="small" @click="handleCancel">取消</el-button>
               <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit">创建</el-button>
@@ -152,13 +152,13 @@ function handleMaximize() {
 </template>
 
 <style scoped>
-.np-create { max-width: 1100px; margin: 0 auto; padding: 20px 0; }
-.mode-switcher { display: flex; justify-content: center; margin-bottom: 12px; }
+.np-create { max-width: 1100px; margin: 0 auto; padding: var(--gk-space-5) 0; }
+.mode-switcher { display: flex; justify-content: center; margin-bottom: var(--gk-space-3); }
 .yaml-mode { padding: 0 16px; }
 
 .yaml-card {
   border: 1px solid var(--el-border-color-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   overflow: hidden;
   background: var(--el-bg-color);
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
@@ -176,7 +176,7 @@ function handleMaximize() {
 .yaml-card-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--gk-space-3);
 }
 
 .yaml-card-title {
@@ -187,7 +187,7 @@ function handleMaximize() {
 
 .yaml-card-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--gk-space-2);
 }
 
 .yaml-card-body {

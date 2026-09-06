@@ -166,7 +166,7 @@ async function handleRerun(row: any) {
     <!-- YAML Drawer -->
     <el-drawer v-model="yamlDialogVisible" title="Job YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100vh - 52px);">
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px);">
         <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
       </div>
     </el-drawer>
@@ -175,16 +175,16 @@ async function handleRerun(row: any) {
 
 <style scoped>
 .page-container {
-  padding: 20px;
+  padding: var(--gk-space-5);
 }
 .table-card {
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
 }
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 .action-buttons .el-button + .el-button {
   margin-left: 0;

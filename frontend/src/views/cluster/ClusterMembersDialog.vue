@@ -249,10 +249,10 @@ function escapeHtml(str: string): string {
               </div>
             </div>
             <div v-if="isAdmin" class="member-actions">
-              <el-button size="small" type="primary" plain @click="handleEditMember(m)">
+              <el-button size="small" type="primary" @click="handleEditMember(m)">
                 {{ t('common.edit') }}
               </el-button>
-              <el-button size="small" type="danger" plain @click="handleRemoveMember(m)">
+              <el-button size="small" type="danger" @click="handleRemoveMember(m)">
                 {{ t('rbac.removeMember') }}
               </el-button>
             </div>

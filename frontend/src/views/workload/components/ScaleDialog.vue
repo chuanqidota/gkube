@@ -50,8 +50,8 @@ async function handleConfirm() {
     destroy-on-close
   >
     <div>
-      <p style="margin-bottom: 16px;">调整 <strong>{{ name }}</strong> 副本数</p>
-      <el-descriptions :column="1" border size="small" style="margin-bottom: 16px;">
+      <p style="margin-bottom: var(--gk-space-4);">调整 <strong>{{ name }}</strong> 副本数</p>
+      <el-descriptions :column="1" border size="small" style="margin-bottom: var(--gk-space-4);">
         <el-descriptions-item label="当前">{{ currentReplicas }}</el-descriptions-item>
         <el-descriptions-item v-if="readyReplicas !== undefined" label="就绪">{{ readyReplicas }}</el-descriptions-item>
       </el-descriptions>

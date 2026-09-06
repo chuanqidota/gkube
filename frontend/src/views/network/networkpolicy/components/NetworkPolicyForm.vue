@@ -910,7 +910,7 @@ function handleCancel() {
 /* Rule cards */
 .rule-card {
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   padding: 16px;
   margin-bottom: 12px;
   background: var(--el-fill-color-lighter);

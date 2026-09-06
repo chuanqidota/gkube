@@ -249,7 +249,7 @@ onMounted(fetchUsers)
     >
       <template #actions>
         <el-button type="success" @click="openCreate">
-          <el-icon><Plus /></el-icon> 创建用户
+          <el-icon><Plus /></el-icon> 创建
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
           <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
@@ -292,7 +292,7 @@ onMounted(fetchUsers)
         <el-table-column label="操作" width="230" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button size="small" type="warning" @click="openEdit(row)">编辑</el-button>
             <el-button size="small" type="warning" @click="openResetPassword(row)">重置密码</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
@@ -365,16 +365,16 @@ onMounted(fetchUsers)
 
 <style scoped>
 .page-container {
-  padding: 20px;
+  padding: var(--gk-space-5);
 }
 .table-card {
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
 }
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 .action-buttons .el-button + .el-button {
   margin-left: 0;

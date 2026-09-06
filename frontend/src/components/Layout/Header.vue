@@ -212,11 +212,12 @@ async function handleCommand(command: string) {
 .header-right {
   display: flex;
   align-items: center;
-  gap: var(--gk-space-2);
+  gap: var(--gk-space-3);
 }
 
 .cluster-select {
-  width: 200px;
+  min-width: 160px;
+  max-width: 240px;
 }
 
 .cluster-select :deep(.el-input__wrapper) {
@@ -245,7 +246,7 @@ async function handleCommand(command: string) {
 }
 
 .user-info:hover {
-  background: var(--gk-neutral-100);
+  background: var(--gk-color-primary-bg);
 }
 
 .user-avatar {

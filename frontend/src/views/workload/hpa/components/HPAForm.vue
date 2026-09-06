@@ -379,7 +379,7 @@ onMounted(() => {
       type="warning"
       show-icon
       :closable="false"
-      style="margin-bottom: 16px;"
+      style="margin-bottom: var(--gk-space-4);"
     />
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
       <!-- Section 1: Basic Info -->

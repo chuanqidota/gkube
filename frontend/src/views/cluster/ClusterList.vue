@@ -277,19 +277,19 @@ onUnmounted(() => clearTimeout(searchDebounce))
       <el-table-column label="操作" width="280" fixed="right" align="center">
         <template #default="{ row }">
           <div class="action-buttons">
-            <el-button size="small" type="primary" plain @click="handleMembers(row)">
+            <el-button size="small" type="primary" @click="handleMembers(row)">
               <el-icon><User /></el-icon> {{ t('rbac.members') }}
             </el-button>
-            <el-button size="small" type="success" plain @click="handleCheck(row)">{{ t('cluster.checkConnection') }}</el-button>
-            <el-button size="small" type="warning" plain @click="handleEdit(row)">{{ t('common.edit') }}</el-button>
-            <el-button size="small" type="danger" plain @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
+            <el-button size="small" type="success" @click="handleCheck(row)">{{ t('cluster.checkConnection') }}</el-button>
+            <el-button size="small" type="warning" @click="handleEdit(row)">{{ t('common.edit') }}</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
           </div>
         </template>
       </el-table-column>
     </el-table>
 
     <el-row :gutter="16" v-else-if="viewMode === 'card' && clusterList.length > 0">
-      <el-col :span="8" v-for="cluster in clusterList" :key="cluster.id" style="margin-bottom: 16px;">
+      <el-col :xs="24" :sm="12" :md="8" v-for="cluster in clusterList" :key="cluster.id" style="margin-bottom: var(--gk-space-4);">
         <el-card shadow="hover" class="cluster-card">
           <template #header>
             <div class="cluster-header">
@@ -318,17 +318,17 @@ onUnmounted(() => clearTimeout(searchDebounce))
             </div>
           </div>
           <div class="cluster-footer">
-            <el-button size="small" type="primary" plain @click="handleMembers(cluster)"><el-icon><User /></el-icon> {{ t('rbac.members') }}</el-button>
-            <el-button size="small" type="success" plain @click="handleCheck(cluster)">{{ t('cluster.checkConnection') }}</el-button>
-            <el-button size="small" type="warning" plain @click="handleEdit(cluster)">{{ t('common.edit') }}</el-button>
-            <el-button size="small" type="danger" plain @click="handleDelete(cluster)">{{ t('common.delete') }}</el-button>
+            <el-button size="small" type="primary" @click="handleMembers(cluster)"><el-icon><User /></el-icon> {{ t('rbac.members') }}</el-button>
+            <el-button size="small" type="success" @click="handleCheck(cluster)">{{ t('cluster.checkConnection') }}</el-button>
+            <el-button size="small" type="warning" @click="handleEdit(cluster)">{{ t('common.edit') }}</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(cluster)">{{ t('common.delete') }}</el-button>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
     <el-empty v-if="!loading && clusterList.length === 0" :description="searchName ? t('cluster.noSearchResults') : t('cluster.noClusters')">
-      <el-button type="primary" @click="router.push('/clusters/create')"><el-icon><Plus /></el-icon> {{ t('cluster.add') }}</el-button>
+      <el-button type="success" @click="router.push('/clusters/create')"><el-icon><Plus /></el-icon> {{ t('cluster.add') }}</el-button>
     </el-empty>
     </el-card>
 
@@ -357,7 +357,7 @@ onUnmounted(() => clearTimeout(searchDebounce))
             <div
               v-for="(label, index) in editForm.labels"
               :key="index"
-              style="display: flex; gap: 8px; margin-bottom: 8px;"
+              style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px;"
             >
               <el-input v-model="label.key" :placeholder="t('cluster.keyPlaceholder')" style="flex: 1;" />
               <el-input v-model="label.value" :placeholder="t('cluster.valuePlaceholder')" style="flex: 1;" />
@@ -383,19 +383,19 @@ onUnmounted(() => clearTimeout(searchDebounce))
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.table-card { border-radius: 8px; }
+.page-container { padding: var(--gk-space-5); }
+.table-card { border-radius: var(--gk-radius-md); }
 .cluster-card {
   height: 100%;
   background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%);
   border-color: var(--gk-color-primary-light);
 }
 .cluster-header { display: flex; justify-content: space-between; align-items: center; }
-.cluster-info { display: flex; align-items: center; gap: 8px; }
-.cluster-body { margin-bottom: 12px; }
+.cluster-info { display: flex; align-items: center; gap: var(--gk-space-2); }
+.cluster-body { margin-bottom: var(--gk-space-3); }
 .cluster-detail { display: flex; margin-bottom: 8px; }
 .cluster-detail .label { color: var(--gk-color-text-secondary); width: 70px; flex-shrink: 0; }
 .cluster-detail .value { color: var(--gk-color-text-primary); }
-.cluster-footer { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
+.cluster-footer { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--gk-space-1); border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
 .cluster-footer .el-button { margin-left: 0 !important; padding: 5px 8px; font-size: 12px; height: auto; }
 </style>

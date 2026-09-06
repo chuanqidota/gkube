@@ -9,7 +9,7 @@
     :body-style="{ padding: '0', height: '100%' }"
     :destroy-on-close="true"
   >
-    <div v-loading="loading" style="height: calc(100vh - 52px);">
+    <div v-loading="loading" style="height: calc(100dvh - 52px);">
       <YamlEditor
         v-if="!loading"
         v-model="yamlContent"

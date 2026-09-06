@@ -38,7 +38,7 @@ const reloadKey = computed(() => clusterStore.currentCluster?.id ?? 0)
 
 <style scoped>
 .app-layout {
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -74,7 +74,7 @@ const reloadKey = computed(() => clusterStore.currentCluster?.id ?? 0)
   .app-aside {
     position: fixed;
     z-index: 1000;
-    height: 100vh;
+    height: 100dvh;
     box-shadow: var(--gk-shadow-lg);
   }
 }

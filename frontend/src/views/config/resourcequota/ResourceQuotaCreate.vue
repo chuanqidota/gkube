@@ -105,7 +105,7 @@ onMounted(fetchNamespaces)
         </el-form-item>
         <el-form-item label="标签">
           <div style="width: 100%;">
-            <div v-for="(label, i) in form.labels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <div v-for="(label, i) in form.labels" :key="i" style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px;">
               <el-input v-model="label.key" placeholder="Key" style="flex: 1;" />
               <el-input v-model="label.value" placeholder="Value" style="flex: 1;" />
               <el-button type="danger" circle size="small" @click="form.labels.splice(i, 1)">X</el-button>
@@ -132,7 +132,7 @@ onMounted(fetchNamespaces)
         </el-form-item>
       </el-form>
     </el-card>
-    <el-card shadow="never" style="margin-top: 16px;">
+    <el-card shadow="never" style="margin-top: var(--gk-space-4);">
       <template #header><span>YAML Preview</span></template>
       <YamlEditor :model-value="yamlContent" height="300px" read-only />
     </el-card>
@@ -140,6 +140,6 @@ onMounted(fetchNamespaces)
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.page-container { padding: var(--gk-space-5); }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--gk-space-4); }
 </style>

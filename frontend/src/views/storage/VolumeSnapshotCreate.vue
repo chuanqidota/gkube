@@ -110,7 +110,7 @@ onMounted(fetchNamespaces)
       type="info"
       :closable="false"
       show-icon
-      style="margin-bottom: 16px;"
+      style="margin-bottom: var(--gk-space-4);"
     />
 
     <YamlEditor v-model="yamlContent" height="500px" />
@@ -126,7 +126,7 @@ onMounted(fetchNamespaces)
 .create-page {
   max-width: 900px;
   margin: 0 auto;
-  padding: 20px 0;
+  padding: var(--gk-space-5) 0;
 }
 .form-header {
   display: flex;

@@ -24,6 +24,6 @@ const router = useRouter()
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 60vh;
+  min-height: calc(100dvh - var(--gk-header-height));
 }
 </style>

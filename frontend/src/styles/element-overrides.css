@@ -238,8 +238,42 @@ html[data-theme="dark"] .el-card {
   --el-fill-color-blank: var(--gk-color-bg-card);
 }
 
-html[data-theme="dark"] .el-button {
-  --el-button-disabled-text-color: var(--gk-color-text-disabled);
+/* === Button disabled — keep typed colors but deeper for visibility === */
+.el-button--danger {
+  --el-button-disabled-text-color: var(--el-color-danger-light-3);
+  --el-button-disabled-bg-color: var(--el-color-danger-light-9);
+  --el-button-disabled-border-color: var(--el-color-danger-light-5);
+}
+
+.el-button--warning {
+  --el-button-disabled-text-color: var(--el-color-warning-light-3);
+  --el-button-disabled-bg-color: var(--el-color-warning-light-9);
+  --el-button-disabled-border-color: var(--el-color-warning-light-5);
+}
+
+.el-button--success {
+  --el-button-disabled-text-color: var(--el-color-success-light-3);
+  --el-button-disabled-bg-color: var(--el-color-success-light-9);
+  --el-button-disabled-border-color: var(--el-color-success-light-5);
+}
+
+.el-button--primary {
+  --el-button-disabled-text-color: var(--el-color-primary-light-3);
+  --el-button-disabled-bg-color: var(--el-color-primary-light-9);
+  --el-button-disabled-border-color: var(--el-color-primary-light-5);
+}
+
+.el-button--info {
+  --el-button-disabled-text-color: var(--el-color-info-light-3);
+  --el-button-disabled-bg-color: var(--el-color-info-light-9);
+  --el-button-disabled-border-color: var(--el-color-info-light-5);
+}
+
+/* Default (untyped) button disabled — neutral grey */
+.el-button:not([class*="el-button--"]) {
+  --el-button-disabled-text-color: var(--gk-neutral-600);
+  --el-button-disabled-bg-color: var(--gk-color-bg-card);
+  --el-button-disabled-border-color: var(--gk-neutral-300);
 }
 
 html[data-theme="dark"] .el-empty {

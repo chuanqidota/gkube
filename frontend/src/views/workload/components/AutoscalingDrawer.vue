@@ -230,7 +230,7 @@ function handleCancelYaml() {
       class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }"
     >
-      <div v-loading="yamlLoading" style="height: calc(100vh - 60px);">
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 60px);">
         <YamlEditor
           v-model="yamlContent"
           height="100%"

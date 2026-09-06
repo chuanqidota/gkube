@@ -301,7 +301,7 @@ onMounted(() => {
       <div class="header-actions">
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" plain @click="handleDelete">删除</el-button>
+        <el-button type="danger" @click="handleDelete">删除</el-button>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
@@ -369,15 +369,15 @@ onMounted(() => {
             </el-descriptions>
 
             <!-- 端口映射表 -->
-            <div v-if="service.portList && service.portList.length > 0" style="margin-top: 16px;">
-              <h4 style="margin: 0 0 8px; font-size: 13px;">端口映射</h4>
+            <div v-if="service.portList && service.portList.length > 0" style="margin-top: var(--gk-space-4);">
+              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">端口映射</h4>
               <el-table :data="service.portList" size="small" border stripe>
                 <el-table-column prop="name" label="名称" width="80">
                   <template #default="{ row }">{{ row.name || '-' }}</template>
                 </el-table-column>
                 <el-table-column prop="port" label="Port" width="70" align="center" />
                 <el-table-column label="→" width="30" align="center">
-                  <template #default><span style="color: var(--el-text-color-placeholder);">→</span></template>
+                  <template #default><span style="color: var(--gk-color-text-placeholder);">→</span></template>
                 </el-table-column>
                 <el-table-column prop="targetPort" label="TargetPort" width="90" align="center" />
                 <el-table-column prop="protocol" label="协议" width="70" align="center" />
@@ -391,8 +391,8 @@ onMounted(() => {
             </div>
 
             <!-- Selector -->
-            <div v-if="service.selector && Object.keys(service.selector).length > 0" style="margin-top: 16px;">
-              <h4 style="margin: 0 0 8px; font-size: 13px;">Selector</h4>
+            <div v-if="service.selector && Object.keys(service.selector).length > 0" style="margin-top: var(--gk-space-4);">
+              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Selector</h4>
               <el-tag
                 v-for="(val, key) in service.selector"
                 :key="key"
@@ -405,8 +405,8 @@ onMounted(() => {
             </div>
 
             <!-- Labels -->
-            <div v-if="service.labels && Object.keys(service.labels).length > 0" style="margin-top: 16px;">
-              <h4 style="margin: 0 0 8px; font-size: 13px;">Labels</h4>
+            <div v-if="service.labels && Object.keys(service.labels).length > 0" style="margin-top: var(--gk-space-4);">
+              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Labels</h4>
               <el-tag
                 v-for="(val, key) in service.labels"
                 :key="key"
@@ -523,7 +523,7 @@ onMounted(() => {
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100vh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
         <ServiceForm
           v-if="editDialogVisible && serviceRaw"
           :is-edit="true"
@@ -538,8 +538,8 @@ onMounted(() => {
 
 <style scoped>
 .detail-page {
-  padding: 16px 20px;
-  height: 100vh;
+  padding: var(--gk-space-4) var(--gk-space-5);
+  height: calc(100dvh - var(--gk-header-height));
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -550,19 +550,19 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--gk-space-3);
   flex-shrink: 0;
 }
 
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 
 .res-name {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--gk-font-size-lg);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -570,21 +570,21 @@ onMounted(() => {
 .meta-line {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gk-space-2);
 }
 
 .ns-tag {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-lighter);
+  color: var(--gk-color-text-secondary);
+  background: var(--gk-neutral-100);
   padding: 1px 6px;
   border-radius: 4px;
 }
 
 .replicas-info {
   font-size: 12px;
-  color: var(--el-text-color-regular);
-  font-family: monospace;
+  color: var(--gk-color-text-primary);
+  font-family: var(--gk-font-mono);
 }
 
 .header-actions {
@@ -599,20 +599,20 @@ onMounted(() => {
 }
 
 .header-actions .el-button:first-child {
-  border-radius: 4px 0 0 4px;
+  border-radius: var(--gk-radius-sm) 0 0 var(--gk-radius-sm);
   margin-left: 0;
 }
 
 .header-actions .el-button:last-of-type,
 .header-actions .el-dropdown:last-of-type {
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 var(--gk-radius-sm) var(--gk-radius-sm) 0;
 }
 
 .action-divider {
   width: 1px;
   height: 20px;
   background: var(--el-border-color-lighter);
-  margin: 0 4px;
+  margin: 0 var(--gk-space-1);
 }
 
 .auto-refresh-popover {
@@ -622,9 +622,9 @@ onMounted(() => {
 }
 
 .popover-title {
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: var(--gk-color-text-primary);
 }
 
 /* Main Layout */
@@ -639,8 +639,8 @@ onMounted(() => {
 
 /* Left Panel */
 .left-panel {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border: 1px solid var(--gk-color-border-light);
+  border-radius: var(--gk-radius-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -649,7 +649,7 @@ onMounted(() => {
 
 .left-tabs {
   padding: 8px 14px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  border-bottom: 1px solid var(--gk-color-border-light);
   flex-shrink: 0;
 }
 
@@ -678,11 +678,11 @@ onMounted(() => {
 }
 
 .panel-title {
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
   font-weight: 600;
-  padding: 10px 14px;
-  background: var(--el-fill-color-lighter);
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  padding: var(--gk-space-2) var(--gk-space-4);
+  background: var(--gk-neutral-100);
+  border-bottom: 1px solid var(--gk-color-border-light);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -691,8 +691,8 @@ onMounted(() => {
 
 .count-badge {
   font-weight: 400;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  font-size: var(--gk-font-size-xs);
+  color: var(--gk-color-text-secondary);
 }
 
 /* Right Panel */
@@ -706,8 +706,8 @@ onMounted(() => {
 }
 
 .right-section {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border: 1px solid var(--gk-color-border-light);
+  border-radius: var(--gk-radius-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -736,7 +736,7 @@ onMounted(() => {
 
 .resize-handle-h:hover,
 .resize-handle-h.active {
-  background: var(--el-color-primary-light-7);
+  background: var(--gk-color-primary-bg);
 }
 
 .resize-handle-v {
@@ -750,7 +750,7 @@ onMounted(() => {
 
 .resize-handle-v:hover,
 .resize-handle-v.active {
-  background: var(--el-color-primary-light-7);
+  background: var(--gk-color-primary-bg);
 }
 
 .is-resizing {
@@ -770,8 +770,8 @@ onMounted(() => {
 .empty-hint {
   padding: 24px;
   text-align: center;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
+  color: var(--gk-color-text-secondary);
+  font-size: var(--gk-font-size-sm);
 }
 
 /* Responsive */
@@ -799,14 +799,14 @@ onMounted(() => {
 }
 
 .drawer-title {
-  font-size: 16px;
+  font-size: var(--gk-font-size-lg);
   font-weight: 600;
 }
 
 .fullscreen-btn {
   cursor: pointer;
   font-size: 18px;
-  color: var(--el-text-color-regular);
+  color: var(--gk-color-text-primary);
   transition: color 0.2s;
 }
 

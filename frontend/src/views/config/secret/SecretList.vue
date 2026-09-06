@@ -181,7 +181,7 @@ onMounted(() => { fetchNamespaces(); fetchSecrets() })
       @saved="fetchSecrets"
     />
     <el-dialog v-model="dataDialogVisible" :title="dataDialogTitle" width="60%" top="8vh">
-      <div style="margin-bottom: 12px;"><el-switch v-model="showDecoded" active-text="已解密 (Base64)" inactive-text="原始 (Base64)" /></div>
+      <div style="margin-bottom: var(--gk-space-3);"><el-switch v-model="showDecoded" active-text="已解密 (Base64)" inactive-text="原始 (Base64)" /></div>
       <div v-loading="dataLoading">
         <el-table :data="dataEntries" stripe style="width: 100%" max-height="400">
           <el-table-column prop="key" label="键" min-width="200" show-overflow-tooltip />
@@ -196,13 +196,13 @@ onMounted(() => { fetchNamespaces(); fetchSecrets() })
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.table-card { border-radius: 8px; }
+.page-container { padding: var(--gk-space-5); }
+.table-card { border-radius: var(--gk-radius-md); }
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 .action-buttons .el-button + .el-button {
   margin-left: 0;

@@ -232,7 +232,7 @@ onMounted(fetchDetail)
               </el-card>
 
               <!-- Labels -->
-              <el-card shadow="never" style="margin-top: 16px;">
+              <el-card shadow="never" style="margin-top: var(--gk-space-4);">
                 <template #header><h4 style="margin: 0;">Labels</h4></template>
                 <div v-if="quota.labels && Object.keys(quota.labels).length > 0">
                   <el-tag v-for="(val, key) in quota.labels" :key="key" style="margin: 4px;">
@@ -243,7 +243,7 @@ onMounted(fetchDetail)
               </el-card>
 
               <!-- Annotations -->
-              <el-card shadow="never" style="margin-top: 16px;">
+              <el-card shadow="never" style="margin-top: var(--gk-space-4);">
                 <template #header><h4 style="margin: 0;">Annotations</h4></template>
                 <div v-if="quota.annotations && Object.keys(quota.annotations).length > 0">
                   <div v-for="(val, key) in quota.annotations" :key="key" class="annotation-item">
@@ -276,7 +276,7 @@ onMounted(fetchDetail)
             </el-col>
           </el-row>
 
-          <el-card shadow="never" style="margin-top: 16px;">
+          <el-card shadow="never" style="margin-top: var(--gk-space-4);">
             <div ref="chartRef" style="height: 400px;"></div>
           </el-card>
         </el-tab-pane>
@@ -304,7 +304,7 @@ onMounted(fetchDetail)
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
+.page-container { padding: var(--gk-space-5); }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .quota-item { margin-bottom: 16px; }
 .quota-header { display: flex; justify-content: space-between; margin-bottom: 8px; }

@@ -154,15 +154,15 @@ onMounted(() => fetchNodes())
               <el-button size="small" type="info" @click="handleLabels(row)">标签</el-button>
               <el-button size="small" type="danger" @click="handleDrain(row)">驱逐</el-button>
               <el-tooltip v-if="row.status === 'Ready'" content="节点在线，删除后会重新注册（需先停止 kubelet）" placement="top">
-                <span><el-button size="small" type="danger" plain disabled>删除</el-button></span>
+                <span><el-button size="small" type="danger" disabled>删除</el-button></span>
               </el-tooltip>
-              <el-button v-else size="small" type="danger" plain @click="handleDelete(row.name, row.status === 'Ready')">删除</el-button>
+              <el-button v-else size="small" type="danger" @click="handleDelete(row.name, row.status === 'Ready')">删除</el-button>
             </div>
           </template>
         </el-table-column>
       </el-table>
       <el-row v-else :gutter="16">
-        <el-col v-for="node in filteredList" :key="node.name" :xs="24" :sm="12" :md="8" style="margin-bottom: 16px;">
+        <el-col v-for="node in filteredList" :key="node.name" :xs="24" :sm="12" :md="8" style="margin-bottom: var(--gk-space-4);">
           <el-card shadow="hover" class="node-card">
             <template #header>
               <div class="node-header">
@@ -203,9 +203,9 @@ onMounted(() => fetchNodes())
               <el-button size="small" type="info" @click="handleLabels(node)">标签</el-button>
               <el-button size="small" type="danger" @click="handleDrain(node)">驱逐</el-button>
               <el-tooltip v-if="node.status === 'Ready'" content="节点在线，删除后会重新注册（需先停止 kubelet）" placement="top">
-                <span><el-button size="small" type="danger" plain disabled>删除</el-button></span>
+                <span><el-button size="small" type="danger" disabled>删除</el-button></span>
               </el-tooltip>
-              <el-button v-else size="small" type="danger" plain @click="handleDelete(node.name, node.status === 'Ready')">删除</el-button>
+              <el-button v-else size="small" type="danger" @click="handleDelete(node.name, node.status === 'Ready')">删除</el-button>
             </div>
           </el-card>
         </el-col>
@@ -228,24 +228,24 @@ onMounted(() => fetchNodes())
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.table-card { border-radius: 8px; }
-.table-actions { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 4px; }
+.page-container { padding: var(--gk-space-5); }
+.table-card { border-radius: var(--gk-radius-md); }
+.table-actions { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: var(--gk-space-1); }
 .table-actions .el-button { margin-left: 0 !important; }
 .node-card {
   height: 100%;
   background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%);
   border-color: var(--gk-color-primary-light);
 }
-.node-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.node-header { display: flex; justify-content: space-between; align-items: center; gap: var(--gk-space-2); }
 .node-header-tags { display: flex; align-items: center; gap: 6px; }
-.node-meta { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: 12px; }
-.node-usage { margin-bottom: 12px; }
+.node-meta { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: var(--gk-space-3); }
+.node-usage { margin-bottom: var(--gk-space-3); }
 .usage-item { display: flex; align-items: center; margin-bottom: 10px; }
 .usage-item:last-child { margin-bottom: 0; }
 .usage-label { width: 36px; flex-shrink: 0; font-size: 12px; color: var(--gk-color-text-secondary); }
 .usage-item :deep(.el-progress) { flex: 1; }
 .usage-item :deep(.el-progress-bar) { padding-right: 0; }
-.node-footer { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
+.node-footer { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--gk-space-1); border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
 .node-footer .el-button { margin-left: 0 !important; padding: 5px 8px; font-size: 12px; height: auto; }
 </style>

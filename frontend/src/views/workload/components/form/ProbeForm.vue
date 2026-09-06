@@ -48,7 +48,7 @@ function updateField<K extends keyof Probe>(key: K, value: Probe[K]) {
       <el-switch :model-value="!!modelValue" @update:model-value="(v: boolean) => v ? enableProbe() : disableProbe()" />
     </div>
     <template v-if="modelValue">
-      <div class="fields-grid" style="margin-top: 16px;">
+      <div class="fields-grid" style="margin-top: var(--gk-space-4);">
         <el-form-item label="检测类型">
           <el-select :model-value="modelValue.type" @update:model-value="(v: string) => updateField('type', v)" style="width: 100%;">
             <el-option label="HTTP GET" value="httpGet" />

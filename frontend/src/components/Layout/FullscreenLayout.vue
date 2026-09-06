@@ -6,7 +6,7 @@
 
 <style scoped>
 .fullscreen-layout {
-  height: 100vh;
+  height: 100dvh;
   width: 100vw;
   background: var(--gk-color-bg-page);
 }

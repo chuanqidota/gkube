@@ -139,7 +139,7 @@ onMounted(fetchDetail)
           </el-card>
 
           <!-- Labels -->
-          <el-card shadow="never" style="margin-top: 16px;">
+          <el-card shadow="never" style="margin-top: var(--gk-space-4);">
             <template #header><h4 style="margin: 0;">Labels</h4></template>
             <div v-if="limitRange.labels && Object.keys(limitRange.labels).length > 0">
               <el-tag v-for="(val, key) in limitRange.labels" :key="key" style="margin: 4px;">
@@ -150,7 +150,7 @@ onMounted(fetchDetail)
           </el-card>
 
           <!-- Annotations -->
-          <el-card shadow="never" style="margin-top: 16px;">
+          <el-card shadow="never" style="margin-top: var(--gk-space-4);">
             <template #header><h4 style="margin: 0;">Annotations</h4></template>
             <div v-if="limitRange.annotations && Object.keys(limitRange.annotations).length > 0">
               <div v-for="(val, key) in limitRange.annotations" :key="key" class="annotation-item">
@@ -162,7 +162,7 @@ onMounted(fetchDetail)
           </el-card>
 
           <!-- Limits -->
-          <el-card shadow="never" style="margin-top: 16px;">
+          <el-card shadow="never" style="margin-top: var(--gk-space-4);">
             <template #header><h4 style="margin: 0;">Limits</h4></template>
             <el-table :data="limitRange.limits || limitRange.spec?.limits || []" border stripe>
               <el-table-column prop="type" label="Type" width="140" />
@@ -223,7 +223,7 @@ onMounted(fetchDetail)
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
+.page-container { padding: var(--gk-space-5); }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .annotation-item { display: flex; gap: 12px; margin-bottom: 8px; padding: 4px 0; border-bottom: 1px solid var(--gk-color-border-light); }
 .annotation-key { font-weight: 500; min-width: 200px; word-break: break-all; }

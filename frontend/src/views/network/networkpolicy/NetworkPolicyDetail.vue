@@ -272,7 +272,7 @@ onMounted(() => {
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="$router.push(`/network/networkpolicies/create?clone=${name}&namespace=${namespace}`)">克隆</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" plain @click="handleDelete">删除</el-button>
+        <el-button type="danger" @click="handleDelete">删除</el-button>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
@@ -328,8 +328,8 @@ onMounted(() => {
             </el-descriptions>
 
             <!-- Labels -->
-            <div v-if="np.labels && Object.keys(np.labels).length > 0" style="margin-top: 16px;">
-              <h4 style="margin: 0 0 8px; font-size: 13px;">Labels</h4>
+            <div v-if="np.labels && Object.keys(np.labels).length > 0" style="margin-top: var(--gk-space-4);">
+              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Labels</h4>
               <el-tag
                 v-for="(val, key) in np.labels"
                 :key="key"
@@ -341,8 +341,8 @@ onMounted(() => {
             </div>
 
             <!-- Semantic tags: Deny All / Allow All -->
-            <div style="margin-top: 16px;" v-if="np.policyTypes.includes('Ingress') || np.policyTypes.includes('Egress')">
-              <h4 style="margin: 0 0 8px; font-size: 13px;">策略语义</h4>
+            <div style="margin-top: var(--gk-space-4);" v-if="np.policyTypes.includes('Ingress') || np.policyTypes.includes('Egress')">
+              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">策略语义</h4>
               <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                 <el-tag v-if="np.policyTypes.includes('Ingress') && np.ingress.length === 0" type="danger" effect="dark" size="default">
                   🔴 Deny All Ingress
@@ -360,13 +360,13 @@ onMounted(() => {
             </div>
 
             <!-- Ingress Rules -->
-            <div v-if="np.ingress && np.ingress.length > 0" style="margin-top: 16px;">
-              <h4 style="margin: 0 0 8px; font-size: 13px;">Ingress 规则</h4>
+            <div v-if="np.ingress && np.ingress.length > 0" style="margin-top: var(--gk-space-4);">
+              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Ingress 规则</h4>
               <el-collapse v-model="ingressCollapse">
                 <el-collapse-item v-for="(rule, i) in np.ingress" :key="i" :name="Number(i)">
                   <template #title>
                     <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
-                      <span style="font-size: 13px; font-weight: 500;">规则 {{ Number(i) + 1 }}</span>
+                      <span style="font-size: var(--gk-font-size-sm); font-weight: 500;">规则 {{ Number(i) + 1 }}</span>
                       <el-tag v-if="!rule.from || rule.from.length === 0" type="success" size="small" effect="plain">Allow All</el-tag>
                       <el-tag v-else-if="rule.ports && rule.ports.length > 0" size="small" effect="plain" type="info">
                         {{ rule.ports.map((p: any) => p.protocol + '/' + p.port).join(', ') }}
@@ -408,13 +408,13 @@ onMounted(() => {
             </div>
 
             <!-- Egress Rules -->
-            <div v-if="np.egress && np.egress.length > 0" style="margin-top: 16px;">
-              <h4 style="margin: 0 0 8px; font-size: 13px;">Egress 规则</h4>
+            <div v-if="np.egress && np.egress.length > 0" style="margin-top: var(--gk-space-4);">
+              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Egress 规则</h4>
               <el-collapse v-model="egressCollapse">
                 <el-collapse-item v-for="(rule, i) in np.egress" :key="i" :name="Number(i)">
                   <template #title>
                     <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
-                      <span style="font-size: 13px; font-weight: 500;">规则 {{ Number(i) + 1 }}</span>
+                      <span style="font-size: var(--gk-font-size-sm); font-weight: 500;">规则 {{ Number(i) + 1 }}</span>
                       <el-tag v-if="!rule.to || rule.to.length === 0" type="success" size="small" effect="plain">Allow All</el-tag>
                       <el-tag v-else-if="rule.ports && rule.ports.length > 0" size="small" effect="plain" type="info">
                         {{ rule.ports.map((p: any) => p.protocol + '/' + p.port).join(', ') }}
@@ -540,7 +540,7 @@ onMounted(() => {
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100vh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
         <NetworkPolicyForm
           v-if="editDialogVisible && npRaw"
           :is-edit="true"
@@ -555,8 +555,8 @@ onMounted(() => {
 
 <style scoped>
 .detail-page {
-  padding: 16px 20px;
-  height: 100vh;
+  padding: var(--gk-space-4) var(--gk-space-5);
+  height: calc(100dvh - var(--gk-header-height));
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -567,19 +567,19 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--gk-space-3);
   flex-shrink: 0;
 }
 
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 
 .res-name {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--gk-font-size-lg);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -587,13 +587,13 @@ onMounted(() => {
 .meta-line {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gk-space-2);
 }
 
 .ns-tag {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-lighter);
+  color: var(--gk-color-text-secondary);
+  background: var(--gk-neutral-100);
   padding: 1px 6px;
   border-radius: 4px;
 }
@@ -610,20 +610,20 @@ onMounted(() => {
 }
 
 .header-actions .el-button:first-child {
-  border-radius: 4px 0 0 4px;
+  border-radius: var(--gk-radius-sm) 0 0 var(--gk-radius-sm);
   margin-left: 0;
 }
 
 .header-actions .el-button:last-of-type,
 .header-actions .el-dropdown:last-of-type {
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 var(--gk-radius-sm) var(--gk-radius-sm) 0;
 }
 
 .action-divider {
   width: 1px;
   height: 20px;
   background: var(--el-border-color-lighter);
-  margin: 0 4px;
+  margin: 0 var(--gk-space-1);
 }
 
 .auto-refresh-popover {
@@ -633,9 +633,9 @@ onMounted(() => {
 }
 
 .popover-title {
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: var(--gk-color-text-primary);
 }
 
 /* Main Layout */
@@ -650,8 +650,8 @@ onMounted(() => {
 
 /* Left Panel */
 .left-panel {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border: 1px solid var(--gk-color-border-light);
+  border-radius: var(--gk-radius-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -659,11 +659,11 @@ onMounted(() => {
 }
 
 .panel-title {
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
   font-weight: 600;
-  padding: 10px 14px;
-  background: var(--el-fill-color-lighter);
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  padding: var(--gk-space-2) var(--gk-space-4);
+  background: var(--gk-neutral-100);
+  border-bottom: 1px solid var(--gk-color-border-light);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -672,8 +672,8 @@ onMounted(() => {
 
 .count-badge {
   font-weight: 400;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  font-size: var(--gk-font-size-xs);
+  color: var(--gk-color-text-secondary);
 }
 
 .info-body {
@@ -693,8 +693,8 @@ onMounted(() => {
 }
 
 .right-section {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border: 1px solid var(--gk-color-border-light);
+  border-radius: var(--gk-radius-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -723,7 +723,7 @@ onMounted(() => {
 
 .resize-handle-h:hover,
 .resize-handle-h.active {
-  background: var(--el-color-primary-light-7);
+  background: var(--gk-color-primary-bg);
 }
 
 .resize-handle-v {
@@ -737,7 +737,7 @@ onMounted(() => {
 
 .resize-handle-v:hover,
 .resize-handle-v.active {
-  background: var(--el-color-primary-light-7);
+  background: var(--gk-color-primary-bg);
 }
 
 .is-resizing {
@@ -757,16 +757,16 @@ onMounted(() => {
 .empty-hint {
   padding: 24px;
   text-align: center;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
+  color: var(--gk-color-text-secondary);
+  font-size: var(--gk-font-size-sm);
 }
 
 .rule-summary {
   padding: 8px;
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 6px;
+  border-radius: var(--gk-radius-md);
   margin-bottom: 0;
-  background: var(--el-fill-color-lighter);
+  background: var(--gk-neutral-100);
 }
 
 /* Collapse styling */
@@ -775,12 +775,12 @@ onMounted(() => {
 }
 
 .left-panel :deep(.el-collapse-item__header) {
-  background: var(--el-fill-color-lighter);
+  background: var(--gk-neutral-100);
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 6px;
+  border-radius: var(--gk-radius-md);
   padding: 8px 12px;
   margin-bottom: 4px;
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
   height: auto;
   min-height: 40px;
 }
@@ -819,14 +819,14 @@ onMounted(() => {
 }
 
 .drawer-title {
-  font-size: 16px;
+  font-size: var(--gk-font-size-lg);
   font-weight: 600;
 }
 
 .fullscreen-btn {
   cursor: pointer;
   font-size: 18px;
-  color: var(--el-text-color-regular);
+  color: var(--gk-color-text-primary);
   transition: color 0.2s;
 }
 

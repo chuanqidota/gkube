@@ -122,7 +122,7 @@ function handleExec(row: any) {
               <el-button size="small" type="primary" @click="handleViewLogs(row)">日志</el-button>
               <el-button size="small" type="success" @click="handleExec(row)">终端</el-button>
               <el-dropdown @command="(cmd: string) => handleDelete(row, cmd === 'force')" trigger="click">
-                <el-button size="small" type="danger" plain>
+                <el-button size="small" type="danger">
                   删除 <el-icon><ArrowDown /></el-icon>
                 </el-button>
                 <template #dropdown>
@@ -149,7 +149,7 @@ function handleExec(row: any) {
     <el-drawer v-model="yamlDialogVisible" title="Pod YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
       <div v-loading="yamlLoading" style="height: 100%;">
-        <YamlEditor v-model="yamlContent" height="calc(100vh - 56px)" read-only auto-format />
+        <YamlEditor v-model="yamlContent" height="calc(100dvh - 56px)" read-only auto-format />
       </div>
     </el-drawer>
   </div>
@@ -160,7 +160,7 @@ function handleExec(row: any) {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 .action-buttons .el-button + .el-button,
 .action-buttons .el-dropdown + .el-button {
@@ -168,10 +168,10 @@ function handleExec(row: any) {
 }
 
 .page-container {
-  padding: 20px;
+  padding: var(--gk-space-5);
 }
 .table-card {
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
 }
 .load-more {
   display: flex;

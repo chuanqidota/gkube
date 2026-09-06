@@ -261,7 +261,7 @@ onMounted(fetchNamespaces)
               size="small"
               style="margin-right: 4px; margin-bottom: 2px;"
             >{{ k }}={{ v }}</el-tag>
-            <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: var(--el-text-color-secondary);">-</span>
+            <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: var(--gk-color-text-secondary);">-</span>
           </template>
         </el-table-column>
         <el-table-column :prop=" 'age' " :label="t('namespace.ageLabel')" width="180" />
@@ -270,7 +270,7 @@ onMounted(fetchNamespaces)
             <div class="action-buttons">
               <el-button size="small" @click="handleViewYaml(row)">{{ t('namespace.yamlBtn') }}</el-button>
               <el-button size="small" type="primary" @click="handleLabels(row)">{{ t('namespace.labelBtn') }}</el-button>
-              <el-button size="small" type="danger" plain @click="handleDelete(row)">{{ t('namespace.deleteBtn') }}</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('namespace.deleteBtn') }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -285,7 +285,7 @@ onMounted(fetchNamespaces)
         </el-form-item>
         <el-form-item :label="t('namespace.labels')">
           <div style="width: 100%;">
-            <div v-for="(label, i) in createForm.labels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <div v-for="(label, i) in createForm.labels" :key="i" style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px;">
               <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 1;" />
               <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 1;" />
               <el-button type="danger" circle size="small" @click="removeLabel(i)"><el-icon><Delete /></el-icon></el-button>
@@ -295,7 +295,7 @@ onMounted(fetchNamespaces)
         </el-form-item>
         <el-form-item :label="t('namespace.annotations')">
           <div style="width: 100%;">
-            <div v-for="(anno, i) in createForm.annotations" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <div v-for="(anno, i) in createForm.annotations" :key="i" style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px;">
               <el-input v-model="anno.key" :placeholder="t('namespace.key')" style="flex: 1;" />
               <el-input v-model="anno.value" :placeholder="t('namespace.value')" style="flex: 1;" />
               <el-button type="danger" circle size="small" @click="removeAnnotation(i)"><el-icon><Delete /></el-icon></el-button>
@@ -313,14 +313,14 @@ onMounted(fetchNamespaces)
     <!-- YAML Drawer -->
     <el-drawer v-model="yamlDialogVisible" :title="`${t('namespace.yamlTitle')}: ${yamlTarget?.name}`" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100vh - 56px);">
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 56px);">
         <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="yamlTarget ? loadYaml(yamlTarget) : null" />
       </div>
     </el-drawer>
 
     <!-- Labels Dialog -->
     <el-dialog v-model="labelsDialogVisible" :title="`${t('namespace.labelsTitle')}: ${labelsTarget?.name}`" width="600px" destroy-on-close>
-      <div v-for="(label, i) in labelsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
+      <div v-for="(label, i) in labelsArray" :key="i" style="display: flex; gap: var(--gk-space-2); margin-bottom: var(--gk-space-3); align-items: center;">
         <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 2;" />
         <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 2;" />
         <el-button type="danger" circle size="small" @click="removeEditLabel(i)">
@@ -339,14 +339,14 @@ onMounted(fetchNamespaces)
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.table-card { border-radius: 8px; }
+.page-container { padding: var(--gk-space-5); }
+.table-card { border-radius: var(--gk-radius-md); }
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 .action-buttons .el-button + .el-button {
   margin-left: 0;

@@ -34,4 +34,10 @@
   --gk-sidebar-hover-bg: #f1f5f9;
   --gk-sidebar-active-bg: #eef2ff;
   --gk-sidebar-active-indicator: #6366f1;
+
+  /* Terminal colors (always dark) */
+  --gk-color-bg-terminal: #1e1e1e;
+  --gk-color-bg-terminal-bar: #252526;
+  --gk-color-text-terminal: #d4d4d4;
+  --gk-color-text-terminal-muted: #cccccc;
 }

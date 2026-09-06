@@ -211,7 +211,7 @@ async function handleImageConfirm() {
               <el-button size="small" type="primary" @click="handleQuickScale(row)">扩缩容</el-button>
               <el-button size="small" type="warning" @click="handleQuickRestart(row)">重启</el-button>
               <el-button size="small" type="primary" @click="handleQuickUpdateImage(row)">更新镜像</el-button>
-              <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
         </el-table-column>
@@ -228,7 +228,7 @@ async function handleImageConfirm() {
     <!-- YAML Drawer -->
     <el-drawer v-model="yamlDialogVisible" title="Deployment YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100vh - 52px);">
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px);">
         <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
       </div>
     </el-drawer>
@@ -236,7 +236,7 @@ async function handleImageConfirm() {
     <!-- Scale Dialog -->
     <el-dialog v-model="scaleDialogVisible" title="扩缩容" width="420px" destroy-on-close>
       <div>
-        <p style="margin-bottom: 16px;">调整 <strong>{{ scaleTarget?.name }}</strong> 副本数</p>
+        <p style="margin-bottom: var(--gk-space-4);">调整 <strong>{{ scaleTarget?.name }}</strong> 副本数</p>
         <el-form-item label="目标副本数">
           <el-input-number v-model="scaleReplicas" :min="0" :max="10000" style="width: 200px;" />
         </el-form-item>
@@ -251,7 +251,7 @@ async function handleImageConfirm() {
     <!-- Update Image Dialog -->
     <el-dialog v-model="imageDialogVisible" title="更新镜像" width="520px" destroy-on-close>
       <div>
-        <p style="margin-bottom: 16px;">更新 <strong>{{ imageTarget?.name }}</strong> 的容器镜像</p>
+        <p style="margin-bottom: var(--gk-space-4);">更新 <strong>{{ imageTarget?.name }}</strong> 的容器镜像</p>
         <el-form label-width="80px">
           <el-form-item label="容器">
             <el-select v-model="imageForm.containerName" style="width: 100%;" @change="() => { const c = imageContainers.find(c => c.name === imageForm.containerName); if (c) imageForm.image = c.image }">
@@ -273,10 +273,10 @@ async function handleImageConfirm() {
 
 <style scoped>
 .page-container {
-  padding: 20px;
+  padding: var(--gk-space-5);
 }
 .table-card {
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
 }
 .load-more {
   display: flex;
@@ -288,7 +288,7 @@ async function handleImageConfirm() {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 .action-buttons .el-button + .el-button {
   margin-left: 0;

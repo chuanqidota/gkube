@@ -55,7 +55,7 @@ onMounted(fetchData)
         <span>{{ t('rbac.myPermissions') }} — {{ authStore.user?.username }}</span>
       </template>
 
-      <el-alert v-if="isSuperAdmin" type="success" :closable="false" style="margin-bottom: 16px;">
+      <el-alert v-if="isSuperAdmin" type="success" :closable="false" style="margin-bottom: var(--gk-space-4);">
         {{ t('rbac.superAdminBypass') }}
       </el-alert>
 

@@ -197,7 +197,7 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
       :body-style="{ padding: '0', height: '100%' }"
       :destroy-on-close="true"
     >
-      <div v-loading="dataLoading" style="height: calc(100vh - 52px);">
+      <div v-loading="dataLoading" style="height: calc(100dvh - 52px);">
         <ConfigDataViewer :entries="dataEntries" :loading="dataLoading" />
       </div>
     </el-drawer>
@@ -205,13 +205,13 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.table-card { border-radius: 8px; }
+.page-container { padding: var(--gk-space-5); }
+.table-card { border-radius: var(--gk-radius-md); }
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 .action-buttons .el-button + .el-button {
   margin-left: 0;
@@ -224,7 +224,7 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
   white-space: nowrap;
 }
 .no-labels {
-  color: var(--el-text-color-placeholder);
+  color: var(--gk-color-text-placeholder);
   font-size: 12px;
 }
 </style>

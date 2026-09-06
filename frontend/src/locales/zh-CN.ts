@@ -805,7 +805,7 @@ export default {
     bindingCount: '共 {count} 个绑定',
     collapseBindings: '收起',
     searchRoles: '搜索角色',
-    createRole: '创建角色',
+    createRole: '创建',
     editRole: '编辑角色',
     copyRole: '复制',
     presetRole: '预置',

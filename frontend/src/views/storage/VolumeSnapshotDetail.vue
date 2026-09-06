@@ -119,13 +119,13 @@ onMounted(fetchDetail)
           </el-descriptions>
 
           <!-- Error -->
-          <div v-if="snapshot.status?.error?.message" style="margin-top: 16px;">
+          <div v-if="snapshot.status?.error?.message" style="margin-top: var(--gk-space-4);">
             <h4>Error</h4>
             <el-alert :title="snapshot.status.error.message" type="error" :closable="false" show-icon />
           </div>
 
           <!-- Labels -->
-          <div v-if="snapshot.metadata?.labels && Object.keys(snapshot.metadata.labels).length > 0" style="margin-top: 16px;">
+          <div v-if="snapshot.metadata?.labels && Object.keys(snapshot.metadata.labels).length > 0" style="margin-top: var(--gk-space-4);">
             <h4>Labels</h4>
             <el-tag
               v-for="(val, key) in snapshot.metadata.labels"
@@ -137,7 +137,7 @@ onMounted(fetchDetail)
           </div>
 
           <!-- Annotations -->
-          <div v-if="snapshot.metadata?.annotations && Object.keys(snapshot.metadata.annotations).length > 0" style="margin-top: 16px;">
+          <div v-if="snapshot.metadata?.annotations && Object.keys(snapshot.metadata.annotations).length > 0" style="margin-top: var(--gk-space-4);">
             <h4>Annotations</h4>
             <div v-for="(val, key) in snapshot.metadata.annotations" :key="key" style="margin-bottom: 4px;">
               <el-text size="small" type="info">{{ key }}:</el-text>

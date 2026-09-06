@@ -181,13 +181,15 @@ async function handleImageConfirm() {
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
             <el-button size="small" type="warning" @click="handleQuickRestart(row)">重启</el-button>
             <el-button size="small" type="primary" @click="handleQuickUpdateImage(row)">更新镜像</el-button>
-            <el-button size="small" type="danger" plain @click="handleDelete(row)">删除</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
         </el-table-column>
         <template #empty>
           <el-empty description="未找到 DaemonSet">
-            <el-button type="primary" @click="$router.push('/workloads/daemonsets/create')">创建 DaemonSet</el-button>
+            <el-button type="success" @click="$router.push('/workloads/daemonsets/create')">
+              <el-icon><Plus /></el-icon> 创建
+            </el-button>
           </el-empty>
         </template>
       </el-table>
@@ -203,14 +205,14 @@ async function handleImageConfirm() {
     <!-- YAML Drawer -->
     <el-drawer v-model="yamlDialogVisible" title="DaemonSet YAML" size="85%" direction="rtl" class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100vh - 52px);">
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px);">
         <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
       </div>
     </el-drawer>
     <!-- Update Image Dialog -->
     <el-dialog v-model="imageDialogVisible" title="更新镜像" width="520px" destroy-on-close>
       <div>
-        <p style="margin-bottom: 16px;">更新 <strong>{{ imageTarget?.name }}</strong> 的容器镜像</p>
+        <p style="margin-bottom: var(--gk-space-4);">更新 <strong>{{ imageTarget?.name }}</strong> 的容器镜像</p>
         <el-form label-width="80px">
           <el-form-item label="容器">
             <el-select v-model="imageForm.containerName" style="width: 100%;" @change="() => { const c = imageContainers.find((c: any) => c.name === imageForm.containerName); if (c) imageForm.image = c.image }">
@@ -232,16 +234,16 @@ async function handleImageConfirm() {
 
 <style scoped>
 .page-container {
-  padding: 20px;
+  padding: var(--gk-space-5);
 }
 .table-card {
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
 }
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 .action-buttons .el-button + .el-button {
   margin-left: 0;

@@ -551,7 +551,7 @@ function handleCancel() {
 /* Port cards */
 .port-card {
   border: 1px solid var(--el-border-color-extra-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   padding: 14px;
   margin-bottom: 8px;
   background: var(--el-fill-color-lighter);

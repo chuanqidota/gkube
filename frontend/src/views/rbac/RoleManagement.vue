@@ -261,10 +261,10 @@ async function handleSave() {
         </el-table-column>
         <el-table-column :label="t('rbac.actions')" width="200" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button size="small" type="primary" plain @click="openEdit(row)">
+            <el-button size="small" type="primary" @click="openEdit(row)">
               {{ row.isSystem ? t('rbac.copyRole') : t('common.edit') }}
             </el-button>
-            <el-button v-if="!row.isSystem" size="small" type="danger" plain @click="handleDelete(row)">
+            <el-button v-if="!row.isSystem" size="small" type="danger" @click="handleDelete(row)">
               {{ t('common.delete') }}
             </el-button>
           </template>

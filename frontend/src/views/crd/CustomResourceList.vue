@@ -147,11 +147,11 @@ onMounted(() => { fetchNamespaces(); fetchResources() })
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
+.page-container { padding: var(--gk-space-5); }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .filter-card { margin-bottom: 16px; }
 .filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.table-card { border-radius: 8px; }
+.table-card { border-radius: var(--gk-radius-md); }
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;

@@ -147,7 +147,7 @@ onMounted(() => {
       </div>
     </el-card>
 
-    <el-row :gutter="16" style="margin-bottom: 16px;">
+    <el-row :gutter="16" class="stats-row">
       <el-col :span="6">
         <el-card shadow="never" class="stat-card">
           <div class="stat-value">{{ stats.total || 0 }}</div>
@@ -203,13 +203,14 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.filter-card { margin-bottom: 16px; }
+.page-container { padding: var(--gk-space-5); }
+.filter-card { margin-bottom: var(--gk-space-4); }
 .filter-bar { display: flex; justify-content: space-between; align-items: center; }
-.filter-right { display: flex; align-items: center; gap: 8px; }
+.filter-right { display: flex; align-items: center; gap: var(--gk-space-2); }
 .stat-card { text-align: center; }
 .stat-card.success { border-left: 4px solid var(--gk-color-success); }
 .stat-card.danger { border-left: 4px solid var(--gk-color-danger); }
-.stat-value { font-size: 32px; font-weight: bold; color: var(--gk-color-text-primary); }
-.stat-label { font-size: 14px; color: var(--gk-color-text-secondary); margin-top: 4px; }
+.stat-value { font-size: var(--gk-font-size-3xl); font-weight: 700; color: var(--gk-color-text-primary); }
+.stat-label { font-size: var(--gk-font-size-base); color: var(--gk-color-text-secondary); margin-top: var(--gk-space-1); }
+.stats-row { margin-bottom: var(--gk-space-4); }
 </style>

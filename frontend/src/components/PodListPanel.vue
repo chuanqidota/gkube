@@ -94,7 +94,7 @@ const getRestarts = (pod: Pod): number => {
             <el-button size="small" type="primary" @click="emit('logs', row)">日志</el-button>
             <el-button size="small" type="success" @click="emit('exec', row)">终端</el-button>
             <el-dropdown @command="(cmd: string) => emit('delete', row, cmd === 'force')" trigger="click">
-              <el-button size="small" type="danger" plain>
+              <el-button size="small" type="danger">
                 删除 <el-icon><ArrowDown /></el-icon>
               </el-button>
               <template #dropdown>

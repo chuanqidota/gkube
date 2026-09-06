@@ -131,7 +131,7 @@ async function handleSubmit() {
         </el-form-item>
 
         <el-form-item label="KubeConfig" prop="kubeConfig">
-          <div style="width: 100%; display: flex; align-items: flex-start; gap: 12px;">
+          <div style="width: 100%; display: flex; align-items: flex-start; gap: var(--gk-space-3);">
             <el-upload
               :auto-upload="false"
               :show-file-list="false"
@@ -162,7 +162,7 @@ async function handleSubmit() {
             <div
               v-for="(label, index) in form.labels"
               :key="index"
-              style="display: flex; gap: 8px; margin-bottom: 8px;"
+              style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px;"
             >
               <el-input v-model="label.key" :placeholder="t('cluster.keyPlaceholder')" style="flex: 1;" />
               <el-input v-model="label.value" :placeholder="t('cluster.valuePlaceholder')" style="flex: 1;" />
@@ -182,7 +182,7 @@ async function handleSubmit() {
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
+.page-container { padding: var(--gk-space-5); }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .form-tip { font-size: 12px; color: var(--gk-color-text-secondary); margin-top: 4px; }
 </style>

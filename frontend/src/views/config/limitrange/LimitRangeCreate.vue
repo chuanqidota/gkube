@@ -116,7 +116,7 @@ onMounted(fetchNamespaces)
 
         <el-form-item label="标签">
           <div style="width: 100%;">
-            <div v-for="(label, i) in form.labels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <div v-for="(label, i) in form.labels" :key="i" style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px;">
               <el-input v-model="label.key" placeholder="Key" style="flex: 1;" />
               <el-input v-model="label.value" placeholder="Value" style="flex: 1;" />
               <el-button type="danger" circle size="small" @click="form.labels.splice(i, 1)">X</el-button>
@@ -125,8 +125,8 @@ onMounted(fetchNamespaces)
           </div>
         </el-form-item>
 
-        <div v-for="(limit, i) in form.limits" :key="i" style="border: 1px solid var(--gk-color-border); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+        <div v-for="(limit, i) in form.limits" :key="i" style="border: 1px solid var(--gk-color-border); border-radius: var(--gk-radius-md); padding: 16px; margin-bottom: var(--gk-space-4);">
+          <div style="display: flex; justify-content: space-between; margin-bottom: var(--gk-space-3);">
             <el-select v-model="limit.type" style="width: 200px;">
               <el-option label="Container" value="Container" />
               <el-option label="Pod" value="Pod" />
@@ -150,14 +150,14 @@ onMounted(fetchNamespaces)
             <el-input v-model="limit.maxLimitRequestRatioMemory" placeholder="e.g. 4" />
           </el-form-item>
         </div>
-        <el-button @click="addLimit" style="margin-bottom: 16px;">+ Add Limit</el-button>
+        <el-button @click="addLimit" style="margin-bottom: var(--gk-space-4);">+ Add Limit</el-button>
 
         <el-form-item>
           <el-button type="primary" :loading="loading" @click="handleCreate">创建 LimitRange</el-button>
         </el-form-item>
       </el-form>
     </el-card>
-    <el-card shadow="never" style="margin-top: 16px;">
+    <el-card shadow="never" style="margin-top: var(--gk-space-4);">
       <template #header><span>YAML Preview</span></template>
       <YamlEditor :model-value="yamlContent" height="300px" read-only />
     </el-card>
@@ -165,6 +165,6 @@ onMounted(fetchNamespaces)
 </template>
 
 <style scoped>
-.page-container { padding: 20px; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.page-container { padding: var(--gk-space-5); }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--gk-space-4); }
 </style>

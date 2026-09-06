@@ -413,7 +413,7 @@ onMounted(() => {
       <div class="header-actions">
         <el-button type="primary" @click="handleEditLabels">{{ t('namespace.labelBtn') }}</el-button>
         <el-button @click="handleOpenYaml">{{ t('common.yaml') }}</el-button>
-        <el-button type="danger" plain @click="handleDelete">{{ t('namespace.deleteBtn') }}</el-button>
+        <el-button type="danger" @click="handleDelete">{{ t('namespace.deleteBtn') }}</el-button>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
@@ -468,9 +468,9 @@ onMounted(() => {
             </el-descriptions>
 
             <!-- Labels -->
-            <div style="margin-top: 16px;">
+            <div style="margin-top: var(--gk-space-4);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; font-size: 13px;">{{ t('namespace.labels') }}</h4>
+                <h4 style="margin: 0; font-size: var(--gk-font-size-sm);">{{ t('namespace.labels') }}</h4>
                 <el-button size="small" @click="handleEditLabels">{{ t('common.edit') }}</el-button>
               </div>
               <div v-if="namespace.labels && Object.keys(namespace.labels).length > 0">
@@ -487,9 +487,9 @@ onMounted(() => {
             </div>
 
             <!-- Annotations -->
-            <div style="margin-top: 16px;">
+            <div style="margin-top: var(--gk-space-4);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; font-size: 13px;">{{ t('namespace.annotations') }}</h4>
+                <h4 style="margin: 0; font-size: var(--gk-font-size-sm);">{{ t('namespace.annotations') }}</h4>
                 <el-button size="small" @click="handleEditAnnotations">{{ t('common.edit') }}</el-button>
               </div>
               <div v-if="namespace.annotations && Object.keys(namespace.annotations).length > 0">
@@ -601,7 +601,7 @@ onMounted(() => {
 
     <!-- Labels Dialog -->
     <el-dialog v-model="labelsDialogVisible" :title="t('namespace.labelsTitle')" width="600px" destroy-on-close>
-      <div v-for="(label, i) in labelsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
+      <div v-for="(label, i) in labelsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: var(--gk-space-3); align-items: center;">
         <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 2;" />
         <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 2;" />
         <el-button type="danger" circle size="small" @click="removeLabel(i)">
@@ -619,7 +619,7 @@ onMounted(() => {
 
     <!-- Annotations Dialog -->
     <el-dialog v-model="annotationsDialogVisible" :title="t('namespace.annotationsDialogTitle')" width="650px" destroy-on-close>
-      <div v-for="(anno, i) in annotationsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
+      <div v-for="(anno, i) in annotationsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: var(--gk-space-3); align-items: center;">
         <el-input v-model="anno.key" :placeholder="t('namespace.key')" style="flex: 2;" />
         <el-input v-model="anno.value" :placeholder="t('namespace.value')" style="flex: 2;" />
         <el-button type="danger" circle size="small" @click="removeAnnotation(i)">
@@ -677,8 +677,8 @@ onMounted(() => {
           <el-input v-model="lrForm.name" :placeholder="t('namespace.createNamePlaceholder')" />
         </el-form-item>
 
-        <div v-for="(limit, i) in lrForm.limits" :key="i" style="border: 1px solid var(--el-border-color); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+        <div v-for="(limit, i) in lrForm.limits" :key="i" style="border: 1px solid var(--el-border-color); border-radius: var(--gk-radius-md); padding: 16px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: var(--gk-space-3);">
             <el-select v-model="limit.type" style="width: 200px;">
               <el-option :label="t('namespace.containerType')" value="Container" />
               <el-option :label="t('namespace.podType')" value="Pod" />
@@ -711,7 +711,7 @@ onMounted(() => {
             <el-input v-model="limit.defaultRequestMemory" :placeholder="t('namespace.exampleMemory')" />
           </el-form-item>
         </div>
-        <el-button @click="addLrLimit" style="margin-bottom: 16px;">
+        <el-button @click="addLrLimit" style="margin-bottom: var(--gk-space-4);">
           <el-icon><Plus /></el-icon> {{ t('namespace.addLimit') }}
         </el-button>
       </el-form>
@@ -725,8 +725,8 @@ onMounted(() => {
 
 <style scoped>
 .detail-page {
-  padding: 16px 20px;
-  height: 100vh;
+  padding: var(--gk-space-4) var(--gk-space-5);
+  height: calc(100dvh - var(--gk-header-height));
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -737,19 +737,19 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--gk-space-3);
   flex-shrink: 0;
 }
 
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 
 .res-name {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--gk-font-size-lg);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -757,7 +757,7 @@ onMounted(() => {
 .meta-line {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gk-space-2);
 }
 
 .header-actions {
@@ -772,19 +772,19 @@ onMounted(() => {
 }
 
 .header-actions .el-button:first-child {
-  border-radius: 4px 0 0 4px;
+  border-radius: var(--gk-radius-sm) 0 0 var(--gk-radius-sm);
   margin-left: 0;
 }
 
 .header-actions .el-button:last-of-type {
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 var(--gk-radius-sm) var(--gk-radius-sm) 0;
 }
 
 .action-divider {
   width: 1px;
   height: 20px;
   background: var(--el-border-color-lighter);
-  margin: 0 4px;
+  margin: 0 var(--gk-space-1);
 }
 
 .auto-refresh-popover {
@@ -794,9 +794,9 @@ onMounted(() => {
 }
 
 .popover-title {
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: var(--gk-color-text-primary);
 }
 
 /* Main Layout */
@@ -813,8 +813,8 @@ onMounted(() => {
 .left-panel {
   width: 320px;
   min-width: 320px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border: 1px solid var(--gk-color-border-light);
+  border-radius: var(--gk-radius-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -822,11 +822,11 @@ onMounted(() => {
 }
 
 .panel-title {
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
   font-weight: 600;
-  padding: 10px 14px;
-  background: var(--el-fill-color-lighter);
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  padding: var(--gk-space-2) var(--gk-space-4);
+  background: var(--gk-neutral-100);
+  border-bottom: 1px solid var(--gk-color-border-light);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -835,8 +835,8 @@ onMounted(() => {
 
 .count-badge {
   font-weight: 400;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  font-size: var(--gk-font-size-xs);
+  color: var(--gk-color-text-secondary);
 }
 
 .info-body {
@@ -857,8 +857,8 @@ onMounted(() => {
 
 .right-section {
   flex: 1;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border: 1px solid var(--gk-color-border-light);
+  border-radius: var(--gk-radius-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -874,8 +874,8 @@ onMounted(() => {
 .empty-hint {
   padding: 24px;
   text-align: center;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
+  color: var(--gk-color-text-secondary);
+  font-size: var(--gk-font-size-sm);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -894,7 +894,7 @@ onMounted(() => {
 
 .resize-handle-h:hover,
 .resize-handle-h.active {
-  background: var(--el-color-primary-light-7);
+  background: var(--gk-color-primary-bg);
 }
 
 .resize-handle-v {
@@ -908,7 +908,7 @@ onMounted(() => {
 
 .resize-handle-v:hover,
 .resize-handle-v.active {
-  background: var(--el-color-primary-light-7);
+  background: var(--gk-color-primary-bg);
 }
 
 .is-resizing {

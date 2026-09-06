@@ -302,7 +302,7 @@ onMounted(() => {
       type="info"
       show-icon
       :closable="false"
-      style="margin-bottom: 12px;"
+      style="margin-bottom: var(--gk-space-3);"
     />
 
     <!-- Event Table -->
@@ -312,7 +312,7 @@ onMounted(() => {
         v-loading="loading"
         stripe
         style="width: 100%"
-        max-height="calc(100vh - 360px)"
+        max-height="calc(100dvh - 360px)"
         :default-sort="{ prop: 'last_seen', order: 'descending' }"
         @sort-change="handleSortChange"
         @row-click="showEventDetail"
@@ -501,56 +501,56 @@ export default {
 
 <style scoped>
 .event-page {
-  padding: 20px;
+  padding: var(--gk-space-5);
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--gk-space-4);
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gk-space-2);
 }
 
 .header-left h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--gk-font-size-2xl);
   font-weight: 600;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--gk-space-3);
 }
 
 .filter-card {
-  margin-bottom: 16px;
+  margin-bottom: var(--gk-space-4);
 }
 
 .filter-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--gk-space-3);
   flex-wrap: wrap;
 }
 
 .table-card {
-  margin-bottom: 16px;
+  margin-bottom: var(--gk-space-4);
 }
 
 .event-type-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  gap: var(--gk-space-1);
+  padding: 2px var(--gk-space-2);
+  border-radius: var(--gk-radius-sm);
+  font-size: var(--gk-font-size-xs);
   font-weight: 500;
 }
 
@@ -558,33 +558,33 @@ export default {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  margin-top: 16px;
-  padding: 8px 0;
-  gap: 12px;
+  margin-top: var(--gk-space-4);
+  padding: var(--gk-space-2) 0;
+  gap: var(--gk-space-3);
 }
 
 .event-detail {
-  padding: 0 16px;
+  padding: 0 var(--gk-space-4);
 }
 
 .detail-section {
-  margin-bottom: 24px;
+  margin-bottom: var(--gk-space-6);
 }
 
 .detail-section h4 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
+  margin: 0 0 var(--gk-space-3) 0;
+  font-size: var(--gk-font-size-base);
   font-weight: 600;
-  color: var(--el-text-color-primary);
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  padding-bottom: 8px;
+  color: var(--gk-color-text-primary);
+  border-bottom: 1px solid var(--gk-color-border-light);
+  padding-bottom: var(--gk-space-2);
 }
 
 .message-content {
   background: var(--el-fill-color-light);
   border-radius: 4px;
   padding: 12px;
-  font-family: monospace;
+  font-family: var(--gk-font-mono);
   font-size: 13px;
   line-height: 1.6;
   white-space: pre-wrap;

@@ -105,7 +105,7 @@ function removeTopologySpreadConstraint(i: number) {
           <el-icon><Plus /></el-icon> 添加亲和规则
         </el-button>
       </div>
-      <div class="affinity-section" style="margin-top: 16px;">
+      <div class="affinity-section" style="margin-top: var(--gk-space-4);">
         <div class="affinity-section-title">反亲和规则（Pod Anti-Affinity）</div>
         <div v-for="(rule, i) in podAntiAffinityRules" :key="i" class="affinity-row">
           <el-input v-model="rule.topologyKey" placeholder="topologyKey" style="flex: 1;" />

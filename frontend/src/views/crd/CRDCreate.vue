@@ -94,7 +94,7 @@ function handleMaximize() {
         <YamlEditor
           ref="yamlEditorRef"
           v-model="yamlContent"
-          height="calc(100vh - 180px)"
+          height="calc(100dvh - 180px)"
           :read-only="false"
           editable
           auto-format
@@ -115,12 +115,12 @@ function handleMaximize() {
 .crd-create {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 20px 16px;
+  padding: var(--gk-space-5) var(--gk-space-4);
 }
 
 .yaml-card {
   border: 1px solid var(--el-border-color-light);
-  border-radius: 8px;
+  border-radius: var(--gk-radius-md);
   overflow: hidden;
   background: var(--el-bg-color);
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
@@ -138,7 +138,7 @@ function handleMaximize() {
 .yaml-card-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--gk-space-3);
 }
 
 .yaml-card-title {
@@ -149,7 +149,7 @@ function handleMaximize() {
 
 .yaml-card-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--gk-space-2);
 }
 
 .yaml-card-body {

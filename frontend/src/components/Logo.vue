@@ -152,7 +152,7 @@ const detailed = computed(() => props.size >= 24)
 .gk-logo-mark {
   display: block;
   flex-shrink: 0;
-  filter: drop-shadow(0 4px 14px rgba(99, 102, 241, 0.35));
+  filter: drop-shadow(0 2px 8px rgba(99, 102, 241, 0.2));
 }
 
 .gk-logo-text {

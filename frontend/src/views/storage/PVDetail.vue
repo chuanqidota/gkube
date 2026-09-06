@@ -141,7 +141,7 @@ onMounted(fetchDetail)
       <div class="header-actions">
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" plain @click="handleDelete">删除</el-button>
+        <el-button type="danger" @click="handleDelete">删除</el-button>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
@@ -368,7 +368,7 @@ onMounted(fetchDetail)
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100vh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
         <PVForm
           v-if="editDialogVisible && pv"
           :is-edit="true"
@@ -383,8 +383,8 @@ onMounted(fetchDetail)
 
 <style scoped>
 .detail-page {
-  padding: 16px 20px;
-  height: 100vh;
+  padding: var(--gk-space-4) var(--gk-space-5);
+  height: calc(100dvh - var(--gk-header-height));
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -395,19 +395,19 @@ onMounted(fetchDetail)
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--gk-space-3);
   flex-shrink: 0;
 }
 
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 
 .res-name {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--gk-font-size-lg);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -415,12 +415,12 @@ onMounted(fetchDetail)
 .meta-line {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gk-space-2);
 }
 
 .info-text {
   font-size: 12px;
-  color: var(--el-text-color-regular);
+  color: var(--gk-color-text-primary);
 }
 
 .header-actions {
@@ -435,19 +435,19 @@ onMounted(fetchDetail)
 }
 
 .header-actions .el-button:first-child {
-  border-radius: 4px 0 0 4px;
+  border-radius: var(--gk-radius-sm) 0 0 var(--gk-radius-sm);
   margin-left: 0;
 }
 
 .header-actions .el-button:last-of-type {
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 var(--gk-radius-sm) var(--gk-radius-sm) 0;
 }
 
 .action-divider {
   width: 1px;
   height: 20px;
   background: var(--el-border-color-lighter);
-  margin: 0 4px;
+  margin: 0 var(--gk-space-1);
 }
 
 .auto-refresh-popover {
@@ -457,9 +457,9 @@ onMounted(fetchDetail)
 }
 
 .popover-title {
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: var(--gk-color-text-primary);
 }
 
 /* Main Layout */
@@ -476,8 +476,8 @@ onMounted(fetchDetail)
 .left-panel {
   width: 320px;
   min-width: 320px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border: 1px solid var(--gk-color-border-light);
+  border-radius: var(--gk-radius-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -485,11 +485,11 @@ onMounted(fetchDetail)
 }
 
 .panel-title {
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
   font-weight: 600;
-  padding: 10px 14px;
-  background: var(--el-fill-color-lighter);
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  padding: var(--gk-space-2) var(--gk-space-4);
+  background: var(--gk-neutral-100);
+  border-bottom: 1px solid var(--gk-color-border-light);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -506,7 +506,7 @@ onMounted(fetchDetail)
   display: flex;
   align-items: flex-start;
   padding: 6px 0;
-  font-size: 13px;
+  font-size: var(--gk-font-size-sm);
   border-bottom: 1px solid var(--el-border-color-extra-light);
 }
 
@@ -515,22 +515,22 @@ onMounted(fetchDetail)
 }
 
 .info-label {
-  color: var(--el-text-color-secondary);
+  color: var(--gk-color-text-secondary);
   min-width: 72px;
   flex-shrink: 0;
 }
 
 .info-value {
-  color: var(--el-text-color-primary);
+  color: var(--gk-color-text-primary);
   word-break: break-all;
   flex: 1;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--gk-space-1);
 }
 
 .mono {
-  font-family: monospace;
+  font-family: var(--gk-font-mono);
   font-size: 12px;
 }
 
@@ -549,8 +549,8 @@ onMounted(fetchDetail)
 }
 
 .right-section {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border: 1px solid var(--gk-color-border-light);
+  border-radius: var(--gk-radius-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -581,7 +581,7 @@ onMounted(fetchDetail)
 
 .resize-handle-h:hover,
 .resize-handle-h.active {
-  background: var(--el-color-primary-light-7);
+  background: var(--gk-color-primary-bg);
 }
 
 .resize-handle-v {
@@ -595,7 +595,7 @@ onMounted(fetchDetail)
 
 .resize-handle-v:hover,
 .resize-handle-v.active {
-  background: var(--el-color-primary-light-7);
+  background: var(--gk-color-primary-bg);
 }
 
 .is-resizing {
@@ -615,14 +615,14 @@ onMounted(fetchDetail)
 }
 
 .drawer-title {
-  font-size: 16px;
+  font-size: var(--gk-font-size-lg);
   font-weight: 600;
 }
 
 .fullscreen-btn {
   cursor: pointer;
   font-size: 18px;
-  color: var(--el-text-color-regular);
+  color: var(--gk-color-text-primary);
   transition: color 0.2s;
 }
 

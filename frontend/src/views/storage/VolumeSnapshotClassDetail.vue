@@ -96,7 +96,7 @@ onMounted(fetchDetail)
           </el-descriptions>
 
           <!-- Parameters -->
-          <div v-if="snapshotClass.parameters && Object.keys(snapshotClass.parameters).length > 0" style="margin-top: 16px;">
+          <div v-if="snapshotClass.parameters && Object.keys(snapshotClass.parameters).length > 0" style="margin-top: var(--gk-space-4);">
             <h4>{{ t('storage.parameters') }}</h4>
             <el-tag
               v-for="(val, key) in snapshotClass.parameters"
@@ -108,7 +108,7 @@ onMounted(fetchDetail)
           </div>
 
           <!-- Labels -->
-          <div v-if="snapshotClass.metadata?.labels && Object.keys(snapshotClass.metadata.labels).length > 0" style="margin-top: 16px;">
+          <div v-if="snapshotClass.metadata?.labels && Object.keys(snapshotClass.metadata.labels).length > 0" style="margin-top: var(--gk-space-4);">
             <h4>Labels</h4>
             <el-tag
               v-for="(val, key) in snapshotClass.metadata.labels"
@@ -120,7 +120,7 @@ onMounted(fetchDetail)
           </div>
 
           <!-- Annotations -->
-          <div v-if="snapshotClass.metadata?.annotations && Object.keys(snapshotClass.metadata.annotations).length > 0" style="margin-top: 16px;">
+          <div v-if="snapshotClass.metadata?.annotations && Object.keys(snapshotClass.metadata.annotations).length > 0" style="margin-top: var(--gk-space-4);">
             <h4>Annotations</h4>
             <div v-for="(val, key) in snapshotClass.metadata.annotations" :key="key" style="margin-bottom: 4px;">
               <el-text size="small" type="info">{{ key }}:</el-text>
