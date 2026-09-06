@@ -50,8 +50,8 @@ onBeforeUnmount(() => {
   background: radial-gradient(
     circle,
     rgba(99, 102, 241, 0.35) 0%,
-    rgba(59, 130, 246, 0.12) 45%,
-    rgba(59, 130, 246, 0) 70%
+    rgba(99, 102, 241, 0.12) 45%,
+    rgba(99, 102, 241, 0) 70%
   );
   filter: blur(8px);
   opacity: 0;

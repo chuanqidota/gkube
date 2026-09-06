@@ -30,8 +30,8 @@
 
   /* Sidebar — light theme */
   --gk-sidebar-text: #475569;
-  --gk-sidebar-text-active: #1d4ed8;
+  --gk-sidebar-text-active: #4338ca;
   --gk-sidebar-hover-bg: #f1f5f9;
-  --gk-sidebar-active-bg: #eff6ff;
-  --gk-sidebar-active-indicator: #3b82f6;
+  --gk-sidebar-active-bg: #eef2ff;
+  --gk-sidebar-active-indicator: #6366f1;
 }

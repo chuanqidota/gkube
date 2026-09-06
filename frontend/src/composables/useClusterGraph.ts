@@ -348,7 +348,7 @@ export function useClusterGraph(canvasRef: Ref<HTMLCanvasElement | undefined>) {
       ctx.strokeStyle = errorWash > 0.05
         ? `rgba(248, 113, 113, ${(0.18 + hi * 0.6).toFixed(3)})`
         : hi > 0.01
-          ? `rgba(96, 165, 250, ${(0.18 + hi * 0.7).toFixed(3)})`
+          ? `rgba(129, 140, 248, ${(0.18 + hi * 0.7).toFixed(3)})`
           : PALETTE.edgeDim
       ctx.beginPath()
       ctx.moveTo(a.x, a.y)
@@ -474,7 +474,7 @@ export function useClusterGraph(canvasRef: Ref<HTMLCanvasElement | undefined>) {
       const hi = e.hi
       ctx.lineWidth = 1 + hi * 1.2
       ctx.strokeStyle = hi > 0.01
-        ? `rgba(96, 165, 250, ${(0.18 + hi * 0.7).toFixed(3)})`
+        ? `rgba(129, 140, 248, ${(0.18 + hi * 0.7).toFixed(3)})`
         : PALETTE.edgeDim
       ctx.beginPath()
       ctx.moveTo(a.x, a.y)

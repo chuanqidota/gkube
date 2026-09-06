@@ -284,7 +284,7 @@ function navigateTo(path: string) {
 
 /* Sub-menu items - more indentation */
 .sidebar-menu .el-sub-menu .el-menu-item {
-  padding-left: 52px !important;
+  padding-left: 44px !important;
 }
 
 /* Scrollbar styling for sidebar */

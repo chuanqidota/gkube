@@ -7,6 +7,8 @@
       "@/*": ["./src/*"]
     },
 
+    "strict": true,
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

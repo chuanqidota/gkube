@@ -97,7 +97,6 @@ onMounted(() => {
   <div class="login-page">
     <!-- Left: ambient control-plane canvas -->
     <section class="canvas-panel">
-      <div class="canvas-atmosphere" aria-hidden="true"></div>
       <canvas ref="canvasRef" class="graph-canvas" aria-hidden="true" />
       <div class="canvas-head">
         <Logo :size="36" show-text :text-size="20" tone="light" />
@@ -193,36 +192,6 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.canvas-atmosphere {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 60% 50% at 28% 38%, rgba(59, 130, 246, 0.14) 0%, transparent 62%),
-    radial-gradient(ellipse 50% 60% at 78% 72%, rgba(99, 102, 241, 0.10) 0%, transparent 60%),
-    radial-gradient(ellipse 90% 70% at 50% 120%, rgba(59, 130, 246, 0.06) 0%, transparent 70%),
-    linear-gradient(180deg, #090b14 0%, #07080f 55%, #05060c 100%);
-}
-
-.canvas-atmosphere::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(148, 163, 184, 0.10) 0.5px, transparent 0.5px);
-  background-size: 26px 26px;
-  mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, black 25%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, black 25%, transparent 80%);
-}
-
-.canvas-atmosphere::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
-}
-
 .graph-canvas {
   position: absolute;
   inset: 0;
@@ -273,7 +242,7 @@ onMounted(() => {
 
 .form-card {
   width: 100%;
-  max-width: 380px;
+  max-width: 420px;
 }
 
 .form-head {
@@ -323,13 +292,13 @@ onMounted(() => {
 
 .login-form :deep(.el-input__wrapper:hover) {
   background: rgba(148, 163, 184, 0.09);
-  border-color: rgba(96, 165, 250, 0.4);
+  border-color: rgba(129, 140, 248, 0.4);
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
-  background: rgba(59, 130, 246, 0.08);
+  background: rgba(99, 102, 241, 0.08);
   border-color: var(--gk-color-primary);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.16);
   transform: translateY(-1px);
 }
 
@@ -367,13 +336,13 @@ onMounted(() => {
 
 .login-btn:hover:not(:disabled):not(.is-loading) {
   background: var(--gk-color-primary-light);
-  box-shadow: 0 10px 28px rgba(59, 130, 246, 0.36);
+  box-shadow: 0 10px 28px rgba(99, 102, 241, 0.36);
   transform: translateY(-1px);
 }
 
 .login-btn:active:not(:disabled):not(.is-loading) {
   transform: translateY(1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.24);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.24);
 }
 
 .login-btn:disabled {

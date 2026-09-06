@@ -306,8 +306,6 @@ function nodePipClass(n: NodeInfo) {
 
 <template>
   <div class="dash">
-    <div class="atmosphere" />
-
     <!-- 1. 命令栏 + 内联 stat -->
     <header class="cmd-bar">
       <div class="cmd-left">
@@ -464,17 +462,6 @@ function nodePipClass(n: NodeInfo) {
   font-family: var(--gk-font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
-}
-
-/* 大气层:蓝色径向辉光(品牌主色,非 AI 紫) */
-.atmosphere {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(circle at 8% -8%, var(--gk-color-primary-bg) 0%, transparent 35%),
-    radial-gradient(circle at 98% 6%, var(--gk-color-info-bg) 0%, transparent 30%);
 }
 
 .cmd-bar, .grip { position: relative; z-index: 1; }

@@ -5,11 +5,12 @@
 
 :root {
   /* === Color System === */
-  /* Primary - Rancher Blue */
-  --gk-color-primary: #3b82f6;
-  --gk-color-primary-light: #60a5fa;
-  --gk-color-primary-dark: #2563eb;
-  --gk-color-primary-bg: #eff6ff;
+  /* Primary - GKube Indigo (aligned with logo identity) */
+  --gk-color-primary: #6366f1;
+  --gk-color-primary-light: #818cf8;
+  --gk-color-primary-dark: #4f46e5;
+  --gk-color-primary-bg: #eef2ff;
+  --gk-color-primary-rgb: 99, 102, 241;
 
   /* Semantic Colors */
   --gk-color-success: #22c55e;
@@ -21,9 +22,9 @@
   --gk-color-danger: #ef4444;
   --gk-color-danger-light: #f87171;
   --gk-color-danger-bg: #fef2f2;
-  --gk-color-info: #6366f1;
-  --gk-color-info-light: #818cf8;
-  --gk-color-info-bg: #eef2ff;
+  --gk-color-info: #0d9488;
+  --gk-color-info-light: #14b8a6;
+  --gk-color-info-bg: #f0fdfa;
 
   /* Neutral - resolved by theme files */
   --gk-color-text-primary: var(--gk-neutral-900);
@@ -63,10 +64,10 @@
 
   /* === Sidebar Specific (defaults — overridden by theme files) === */
   --gk-sidebar-text: #475569;
-  --gk-sidebar-text-active: #1d4ed8;
+  --gk-sidebar-text-active: #4338ca;
   --gk-sidebar-hover-bg: #f1f5f9;
-  --gk-sidebar-active-bg: #eff6ff;
-  --gk-sidebar-active-indicator: #3b82f6;
+  --gk-sidebar-active-bg: #eef2ff;
+  --gk-sidebar-active-indicator: #6366f1;
 
   /* === Typography === */
   --gk-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

@@ -31,8 +31,8 @@
   --gk-sidebar-text: rgba(255, 255, 255, 0.6);
   --gk-sidebar-text-active: #ffffff;
   --gk-sidebar-hover-bg: rgba(255, 255, 255, 0.06);
-  --gk-sidebar-active-bg: rgba(59, 130, 246, 0.25);
-  --gk-sidebar-active-indicator: #60a5fa;
+  --gk-sidebar-active-bg: rgba(var(--gk-color-primary-rgb), 0.25);
+  --gk-sidebar-active-indicator: #818cf8;
 
   /* Shadows - stronger for dark mode visibility */
   --gk-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -41,11 +41,11 @@
   --gk-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
 
   /* Semantic color backgrounds - muted for dark */
-  --gk-color-primary-bg: rgba(59, 130, 246, 0.15);
+  --gk-color-primary-bg: rgba(var(--gk-color-primary-rgb), 0.15);
   --gk-color-success-bg: rgba(34, 197, 94, 0.15);
   --gk-color-warning-bg: rgba(245, 158, 11, 0.15);
   --gk-color-danger-bg: rgba(239, 68, 68, 0.15);
-  --gk-color-info-bg: rgba(99, 102, 241, 0.15);
+  --gk-color-info-bg: rgba(13, 148, 136, 0.15);
 }
 
 /* 暗色主题下表格斑马纹修复：stripe 行使用略深背景，与 card bg 区分 */

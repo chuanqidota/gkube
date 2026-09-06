@@ -47,7 +47,7 @@
   --el-color-info-light-7: var(--gk-color-info-bg);
   --el-color-info-light-8: var(--gk-color-info-bg);
   --el-color-info-light-9: var(--gk-color-info-bg);
-  --el-color-info-dark-2: #4f46e5;
+  --el-color-info-dark-2: #0f766e;
 
   /* === Background === */
   --el-bg-color: var(--gk-color-bg-card);
@@ -170,7 +170,7 @@ html[data-theme="dark"] {
   --el-color-info-light-7: var(--gk-color-info-bg);
   --el-color-info-light-8: var(--gk-color-info-bg);
   --el-color-info-light-9: var(--gk-color-info-bg);
-  --el-color-info-dark-2: #818cf8;
+  --el-color-info-dark-2: #14b8a6;
 
   /* Error (alias of Danger) */
   --el-color-error: var(--gk-color-danger);
