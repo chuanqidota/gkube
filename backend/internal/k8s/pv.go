@@ -1,207 +1,155 @@
 package k8s
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sPv "gkube/pkg/k8s/pv"
-	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
 
-type pv struct {
-}
+// ---------------------------------------------------------------------------
+// 特殊 handler —— PV 是集群级资源，pkg 函数不接受 namespace
+// ---------------------------------------------------------------------------
 
-var Pv = new(pv)
-
-// GetPVList
-//
-//	@Description: 获取pv列表
-//	@receiver p
-//	@param c
-func (p *pv) GetPVList(c *gin.Context) {
-	var query PvListParams
-	if err := c.ShouldBind(&query); err != nil {
+// GetPVList 列表 —— 非分页
+func GetPVList(c *gin.Context) {
+	var p ListParams
+	if err := c.ShouldBind(&p); err != nil {
 		logger.Error(err.Error())
 		response.Fail(c, "参数错误")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	// 构建 label selector
-	var selector string
-	if len(query.LabelFilters) > 0 {
-		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
-		if err != nil {
-			response.Fail(c, err.Error())
-			return
-		}
+	selector, err := buildLabelSelector(p.LabelFilters)
+	if err != nil {
+		response.Fail(c, err.Error())
+		return
 	}
-
 	pvList, err := k8sPv.GetPVList(client, selector)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取pv列表失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取pv列表失败")
 		return
 	}
 	response.Success(c, "执行成功", pvList)
 }
 
-// GetPVByName
-//
-//	@Description: 根据名称获取pv详情
-//	@receiver p
-//	@param c
-func (p *pv) GetPVByName(c *gin.Context) {
-	var query PvQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+// GetPVByName 详情
+func GetPVByName(c *gin.Context) {
+	var p ClusterScopedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
 		logger.Error(err.Error())
 		response.Fail(c, "参数错误")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	pv, err := k8sPv.GetPVByName(client, query.Name)
+	pv, err := k8sPv.GetPVByName(client, p.Name)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取pv详情失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取pv详情失败")
 		return
 	}
 	response.Success(c, "执行成功", pv)
 }
 
-// GetPVYaml
-//
-//	@Description: 获取pv的yaml
-//	@receiver p
-//	@param c
-func (p *pv) GetPVYaml(c *gin.Context) {
-	var query PvQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+// GetPVYaml YAML
+func GetPVYaml(c *gin.Context) {
+	var p ClusterScopedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
 		logger.Error(err.Error())
 		response.Fail(c, "参数错误")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	yaml, err := k8sPv.GetPVYaml(client, query.Name)
+	yaml, err := k8sPv.GetPVYaml(client, p.Name)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取pv yaml失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取pv yaml失败")
 		return
 	}
 	response.Success(c, "执行成功", yaml)
 }
 
-// CreatePV
-//
-//	@Description: 创建pv
-//	@receiver p
-//	@param c
-func (p *pv) CreatePV(c *gin.Context) {
-	var body PvCreateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
+// CreatePV 创建 —— 只传 yaml
+func CreatePV(c *gin.Context) {
+	var p ClusterCreateParams
+	if err := c.ShouldBindJSON(&p); err != nil {
 		logger.Error(err.Error())
 		response.Fail(c, "参数错误")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	err = k8sPv.CreatePV(client, body.Yaml)
-	if err != nil {
+	if err := k8sPv.CreatePV(client, p.Yaml); err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "创建pv失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "创建pv失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
 }
 
-// UpdatePV
-//
-//	@Description: 更新pv
-//	@receiver p
-//	@param c
-func (p *pv) UpdatePV(c *gin.Context) {
-	var body PvUpdateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
+// UpdatePV 更新 —— 只传 yaml
+func UpdatePV(c *gin.Context) {
+	var p ClusterCreateParams
+	if err := c.ShouldBindJSON(&p); err != nil {
 		logger.Error(err.Error())
 		response.Fail(c, "参数错误")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	err = k8sPv.UpdatePV(client, body.Yaml)
-	if err != nil {
+	if err := k8sPv.UpdatePV(client, p.Yaml); err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "更新pv失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "更新pv失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
 }
 
-// DeletePVByName
-//
-//	@Description: 根据名称删除pv
-//	@receiver p
-//	@param c
-func (p *pv) DeletePVByName(c *gin.Context) {
-	var body PvQueryByNameParams
-	if err := c.ShouldBindJSON(&body); err != nil {
+// DeletePVByName 删除
+func DeletePVByName(c *gin.Context) {
+	var p ClusterScopedParams
+	if err := c.ShouldBindJSON(&p); err != nil {
 		logger.Error(err.Error())
 		response.Fail(c, "参数错误")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	err = k8sPv.DeletePVByName(client, body.Name)
-	if err != nil {
+	if err := k8sPv.DeletePVByName(client, p.Name); err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "删除pv失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "删除pv失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
-}
-
-type PvListParams struct {
-	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
-}
-
-type PvQueryByNameParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-}
-
-type PvCreateParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Yaml        string `form:"yaml" json:"yaml" binding:"required" label:"Yaml"`
-}
-
-type PvUpdateParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Yaml        string `form:"yaml" json:"yaml" binding:"required" label:"Yaml"`
 }

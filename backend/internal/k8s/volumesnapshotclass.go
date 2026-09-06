@@ -2,45 +2,40 @@ package k8s
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	k8sVolumeSnapshotClass "gkube/pkg/k8s/volumesnapshotclass"
-	k8sLabels "gkube/pkg/k8s/labels"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
 
-type volumeSnapshotClass struct{}
+// ---------------------------------------------------------------------------
+// 特殊 handler —— 使用 dynamic.Interface（集群级 CRD 资源）
+// ---------------------------------------------------------------------------
 
-var VolumeSnapshotClass = new(volumeSnapshotClass)
-
-// GetVolumeSnapshotClassList
-//
-//	@Description: 获取VolumeSnapshotClass列表
-//	@receiver v
-//	@param c
-func (v *volumeSnapshotClass) GetVolumeSnapshotClassList(c *gin.Context) {
-	var query VolumeSnapshotClassQueryListParams
-	if err := c.ShouldBind(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// GetVolumeSnapshotClassList 列表 —— 非分页 + transform
+func GetVolumeSnapshotClassList(c *gin.Context) {
+	var p ListParams
+	if err := c.ShouldBind(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-	client, err := getDynamicClient(query.ClusterName)
+	client, err := getDynamicClient(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	// 构建 label selector
-	var selector string
-	if len(query.LabelFilters) > 0 {
-		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
-		if err != nil {
-			response.Fail(c, err.Error())
-			return
-		}
+	selector, err := buildLabelSelector(p.LabelFilters)
+	if err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		return
 	}
 	items, err := k8sVolumeSnapshotClass.GetVolumeSnapshotClassList(client, selector)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取VolumeSnapshotClass列表失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取VolumeSnapshotClass列表失败:%v", err.Error()))
 		return
 	}
 	var result []map[string]any
@@ -58,144 +53,109 @@ func (v *volumeSnapshotClass) GetVolumeSnapshotClassList(c *gin.Context) {
 	response.Success(c, "执行成功", result)
 }
 
-// GetVolumeSnapshotClassByName
-//
-//	@Description: 根据名称获取VolumeSnapshotClass详情
-//	@receiver v
-//	@param c
-func (v *volumeSnapshotClass) GetVolumeSnapshotClassByName(c *gin.Context) {
-	var query VolumeSnapshotClassQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// GetVolumeSnapshotClassByName 详情
+func GetVolumeSnapshotClassByName(c *gin.Context) {
+	var p ClusterScopedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-	client, err := getDynamicClient(query.ClusterName)
+	client, err := getDynamicClient(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	obj, err := k8sVolumeSnapshotClass.GetVolumeSnapshotClassByName(client, query.Name)
+	obj, err := k8sVolumeSnapshotClass.GetVolumeSnapshotClassByName(client, p.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取VolumeSnapshotClass失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取VolumeSnapshotClass失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", obj.Object)
 }
 
-// GetVolumeSnapshotClassYaml
-//
-//	@Description: 获取VolumeSnapshotClass的YAML
-//	@receiver v
-//	@param c
-func (v *volumeSnapshotClass) GetVolumeSnapshotClassYaml(c *gin.Context) {
-	var query VolumeSnapshotClassQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// GetVolumeSnapshotClassYaml YAML
+func GetVolumeSnapshotClassYaml(c *gin.Context) {
+	var p ClusterScopedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-	client, err := getDynamicClient(query.ClusterName)
+	client, err := getDynamicClient(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	yamlContent, err := k8sVolumeSnapshotClass.GetVolumeSnapshotClassYaml(client, query.Name)
+	yamlContent, err := k8sVolumeSnapshotClass.GetVolumeSnapshotClassYaml(client, p.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取VolumeSnapshotClass YAML失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取VolumeSnapshotClass YAML失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", map[string]string{"yaml": yamlContent})
 }
 
-// CreateVolumeSnapshotClass
-//
-//	@Description: 创建VolumeSnapshotClass
-//	@receiver v
-//	@param c
-func (v *volumeSnapshotClass) CreateVolumeSnapshotClass(c *gin.Context) {
-	var body VolumeSnapshotClassCreateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// CreateVolumeSnapshotClass 创建 —— 只传 yaml
+func CreateVolumeSnapshotClass(c *gin.Context) {
+	var p ClusterCreateParams
+	if err := c.ShouldBindJSON(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-	client, err := getDynamicClient(body.ClusterName)
+	client, err := getDynamicClient(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	if err := k8sVolumeSnapshotClass.CreateVolumeSnapshotClass(client, body.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("创建VolumeSnapshotClass失败:%v", err.Error()))
+	if err := k8sVolumeSnapshotClass.CreateVolumeSnapshotClass(client, p.Yaml); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("创建VolumeSnapshotClass失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", nil)
 }
 
-// UpdateVolumeSnapshotClass
-//
-//	@Description: 更新VolumeSnapshotClass
-//	@receiver v
-//	@param c
-func (v *volumeSnapshotClass) UpdateVolumeSnapshotClass(c *gin.Context) {
-	var body VolumeSnapshotClassUpdateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// UpdateVolumeSnapshotClass 更新 —— 只传 yaml
+func UpdateVolumeSnapshotClass(c *gin.Context) {
+	var p ClusterCreateParams
+	if err := c.ShouldBindJSON(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-	client, err := getDynamicClient(body.ClusterName)
+	client, err := getDynamicClient(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	if err := k8sVolumeSnapshotClass.UpdateVolumeSnapshotClass(client, body.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("更新VolumeSnapshotClass失败:%v", err.Error()))
+	if err := k8sVolumeSnapshotClass.UpdateVolumeSnapshotClass(client, p.Yaml); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("更新VolumeSnapshotClass失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", nil)
 }
 
-// DeleteVolumeSnapshotClassByName
-//
-//	@Description: 删除VolumeSnapshotClass
-//	@receiver v
-//	@param c
-func (v *volumeSnapshotClass) DeleteVolumeSnapshotClassByName(c *gin.Context) {
-	var body VolumeSnapshotClassDeleteByNameParams
-	if err := c.ShouldBindQuery(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// DeleteVolumeSnapshotClassByName 删除 —— 原代码用 ShouldBindQuery
+func DeleteVolumeSnapshotClassByName(c *gin.Context) {
+	var p ClusterScopedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-	client, err := getDynamicClient(body.ClusterName)
+	client, err := getDynamicClient(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	if err := k8sVolumeSnapshotClass.DeleteVolumeSnapshotClassByName(client, body.Name); err != nil {
-		response.Fail(c, fmt.Sprintf("删除VolumeSnapshotClass失败:%v", err.Error()))
+	if err := k8sVolumeSnapshotClass.DeleteVolumeSnapshotClassByName(client, p.Name); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("删除VolumeSnapshotClass失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", nil)
-}
-
-type VolumeSnapshotClassQueryListParams struct {
-	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
-}
-
-type VolumeSnapshotClassQueryByNameParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-}
-
-type VolumeSnapshotClassCreateParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
-}
-
-type VolumeSnapshotClassUpdateParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
-}
-
-type VolumeSnapshotClassDeleteByNameParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
 }

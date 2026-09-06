@@ -3,218 +3,184 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sStorageClass "gkube/pkg/k8s/storageclass"
-	k8sLabels "gkube/pkg/k8s/labels"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 )
 
-type storageClass struct {
-}
+// ---------------------------------------------------------------------------
+// 特殊 handler —— StorageClass 是集群级资源，pkg 函数不接受 namespace
+// ---------------------------------------------------------------------------
 
-var StorageClass = new(storageClass)
-
-// GetStorageClassList
-//
-//	@Description: 获取sc列表
-//	@receiver s
-//	@param c
-func (s *storageClass) GetStorageClassList(c *gin.Context) {
-	var query StorageClassQueryListParams
-	if err := c.ShouldBind(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// GetStorageClassList 列表 —— 非分页
+func GetStorageClassList(c *gin.Context) {
+	var p ListParams
+	if err := c.ShouldBind(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-	// 构建 label selector
-	var selector string
-	if len(query.LabelFilters) > 0 {
-		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
-		if err != nil {
-			response.Fail(c, err.Error())
-			return
-		}
+	selector, err := buildLabelSelector(p.LabelFilters)
+	if err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		return
 	}
 	storageClasses, err := k8sStorageClass.GetStorageClassList(client, selector)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取StorageClass列表失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取StorageClass列表失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", storageClasses)
 }
 
-// GetStorageClassByName
-//
-//	@Description: 获取sc根据名称
-//	@receiver s
-//	@param c
-func (s *storageClass) GetStorageClassByName(c *gin.Context) {
-	var query StorageClassQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// GetStorageClassByName 详情
+func GetStorageClassByName(c *gin.Context) {
+	var p ClusterScopedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-
-	storageClass, err := k8sStorageClass.GetStorageClassByName(client, query.Name)
+	storageClass, err := k8sStorageClass.GetStorageClassByName(client, p.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取StorageClass失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取StorageClass失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", storageClass)
-
 }
 
-// GetStorageClassYaml
-//
-//	@Description: 获取sc的yaml文件
-//	@receiver s
-//	@param c
-func (s *storageClass) GetStorageClassYaml(c *gin.Context) {
-	var query StorageClassQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// GetStorageClassYaml YAML
+func GetStorageClassYaml(c *gin.Context) {
+	var p ClusterScopedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-
-	storageClassYaml, err := k8sStorageClass.GetStorageClassYaml(client, query.Name)
+	storageClassYaml, err := k8sStorageClass.GetStorageClassYaml(client, p.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取StorageClass失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取StorageClass失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", storageClassYaml)
 }
 
-// CreateStorageClass
-//
-//	@Description: 创建sc
-//	@receiver s
-//	@param c
-func (s *storageClass) CreateStorageClass(c *gin.Context) {
-	var body StorageClassCreateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// CreateStorageClass 创建 —— 只传 yaml
+func CreateStorageClass(c *gin.Context) {
+	var p ClusterCreateParams
+	if err := c.ShouldBindJSON(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-
-	if err := k8sStorageClass.CreateStorageClass(client, body.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("创建StorageClass失败:%v", err.Error()))
+	if err := k8sStorageClass.CreateStorageClass(client, p.Yaml); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("创建StorageClass失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", nil)
 }
 
-// UpdateStorageClass
-//
-//	@Description: 更新sc
-//	@receiver s
-//	@param c
-func (s *storageClass) UpdateStorageClass(c *gin.Context) {
-	var body StorageClassUpdateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// UpdateStorageClass 更新 —— 只传 yaml
+func UpdateStorageClass(c *gin.Context) {
+	var p ClusterCreateParams
+	if err := c.ShouldBindJSON(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-
-	if err := k8sStorageClass.UpdateStorageClass(client, body.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("更新StorageClass失败:%v", err.Error()))
+	if err := k8sStorageClass.UpdateStorageClass(client, p.Yaml); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("更新StorageClass失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", nil)
 }
 
-// DeleteStorageClassByName
-//
-//	@Description: 删除sc根据名称
-//	@receiver s
-//	@param c
-func (s *storageClass) DeleteStorageClassByName(c *gin.Context) {
-	var body StorageClassDeleteByNameParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// DeleteStorageClassByName 删除
+func DeleteStorageClassByName(c *gin.Context) {
+	var p ClusterScopedParams
+	if err := c.ShouldBindJSON(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-
-	if err := k8sStorageClass.DeleteStorageClassByName(client, body.Name); err != nil {
-		response.Fail(c, fmt.Sprintf("删除StorageClass失败:%v", err.Error()))
+	if err := k8sStorageClass.DeleteStorageClassByName(client, p.Name); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("删除StorageClass失败:%v", err.Error()))
 		return
 	}
-
 	response.Success(c, "执行成功", nil)
 }
 
-// GetStorageClassEvents
-//
-//	@Description: 获取sc事件
-//	@receiver s
-//	@param c
-func (s *storageClass) GetStorageClassEvents(c *gin.Context) {
-	var query StorageClassQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// GetStorageClassEvents 事件 —— 内联 K8s 调用（集群级资源，需跨命名空间搜索事件）
+func GetStorageClassEvents(c *gin.Context) {
+	var p ClusterScopedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-	if query.Name == "" {
+	if p.Name == "" {
 		response.Fail(c, "name参数不能为空")
 		return
 	}
-
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
-
 	events, err := client.CoreV1().Events(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
 		FieldSelector: fields.AndSelectors(
-			fields.OneTermEqualSelector("involvedObject.name", query.Name),
+			fields.OneTermEqualSelector("involvedObject.name", p.Name),
 			fields.OneTermEqualSelector("involvedObject.kind", "StorageClass"),
 		).String(),
 	})
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取StorageClass事件失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取StorageClass事件失败:%v", err.Error()))
 		return
 	}
-
 	var result []map[string]any
 	for _, event := range events.Items {
 		lastSeen := ""
@@ -229,29 +195,4 @@ func (s *storageClass) GetStorageClassEvents(c *gin.Context) {
 		})
 	}
 	response.Success(c, "执行成功", result)
-}
-
-type StorageClassQueryListParams struct {
-	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
-}
-
-type StorageClassQueryByNameParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-}
-
-type StorageClassCreateParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
-}
-
-type StorageClassUpdateParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
-}
-
-type StorageClassDeleteByNameParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
 }

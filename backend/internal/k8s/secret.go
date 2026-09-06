@@ -1,227 +1,135 @@
 package k8s
 
 import (
-	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sSecret "gkube/pkg/k8s/secret"
-	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
+	"k8s.io/client-go/kubernetes"
 )
 
-type secret struct {
+// ---------------------------------------------------------------------------
+// 标准 handler
+// ---------------------------------------------------------------------------
+
+var GetSecretByName = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sSecret.GetSecretByName(client, namespace, name)
+	},
+	"获取Secret成功", "获取Secret失败",
+)
+
+var GetSecretYaml = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sSecret.GetSecretYaml(client, namespace, name)
+	},
+	"获取Secret YAML成功", "获取Secret YAML失败",
+)
+
+var DeleteSecret = DeleteHandler(
+	func(client *kubernetes.Clientset, namespace, name string) error {
+		return k8sSecret.DeleteSecret(client, namespace, name)
+	},
+	"删除Secret成功", "删除Secret失败",
+)
+
+// ---------------------------------------------------------------------------
+// 特殊 handler
+// ---------------------------------------------------------------------------
+
+// GetSecretsList 列表 —— 非分页（pkg 函数不接受 limit/continue）
+func GetSecretsList(c *gin.Context) {
+	var p ListParams
+	if err := c.ShouldBind(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		return
+	}
+	selector, err := buildLabelSelector(p.LabelFilters)
+	if err != nil {
+		response.Fail(c, err.Error())
+		return
+	}
+	secrets, err := k8sSecret.GetSecretsList(client, p.Namespace, selector)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取Secret列表失败")
+		return
+	}
+	response.Success(c, "获取Secret列表成功", secrets)
 }
 
-var Secret = new(secret)
-
-// GetSecretsList
-//
-//	@Description: 查询secret列表
-//	@receiver s
-//	@param c
-func (s *secret) GetSecretsList(c *gin.Context) {
-	var query SecretQueryListParams
-	if err := c.ShouldBind(&query); err != nil {
-		response.Fail(c, "参数错误")
+// CreateSecretFromYaml 创建 —— 带验证错误区分
+func CreateSecretFromYaml(c *gin.Context) {
+	var p struct {
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace" binding:"required"`
+		Yaml        string `json:"yaml" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&p); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to get k8s client: %v", err))
-		response.Fail(c, "获取 Kubernetes 客户端失败")
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	// 构建 label selector
-	var selector string
-	if len(query.LabelFilters) > 0 {
-		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
-		if err != nil {
-			response.Fail(c, err.Error())
-			return
-		}
-	}
-
-	secrets, err := k8sSecret.GetSecretsList(client, query.Namespace, selector)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to get secret list: %v", err))
-		response.Fail(c, "获取 Secret 列表失败")
-		return
-	}
-	response.Success(c, "执行成功", secrets)
-}
-
-// GetSecretByName
-//
-//	@Description: 查询secret根据名称
-//	@receiver s
-//	@param c
-func (s *secret) GetSecretByName(c *gin.Context) {
-	var query SecretQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数错误")
-		return
-	}
-
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to get k8s client: %v", err))
-		response.Fail(c, "获取 Kubernetes 客户端失败")
-		return
-	}
-
-	_secret, err := k8sSecret.GetSecretByName(client, query.Namespace, query.Name)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to get secret %s/%s: %v", query.Namespace, query.Name, err))
-		response.Fail(c, "获取 Secret 失败")
-		return
-	}
-	response.Success(c, "执行成功", _secret)
-}
-
-// GetSecretYaml
-//
-//	@Description: 获取secret的yaml
-//	@receiver s
-//	@param c
-func (s *secret) GetSecretYaml(c *gin.Context) {
-	var query SecretQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数错误")
-		return
-	}
-
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to get k8s client: %v", err))
-		response.Fail(c, "获取 Kubernetes 客户端失败")
-		return
-	}
-	secretYaml, err := k8sSecret.GetSecretYaml(client, query.Namespace, query.Name)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to get secret yaml %s/%s: %v", query.Namespace, query.Name, err))
-		response.Fail(c, "获取 Secret YAML 失败")
-		return
-	}
-	response.Success(c, "执行成功", secretYaml)
-}
-
-// DeleteSecret
-//
-//	@Description: 删除secret
-//	@receiver s
-//	@param c
-func (s *secret) DeleteSecret(c *gin.Context) {
-	var body SecretDeleteParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数错误")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to get k8s client: %v", err))
-		response.Fail(c, "获取 Kubernetes 客户端失败")
-		return
-	}
-	if err := k8sSecret.DeleteSecret(client, body.Namespace, body.Name); err != nil {
-		logger.Error(fmt.Sprintf("Failed to delete secret %s/%s: %v", body.Namespace, body.Name, err))
-		response.Fail(c, "删除 Secret 失败")
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// UpdateSecretFromYaml
-//
-//	@Description: 通过YAML更新secret
-//	@receiver s
-//	@param c
-func (s *secret) UpdateSecretFromYaml(c *gin.Context) {
-	var req SecretYamlRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to get k8s client: %v", err))
-		response.Fail(c, "获取 Kubernetes 客户端失败")
-		return
-	}
-	if err := k8sSecret.UpdateSecretFromYaml(client, req.Namespace, req.Yaml); err != nil {
-		logger.Error(fmt.Sprintf("Failed to update secret: %v", err))
+	if err := k8sSecret.CreateSecretFromYaml(client, p.Namespace, p.Yaml); err != nil {
+		logger.Error(err.Error())
 		if isValidationError(err) {
 			response.Fail(c, err.Error())
 		} else {
-			response.Fail(c, "更新 Secret 失败")
+			response.FailWithStatus(c, http.StatusBadGateway, "创建Secret失败")
 		}
 		return
 	}
-	response.Success(c, "更新 Secret 成功", nil)
+	response.Success(c, "创建Secret成功", nil)
 }
 
-// CreateSecretFromYaml
-//
-//	@Description: 通过YAML创建secret
-//	@receiver s
-//	@param c
-func (s *secret) CreateSecretFromYaml(c *gin.Context) {
-	var req SecretYamlRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误")
+// UpdateSecretFromYaml 更新 —— 带验证错误区分
+func UpdateSecretFromYaml(c *gin.Context) {
+	var p struct {
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace" binding:"required"`
+		Yaml        string `json:"yaml" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&p); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to get k8s client: %v", err))
-		response.Fail(c, "获取 Kubernetes 客户端失败")
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	if err := k8sSecret.CreateSecretFromYaml(client, req.Namespace, req.Yaml); err != nil {
-		logger.Error(fmt.Sprintf("Failed to create secret: %v", err))
+	if err := k8sSecret.UpdateSecretFromYaml(client, p.Namespace, p.Yaml); err != nil {
+		logger.Error(err.Error())
 		if isValidationError(err) {
 			response.Fail(c, err.Error())
 		} else {
-			response.Fail(c, "创建 Secret 失败")
+			response.FailWithStatus(c, http.StatusBadGateway, "更新Secret失败")
 		}
 		return
 	}
-	response.Success(c, "创建 Secret 成功", nil)
+	response.Success(c, "更新Secret成功", nil)
 }
 
-// isValidationError 区分校验错误与 K8s API 内部错误，前者可安全展示给用户
+// isValidationError 检查是否为输入验证错误（可直接展示给用户）
 func isValidationError(err error) bool {
 	msg := err.Error()
 	return strings.HasPrefix(msg, "YAML content cannot be empty") ||
 		strings.HasPrefix(msg, "failed to unmarshal") ||
 		strings.HasPrefix(msg, "Secret name is required")
-}
-
-type SecretQueryListParams struct {
-	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace    string                  `form:"namespace" json:"namespace" label:"命名空间"`
-	Limit        int64                   `form:"limit" json:"limit" label:"每页条数"`
-	Continue     string                  `form:"continue" json:"continue" label:"分页标记"`
-	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
-}
-
-type SecretQueryByNameParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-}
-
-type SecretDeleteParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-}
-
-type SecretYamlRequest struct {
-	ClusterName string `json:"clusterName" binding:"required"`
-	Namespace   string `json:"namespace"`
-	Yaml        string `json:"yaml" binding:"required"`
 }

@@ -1,59 +1,87 @@
 package k8s
 
 import (
-	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
-	k8sLabels "gkube/pkg/k8s/labels"
 	k8sRq "gkube/pkg/k8s/resourcequota"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
+	"k8s.io/client-go/kubernetes"
 )
 
-type resourceQuota struct{}
+// ---------------------------------------------------------------------------
+// 标准 handler
+// ---------------------------------------------------------------------------
 
-var ResourceQuota = new(resourceQuota)
+var CreateResourceQuota = CreateHandler(
+	func(client *kubernetes.Clientset, namespace, yaml string) error {
+		return k8sRq.CreateResourceQuota(client, namespace, yaml)
+	},
+	"执行成功", "创建ResourceQuota失败",
+)
 
-func (rq *resourceQuota) GetResourceQuotaList(c *gin.Context) {
-	var query struct {
-		Namespace    string                  `form:"namespace" json:"namespace"`
-		ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required"`
-		LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters"`
+// UpdateResourceQuota 更新 —— pkg 函数只传 namespace+yaml（无 name）
+func UpdateResourceQuota(c *gin.Context) {
+	var body struct {
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace"`
+		Yaml        string `json:"yaml" binding:"required"`
 	}
-	if err := c.ShouldBind(&query); err != nil {
+	if err := c.ShouldBindJSON(&body); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
 	}
-	namespace := query.Namespace
-	clusterName := query.ClusterName
-	// 构建 label selector
-	var labelSelector string
-	if len(query.LabelFilters) > 0 {
-		builtSelector, buildErr := k8sLabels.BuildLabelSelector(query.LabelFilters)
-		if buildErr != nil {
-			response.Fail(c, buildErr.Error())
-			return
-		}
-		labelSelector = builtSelector
-	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
+	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	rqList, err := k8sRq.GetResourceQuotaList(client, namespace, labelSelector)
+	if err := k8sRq.UpdateResourceQuota(client, body.Namespace, body.Yaml); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "更新ResourceQuota失败")
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}
+
+// ---------------------------------------------------------------------------
+// 特殊 handler
+// ---------------------------------------------------------------------------
+
+// GetResourceQuotaList 列表 —— 非分页 + transform
+func GetResourceQuotaList(c *gin.Context) {
+	var p ListParams
+	if err := c.ShouldBind(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取ResourceQuota列表失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		return
+	}
+	selector, err := buildLabelSelector(p.LabelFilters)
+	if err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		return
+	}
+	rqList, err := k8sRq.GetResourceQuotaList(client, p.Namespace, selector)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取ResourceQuota列表失败")
 		return
 	}
 	var result []map[string]any
 	for _, rq := range rqList {
-		var hard, used map[string]string
-		hard = make(map[string]string)
-		used = make(map[string]string)
+		hard := make(map[string]string)
 		for k, v := range rq.Spec.Hard {
 			hard[string(k)] = v.String()
 		}
+		used := make(map[string]string)
 		for k, v := range rq.Status.Used {
 			used[string(k)] = v.String()
 		}
@@ -62,119 +90,97 @@ func (rq *resourceQuota) GetResourceQuotaList(c *gin.Context) {
 			"namespace": rq.Namespace,
 			"hard":      hard,
 			"used":      used,
-			"age":       rq.CreationTimestamp.Time.Format("2006-01-02 15:04:05"),
 			"labels":    rq.Labels,
 		})
 	}
 	response.Success(c, "执行成功", result)
 }
 
-func (rq *resourceQuota) GetResourceQuotaDetail(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
+// GetResourceQuotaDetail 详情 —— 原代码用 c.Query()
+func GetResourceQuotaDetail(c *gin.Context) {
+	var p NamespacedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	if p.Name == "" {
 		response.Fail(c, "name参数不能为空")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	rqDetail, err := k8sRq.GetResourceQuotaDetail(client, namespace, name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取ResourceQuota详情失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", rqDetail)
-}
-
-func (rq *resourceQuota) GetResourceQuotaYaml(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
-		response.Fail(c, "name参数不能为空")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	yamlContent, err := k8sRq.GetResourceQuotaYaml(client, namespace, name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取ResourceQuota YAML失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", map[string]string{"yaml": yamlContent})
-}
-
-func (rq *resourceQuota) CreateResourceQuota(c *gin.Context) {
-	var req struct {
-		ClusterName string `json:"clusterName"`
-		Namespace   string `json:"namespace"`
-		Yaml        string `json:"yaml"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	if err := k8sRq.CreateResourceQuota(client, req.Namespace, req.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("创建ResourceQuota失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "创建ResourceQuota成功", nil)
-}
-
-func (rq *resourceQuota) UpdateResourceQuota(c *gin.Context) {
-	var req struct {
-		ClusterName string `json:"clusterName"`
-		Namespace   string `json:"namespace"`
-		Yaml        string `json:"yaml"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	if err := k8sRq.UpdateResourceQuota(client, req.Namespace, req.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("更新ResourceQuota失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "更新ResourceQuota成功", nil)
-}
-
-func (rq *resourceQuota) DeleteResourceQuota(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
-		response.Fail(c, "name参数不能为空")
-		return
-	}
-	if clusterName == "" {
+	if p.ClusterName == "" {
 		response.Fail(c, "clusterName参数不能为空")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	if err := k8sRq.DeleteResourceQuota(client, namespace, name); err != nil {
-		response.Fail(c, fmt.Sprintf("删除ResourceQuota失败:%s", err.Error()))
+	detail, err := k8sRq.GetResourceQuotaDetail(client, p.Namespace, p.Name)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取ResourceQuota详情失败")
 		return
 	}
-	response.Success(c, "删除ResourceQuota成功", nil)
+	response.Success(c, "执行成功", detail)
+}
+
+// GetResourceQuotaYaml YAML —— 原代码用 c.Query()
+func GetResourceQuotaYaml(c *gin.Context) {
+	var p NamespacedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	if p.Name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	if p.ClusterName == "" {
+		response.Fail(c, "clusterName参数不能为空")
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		return
+	}
+	yaml, err := k8sRq.GetResourceQuotaYaml(client, p.Namespace, p.Name)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取ResourceQuota YAML失败")
+		return
+	}
+	response.Success(c, "执行成功", map[string]string{"yaml": yaml})
+}
+
+// DeleteResourceQuota 删除 —— 原代码用 c.Query()
+func DeleteResourceQuota(c *gin.Context) {
+	var p NamespacedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	if p.Name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	if p.ClusterName == "" {
+		response.Fail(c, "clusterName参数不能为空")
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		return
+	}
+	if err := k8sRq.DeleteResourceQuota(client, p.Namespace, p.Name); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "删除ResourceQuota失败")
+		return
+	}
+	response.Success(c, "执行成功", nil)
 }

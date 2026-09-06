@@ -7,52 +7,83 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sReplicaSet "gkube/pkg/k8s/replicaset"
-	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
+	"k8s.io/client-go/kubernetes"
 )
 
-type replicaset struct{}
+// ---------------------------------------------------------------------------
+// 标准 handler
+// ---------------------------------------------------------------------------
 
-var ReplicaSet = new(replicaset)
+var GetReplicaSetDetail = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sReplicaSet.GetReplicaSetDetail(client, namespace, name)
+	},
+	"获取ReplicaSet详情成功", "获取ReplicaSet详情失败",
+)
 
-// ReplicaSetListParams 列表查询参数
-type ReplicaSetListParams struct {
-	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace    string                  `form:"namespace" json:"namespace" label:"命名空间"`
-	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
-}
+var GetReplicaSetYaml = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		yaml, err := k8sReplicaSet.GetReplicaSetYaml(client, namespace, name)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]string{"yaml": yaml}, nil
+	},
+	"获取ReplicaSet YAML成功", "获取ReplicaSet YAML失败",
+)
 
-// ReplicaSetNamespacedParams 按命名空间+名称定位资源，供 detail/yaml/pods/events/delete 复用
-type ReplicaSetNamespacedParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" binding:"required" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-}
+var GetReplicaSetPodList = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sReplicaSet.GetReplicaSetPodList(client, namespace, name)
+	},
+	"获取ReplicaSet关联Pod成功", "获取ReplicaSet关联Pod失败",
+)
 
-func (r *replicaset) GetReplicaSetList(c *gin.Context) {
-	var query ReplicaSetListParams
-	if err := c.ShouldBind(&query); err != nil {
+var GetReplicaSetEvents = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		events, err := k8sReplicaSet.GetReplicaSetEvents(client, namespace, name)
+		if err != nil {
+			return nil, err
+		}
+		var result []map[string]any
+		for _, event := range events {
+			result = append(result, map[string]any{
+				"type":      event.Type,
+				"reason":    event.Reason,
+				"message":   event.Message,
+				"last_seen": event.LastTimestamp,
+			})
+		}
+		return result, nil
+	},
+	"获取ReplicaSet事件成功", "获取ReplicaSet事件失败",
+)
+
+// ---------------------------------------------------------------------------
+// 特殊 handler
+// ---------------------------------------------------------------------------
+
+// GetReplicaSetList 列表 —— 非分页 + transform 到 map[string]any
+func GetReplicaSetList(c *gin.Context) {
+	var p ListParams
+	if err := c.ShouldBind(&p); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	// 构建 label selector
-	var selector string
-	if len(query.LabelFilters) > 0 {
-		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
-		if err != nil {
-			response.Fail(c, err.Error())
-			return
-		}
+	selector, err := buildLabelSelector(p.LabelFilters)
+	if err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		return
 	}
-
-	rsList, err := k8sReplicaSet.GetReplicaSetList(client, query.Namespace, selector)
+	rsList, err := k8sReplicaSet.GetReplicaSetList(client, p.Namespace, selector)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusBadGateway, "获取ReplicaSet列表失败")
@@ -84,115 +115,23 @@ func (r *replicaset) GetReplicaSetList(c *gin.Context) {
 	response.Success(c, "获取ReplicaSet列表成功", result)
 }
 
-func (r *replicaset) GetReplicaSetYaml(c *gin.Context) {
-	var query ReplicaSetNamespacedParams
-	if err := c.ShouldBindQuery(&query); err != nil {
+// DeleteReplicaSet 删除 —— 原代码用 ShouldBindQuery（GET 请求传参）
+func DeleteReplicaSet(c *gin.Context) {
+	var p NamespacedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	yamlContent, err := k8sReplicaSet.GetReplicaSetYaml(client, query.Namespace, query.Name)
-	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取ReplicaSet YAML失败")
-		return
-	}
-	response.Success(c, "获取ReplicaSet YAML成功", map[string]string{"yaml": yamlContent})
-}
-
-func (r *replicaset) DeleteReplicaSet(c *gin.Context) {
-	var query ReplicaSetNamespacedParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	if err := k8sReplicaSet.DeleteReplicaSet(client, query.Namespace, query.Name); err != nil {
+	if err := k8sReplicaSet.DeleteReplicaSet(client, p.Namespace, p.Name); err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusBadGateway, "删除ReplicaSet失败")
 		return
 	}
 	response.Success(c, "删除ReplicaSet成功", nil)
-}
-
-func (r *replicaset) GetReplicaSetDetail(c *gin.Context) {
-	var query ReplicaSetNamespacedParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	detail, err := k8sReplicaSet.GetReplicaSetDetail(client, query.Namespace, query.Name)
-	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取ReplicaSet详情失败")
-		return
-	}
-	response.Success(c, "获取ReplicaSet详情成功", detail)
-}
-
-func (r *replicaset) GetReplicaSetPodList(c *gin.Context) {
-	var query ReplicaSetNamespacedParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	podList, err := k8sReplicaSet.GetReplicaSetPodList(client, query.Namespace, query.Name)
-	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取ReplicaSet关联Pod失败")
-		return
-	}
-	response.Success(c, "获取ReplicaSet关联Pod成功", podList)
-}
-
-func (r *replicaset) GetReplicaSetEvents(c *gin.Context) {
-	var query ReplicaSetNamespacedParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	events, err := k8sReplicaSet.GetReplicaSetEvents(client, query.Namespace, query.Name)
-	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取ReplicaSet事件失败")
-		return
-	}
-	var result []map[string]any
-	for _, event := range events {
-		result = append(result, map[string]any{
-			"type":      event.Type,
-			"reason":    event.Reason,
-			"message":   event.Message,
-			"last_seen": event.LastTimestamp,
-		})
-	}
-	response.Success(c, "获取ReplicaSet事件成功", result)
 }

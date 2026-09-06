@@ -448,7 +448,8 @@ export function useResourceList(options: ResourceListOptions) {
           const validConditions = parsed.filter((c: any) =>
             c && typeof c.key === 'string' && c.key &&
             ['=', '!=', 'in', 'notin'].includes(c.operator) &&
-            Array.isArray(c.values) && c.values.length > 0
+            Array.isArray(c.values) && c.values.length > 0 &&
+            c.values.every((v: any) => typeof v === 'string')
           )
           if (validConditions.length > 0) {
             labelConditions.value = validConditions

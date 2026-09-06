@@ -192,6 +192,8 @@ func resolveResourceGroup(path string) string {
 		return "storage"
 	case strings.Contains(path, "/hpa/"):
 		return "workload"
+	case strings.Contains(path, "/k8s/labels"):
+		return "workload"
 	case strings.Contains(path, "/audit/"):
 		return "audit"
 	case strings.Contains(path, "/crd/"):

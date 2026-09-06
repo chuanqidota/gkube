@@ -118,7 +118,7 @@ func buildCacheKey(clusterName, namespace, resourceType string) string {
 // Results are cached for 30 seconds keyed by clusterName/namespace/resourceType.
 // Uses paginated listing (200 items per page, up to 5 pages = 1000 resources).
 // Concurrent requests for the same key are coalesced via singleflight.
-func GetAvailableLabels(client *kubernetes.Clientset, dynamicClient dynamic.Interface, aeClient *apiextensionsclientset.Clientset, clusterName, namespace, resourceType string) (LabelData, error) {
+func GetAvailableLabels(ctx context.Context, client *kubernetes.Clientset, dynamicClient dynamic.Interface, aeClient *apiextensionsclientset.Clientset, clusterName, namespace, resourceType string) (LabelData, error) {
 	cacheKey := buildCacheKey(clusterName, namespace, resourceType)
 
 	if v, ok := cache.Load(cacheKey); ok {
@@ -135,9 +135,9 @@ func GetAvailableLabels(client *kubernetes.Clientset, dynamicClient dynamic.Inte
 		var fetchErr error
 
 		if !isBuiltinResource(resourceType) {
-			data, fetchErr = fetchCRDLabels(dynamicClient, namespace, resourceType)
+			data, fetchErr = fetchCRDLabels(ctx, dynamicClient, namespace, resourceType)
 		} else {
-			data, fetchErr = fetchBuiltinLabels(client, dynamicClient, aeClient, namespace, resourceType)
+			data, fetchErr = fetchBuiltinLabels(ctx, client, dynamicClient, aeClient, namespace, resourceType)
 		}
 		if fetchErr != nil {
 			return LabelData{}, fetchErr
@@ -221,25 +221,29 @@ func getGVR(resourceType string) (schema.GroupVersionResource, error) {
 }
 
 // fetchCRDLabels uses the dynamic client to discover labels from CRD instances.
-func fetchCRDLabels(dynamicClient dynamic.Interface, namespace, resourceType string) (LabelData, error) {
+// Attempts namespace-scoped first when namespace is provided, falls back to cluster-scoped.
+// This handles both namespace-scoped and cluster-scoped CRDs correctly.
+func fetchCRDLabels(ctx context.Context, dynamicClient dynamic.Interface, namespace, resourceType string) (LabelData, error) {
 	gvr, err := getGVR(resourceType)
 	if err != nil {
 		return LabelData{}, err
 	}
 
-	var ri dynamic.ResourceInterface
-	if clusterScopedResources[resourceType] {
-		ri = dynamicClient.Resource(gvr)
-	} else {
-		ri = dynamicClient.Resource(gvr).Namespace(namespace)
+	// If namespace is provided, try namespace-scoped first (most common case).
+	// If it fails or returns empty, fall back to cluster-scoped.
+	if namespace != "" {
+		ri := dynamicClient.Resource(gvr).Namespace(namespace)
+		if data, err := collectLabelsFromDynamic(ctx, ri); err == nil && len(data.Keys) > 0 {
+			return data, nil
+		}
 	}
-
-	return collectLabelsFromDynamic(ri)
+	// Try cluster-scoped (either no namespace given, or namespace-scoped returned empty).
+	ri := dynamicClient.Resource(gvr)
+	return collectLabelsFromDynamic(ctx, ri)
 }
 
 // collectLabelsFromDynamic pages through a dynamic resource and collects all labels.
-func collectLabelsFromDynamic(ri dynamic.ResourceInterface) (LabelData, error) {
-	ctx := context.Background()
+func collectLabelsFromDynamic(ctx context.Context, ri dynamic.ResourceInterface) (LabelData, error) {
 	labelKeys := make(map[string]struct{})
 	labelValues := make(map[string]map[string]struct{})
 
@@ -283,8 +287,9 @@ func collectLabelsFromDynamic(ri dynamic.ResourceInterface) (LabelData, error) {
 }
 
 // listLabelsFn is a function that returns labels from a paginated list.
-// It returns (labels per item, continue token, error).
-type listLabelsFn func(continueToken string) ([]map[string]string, string, error)
+// It receives a context for cancellation propagation.
+// Returns (labels per item, continue token, error).
+type listLabelsFn func(ctx context.Context, continueToken string) ([]map[string]string, string, error)
 
 // makeListOpts creates ListOptions with pagination support.
 func makeListOpts(continueToken string) metav1.ListOptions {
@@ -297,16 +302,11 @@ func makeListOpts(continueToken string) metav1.ListOptions {
 	return opts
 }
 
-// toLabels converts a slice of objects with .Labels field to a slice of label maps.
-func toLabels(items []map[string]string) []map[string]string {
-	return items
-}
-
 // builtinListFnMap maps resource types to their list functions.
 var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabelsFn{
 	"deployment": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.AppsV1().Deployments(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.AppsV1().Deployments(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -318,8 +318,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"statefulset": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.AppsV1().StatefulSets(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.AppsV1().StatefulSets(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -331,8 +331,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"daemonset": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.AppsV1().DaemonSets(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.AppsV1().DaemonSets(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -344,8 +344,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"pod": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.CoreV1().Pods(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.CoreV1().Pods(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -357,8 +357,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"service": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.CoreV1().Services(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.CoreV1().Services(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -370,8 +370,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"ingress": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.NetworkingV1().Ingresses(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.NetworkingV1().Ingresses(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -383,8 +383,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"configmap": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.CoreV1().ConfigMaps(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.CoreV1().ConfigMaps(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -396,8 +396,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"secret": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.CoreV1().Secrets(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.CoreV1().Secrets(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -409,8 +409,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"job": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.BatchV1().Jobs(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.BatchV1().Jobs(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -422,8 +422,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"cronjob": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.BatchV1().CronJobs(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.BatchV1().CronJobs(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -435,8 +435,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"replicaset": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.AppsV1().ReplicaSets(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.AppsV1().ReplicaSets(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -448,8 +448,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"horizontalpodautoscaler": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.AutoscalingV2().HorizontalPodAutoscalers(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.AutoscalingV2().HorizontalPodAutoscalers(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -461,8 +461,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"networkpolicy": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.NetworkingV1().NetworkPolicies(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.NetworkingV1().NetworkPolicies(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -474,8 +474,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"persistentvolumeclaim": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.CoreV1().PersistentVolumeClaims(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.CoreV1().PersistentVolumeClaims(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -487,8 +487,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"resourcequota": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.CoreV1().ResourceQuotas(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.CoreV1().ResourceQuotas(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -500,8 +500,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"limitrange": func(client *kubernetes.Clientset, ns string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.CoreV1().LimitRanges(ns).List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.CoreV1().LimitRanges(ns).List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -514,8 +514,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 	},
 	// Cluster-scoped resources (ignore namespace)
 	"namespace": func(client *kubernetes.Clientset, _ string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.CoreV1().Namespaces().List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.CoreV1().Namespaces().List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -527,8 +527,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"node": func(client *kubernetes.Clientset, _ string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.CoreV1().Nodes().List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.CoreV1().Nodes().List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -540,8 +540,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"persistentvolume": func(client *kubernetes.Clientset, _ string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.CoreV1().PersistentVolumes().List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.CoreV1().PersistentVolumes().List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -553,8 +553,8 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 		}
 	},
 	"storageclass": func(client *kubernetes.Clientset, _ string) listLabelsFn {
-		return func(ct string) ([]map[string]string, string, error) {
-			list, err := client.StorageV1().StorageClasses().List(context.TODO(), makeListOpts(ct))
+		return func(ctx context.Context, ct string) ([]map[string]string, string, error) {
+			list, err := client.StorageV1().StorageClasses().List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
 			}
@@ -569,8 +569,7 @@ var builtinListFnMap = map[string]func(*kubernetes.Clientset, string) listLabels
 
 // fetchBuiltinLabels uses the typed client to collect labels from built-in resources.
 // Supports paginated listing (up to maxPages pages of 200).
-func fetchBuiltinLabels(client *kubernetes.Clientset, dynamicClient dynamic.Interface, aeClient *apiextensionsclientset.Clientset, namespace, resourceType string) (LabelData, error) {
-	ctx := context.Background()
+func fetchBuiltinLabels(ctx context.Context, client *kubernetes.Clientset, dynamicClient dynamic.Interface, aeClient *apiextensionsclientset.Clientset, namespace, resourceType string) (LabelData, error) {
 	labelKeys := make(map[string]struct{})
 	labelValues := make(map[string]map[string]struct{})
 
@@ -609,7 +608,7 @@ func fetchBuiltinLabels(client *kubernetes.Clientset, dynamicClient dynamic.Inte
 		}
 		return buildLabelData(labelKeys, labelValues), nil
 	case "customresourcedefinition":
-		if err := paginate(ctx, maxPages, func(ct string) ([]map[string]string, string, error) {
+		if err := paginate(ctx, maxPages, func(ctx context.Context, ct string) ([]map[string]string, string, error) {
 			list, err := aeClient.ApiextensionsV1().CustomResourceDefinitions().List(ctx, makeListOpts(ct))
 			if err != nil {
 				return nil, "", err
@@ -642,10 +641,10 @@ func fetchBuiltinLabels(client *kubernetes.Clientset, dynamicClient dynamic.Inte
 // paginate is a generic pagination loop for typed client lists.
 // listFn returns (labels per item, continue token, error).
 // collectFn is called for each page's labels.
-func paginate(ctx context.Context, maxPages int, listFn func(continueToken string) ([]map[string]string, string, error), collectFn func(map[string]string)) error {
+func paginate(ctx context.Context, maxPages int, listFn func(ctx context.Context, continueToken string) ([]map[string]string, string, error), collectFn func(map[string]string)) error {
 	continueToken := ""
 	for page := 0; page < maxPages; page++ {
-		lbls, cont, err := listFn(continueToken)
+		lbls, cont, err := listFn(ctx, continueToken)
 		if err != nil {
 			return err
 		}

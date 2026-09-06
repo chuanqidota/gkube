@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,28 +12,131 @@ import (
 
 	k8sclient "gkube/pkg/k8s"
 	k8sHpa "gkube/pkg/k8s/hpa"
-	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
 
-type hpa struct{}
+// ---------------------------------------------------------------------------
+// 标准 handler
+// ---------------------------------------------------------------------------
 
-var Hpa = new(hpa)
+var GetHPADetail = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sHpa.GetHPADetail(client, namespace, name)
+	},
+	"执行成功", "获取HPA详情失败",
+)
 
-// HPAListParams GET /hpa/list
-type HPAListParams struct {
-	ClusterName  string                  `form:"clusterName" binding:"required" label:"集群名称"`
-	Namespace    string                  `form:"namespace"`
-	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
+var GetHPAYaml = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		yaml, err := k8sHpa.GetHPAYaml(client, namespace, name)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]string{"yaml": yaml}, nil
+	},
+	"执行成功", "获取HPA YAML失败",
+)
+
+var GetHPAEvents = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sHpa.GetHPAEvents(client, namespace, name)
+	},
+	"执行成功", "获取HPA事件失败",
+)
+
+var PauseHPA = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return nil, k8sHpa.PauseHPA(client, namespace, name)
+	},
+	"暂停HPA成功", "暂停HPA失败",
+)
+
+var ResumeHPA = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return nil, k8sHpa.ResumeHPA(client, namespace, name)
+	},
+	"恢复HPA成功", "恢复HPA失败",
+)
+
+// ---------------------------------------------------------------------------
+// 特殊 handler
+// ---------------------------------------------------------------------------
+
+// CreateHPA 创建
+func CreateHPA(c *gin.Context) {
+	var body struct {
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace" binding:"required"`
+		Yaml        string `json:"yaml" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%s", err.Error()))
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	if err := k8sHpa.CreateHPA(client, body.Namespace, body.Yaml); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("创建HPA失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "创建HPA成功", nil)
 }
 
-// HPANamespacedNameParams GET /hpa/detail, /hpa/get-yaml, /hpa/events, /hpa/delete, /hpa/pause, /hpa/resume
-type HPANamespacedNameParams struct {
-	ClusterName string `form:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace"`
-	Name        string `form:"name" binding:"required" label:"名称"`
+// UpdateHPA 更新
+func UpdateHPA(c *gin.Context) {
+	var body struct {
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace" binding:"required"`
+		Yaml        string `json:"yaml" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%s", err.Error()))
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		return
+	}
+	if err := k8sHpa.UpdateHPA(client, body.Namespace, body.Yaml); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("更新HPA失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "更新HPA成功", nil)
 }
+
+// DeleteHPA 删除 —— 原代码用 ShouldBindQuery
+func DeleteHPA(c *gin.Context) {
+	var p NamespacedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		return
+	}
+	if err := k8sHpa.DeleteHPA(client, p.Namespace, p.Name); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("删除HPA失败:%s", err.Error()))
+		return
+	}
+	response.Success(c, "删除HPA成功", nil)
+}
+
+// ---------------------------------------------------------------------------
+// 内部类型
+// ---------------------------------------------------------------------------
 
 type nsKindName struct {
 	namespace string
@@ -46,11 +150,7 @@ type nsKind struct {
 }
 
 // buildTargetSet builds a lookup map of existing workload targets per namespace.
-// For each HPA target_kind + namespace, it batch-fetches all workloads once
-// and stores their names in a set for O(1) existence checks.
-// Returns (exists set, errored pairs) — errored pairs should not be marked as orphan.
 func buildTargetSet(client *kubernetes.Clientset, hpaList []map[string]any) (map[nsKindName]bool, map[nsKind]bool) {
-	// Collect unique (namespace, kind) pairs
 	seen := make(map[nsKind]bool)
 	for _, h := range hpaList {
 		ns, _ := h["namespace"].(string)
@@ -59,8 +159,6 @@ func buildTargetSet(client *kubernetes.Clientset, hpaList []map[string]any) (map
 			seen[nsKind{ns, kind}] = true
 		}
 	}
-
-	// Batch-fetch workloads per (namespace, kind) and build name sets
 	exists := make(map[nsKindName]bool)
 	errored := make(map[nsKind]bool)
 	for nk := range seen {
@@ -100,41 +198,36 @@ func buildTargetSet(client *kubernetes.Clientset, hpaList []map[string]any) (map
 	return exists, errored
 }
 
-func (h *hpa) GetHPAList(c *gin.Context) {
-	var query HPAListParams
-	if err := c.ShouldBind(&query); err != nil {
+// GetHPAList 列表 —— 非分页 + orphan detection
+func GetHPAList(c *gin.Context) {
+	var p ListParams
+	if err := c.ShouldBind(&p); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	// 构建 label selector
-	var selector string
-	if len(query.LabelFilters) > 0 {
-		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
-		if err != nil {
-			response.Fail(c, err.Error())
-			return
-		}
-	}
-
-	hpaList, err := k8sHpa.GetHPAList(client, query.Namespace, selector)
+	selector, err := buildLabelSelector(p.LabelFilters)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取HPA列表失败:%s", err.Error()))
+		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
 		return
 	}
-
+	hpaList, err := k8sHpa.GetHPAList(client, p.Namespace, selector)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取HPA列表失败:%s", err.Error()))
+		return
+	}
 	var result []map[string]any
 	for _, hpa := range hpaList {
 		var minReplicas int32
 		if hpa.Spec.MinReplicas != nil {
 			minReplicas = *hpa.Spec.MinReplicas
 		}
-		// Check paused status from annotations
 		paused := false
 		if hpa.Annotations != nil && hpa.Annotations["gkube.io/paused"] == "true" {
 			paused = true
@@ -156,8 +249,6 @@ func (h *hpa) GetHPAList(c *gin.Context) {
 			"paused":           paused,
 		})
 	}
-
-	// Batch-check target existence (orphan detection)
 	if len(result) > 0 {
 		targetSet, errored := buildTargetSet(client, result)
 		for _, r := range result {
@@ -166,174 +257,11 @@ func (h *hpa) GetHPAList(c *gin.Context) {
 			name, _ := r["target"].(string)
 			nk := nsKind{ns, kind}
 			if errored[nk] {
-				// API error for this (ns, kind) — don't mark as orphan
 				r["target_exists"] = true
 			} else {
 				r["target_exists"] = targetSet[nsKindName{ns, kind, name}]
 			}
 		}
 	}
-
 	response.Success(c, "执行成功", result)
-}
-
-func (h *hpa) GetHPADetail(c *gin.Context) {
-	var query HPANamespacedNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	hpa, err := k8sHpa.GetHPADetail(client, query.Namespace, query.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取HPA详情失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", hpa)
-}
-
-func (h *hpa) GetHPAYaml(c *gin.Context) {
-	var query HPANamespacedNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	yamlContent, err := k8sHpa.GetHPAYaml(client, query.Namespace, query.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取HPA YAML失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", map[string]string{"yaml": yamlContent})
-}
-
-func (h *hpa) CreateHPA(c *gin.Context) {
-	var req struct {
-		ClusterName string `json:"clusterName" binding:"required"`
-		Namespace   string `json:"namespace" binding:"required"`
-		Yaml        string `json:"yaml" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	if err := k8sHpa.CreateHPA(client, req.Namespace, req.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("创建HPA失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "创建HPA成功", nil)
-}
-
-func (h *hpa) UpdateHPA(c *gin.Context) {
-	var req struct {
-		ClusterName string `json:"clusterName" binding:"required"`
-		Namespace   string `json:"namespace" binding:"required"`
-		Yaml        string `json:"yaml" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	if err := k8sHpa.UpdateHPA(client, req.Namespace, req.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("更新HPA失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "更新HPA成功", nil)
-}
-
-func (h *hpa) DeleteHPA(c *gin.Context) {
-	var query HPANamespacedNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	if err := k8sHpa.DeleteHPA(client, query.Namespace, query.Name); err != nil {
-		response.Fail(c, fmt.Sprintf("删除HPA失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "删除HPA成功", nil)
-}
-
-func (h *hpa) GetHPAEvents(c *gin.Context) {
-	var query HPANamespacedNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	events, err := k8sHpa.GetHPAEvents(client, query.Namespace, query.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取HPA事件失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", events)
-}
-
-func (h *hpa) PauseHPA(c *gin.Context) {
-	var query HPANamespacedNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	if err := k8sHpa.PauseHPA(client, query.Namespace, query.Name); err != nil {
-		response.Fail(c, fmt.Sprintf("暂停HPA失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "暂停HPA成功", nil)
-}
-
-func (h *hpa) ResumeHPA(c *gin.Context) {
-	var query HPANamespacedNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	if err := k8sHpa.ResumeHPA(client, query.Namespace, query.Name); err != nil {
-		response.Fail(c, fmt.Sprintf("恢复HPA失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "恢复HPA成功", nil)
 }

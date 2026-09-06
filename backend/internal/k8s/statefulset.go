@@ -1,262 +1,153 @@
 package k8s
 
 import (
-	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sStatefulSet "gkube/pkg/k8s/statefulset"
-	k8sLabels "gkube/pkg/k8s/labels"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
+	"k8s.io/client-go/kubernetes"
 )
 
-type statefulSet struct {
-}
+// ---------------------------------------------------------------------------
+// 标准 handler（使用 wrapper）
+// ---------------------------------------------------------------------------
 
-var StatefulSet = new(statefulSet)
+var GetStatefulSetByName = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sStatefulSet.GetStatefulSetByName(client, namespace, name)
+	},
+	"执行成功", "获取statefulset失败",
+)
 
-// GetStatefulSetList
-//
-//	@Description: 获取statefulset列表
-//	@receiver s
-//	@param c
-func (s *statefulSet) GetStatefulSetList(c *gin.Context) {
-	var query StatefulSetQueryListParams
-	if err := c.ShouldBind(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	// 构建 label selector
-	var selector string
-	if len(query.LabelFilters) > 0 {
-		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+var GetStatefulSetYaml = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sStatefulSet.GetStatefulSetYaml(client, namespace, name)
+	},
+	"执行成功", "获取statefulset yaml失败",
+)
+
+var CreateStatefulSet = CreateHandler(
+	func(client *kubernetes.Clientset, namespace, yaml string) error {
+		return k8sStatefulSet.CreateStatefulSet(client, namespace, yaml)
+	},
+	"执行成功", "创建statefulset失败",
+)
+
+var UpdateStatefulSet = UpdateHandler(
+	func(client *kubernetes.Clientset, namespace, name, yaml string) error {
+		return k8sStatefulSet.UpdateStatefulSet(client, namespace, name, yaml)
+	},
+	"执行成功", "更新statefulset失败",
+)
+
+var DeleteStatefulSetByName = DeleteHandler(
+	func(client *kubernetes.Clientset, namespace, name string) error {
+		return k8sStatefulSet.DeleteStatefulSetByName(client, namespace, name)
+	},
+	"执行成功", "删除statefulset失败",
+)
+
+var GetStatefulSetEvents = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		events, err := k8sStatefulSet.GetStatefulSetEvents(client, namespace, name)
 		if err != nil {
-			response.Fail(c, err.Error())
-			return
+			return nil, err
 		}
-	}
+		var result []map[string]any
+		for _, event := range events {
+			result = append(result, map[string]any{
+				"type":      event.Type,
+				"reason":    event.Reason,
+				"message":   event.Message,
+				"last_seen": event.LastTimestamp,
+			})
+		}
+		return result, nil
+	},
+	"执行成功", "获取statefulset事件失败",
+)
 
-	limit := query.Limit
-	continueToken := query.Continue
-	if limit > 0 {
-		ssList, err := k8sStatefulSet.ListStatefulSets(client, query.Namespace, limit, continueToken, selector)
+var StatefulSetPodList = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sStatefulSet.StatefulSetPodList(client, namespace, name)
+	},
+	"执行成功", "获取statefulset pod列表失败",
+)
+
+var GetStatefulSetRollbacks = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sStatefulSet.GetStatefulSetRollbacks(client, namespace, name)
+	},
+	"执行成功", "获取回滚列表失败",
+)
+
+var GetStatefulSetPVCs = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sStatefulSet.GetStatefulSetPVs(client, namespace, name)
+	},
+	"执行成功", "获取PVC列表失败",
+)
+
+// ---------------------------------------------------------------------------
+// 特殊 handler
+// ---------------------------------------------------------------------------
+
+// GetStatefulSetList 列表 —— 有 limit>0 分支 + 始终 augment
+func GetStatefulSetList(c *gin.Context) {
+	var p ListParams
+	if err := c.ShouldBind(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		return
+	}
+	selector, err := buildLabelSelector(p.LabelFilters)
+	if err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		return
+	}
+	if p.Limit > 0 {
+		ssList, err := k8sStatefulSet.ListStatefulSets(client, p.Namespace, p.Limit, p.Continue, selector)
 		if err != nil {
-			response.Fail(c, fmt.Sprintf("获取statefulset列表失败:%v", err.Error()))
+			logger.Error(err.Error())
+			response.FailWithStatus(c, http.StatusBadGateway, "获取statefulset列表失败")
 			return
 		}
 		remaining := int64(0)
 		if ssList.RemainingItemCount != nil {
 			remaining = *ssList.RemainingItemCount
 		}
-		data := k8sclient.BuildPaginatedData(ssList.Items, ssList.Continue, remaining, limit)
-		// Total = 当前页条数 + 剩余条数,接近集群内真实总数
+		data := k8sclient.BuildPaginatedData(ssList.Items, ssList.Continue, remaining, p.Limit)
 		data.Total = len(ssList.Items) + int(remaining)
 		response.Success(c, "执行成功", data)
 	} else {
-		statefulSets, err := k8sStatefulSet.GetStatefulSetList(client, query.Namespace, selector)
+		statefulSets, err := k8sStatefulSet.GetStatefulSetList(client, p.Namespace, selector)
 		if err != nil {
-			response.Fail(c, fmt.Sprintf("获取statefulset列表失败:%v", err.Error()))
+			logger.Error(err.Error())
+			response.FailWithStatus(c, http.StatusBadGateway, "获取statefulset列表失败")
 			return
 		}
 		response.Success(c, "执行成功", statefulSets)
 	}
 }
 
-// GetStatefulSetByName
-//
-//	@Description: 获取statefulset根据名称
-//	@receiver s
-//	@param c
-func (s *statefulSet) GetStatefulSetByName(c *gin.Context) {
-	var query StatefulSetQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
+// ScaleStatefulSet 扩缩容 —— Replicas 为 int32，返回 (bool, error)
+func ScaleStatefulSet(c *gin.Context) {
+	var body struct {
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace" binding:"required"`
+		Name        string `json:"name" binding:"required"`
+		Replicas    *int32 `json:"replicas" binding:"required"`
 	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	statefulSet, err := k8sStatefulSet.GetStatefulSetByName(client, query.Namespace, query.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取statefulset失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", statefulSet)
-}
-
-// GetStatefulSetYaml
-//
-//	@Description: 获取statefulset的yaml
-//	@receiver s
-//	@param c
-func (s *statefulSet) GetStatefulSetYaml(c *gin.Context) {
-	var query StatefulSetQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	statefulSetYaml, err := k8sStatefulSet.GetStatefulSetYaml(client, query.Namespace, query.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取statefulset yaml失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", statefulSetYaml)
-}
-
-// CreateStatefulSet
-//
-//	@Description: 创建statefulset
-//	@receiver s
-//	@param c
-func (s *statefulSet) CreateStatefulSet(c *gin.Context) {
-	var body StatefulSetCreateParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-
-	err = k8sStatefulSet.CreateStatefulSet(client, body.Namespace, body.Yaml)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("创建statefulset失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// UpdateStatefulSet
-//
-//	@Description: 更新statefulset
-//	@receiver s
-//	@param c
-func (s *statefulSet) UpdateStatefulSet(c *gin.Context) {
-	var body StatefulSetUpdateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	err = k8sStatefulSet.UpdateStatefulSet(client, body.Namespace, body.Name, body.Yaml)
-
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("更新statefulset失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-
-}
-
-// DeleteStatefulSetByName
-//
-//	@Description: 删除statefulset根据名称
-//	@receiver s
-//	@param c
-func (s *statefulSet) DeleteStatefulSetByName(c *gin.Context) {
-	var body StatefulSetDeleteByNameParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-
-	err = k8sStatefulSet.DeleteStatefulSetByName(client, body.Namespace, body.Name)
-
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("删除statefulset失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// GetStatefulSetEvents
-//
-//	@Description: 获取statefulset事件
-//	@receiver s
-//	@param c
-func (s *statefulSet) GetStatefulSetEvents(c *gin.Context) {
-	var query StatefulSetQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	events, err := k8sStatefulSet.GetStatefulSetEvents(client, query.Namespace, query.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取statefulset事件失败:%v", err.Error()))
-		return
-	}
-	var result []map[string]any
-	for _, event := range events {
-		result = append(result, map[string]any{
-			"type":      event.Type,
-			"reason":    event.Reason,
-			"message":   event.Message,
-			"last_seen": event.LastTimestamp,
-		})
-	}
-	response.Success(c, "执行成功", result)
-}
-
-// StatefulSetPodList
-//
-//	@Description: 获取statefulset关联的pod列表
-//	@receiver s
-//	@param c
-func (s *statefulSet) StatefulSetPodList(c *gin.Context) {
-	var query StatefulSetQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	podList, err := k8sStatefulSet.StatefulSetPodList(client, query.Namespace, query.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取statefulset pod列表失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", podList)
-}
-
-// ScaleStatefulSet
-//
-//	@Description: 扩缩容statefulset
-//	@receiver s
-//	@param c
-func (s *statefulSet) ScaleStatefulSet(c *gin.Context) {
-	var body StatefulSetScaleParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 	if body.Replicas == nil {
@@ -265,196 +156,112 @@ func (s *statefulSet) ScaleStatefulSet(c *gin.Context) {
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
 	ok, err := k8sStatefulSet.ScaleStatefulSet(client, body.Namespace, body.Name, *body.Replicas)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("扩缩容statefulset失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "扩缩容statefulset失败")
 		return
 	}
 	if !ok {
-		response.Fail(c, "扩缩容statefulset失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "扩缩容statefulset失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
 }
 
-// RestartStatefulSet
-//
-//	@Description: 重启statefulset
-//	@receiver s
-//	@param c
-func (s *statefulSet) RestartStatefulSet(c *gin.Context) {
-	var body StatefulSetRestartParams
+// RestartStatefulSet 重启 —— 返回 (bool, error)
+func RestartStatefulSet(c *gin.Context) {
+	var body struct {
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace"`
+		Name        string `json:"name" binding:"required"`
+	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.Fail(c, "参数校验失败")
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
 	ok, err := k8sStatefulSet.RestartStatefulSet(client, body.Namespace, body.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("重启statefulset失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "重启statefulset失败")
 		return
 	}
 	if !ok {
-		response.Fail(c, "重启statefulset失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "重启statefulset失败")
 		return
 	}
 	response.Success(c, "执行成功", nil)
 }
 
-func (s *statefulSet) RollbackStatefulSet(c *gin.Context) {
-	var req struct {
-		ClusterName string `json:"clusterName"`
+// RollbackStatefulSet 回滚 —— Revision 字段
+func RollbackStatefulSet(c *gin.Context) {
+	var body struct {
+		ClusterName string `json:"clusterName" binding:"required"`
 		Namespace   string `json:"namespace"`
-		Name        string `json:"name"`
+		Name        string `json:"name" binding:"required"`
 		Revision    int64  `json:"revision"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-	if req.Name == "" {
+	if body.Name == "" {
 		response.Fail(c, "name参数不能为空")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	result, err := k8sStatefulSet.RollbackStatefulSet(client, req.Namespace, req.Name, req.Revision)
+	result, err := k8sStatefulSet.RollbackStatefulSet(client, body.Namespace, body.Name, body.Revision)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("回滚StatefulSet失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "回滚StatefulSet失败")
 		return
 	}
 	response.Success(c, "回滚成功", result)
 }
 
-func (s *statefulSet) UpdateStatefulSetImage(c *gin.Context) {
-	var req struct {
-		ClusterName   string `json:"clusterName"`
+// UpdateStatefulSetImage 更新容器镜像 —— ContainerName + Image
+func UpdateStatefulSetImage(c *gin.Context) {
+	var body struct {
+		ClusterName   string `json:"clusterName" binding:"required"`
 		Namespace     string `json:"namespace"`
-		Name          string `json:"name"`
-		ContainerName string `json:"containerName"`
-		Image         string `json:"image"`
+		Name          string `json:"name" binding:"required"`
+		ContainerName string `json:"containerName" binding:"required"`
+		Image         string `json:"image" binding:"required"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Fail(c, "参数校验失败")
 		return
 	}
-	if req.Name == "" || req.ContainerName == "" || req.Image == "" {
+	if body.Name == "" || body.ContainerName == "" || body.Image == "" {
 		response.Fail(c, "name, containerName, image参数不能为空")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	result, err := k8sStatefulSet.UpdateStatefulSetImage(client, req.Namespace, req.Name, req.ContainerName, req.Image)
+	result, err := k8sStatefulSet.UpdateStatefulSetImage(client, body.Namespace, body.Name, body.ContainerName, body.Image)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("更新StatefulSet镜像失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "更新StatefulSet镜像失败")
 		return
 	}
 	response.Success(c, "更新镜像成功", result)
-}
-
-// GetStatefulSetRollbacks
-//
-//	@Description: 获取statefulset可回滚的revision列表
-//	@receiver s
-//	@param c
-func (s *statefulSet) GetStatefulSetRollbacks(c *gin.Context) {
-	var query StatefulSetQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	rollbacks, err := k8sStatefulSet.GetStatefulSetRollbacks(client, query.Namespace, query.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取回滚列表失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", rollbacks)
-}
-
-// GetStatefulSetPVCs
-//
-//	@Description: 获取statefulset关联的PVC列表
-//	@receiver s
-//	@param c
-func (s *statefulSet) GetStatefulSetPVCs(c *gin.Context) {
-	var query StatefulSetQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	pvcList, err := k8sStatefulSet.GetStatefulSetPVs(client, query.Namespace, query.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取PVC列表失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", pvcList)
-}
-
-type StatefulSetQueryListParams struct {
-	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace    string                  `form:"namespace" json:"namespace" label:"命名空间"`
-	Limit        int64                   `form:"limit" json:"limit" label:"每页条数"`
-	Continue     string                  `form:"continue" json:"continue" label:"分页标记"`
-	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
-}
-
-type StatefulSetQueryByNameParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-}
-
-type StatefulSetCreateParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
-}
-
-type StatefulSetUpdateParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
-}
-
-type StatefulSetDeleteByNameParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-}
-
-type StatefulSetScaleParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" binding:"required" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-	Replicas    *int32 `form:"replicas" json:"replicas" binding:"required" label:"副本数"`
-}
-
-type StatefulSetRestartParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
 }

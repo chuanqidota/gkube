@@ -1,6 +1,9 @@
 package k8s
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 
 	k8sclient "gkube/pkg/k8s"
@@ -50,10 +53,10 @@ func (l *labelHandler) GetLabels(c *gin.Context) {
 		return
 	}
 
-	labelData, err := k8sLabels.GetAvailableLabels(client, dynamicClient, aeClient, query.ClusterName, query.Namespace, query.ResourceType)
+	labelData, err := k8sLabels.GetAvailableLabels(c.Request.Context(), client, dynamicClient, aeClient, query.ClusterName, query.Namespace, query.ResourceType)
 	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取标签失败: "+err.Error())
+		logger.Error(fmt.Sprintf("获取标签失败 [cluster=%s, resource=%s]: %s", query.ClusterName, query.ResourceType, err.Error()))
+		response.FailWithStatus(c, http.StatusBadGateway, "获取标签失败")
 		return
 	}
 

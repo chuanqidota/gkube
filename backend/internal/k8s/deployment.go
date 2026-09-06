@@ -6,226 +6,115 @@ import (
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sDeployment "gkube/pkg/k8s/deployment"
-	k8sLabels "gkube/pkg/k8s/labels"
 	"gkube/pkg/logger"
 	"gkube/pkg/response"
+	"k8s.io/client-go/kubernetes"
 )
 
-type deployment struct {
-}
+// ---------------------------------------------------------------------------
+// 标准 handler（使用 wrapper）
+// ---------------------------------------------------------------------------
 
-var Deployment = new(deployment)
-
-// GetDeploymentList
-//
-//	@Description: 获取deployment列表（支持分页）
-//	@param c
-func (dp *deployment) GetDeploymentList(c *gin.Context) {
-	var query DeploymentListParams
-	if err := c.ShouldBind(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-
-	// 构建 label selector
-	var selector string
-	if len(query.LabelFilters) > 0 {
-		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
+var GetDeploymentList = ListHandler(
+	func(client *kubernetes.Clientset, namespace, selector string, limit int64, continueToken string) (any, error) {
+		list, err := k8sDeployment.ListDeployments(client, namespace, limit, continueToken, selector)
 		if err != nil {
-			response.Fail(c, err.Error())
-			return
+			return nil, err
 		}
-	}
+		remaining := int64(0)
+		if list.RemainingItemCount != nil {
+			remaining = *list.RemainingItemCount
+		}
+		data := k8sclient.BuildPaginatedData(list.Items, list.Continue, remaining, limit)
+		data.Total = len(list.Items) + int(remaining)
+		return data, nil
+	},
+	"获取deployment列表成功", "获取deployment列表失败",
+)
 
-	limit := query.Limit
-	continueToken := query.Continue
-	deploymentList, err := k8sDeployment.ListDeployments(client, query.Namespace, limit, continueToken, selector)
-	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取deployment列表失败")
-		return
-	}
-	remaining := int64(0)
-	if deploymentList.RemainingItemCount != nil {
-		remaining = *deploymentList.RemainingItemCount
-	}
-	data := k8sclient.BuildPaginatedData(deploymentList.Items, deploymentList.Continue, remaining, limit)
-	// Total = 当前页条数 + 剩余条数,接近集群内真实总数
-	data.Total = len(deploymentList.Items) + int(remaining)
-	response.Success(c, "获取deployment列表成功", data)
-}
+var GetDeploymentDetail = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sDeployment.GetDeploymentDetail(client, namespace, name)
+	},
+	"获取deployment详情成功", "获取deployment详情失败",
+)
 
-// GetDeploymentDetail
-//
-//	@Description: 获取deployment详情
-//	@receiver dp
-//	@param c
-func (dp *deployment) GetDeploymentDetail(c *gin.Context) {
-	var query DeploymentNamespacedParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	deploymentDetail, err := k8sDeployment.GetDeploymentDetail(client, query.Namespace, query.Name)
-	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取deployment详情失败")
-		return
-	}
-	response.Success(c, "获取deployment详情成功", deploymentDetail)
-}
+var GetDeploymentYaml = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		yaml, err := k8sDeployment.GetDeploymentYaml(client, namespace, name)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]string{"yaml": yaml}, nil
+	},
+	"获取deployment yaml成功", "获取deployment yaml失败",
+)
 
-// GetDeploymentYaml
-//
-//	@Description: 获取deployment yaml
-//	@receiver dp
-//	@param c
-func (dp *deployment) GetDeploymentYaml(c *gin.Context) {
-	var query DeploymentNamespacedParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	yamlContent, err := k8sDeployment.GetDeploymentYaml(client, query.Namespace, query.Name)
-	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取deployment yaml失败")
-		return
-	}
-	response.Success(c, "获取deployment yaml成功", map[string]string{"yaml": yamlContent})
-}
+var CreateDeployment = CreateHandler(
+	func(client *kubernetes.Clientset, namespace, yaml string) error {
+		return k8sDeployment.CreateDeployment(client, namespace, yaml)
+	},
+	"创建成功", "创建deployment失败",
+)
 
-// RollbackDeployment
-//
-//	@Description: 回滚deployment
-//	@receiver dp
-//	@param c
-func (dp *deployment) RollbackDeployment(c *gin.Context) {
-	var body DeploymentRollbackParams
+var UpdateDeployment = UpdateHandler(
+	func(client *kubernetes.Clientset, namespace, name, yaml string) error {
+		return k8sDeployment.UpdateDeployment(client, namespace, name, yaml)
+	},
+	"更新成功", "更新deployment失败",
+)
+
+var DeleteDeployment = DeleteHandler(
+	func(client *kubernetes.Clientset, namespace, name string) error {
+		return k8sDeployment.DeleteDeployment(client, namespace, name)
+	},
+	"删除成功", "删除deployment失败",
+)
+
+var RestartDeployment = DeleteHandler(
+	func(client *kubernetes.Clientset, namespace, name string) error {
+		return k8sDeployment.RestartDeployment(client, namespace, name)
+	},
+	"重启成功", "重启deployment失败",
+)
+
+var GetDeploymentEvents = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sDeployment.GetDeploymentEvents(client, namespace, name)
+	},
+	"获取deployment事件成功", "获取deployment事件失败",
+)
+
+var DeploymentPodList = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sDeployment.GetDeploymentPods(client, namespace, name)
+	},
+	"获取deployment pod列表成功", "获取deployment pod列表失败",
+)
+
+var GetDeploymentReplicaSets = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sDeployment.GetDeploymentReplicaSets(client, namespace, name)
+	},
+	"获取ReplicaSet列表成功", "获取ReplicaSet列表失败",
+)
+
+// ---------------------------------------------------------------------------
+// 特殊 handler（参数结构超出标准 wrapper 覆盖范围）
+// ---------------------------------------------------------------------------
+
+// ScaleDeployment 扩缩容 —— Replicas 为 *int32，需要 nil 检查防误缩到 0
+func ScaleDeployment(c *gin.Context) {
+	var body struct {
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace"`
+		Name        string `json:"name" binding:"required"`
+		Replicas    *int32 `json:"replicas" binding:"required"`
+	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	if err := k8sDeployment.RollbackDeployment(client, body.Namespace, body.Name, body.Revision); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "回滚deployment失败")
-		return
-	}
-	response.Success(c, "回滚成功", nil)
-}
-
-// CreateDeployment
-//
-//	@Description: 创建deployment
-//	@receiver dp
-//	@param c
-func (dp *deployment) CreateDeployment(c *gin.Context) {
-	var body DeploymentCreateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-
-	if err := k8sDeployment.CreateDeployment(client, body.Namespace, body.Yaml); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "创建deployment失败")
-		return
-	}
-	response.Success(c, "创建成功", nil)
-}
-
-// UpdateDeployment
-//
-//	@Description: 更新deployment
-//	@receiver dp
-//	@param c
-func (dp *deployment) UpdateDeployment(c *gin.Context) {
-	var body DeploymentUpdateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	if err := k8sDeployment.UpdateDeployment(client, body.Namespace, body.Name, body.Yaml); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "更新deployment失败")
-		return
-	}
-	response.Success(c, "更新成功", nil)
-}
-
-// DeleteDeployment
-//
-//	@Description: 删除deployment
-//	@receiver dp
-//	@param c
-func (dp *deployment) DeleteDeployment(c *gin.Context) {
-	var body DeploymentNamespacedParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	if err := k8sDeployment.DeleteDeployment(client, body.Namespace, body.Name); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "删除deployment失败")
-		return
-	}
-	response.Success(c, "删除成功", nil)
-}
-
-// ScaleDeployment
-//
-//	@Description: 扩所容deployment
-//	@receiver dp
-//	@param c
-func (dp *deployment) ScaleDeployment(c *gin.Context) {
-	var body DeploymentScaleParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	// Replicas 为 *int32 且 required,防止漏传/字段名错误时零值缩容到 0
 	if body.Replicas == nil {
 		response.Fail(c, "副本数不能为空")
 		return
@@ -233,7 +122,7 @@ func (dp *deployment) ScaleDeployment(c *gin.Context) {
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
 	if err := k8sDeployment.ScaleDeployment(client, body.Namespace, body.Name, body.Replicas); err != nil {
@@ -244,13 +133,14 @@ func (dp *deployment) ScaleDeployment(c *gin.Context) {
 	response.Success(c, "扩缩容成功", nil)
 }
 
-// RestartDeployment
-//
-//	@Description: 重启deployment
-//	@receiver dp
-//	@param c
-func (dp *deployment) RestartDeployment(c *gin.Context) {
-	var body DeploymentRestartParams
+// RollbackDeployment 回滚 —— 额外需要 Revision 字段
+func RollbackDeployment(c *gin.Context) {
+	var body struct {
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace"`
+		Name        string `json:"name" binding:"required"`
+		Revision    int64  `json:"revision"`
+	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
@@ -258,24 +148,26 @@ func (dp *deployment) RestartDeployment(c *gin.Context) {
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	if err := k8sDeployment.RestartDeployment(client, body.Namespace, body.Name); err != nil {
+	if err := k8sDeployment.RollbackDeployment(client, body.Namespace, body.Name, body.Revision); err != nil {
 		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "重启deployment失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "回滚deployment失败")
 		return
 	}
-	response.Success(c, "重启成功", nil)
+	response.Success(c, "回滚成功", nil)
 }
 
-// UpdateDeploymentImage
-//
-//	@Description: 更新deployment容器镜像
-//	@receiver dp
-//	@param c
-func (dp *deployment) UpdateDeploymentImage(c *gin.Context) {
-	var body DeploymentImageUpdateParams
+// UpdateDeploymentImage 更新容器镜像 —— 额外需要 ContainerName + Image
+func UpdateDeploymentImage(c *gin.Context) {
+	var body struct {
+		ClusterName   string `json:"clusterName" binding:"required"`
+		Namespace     string `json:"namespace"`
+		Name          string `json:"name" binding:"required"`
+		ContainerName string `json:"containerName" binding:"required"`
+		Image         string `json:"image" binding:"required"`
+	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
@@ -283,7 +175,7 @@ func (dp *deployment) UpdateDeploymentImage(c *gin.Context) {
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
 	if err := k8sDeployment.UpdateDeploymentImage(client, body.Namespace, body.Name, body.ContainerName, body.Image); err != nil {
@@ -292,152 +184,4 @@ func (dp *deployment) UpdateDeploymentImage(c *gin.Context) {
 		return
 	}
 	response.Success(c, "更新镜像成功", nil)
-}
-
-// DeploymentPodList
-//
-//	@Description: 获取deployment pod列表
-//	@receiver dp
-//	@param c
-func (dp *deployment) DeploymentPodList(c *gin.Context) {
-	var query DeploymentPodParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	podList, err := k8sDeployment.GetDeploymentPods(client, query.Namespace, query.Name)
-	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取deployment pod列表失败")
-		return
-	}
-	response.Success(c, "获取deployment pod列表成功", podList)
-}
-
-// GetDeploymentReplicaSets
-//
-//	@Description: 获取Deployment关联的ReplicaSet列表
-//	@receiver dp
-//	@param c
-func (dp *deployment) GetDeploymentReplicaSets(c *gin.Context) {
-	var query DeploymentReplicaSetParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	rsList, err := k8sDeployment.GetDeploymentReplicaSets(client, query.Namespace, query.Name)
-	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取ReplicaSet列表失败")
-		return
-	}
-	response.Success(c, "获取ReplicaSet列表成功", rsList)
-}
-
-// GetDeploymentEvents
-//
-//	@Description: 获取deployment事件
-//	@receiver dp
-//	@param c
-func (dp *deployment) GetDeploymentEvents(c *gin.Context) {
-	var query DeploymentNamespacedParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
-		return
-	}
-	result, err := k8sDeployment.GetDeploymentEvents(client, query.Namespace, query.Name)
-	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取deployment事件失败")
-		return
-	}
-	response.Success(c, "获取deployment事件成功", result)
-}
-
-type DeploymentListParams struct {
-	ClusterName   string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace     string                  `form:"namespace" json:"namespace" label:"命名空间"`
-	Limit         int64                   `form:"limit" json:"limit" label:"每页条数"`
-	Continue      string                  `form:"continue" json:"continue" label:"分页标记"`
-	LabelFilters  []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
-}
-
-type DeploymentCreateParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Yaml        string `form:"yaml" json:"yaml" binding:"required" label:"yaml"`
-}
-
-type DeploymentUpdateParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-	Yaml        string `form:"yaml" json:"yaml" binding:"required" label:"yaml"`
-}
-
-// DeploymentNamespacedParams 按 命名空间+名称 定位 Deployment，供 detail/yaml/events/delete 等多个 handler 复用
-type DeploymentNamespacedParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-}
-
-type DeploymentScaleParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-	Replicas    *int32 `form:"replicas" json:"replicas" binding:"required" label:"副本数"`
-}
-
-type DeploymentRestartParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-}
-
-type DeploymentPodParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-}
-
-type DeploymentRollbackParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-	Revision    int64  `form:"revision" json:"revision" label:"回滚版本"`
-}
-
-// DeploymentReplicaSetParams 获取 Deployment 关联的 ReplicaSet 列表
-type DeploymentReplicaSetParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name        string `form:"name" json:"name" binding:"required" label:"Deployment名称"`
-}
-
-// DeploymentImageUpdateParams 更新 Deployment 容器镜像
-type DeploymentImageUpdateParams struct {
-	ClusterName   string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace     string `form:"namespace" json:"namespace" label:"命名空间"`
-	Name          string `form:"name" json:"name" binding:"required" label:"Deployment名称"`
-	ContainerName string `form:"containerName" json:"containerName" binding:"required" label:"容器名称"`
-	Image         string `form:"image" json:"image" binding:"required" label:"镜像"`
 }

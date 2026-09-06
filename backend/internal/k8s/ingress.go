@@ -5,198 +5,129 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sIngress "gkube/pkg/k8s/ingress"
-	k8sLabels "gkube/pkg/k8s/labels"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/kubernetes"
 )
 
-type ingress struct {
-}
+// ---------------------------------------------------------------------------
+// 标准 handler
+// ---------------------------------------------------------------------------
 
-var Ingress = new(ingress)
+var GetIngressByName = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sIngress.GetIngressByName(client, namespace, name)
+	},
+	"执行成功", "查询ingress失败",
+)
 
-// GetIngressList
-//
-//	@Description: 获取ingress
-//	@receiver i
-//	@param c
-func (i *ingress) GetIngressList(c *gin.Context) {
-	var query IngressQueryListParams
-	if err := c.ShouldBind(&query); err != nil {
-		response.Fail(c, err.Error())
+var GetIngressYaml = NamespacedHandler(
+	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sIngress.GetIngressYaml(client, namespace, name)
+	},
+	"执行成功", "获取ingress失败",
+)
+
+var CreateIngress = CreateHandler(
+	func(client *kubernetes.Clientset, namespace, yaml string) error {
+		return k8sIngress.CreateIngress(client, namespace, yaml)
+	},
+	"执行成功", "创建ingress失败",
+)
+
+var DeleteIngressByName = DeleteHandler(
+	func(client *kubernetes.Clientset, namespace, name string) error {
+		return k8sIngress.DeleteIngressByName(client, namespace, name)
+	},
+	"执行成功", "删除ingress失败",
+)
+
+// ---------------------------------------------------------------------------
+// 特殊 handler
+// ---------------------------------------------------------------------------
+
+// GetIngressList 列表 —— 非分页
+func GetIngressList(c *gin.Context) {
+	var p ListParams
+	if err := c.ShouldBind(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, err.Error())
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
 		return
 	}
-	// 构建 label selector
-	var selector string
-	if len(query.LabelFilters) > 0 {
-		selector, err = k8sLabels.BuildLabelSelector(query.LabelFilters)
-		if err != nil {
-			response.Fail(c, err.Error())
-			return
-		}
-	}
-	ingressList, err := k8sIngress.GetIngressList(client, query.Namespace, selector)
+	selector, err := buildLabelSelector(p.LabelFilters)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("查询ingress失败:%v", err.Error()))
+		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		return
+	}
+	ingressList, err := k8sIngress.GetIngressList(client, p.Namespace, selector)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("查询ingress失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", ingressList)
 }
 
-// GetIngressByName
-//
-//	@Description: 获取ingress根据名称
-//	@receiver i
-//	@param c
-func (i *ingress) GetIngressByName(c *gin.Context) {
-	var query IngressQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, err.Error())
-		return
+// UpdateIngress 更新 —— pkg 函数只传 namespace+yaml（无 name）
+func UpdateIngress(c *gin.Context) {
+	var body struct {
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace"`
+		Yaml        string `json:"yaml" binding:"required"`
 	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		response.Fail(c, err.Error())
-		return
-	}
-	ingress, err := k8sIngress.GetIngressByName(client, query.Namespace, query.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("查询ingress失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", ingress)
-}
-
-// GetIngressYaml
-//
-//	@Description: 获取ingress的yaml
-//	@receiver i
-//	@param c
-func (i *ingress) GetIngressYaml(c *gin.Context) {
-	var query IngressQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	ingressYaml, err := k8sIngress.GetIngressYaml(client, query.Namespace, query.Name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取ingress失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", ingressYaml)
-}
-
-// CreateIngress
-//
-//	@Description: 创建ingress
-//	@receiver i
-//	@param c
-func (i *ingress) CreateIngress(c *gin.Context) {
-	var body IngressCreateParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
-		return
-	}
-	if err := k8sIngress.CreateIngress(client, body.Namespace, body.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("创建ingress失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// UpdateIngress
-//
-//	@Description: 更新ingress
-//	@receiver i
-//	@param c
-func (i *ingress) UpdateIngress(c *gin.Context) {
-	var body IngressUpdateParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
 		return
 	}
 	if err := k8sIngress.UpdateIngress(client, body.Namespace, body.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("更新ingress失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("更新ingress失败:%v", err.Error()))
 		return
 	}
 	response.Success(c, "执行成功", nil)
 }
 
-// DeleteIngressByName
-//
-//	@Description: 删除ingress根据名称
-//	@receiver i
-//	@param c
-func (i *ingress) DeleteIngressByName(c *gin.Context) {
-	var body IngressDeleteByNameParams
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// GetIngressEvents 事件 —— 内联 K8s 调用
+func GetIngressEvents(c *gin.Context) {
+	var p NamespacedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-
-	if err := k8sIngress.DeleteIngressByName(client, body.Namespace, body.Name); err != nil {
-		response.Fail(c, fmt.Sprintf("删除ingress失败:%v", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
-// GetIngressEvents
-//
-//	@Description: 获取ingress事件
-//	@receiver i
-//	@param c
-func (i *ingress) GetIngressEvents(c *gin.Context) {
-	var query IngressQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	events, err := client.CoreV1().Events(query.Namespace).List(context.TODO(), metav1.ListOptions{
+	events, err := client.CoreV1().Events(p.Namespace).List(context.TODO(), metav1.ListOptions{
 		FieldSelector: fields.AndSelectors(
-			fields.OneTermEqualSelector("involvedObject.name", query.Name),
+			fields.OneTermEqualSelector("involvedObject.name", p.Name),
 			fields.OneTermEqualSelector("involvedObject.kind", "Ingress"),
 		).String(),
 	})
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取ingress事件失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取ingress事件失败:%s", err.Error()))
 		return
 	}
 	var result []map[string]any
@@ -215,31 +146,27 @@ func (i *ingress) GetIngressEvents(c *gin.Context) {
 	response.Success(c, "执行成功", result)
 }
 
-// CheckIngressTLSCertStatus
-//
-//	@Description: 检查 Ingress TLS 证书状态
-//	@receiver i
-//	@param c
-func (i *ingress) CheckIngressTLSCertStatus(c *gin.Context) {
-	var query IngressQueryByNameParams
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%v", err.Error()))
+// CheckIngressTLSCertStatus 检查 TLS 证书状态 —— 复杂内联逻辑
+func CheckIngressTLSCertStatus(c *gin.Context) {
+	var p NamespacedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	ing, err := k8sIngress.GetIngressByName(client, query.Namespace, query.Name)
+	ing, err := k8sIngress.GetIngressByName(client, p.Namespace, p.Name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("查询ingress失败:%v", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("查询ingress失败:%v", err.Error()))
 		return
 	}
-
 	var results []map[string]any
 	secretCache := make(map[string]map[string][]byte)
-
 	for _, tls := range ing.Spec.TLS {
 		entry := map[string]any{
 			"hosts":      tls.Hosts,
@@ -251,11 +178,9 @@ func (i *ingress) CheckIngressTLSCertStatus(c *gin.Context) {
 			results = append(results, entry)
 			continue
 		}
-
-		// Use cached secret data if already fetched (wildcard cert shared across TLS entries)
 		secretData, cached := secretCache[tls.SecretName]
 		if !cached {
-			secret, err := client.CoreV1().Secrets(query.Namespace).Get(context.TODO(), tls.SecretName, metav1.GetOptions{})
+			secret, err := client.CoreV1().Secrets(p.Namespace).Get(context.TODO(), tls.SecretName, metav1.GetOptions{})
 			if err != nil {
 				entry["status"] = "error"
 				entry["message"] = fmt.Sprintf("Secret %s 不存在或无法访问", tls.SecretName)
@@ -265,7 +190,6 @@ func (i *ingress) CheckIngressTLSCertStatus(c *gin.Context) {
 			secretData = secret.Data
 			secretCache[tls.SecretName] = secretData
 		}
-
 		certPEM, ok := secretData["tls.crt"]
 		if !ok {
 			entry["status"] = "error"
@@ -273,8 +197,6 @@ func (i *ingress) CheckIngressTLSCertStatus(c *gin.Context) {
 			results = append(results, entry)
 			continue
 		}
-
-		// pem.Decode returns the first PEM block; for a cert chain we only need the leaf cert
 		block, _ := pem.Decode(certPEM)
 		if block == nil {
 			entry["status"] = "error"
@@ -282,7 +204,6 @@ func (i *ingress) CheckIngressTLSCertStatus(c *gin.Context) {
 			results = append(results, entry)
 			continue
 		}
-
 		certs, err := x509.ParseCertificates(block.Bytes)
 		if err != nil {
 			entry["status"] = "error"
@@ -290,19 +211,16 @@ func (i *ingress) CheckIngressTLSCertStatus(c *gin.Context) {
 			results = append(results, entry)
 			continue
 		}
-
 		if len(certs) == 0 {
 			entry["status"] = "error"
 			entry["message"] = "证书链为空"
 			results = append(results, entry)
 			continue
 		}
-
 		entry["notBefore"] = certs[0].NotBefore.Format(time.RFC3339)
 		entry["notAfter"] = certs[0].NotAfter.Format(time.RFC3339)
 		entry["issuer"] = certs[0].Issuer.CommonName
 		entry["subject"] = certs[0].Subject.CommonName
-
 		now := time.Now()
 		if now.After(certs[0].NotAfter) {
 			entry["status"] = "expired"
@@ -321,38 +239,8 @@ func (i *ingress) CheckIngressTLSCertStatus(c *gin.Context) {
 	response.Success(c, "执行成功", results)
 }
 
-type IngressQueryListParams struct {
-	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace    string                  `form:"namespace" json:"namespace" label:"命名空间"`
-	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
-}
-
-type IngressQueryByNameParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-}
-
-type IngressCreateParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
-}
-
-type IngressUpdateParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-	Yaml        string `form:"yaml" json:"yaml" label:"Yaml"`
-}
-
-type IngressDeleteByNameParams struct {
-	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
-	Name        string `form:"name" json:"name" binding:"required" label:"名称"`
-	Namespace   string `form:"namespace" json:"namespace" label:"命名空间"`
-}
-
 // GetIngressClassList 返回集群中所有 IngressClass 名称
-func (i *ingress) GetIngressClassList(c *gin.Context) {
+func GetIngressClassList(c *gin.Context) {
 	var query struct {
 		ClusterName string `form:"clusterName" binding:"required"`
 	}
@@ -362,12 +250,14 @@ func (i *ingress) GetIngressClassList(c *gin.Context) {
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, "获取k8s客户端失败")
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
 	names, err := k8sIngress.ListIngressClasses(client)
 	if err != nil {
-		response.Fail(c, err.Error())
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
 		return
 	}
 	response.Success(c, "执行成功", names)

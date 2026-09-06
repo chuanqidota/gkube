@@ -1,181 +1,188 @@
 package k8s
 
 import (
-	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	k8sclient "gkube/pkg/k8s"
 	k8sLr "gkube/pkg/k8s/limitrange"
-	k8sLabels "gkube/pkg/k8s/labels"
+	"gkube/pkg/logger"
 	"gkube/pkg/response"
+	"k8s.io/client-go/kubernetes"
 )
 
-type limitRange struct{}
+// ---------------------------------------------------------------------------
+// 标准 handler
+// ---------------------------------------------------------------------------
 
-var LimitRange = new(limitRange)
+var CreateLimitRange = CreateHandler(
+	func(client *kubernetes.Clientset, namespace, yaml string) error {
+		return k8sLr.CreateLimitRange(client, namespace, yaml)
+	},
+	"执行成功", "创建LimitRange失败",
+)
 
-func (lr *limitRange) GetLimitRangeList(c *gin.Context) {
-	var query struct {
-		Namespace    string                  `form:"namespace" json:"namespace"`
-		ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required"`
-		LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters"`
+// UpdateLimitRange 更新 —— pkg 函数只传 namespace+yaml（无 name）
+func UpdateLimitRange(c *gin.Context) {
+	var body struct {
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace"`
+		Yaml        string `json:"yaml" binding:"required"`
 	}
-	if err := c.ShouldBind(&query); err != nil {
+	if err := c.ShouldBindJSON(&body); err != nil {
 		response.Fail(c, "参数校验失败")
 		return
 	}
-	namespace := query.Namespace
-	clusterName := query.ClusterName
-	// 构建 label selector
-	var labelSelector string
-	if len(query.LabelFilters) > 0 {
-		builtSelector, buildErr := k8sLabels.BuildLabelSelector(query.LabelFilters)
-		if buildErr != nil {
-			response.Fail(c, buildErr.Error())
-			return
-		}
-		labelSelector = builtSelector
-	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
+	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	lrList, err := k8sLr.GetLimitRangeList(client, namespace, labelSelector)
+	if err := k8sLr.UpdateLimitRange(client, body.Namespace, body.Yaml); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "更新LimitRange失败")
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}
+
+// ---------------------------------------------------------------------------
+// 特殊 handler
+// ---------------------------------------------------------------------------
+
+// GetLimitRangeList 列表 —— 非分页 + transform
+func GetLimitRangeList(c *gin.Context) {
+	var p ListParams
+	if err := c.ShouldBind(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取LimitRange列表失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		return
+	}
+	selector, err := buildLabelSelector(p.LabelFilters)
+	if err != nil {
+		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		return
+	}
+	lrList, err := k8sLr.GetLimitRangeList(client, p.Namespace, selector)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取LimitRange列表失败")
 		return
 	}
 	var result []map[string]any
 	for _, lr := range lrList {
 		var limits []map[string]any
-		for _, limit := range lr.Spec.Limits {
+		for _, l := range lr.Spec.Limits {
 			limits = append(limits, map[string]any{
-				"type":                 string(limit.Type),
-				"max":                  limit.Max,
-				"min":                  limit.Min,
-				"default":              limit.Default,
-				"defaultRequest":       limit.DefaultRequest,
-				"maxLimitRequestRatio": limit.MaxLimitRequestRatio,
+				"type":                    string(l.Type),
+				"max":                     l.Max,
+				"min":                     l.Min,
+				"default":                 l.Default,
+				"defaultRequest":          l.DefaultRequest,
+				"maxLimitRequestRatio":    l.MaxLimitRequestRatio,
 			})
 		}
 		result = append(result, map[string]any{
 			"name":      lr.Name,
 			"namespace": lr.Namespace,
 			"limits":    limits,
-			"age":       lr.CreationTimestamp.Time.Format("2006-01-02 15:04:05"),
 			"labels":    lr.Labels,
 		})
 	}
 	response.Success(c, "执行成功", result)
 }
 
-func (lr *limitRange) GetLimitRangeDetail(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
+// GetLimitRangeDetail 详情 —— 原代码用 c.Query()
+func GetLimitRangeDetail(c *gin.Context) {
+	var p NamespacedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	if p.Name == "" {
 		response.Fail(c, "name参数不能为空")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	lrDetail, err := k8sLr.GetLimitRangeDetail(client, namespace, name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取LimitRange详情失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", lrDetail)
-}
-
-func (lr *limitRange) GetLimitRangeYaml(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
-		response.Fail(c, "name参数不能为空")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	yamlContent, err := k8sLr.GetLimitRangeYaml(client, namespace, name)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取LimitRange YAML失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "执行成功", map[string]string{"yaml": yamlContent})
-}
-
-func (lr *limitRange) CreateLimitRange(c *gin.Context) {
-	var req struct {
-		ClusterName string `json:"clusterName"`
-		Namespace   string `json:"namespace"`
-		Yaml        string `json:"yaml"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	if err := k8sLr.CreateLimitRange(client, req.Namespace, req.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("创建LimitRange失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "创建LimitRange成功", nil)
-}
-
-func (lr *limitRange) UpdateLimitRange(c *gin.Context) {
-	var req struct {
-		ClusterName string `json:"clusterName"`
-		Namespace   string `json:"namespace"`
-		Yaml        string `json:"yaml"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
-	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
-		return
-	}
-	if err := k8sLr.UpdateLimitRange(client, req.Namespace, req.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("更新LimitRange失败:%s", err.Error()))
-		return
-	}
-	response.Success(c, "更新LimitRange成功", nil)
-}
-
-func (lr *limitRange) DeleteLimitRange(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Query("name")
-	clusterName := c.Query("clusterName")
-	if name == "" {
-		response.Fail(c, "name参数不能为空")
-		return
-	}
-	if clusterName == "" {
+	if p.ClusterName == "" {
 		response.Fail(c, "clusterName参数不能为空")
 		return
 	}
-	client, err := k8sclient.GetK8sClientByName(clusterName)
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
 		return
 	}
-	if err := k8sLr.DeleteLimitRange(client, namespace, name); err != nil {
-		response.Fail(c, fmt.Sprintf("删除LimitRange失败:%s", err.Error()))
+	detail, err := k8sLr.GetLimitRangeDetail(client, p.Namespace, p.Name)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取LimitRange详情失败")
 		return
 	}
-	response.Success(c, "删除LimitRange成功", nil)
+	response.Success(c, "执行成功", detail)
+}
+
+// GetLimitRangeYaml YAML —— 原代码用 c.Query()
+func GetLimitRangeYaml(c *gin.Context) {
+	var p NamespacedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	if p.Name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	if p.ClusterName == "" {
+		response.Fail(c, "clusterName参数不能为空")
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		return
+	}
+	yaml, err := k8sLr.GetLimitRangeYaml(client, p.Namespace, p.Name)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取LimitRange YAML失败")
+		return
+	}
+	response.Success(c, "执行成功", map[string]string{"yaml": yaml})
+}
+
+// DeleteLimitRange 删除 —— 原代码用 c.Query()
+func DeleteLimitRange(c *gin.Context) {
+	var p NamespacedParams
+	if err := c.ShouldBindQuery(&p); err != nil {
+		response.Fail(c, "参数校验失败")
+		return
+	}
+	if p.Name == "" {
+		response.Fail(c, "name参数不能为空")
+		return
+	}
+	if p.ClusterName == "" {
+		response.Fail(c, "clusterName参数不能为空")
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
+	if err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		return
+	}
+	if err := k8sLr.DeleteLimitRange(client, p.Namespace, p.Name); err != nil {
+		logger.Error(err.Error())
+		response.FailWithStatus(c, http.StatusBadGateway, "删除LimitRange失败")
+		return
+	}
+	response.Success(c, "执行成功", nil)
 }
