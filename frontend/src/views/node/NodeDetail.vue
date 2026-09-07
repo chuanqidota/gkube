@@ -9,7 +9,7 @@ import {
 } from '@/api/resource'
 import { formatAge } from '@/utils/helpers'
 import { formatK8sCPU, formatK8sMemory } from '@/utils/resource'
-import { formatDateTime } from '@/utils/time'
+import { formatDateTime } from '@/utils/helpers'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import NodeTaintDialog from '@/components/node/NodeTaintDialog.vue'
 import NodeLabelDialog from '@/components/node/NodeLabelDialog.vue'

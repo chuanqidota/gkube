@@ -6,8 +6,14 @@ import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getNamespaceList, extractNamespaceNames } from '@/api/resource'
 import { createDeployment, createStatefulSet, createDaemonSet, updateDeploymentYaml, updateStatefulSetYaml, updateDaemonSetYaml } from '@/api/resource'
-import ProbeForm from './form/ProbeForm.vue'
 import SchedulingForm from './form/SchedulingForm.vue'
+import LabelsAnnotationsForm from './form/LabelsAnnotationsForm.vue'
+import ContainerConfigForm from './form/ContainerConfigForm.vue'
+import StorageConfigForm from './form/StorageConfigForm.vue'
+import HealthCheckForm from './HealthCheckForm.vue'
+import SecurityContextForm from './form/SecurityContextForm.vue'
+import type { WorkloadFormData, Container, Probe, LifecycleHandler, EnvVar, AffinityRule } from './form-types'
+import { createEmptyContainer } from './form-types'
 
 const props = withDefaults(defineProps<{
   kind: 'Deployment' | 'StatefulSet' | 'DaemonSet'
@@ -30,71 +36,8 @@ const submitting = ref(false)
 const namespaceLoading = ref(false)
 const namespaces = ref<string[]>([])
 
-interface Label { key: string; value: string }
-interface Port { name: string; containerPort: number | null; protocol: string }
-interface EnvVar {
-  name: string; value: string; type: 'plain' | 'configMapKeyRef' | 'secretKeyRef' | 'fieldRef'
-  configMapName: string; configMapKey: string
-  secretName: string; secretKey: string
-  fieldPath: string
-}
-interface Resources { requests: { cpu: string; memory: string }; limits: { cpu: string; memory: string } }
-interface VolumeMount { name: string; mountPath: string; subPath: string; readOnly: boolean }
-interface Probe { type: string; httpGetPath: string; httpGetPort: number | null; tcpSocketPort: number | null; execCommand: string; initialDelaySeconds: number; periodSeconds: number; timeoutSeconds: number; failureThreshold: number }
-interface Volume { name: string; type: string; hostPath: string; hostPathType: string; configMapName: string; secretName: string; pvcName: string }
-interface LifecycleHandler { type: 'exec' | 'httpGet' | 'tcpSocket'; execCommand: string; httpGetPath: string; httpGetPort: number | null; tcpSocketPort: number | null }
-interface Container {
-  name: string; image: string; imagePullPolicy: string
-  ports: Port[]; env: EnvVar[]; resources: Resources
-  volumeMounts: VolumeMount[]; livenessProbe: Probe | null; readinessProbe: Probe | null; startupProbe: Probe | null
-  command: string; args: string
-  lifecycle: { preStop: LifecycleHandler | null; postStart: LifecycleHandler | null }
-  securityContext: { runAsUser: number | null; runAsNonRoot: boolean; readOnlyRootFilesystem: boolean; privileged: boolean; capabilitiesAdd: string[]; capabilitiesDrop: string[] }
-}
-interface Tolerance { key: string; operator: string; value: string; effect: string; tolerationSeconds: number | null }
-interface Annotation { key: string; value: string }
-interface VolumeClaimTemplate {
-  name: string; storageSize: string; storageClassName: string; accessModes: string[]
-}
-interface AffinityRule { weight: number; topologyKey: string; namespaces: string; labelKey: string; labelValue: string }
-interface TopologySpreadConstraint { maxSkew: number; topologyKey: string; whenUnsatisfiable: string; labelKey: string; labelValue: string }
 
-interface FormData {
-  name: string; namespace: string; replicas: number; labels: Label[]
-  containers: Container[]; initContainers: Container[]; volumes: Volume[]
-  strategyType: string; maxSurge: string; maxUnavailable: string
-  serviceName: string; updateStrategy: string; dsUpdateStrategy: string
-  podManagementPolicy: string
-  nodeSelector: Label[]; tolerations: Tolerance[]; annotations: Annotation[]
-  serviceAccountName: string; terminationGracePeriodSeconds: number | null
-  imagePullSecrets: string[]
-  volumeClaimTemplates: VolumeClaimTemplate[]
-  podAffinityRules: AffinityRule[]; podAntiAffinityRules: AffinityRule[]
-  topologySpreadConstraints: TopologySpreadConstraint[]
-  dnsPolicy: string; hostNetwork: boolean; priorityClassName: string
-}
-
-function createEmptyLifecycleHandler(): LifecycleHandler {
-  return { type: 'exec', execCommand: '', httpGetPath: '/', httpGetPort: 80, tcpSocketPort: null }
-}
-
-function createEmptyEnv(): EnvVar {
-  return { name: '', value: '', type: 'plain', configMapName: '', configMapKey: '', secretName: '', secretKey: '', fieldPath: '' }
-}
-
-function createEmptyContainer(): Container {
-  return {
-    name: '', image: '', imagePullPolicy: 'IfNotPresent',
-    ports: [], env: [],
-    resources: { requests: { cpu: '', memory: '' }, limits: { cpu: '', memory: '' } },
-    volumeMounts: [], livenessProbe: null, readinessProbe: null, startupProbe: null,
-    command: '', args: '',
-    lifecycle: { preStop: null, postStart: null },
-    securityContext: { runAsUser: null, runAsNonRoot: false, readOnlyRootFilesystem: false, privileged: false, capabilitiesAdd: [], capabilitiesDrop: [] },
-  }
-}
-
-const form = reactive<FormData>({
+const form = reactive<WorkloadFormData>({
   name: '', namespace: 'default', replicas: 1,
   labels: [{ key: 'app', value: '' }],
   containers: [createEmptyContainer()],
@@ -354,30 +297,8 @@ watch(
   }
 )
 
-function addLabel() { form.labels.push({ key: '', value: '' }) }
-function removeLabel(i: number) { form.labels.splice(i, 1) }
-function addContainer() { form.containers.push(createEmptyContainer()) }
-function removeContainer(i: number) { if (form.containers.length > 1) form.containers.splice(i, 1) }
-function addInitContainer() { form.initContainers.push(createEmptyContainer()) }
-function removeInitContainer(i: number) { form.initContainers.splice(i, 1) }
-function addPort(ci: number, isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).ports.push({ name: '', containerPort: null, protocol: 'TCP' }) }
-function removePort(ci: number, pi: number, isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).ports.splice(pi, 1) }
-function addEnv(ci: number, isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).env.push(createEmptyEnv()) }
-function removeEnv(ci: number, ei: number, isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).env.splice(ei, 1) }
-function addVolume() { form.volumes.push({ name: '', type: 'emptyDir', hostPath: '', hostPathType: 'DirectoryOrCreate', configMapName: '', secretName: '', pvcName: '' }) }
-function removeVolume(i: number) { form.volumes.splice(i, 1) }
-function addVolumeMount(ci: number, isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).volumeMounts.push({ name: '', mountPath: '', subPath: '', readOnly: false }) }
-function removeVolumeMount(ci: number, mi: number, isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).volumeMounts.splice(mi, 1) }
-function enableLifecycle(ci: number, hookType: 'preStop' | 'postStart', isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).lifecycle[hookType] = createEmptyLifecycleHandler() }
-function disableLifecycle(ci: number, hookType: 'preStop' | 'postStart', isInit?: boolean) { (isInit ? form.initContainers[ci] : form.containers[ci]).lifecycle[hookType] = null }
-function addAnnotation() { form.annotations.push({ key: '', value: '' }) }
-function removeAnnotation(i: number) { form.annotations.splice(i, 1) }
 function addImagePullSecret() { form.imagePullSecrets.push('') }
 function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
-function addVolumeClaimTemplate() { form.volumeClaimTemplates.push({ name: '', storageSize: '1Gi', storageClassName: '', accessModes: ['ReadWriteOnce'] }) }
-function removeVolumeClaimTemplate(i: number) { form.volumeClaimTemplates.splice(i, 1) }
-function addCapability(sc: Container['securityContext'], type: 'add' | 'drop') { (type === 'add' ? sc.capabilitiesAdd : sc.capabilitiesDrop).push('') }
-function removeCapability(sc: Container['securityContext'], type: 'add' | 'drop', i: number) { (type === 'add' ? sc.capabilitiesAdd : sc.capabilitiesDrop).splice(i, 1) }
 
 const generatedYaml = computed(() => yaml.dump(buildK8sResource(), { indent: 2, lineWidth: -1, noRefs: true }))
 
@@ -684,34 +605,7 @@ function handleCancel() {
           <div class="section-title">标签与注解</div>
         </div>
         <div class="section-content">
-          <el-form-item label="标签">
-            <div style="width: 100%;">
-              <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
-                <el-input v-model="label.key" placeholder="Key" />
-                <el-input v-model="label.value" placeholder="Value" />
-                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="removeLabel(i)">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </div>
-              <el-button text type="primary" @click="addLabel" size="small">
-                <el-icon><Plus /></el-icon> 添加标签
-              </el-button>
-            </div>
-          </el-form-item>
-          <el-form-item label="注解">
-            <div style="width: 100%;">
-              <div v-for="(ann, i) in form.annotations" :key="i" class="kv-row">
-                <el-input v-model="ann.key" placeholder="Key" />
-                <el-input v-model="ann.value" placeholder="Value" />
-                <el-button type="danger" text circle @click="removeAnnotation(i)">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </div>
-              <el-button text type="primary" @click="addAnnotation" size="small">
-                <el-icon><Plus /></el-icon> 添加注解
-              </el-button>
-            </div>
-          </el-form-item>
+          <LabelsAnnotationsForm v-model:labels="form.labels" v-model:annotations="form.annotations" />
         </div>
       </div>
 
@@ -721,104 +615,7 @@ function handleCancel() {
           <div class="section-title">容器配置</div>
         </div>
         <div class="section-content">
-          <div v-for="(container, ci) in form.containers" :key="ci" class="container-card">
-            <div class="container-card-header">
-              <div class="container-title">
-                <span class="container-index">{{ ci + 1 }}</span>
-                <span>{{ container.name || '未命名容器' }}</span>
-              </div>
-              <el-button v-if="form.containers.length > 1" type="danger" text size="small" @click="removeContainer(ci)">
-                <el-icon><Delete /></el-icon> 移除
-              </el-button>
-            </div>
-            <div class="fields-grid">
-              <el-form-item label="容器名称" required>
-                <el-input v-model="container.name" placeholder="nginx" />
-              </el-form-item>
-              <el-form-item label="镜像" required>
-                <el-input v-model="container.image" placeholder="nginx:1.25" />
-              </el-form-item>
-              <el-form-item label="拉取策略">
-                <el-select v-model="container.imagePullPolicy" style="width: 100%;">
-                  <el-option label="Always" value="Always" />
-                  <el-option label="IfNotPresent" value="IfNotPresent" />
-                  <el-option label="Never" value="Never" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="启动命令 (command)">
-                <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.command" placeholder="每行一个参数，如: /bin/sh" />
-              </el-form-item>
-              <el-form-item label="启动参数 (args)" class="full-width">
-                <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.args" placeholder="每行一个参数，如: -c echo hello" />
-              </el-form-item>
-            </div>
-
-            <!-- Ports -->
-            <el-divider content-position="left">端口</el-divider>
-            <div v-for="(port, pi) in container.ports" :key="pi" class="kv-row">
-              <el-input v-model="port.name" placeholder="名称" style="width: 120px;" />
-              <el-input-number v-model="port.containerPort" :min="1" :max="65535" placeholder="端口" style="flex: 1;" />
-              <el-select v-model="port.protocol" style="width: 100px;">
-                <el-option label="TCP" value="TCP" /><el-option label="UDP" value="UDP" />
-              </el-select>
-              <el-button type="danger" text circle @click="removePort(ci, pi)">
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </div>
-            <el-button text type="primary" size="small" @click="addPort(ci)">
-              <el-icon><Plus /></el-icon> 添加端口
-            </el-button>
-
-            <!-- Env -->
-            <el-divider content-position="left">环境变量</el-divider>
-            <div v-for="(env, ei) in container.env" :key="ei" class="env-row">
-              <el-input v-model="env.name" placeholder="名称" style="width: 140px;" />
-              <el-select v-model="env.type" style="width: 140px;" @change="env.value = ''; env.configMapName = ''; env.configMapKey = ''; env.secretName = ''; env.secretKey = ''; env.fieldPath = ''">
-                <el-option label="直接值" value="plain" />
-                <el-option label="ConfigMap" value="configMapKeyRef" />
-                <el-option label="Secret" value="secretKeyRef" />
-                <el-option label="字段引用" value="fieldRef" />
-              </el-select>
-              <el-input v-if="env.type === 'plain'" v-model="env.value" placeholder="值" style="flex: 1;" />
-              <template v-if="env.type === 'configMapKeyRef'">
-                <el-input v-model="env.configMapName" placeholder="ConfigMap 名称" style="flex: 1;" />
-                <el-input v-model="env.configMapKey" placeholder="Key" style="width: 140px;" />
-              </template>
-              <template v-if="env.type === 'secretKeyRef'">
-                <el-input v-model="env.secretName" placeholder="Secret 名称" style="flex: 1;" />
-                <el-input v-model="env.secretKey" placeholder="Key" style="width: 140px;" />
-              </template>
-              <el-input v-if="env.type === 'fieldRef'" v-model="env.fieldPath" placeholder="如: metadata.name" style="flex: 1;" />
-              <el-button type="danger" text circle @click="removeEnv(ci, ei)">
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </div>
-            <el-button text type="primary" size="small" @click="addEnv(ci)">
-              <el-icon><Plus /></el-icon> 添加环境变量
-            </el-button>
-
-            <!-- Resources -->
-            <el-divider content-position="left">资源配额</el-divider>
-            <div class="resources-grid">
-              <div class="resource-group">
-                <div class="resource-group-title">Requests</div>
-                <div class="resource-fields">
-                  <el-form-item label="CPU"><el-input v-model="container.resources.requests.cpu" placeholder="100m" /></el-form-item>
-                  <el-form-item label="Memory"><el-input v-model="container.resources.requests.memory" placeholder="128Mi" /></el-form-item>
-                </div>
-              </div>
-              <div class="resource-group">
-                <div class="resource-group-title">Limits</div>
-                <div class="resource-fields">
-                  <el-form-item label="CPU"><el-input v-model="container.resources.limits.cpu" placeholder="500m" /></el-form-item>
-                  <el-form-item label="Memory"><el-input v-model="container.resources.limits.memory" placeholder="512Mi" /></el-form-item>
-                </div>
-              </div>
-            </div>
-          </div>
-          <el-button text type="primary" @click="addContainer" class="add-container-btn">
-            <el-icon><Plus /></el-icon> 添加容器
-          </el-button>
+          <ContainerConfigForm :containers="form.containers" title="容器" />
         </div>
       </div>
 
@@ -831,79 +628,7 @@ function handleCancel() {
           <el-alert type="info" :closable="false" style="margin-bottom: var(--gk-space-4);">
             初始化容器在主容器启动之前运行，常用于数据迁移、依赖检查等场景。
           </el-alert>
-          <div v-for="(container, ci) in form.initContainers" :key="ci" class="container-card">
-            <div class="container-card-header">
-              <div class="container-title">
-                <span class="container-index" style="background: var(--el-color-warning);">{{ ci + 1 }}</span>
-                <span>{{ container.name || '未命名初始化容器' }}</span>
-              </div>
-              <el-button type="danger" text size="small" @click="removeInitContainer(ci)">
-                <el-icon><Delete /></el-icon> 移除
-              </el-button>
-            </div>
-            <div class="fields-grid">
-              <el-form-item label="容器名称" required>
-                <el-input v-model="container.name" placeholder="init-mysql" />
-              </el-form-item>
-              <el-form-item label="镜像" required>
-                <el-input v-model="container.image" placeholder="busybox:1.36" />
-              </el-form-item>
-              <el-form-item label="启动命令">
-                <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.command" placeholder="每行一个参数" />
-              </el-form-item>
-              <el-form-item label="启动参数">
-                <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.args" placeholder="每行一个参数" />
-              </el-form-item>
-            </div>
-            <!-- Env for init container -->
-            <el-divider content-position="left">环境变量</el-divider>
-            <div v-for="(env, ei) in container.env" :key="ei" class="env-row">
-              <el-input v-model="env.name" placeholder="名称" style="width: 140px;" />
-              <el-select v-model="env.type" style="width: 140px;" @change="env.value = ''; env.configMapName = ''; env.configMapKey = ''; env.secretName = ''; env.secretKey = ''; env.fieldPath = ''">
-                <el-option label="直接值" value="plain" />
-                <el-option label="ConfigMap" value="configMapKeyRef" />
-                <el-option label="Secret" value="secretKeyRef" />
-                <el-option label="字段引用" value="fieldRef" />
-              </el-select>
-              <el-input v-if="env.type === 'plain'" v-model="env.value" placeholder="值" style="flex: 1;" />
-              <template v-if="env.type === 'configMapKeyRef'">
-                <el-input v-model="env.configMapName" placeholder="ConfigMap 名称" style="flex: 1;" />
-                <el-input v-model="env.configMapKey" placeholder="Key" style="width: 140px;" />
-              </template>
-              <template v-if="env.type === 'secretKeyRef'">
-                <el-input v-model="env.secretName" placeholder="Secret 名称" style="flex: 1;" />
-                <el-input v-model="env.secretKey" placeholder="Key" style="width: 140px;" />
-              </template>
-              <el-input v-if="env.type === 'fieldRef'" v-model="env.fieldPath" placeholder="如: metadata.name" style="flex: 1;" />
-              <el-button type="danger" text circle @click="removeEnv(ci, ei, true)">
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </div>
-            <el-button text type="primary" size="small" @click="addEnv(ci, true)">
-              <el-icon><Plus /></el-icon> 添加环境变量
-            </el-button>
-            <!-- Resources for init container -->
-            <el-divider content-position="left">资源配额</el-divider>
-            <div class="resources-grid">
-              <div class="resource-group">
-                <div class="resource-group-title">Requests</div>
-                <div class="resource-fields">
-                  <el-form-item label="CPU"><el-input v-model="container.resources.requests.cpu" placeholder="100m" /></el-form-item>
-                  <el-form-item label="Memory"><el-input v-model="container.resources.requests.memory" placeholder="128Mi" /></el-form-item>
-                </div>
-              </div>
-              <div class="resource-group">
-                <div class="resource-group-title">Limits</div>
-                <div class="resource-fields">
-                  <el-form-item label="CPU"><el-input v-model="container.resources.limits.cpu" placeholder="500m" /></el-form-item>
-                  <el-form-item label="Memory"><el-input v-model="container.resources.limits.memory" placeholder="512Mi" /></el-form-item>
-                </div>
-              </div>
-            </div>
-          </div>
-          <el-button text type="primary" @click="addInitContainer" class="add-container-btn">
-            <el-icon><Plus /></el-icon> 添加初始化容器
-          </el-button>
+          <ContainerConfigForm :containers="form.initContainers" title="初始化容器" :show-pull-policy="false" :min-containers="0" index-color="var(--el-color-warning)" />
         </div>
       </div>
 
@@ -913,103 +638,7 @@ function handleCancel() {
           <div class="section-title">存储配置</div>
         </div>
         <div class="section-content">
-
-          <!-- Volume Claim Templates (StatefulSet only) -->
-          <template v-if="kind === 'StatefulSet'">
-            <el-form-item label="持久卷声明模板 (VolumeClaimTemplates)">
-              <div style="width: 100%;">
-                <div v-for="(vct, vi) in form.volumeClaimTemplates" :key="vi" class="volume-card">
-                  <div class="volume-row">
-                    <el-input v-model="vct.name" placeholder="模板名称 (如: data)" />
-                    <el-button type="danger" text circle @click="removeVolumeClaimTemplate(vi)">
-                      <el-icon><Delete /></el-icon>
-                    </el-button>
-                  </div>
-                  <div class="fields-grid" style="margin-top: 8px;">
-                    <el-form-item label="存储大小">
-                      <el-input v-model="vct.storageSize" placeholder="1Gi" />
-                    </el-form-item>
-                    <el-form-item label="存储类名">
-                      <el-input v-model="vct.storageClassName" placeholder="留空使用默认 StorageClass" />
-                    </el-form-item>
-                    <el-form-item label="访问模式" class="full-width">
-                      <el-checkbox-group v-model="vct.accessModes">
-                        <el-checkbox label="ReadWriteOnce" />
-                        <el-checkbox label="ReadOnlyMany" />
-                        <el-checkbox label="ReadWriteMany" />
-                      </el-checkbox-group>
-                    </el-form-item>
-                  </div>
-                </div>
-                <el-button text type="primary" @click="addVolumeClaimTemplate" size="small">
-                  <el-icon><Plus /></el-icon> 添加持久卷声明模板
-                </el-button>
-              </div>
-            </el-form-item>
-            <el-divider />
-          </template>
-
-          <el-form-item label="数据卷">
-            <div style="width: 100%;">
-              <div v-for="(vol, vi) in form.volumes" :key="vi" class="volume-card">
-                <div class="volume-row">
-                  <el-input v-model="vol.name" placeholder="卷名称" />
-                  <el-select v-model="vol.type" style="width: 160px;">
-                    <el-option label="emptyDir" value="emptyDir" />
-                    <el-option label="hostPath" value="hostPath" />
-                    <el-option label="ConfigMap" value="configMap" />
-                    <el-option label="Secret" value="secret" />
-                    <el-option label="PVC" value="pvc" />
-                  </el-select>
-                  <el-button type="danger" text circle @click="removeVolume(vi)">
-                    <el-icon><Delete /></el-icon>
-                  </el-button>
-                </div>
-                <template v-if="vol.type === 'hostPath'">
-                  <el-input v-model="vol.hostPath" placeholder="主机路径 (e.g. /data)" style="margin-top: 8px;" />
-                  <el-select v-model="vol.hostPathType" style="margin-top: 8px; width: 100%;">
-                    <el-option label="DirectoryOrCreate" value="DirectoryOrCreate" />
-                    <el-option label="Directory" value="Directory" />
-                    <el-option label="FileOrCreate" value="FileOrCreate" />
-                    <el-option label="File" value="File" />
-                    <el-option label="Socket" value="Socket" />
-                    <el-option label="CharDevice" value="CharDevice" />
-                    <el-option label="BlockDevice" value="BlockDevice" />
-                  </el-select>
-                </template>
-                <el-input v-if="vol.type === 'configMap'" v-model="vol.configMapName" placeholder="ConfigMap 名称" style="margin-top: 8px;" />
-                <el-input v-if="vol.type === 'secret'" v-model="vol.secretName" placeholder="Secret 名称" style="margin-top: 8px;" />
-                <el-input v-if="vol.type === 'pvc'" v-model="vol.pvcName" placeholder="PVC 名称" style="margin-top: 8px;" />
-              </div>
-              <el-button text type="primary" @click="addVolume" size="small">
-                <el-icon><Plus /></el-icon> 添加数据卷
-              </el-button>
-            </div>
-          </el-form-item>
-
-          <el-divider v-if="form.volumes.length > 0" />
-
-          <el-form-item v-if="form.volumes.length > 0" label="卷挂载">
-            <div style="width: 100%;">
-              <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: var(--gk-space-4);">
-                <div class="mount-container-name">{{ container.name || `容器 ${ci + 1}` }}</div>
-                <div v-for="(mount, mi) in container.volumeMounts" :key="mi" class="kv-row">
-                  <el-select v-model="mount.name" placeholder="选择卷" style="width: 160px;">
-                    <el-option v-for="v in form.volumes.filter(v => v.name)" :key="v.name" :label="v.name" :value="v.name" />
-                  </el-select>
-                  <el-input v-model="mount.mountPath" placeholder="挂载路径" />
-                  <el-input v-model="mount.subPath" placeholder="子路径" style="width: 120px;" />
-                  <el-checkbox v-model="mount.readOnly">只读</el-checkbox>
-                  <el-button type="danger" text circle @click="removeVolumeMount(ci, mi)">
-                    <el-icon><Delete /></el-icon>
-                  </el-button>
-                </div>
-                <el-button text type="primary" size="small" @click="addVolumeMount(ci)">
-                  <el-icon><Plus /></el-icon> 添加挂载
-                </el-button>
-              </div>
-            </div>
-          </el-form-item>
+          <StorageConfigForm :volumes="form.volumes" :containers="form.containers" :volume-claim-templates="form.volumeClaimTemplates" :kind="kind" />
         </div>
       </div>
 
@@ -1019,101 +648,7 @@ function handleCancel() {
           <div class="section-title">健康检查</div>
         </div>
         <div class="section-content">
-
-          <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: 24px;">
-            <div class="mount-container-name">{{ container.name || `容器 ${ci + 1}` }}</div>
-
-            <!-- Liveness -->
-            <ProbeForm
-              v-model="container.livenessProbe"
-              label="存活探针"
-              description="容器是否正在运行"
-            />
-
-            <!-- Readiness -->
-            <ProbeForm
-              v-model="container.readinessProbe"
-              label="就绪探针"
-              description="容器是否准备好接收流量"
-            />
-
-            <!-- Startup Probe -->
-            <ProbeForm
-              v-model="container.startupProbe"
-              label="启动探针"
-              description="慢启动应用专用，成功后切换到存活探针"
-            />
-
-            <!-- Lifecycle Hooks -->
-            <div class="probe-card">
-              <div class="probe-header">
-                <div>
-                  <span class="probe-label">生命周期钩子</span>
-                  <span class="probe-desc">容器启动后/停止前执行的操作</span>
-                </div>
-              </div>
-              <div style="margin-top: 12px;">
-                <div style="margin-bottom: 12px;">
-                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                    <span style="font-size: 13px; font-weight: 600; color: var(--el-text-color-regular);">postStart（启动后）</span>
-                    <el-switch :model-value="!!container.lifecycle.postStart" @update:model-value="(v: boolean) => v ? enableLifecycle(ci, 'postStart') : disableLifecycle(ci, 'postStart')" />
-                  </div>
-                  <template v-if="container.lifecycle.postStart">
-                    <div class="fields-grid">
-                      <el-form-item label="类型">
-                        <el-select v-model="container.lifecycle.postStart.type" style="width: 100%;">
-                          <el-option label="Exec" value="exec" />
-                          <el-option label="HTTP GET" value="httpGet" />
-                          <el-option label="TCP Socket" value="tcpSocket" />
-                        </el-select>
-                      </el-form-item>
-                      <el-form-item v-if="container.lifecycle.postStart.type === 'exec'" label="命令">
-                        <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.lifecycle.postStart.execCommand" placeholder="每行一个参数" />
-                      </el-form-item>
-                      <el-form-item v-if="container.lifecycle.postStart.type === 'httpGet'" label="路径">
-                        <el-input v-model="container.lifecycle.postStart.httpGetPath" placeholder="/" />
-                      </el-form-item>
-                      <el-form-item v-if="container.lifecycle.postStart.type === 'httpGet'" label="端口">
-                        <el-input-number v-model="container.lifecycle.postStart.httpGetPort" :min="1" :max="65535" style="width: 100%;" />
-                      </el-form-item>
-                      <el-form-item v-if="container.lifecycle.postStart.type === 'tcpSocket'" label="端口">
-                        <el-input-number v-model="container.lifecycle.postStart.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
-                      </el-form-item>
-                    </div>
-                  </template>
-                </div>
-                <div>
-                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                    <span style="font-size: 13px; font-weight: 600; color: var(--el-text-color-regular);">preStop（停止前）</span>
-                    <el-switch :model-value="!!container.lifecycle.preStop" @update:model-value="(v: boolean) => v ? enableLifecycle(ci, 'preStop') : disableLifecycle(ci, 'preStop')" />
-                  </div>
-                  <template v-if="container.lifecycle.preStop">
-                    <div class="fields-grid">
-                      <el-form-item label="类型">
-                        <el-select v-model="container.lifecycle.preStop.type" style="width: 100%;">
-                          <el-option label="Exec" value="exec" />
-                          <el-option label="HTTP GET" value="httpGet" />
-                          <el-option label="TCP Socket" value="tcpSocket" />
-                        </el-select>
-                      </el-form-item>
-                      <el-form-item v-if="container.lifecycle.preStop.type === 'exec'" label="命令">
-                        <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.lifecycle.preStop.execCommand" placeholder="每行一个参数" />
-                      </el-form-item>
-                      <el-form-item v-if="container.lifecycle.preStop.type === 'httpGet'" label="路径">
-                        <el-input v-model="container.lifecycle.preStop.httpGetPath" placeholder="/" />
-                      </el-form-item>
-                      <el-form-item v-if="container.lifecycle.preStop.type === 'httpGet'" label="端口">
-                        <el-input-number v-model="container.lifecycle.preStop.httpGetPort" :min="1" :max="65535" style="width: 100%;" />
-                      </el-form-item>
-                      <el-form-item v-if="container.lifecycle.preStop.type === 'tcpSocket'" label="端口">
-                        <el-input-number v-model="container.lifecycle.preStop.tcpSocketPort" :min="1" :max="65535" style="width: 100%;" />
-                      </el-form-item>
-                    </div>
-                  </template>
-                </div>
-              </div>
-            </div>
-          </div>
+          <HealthCheckForm :containers="form.containers" />
         </div>
       </div>
 
@@ -1123,91 +658,7 @@ function handleCancel() {
           <div class="section-title">安全设置</div>
         </div>
         <div class="section-content">
-
-          <div v-for="(container, ci) in form.containers" :key="ci" style="margin-bottom: 24px;">
-            <div class="mount-container-name">{{ container.name || `容器 ${ci + 1}` }}</div>
-            <div class="security-grid">
-              <div class="security-item">
-                <div class="security-item-label">运行用户 ID</div>
-                <el-input-number v-model="container.securityContext.runAsUser" :min="0" placeholder="UID" style="width: 100%;" />
-              </div>
-              <div class="security-item">
-                <div class="security-item-label">非 Root 运行</div>
-                <el-switch v-model="container.securityContext.runAsNonRoot" />
-              </div>
-              <div class="security-item">
-                <div class="security-item-label">只读根文件系统</div>
-                <el-switch v-model="container.securityContext.readOnlyRootFilesystem" />
-              </div>
-              <div class="security-item">
-                <div class="security-item-label">特权模式</div>
-                <el-switch v-model="container.securityContext.privileged" />
-              </div>
-            </div>
-            <!-- Capabilities -->
-            <div style="margin-top: var(--gk-space-4);">
-              <el-divider content-position="left">Linux Capabilities</el-divider>
-              <div class="fields-grid">
-                <el-form-item label="添加 (Add)">
-                  <div style="width: 100%;">
-                    <div v-for="(_cap, i) in container.securityContext.capabilitiesAdd" :key="i" class="kv-row">
-                      <el-select v-model="container.securityContext.capabilitiesAdd[i]" filterable allow-create placeholder="如: NET_ADMIN" style="flex: 1;">
-                        <el-option label="NET_ADMIN" value="NET_ADMIN" />
-                        <el-option label="NET_RAW" value="NET_RAW" />
-                        <el-option label="SYS_ADMIN" value="SYS_ADMIN" />
-                        <el-option label="SYS_PTRACE" value="SYS_PTRACE" />
-                        <el-option label="SYS_TIME" value="SYS_TIME" />
-                        <el-option label="SYS_RESOURCE" value="SYS_RESOURCE" />
-                        <el-option label="DAC_OVERRIDE" value="DAC_OVERRIDE" />
-                        <el-option label="DAC_READ_SEARCH" value="DAC_READ_SEARCH" />
-                        <el-option label="SETUID" value="SETUID" />
-                        <el-option label="SETGID" value="SETGID" />
-                        <el-option label="CHOWN" value="CHOWN" />
-                        <el-option label="FOWNER" value="FOWNER" />
-                        <el-option label="KILL" value="KILL" />
-                        <el-option label="MKNOD" value="MKNOD" />
-                      </el-select>
-                      <el-button type="danger" text circle @click="removeCapability(container.securityContext, 'add', i)">
-                        <el-icon><Delete /></el-icon>
-                      </el-button>
-                    </div>
-                    <el-button text type="primary" size="small" @click="addCapability(container.securityContext, 'add')">
-                      <el-icon><Plus /></el-icon> 添加
-                    </el-button>
-                  </div>
-                </el-form-item>
-                <el-form-item label="移除 (Drop)">
-                  <div style="width: 100%;">
-                    <div v-for="(_cap, i) in container.securityContext.capabilitiesDrop" :key="i" class="kv-row">
-                      <el-select v-model="container.securityContext.capabilitiesDrop[i]" filterable allow-create placeholder="如: ALL" style="flex: 1;">
-                        <el-option label="ALL" value="ALL" />
-                        <el-option label="NET_ADMIN" value="NET_ADMIN" />
-                        <el-option label="NET_RAW" value="NET_RAW" />
-                        <el-option label="SYS_ADMIN" value="SYS_ADMIN" />
-                        <el-option label="SYS_PTRACE" value="SYS_PTRACE" />
-                        <el-option label="SYS_TIME" value="SYS_TIME" />
-                        <el-option label="SYS_RESOURCE" value="SYS_RESOURCE" />
-                        <el-option label="DAC_OVERRIDE" value="DAC_OVERRIDE" />
-                        <el-option label="DAC_READ_SEARCH" value="DAC_READ_SEARCH" />
-                        <el-option label="SETUID" value="SETUID" />
-                        <el-option label="SETGID" value="SETGID" />
-                        <el-option label="CHOWN" value="CHOWN" />
-                        <el-option label="FOWNER" value="FOWNER" />
-                        <el-option label="KILL" value="KILL" />
-                        <el-option label="MKNOD" value="MKNOD" />
-                      </el-select>
-                      <el-button type="danger" text circle @click="removeCapability(container.securityContext, 'drop', i)">
-                        <el-icon><Delete /></el-icon>
-                      </el-button>
-                    </div>
-                    <el-button text type="primary" size="small" @click="addCapability(container.securityContext, 'drop')">
-                      <el-icon><Plus /></el-icon> 添加
-                    </el-button>
-                  </div>
-                </el-form-item>
-              </div>
-            </div>
-          </div>
+          <SecurityContextForm :containers="form.containers" />
         </div>
       </div>
 
@@ -1341,7 +792,6 @@ function handleCancel() {
   margin: 0 auto;
 }
 
-/* Section layout with sidebar titles */
 .form-section {
   display: flex;
   gap: 24px;
@@ -1403,56 +853,6 @@ function handleCancel() {
   grid-column: 1 / -1;
 }
 
-/* Container cards */
-.container-card {
-  border: 1px solid var(--el-border-color-extra-light);
-  border-radius: var(--gk-radius-md);
-  padding: 16px;
-  margin-bottom: 12px;
-  background: var(--el-fill-color-blank);
-  transition: box-shadow 0.2s;
-}
-
-.container-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-}
-
-.container-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--el-border-color-extra-light);
-}
-
-.container-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--el-text-color-primary);
-}
-
-.container-index {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--el-color-primary);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.add-container-btn {
-  margin-top: 8px;
-}
-
-/* Key-value rows */
 .kv-row {
   display: flex;
   gap: 8px;
@@ -1463,180 +863,4 @@ function handleCancel() {
 .kv-row :deep(.el-input) {
   flex: 1;
 }
-
-/* Resources */
-.resources-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-}
-
-.resource-group {
-  border: 1px solid var(--el-border-color-extra-light);
-  border-radius: var(--gk-radius-md);
-  padding: 14px;
-  background: var(--el-fill-color-lighter);
-}
-
-.resource-group-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--el-text-color-regular);
-  margin-bottom: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.resource-fields {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-.resource-fields :deep(.el-form-item) {
-  margin-bottom: 0;
-}
-
-/* Volume cards */
-.volume-card {
-  border: 1px solid var(--el-border-color-extra-light);
-  border-radius: var(--gk-radius-md);
-  padding: 14px;
-  margin-bottom: 8px;
-  background: var(--el-fill-color-lighter);
-}
-
-.volume-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.volume-row :deep(.el-input) {
-  flex: 1;
-}
-
-.mount-container-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--el-text-color-regular);
-  margin-bottom: 10px;
-  padding: 4px 10px;
-  background: var(--el-fill-color-light);
-  border-radius: 4px;
-  display: inline-block;
-}
-
-/* Probe cards */
-.probe-card {
-  border: 1px solid var(--el-border-color-extra-light);
-  border-radius: var(--gk-radius-md);
-  padding: 14px;
-  margin-bottom: 10px;
-  background: var(--el-fill-color-blank);
-}
-
-.probe-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.probe-label {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--el-text-color-primary);
-}
-
-.probe-desc {
-  display: block;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-top: 2px;
-}
-
-/* Security grid */
-.security-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-}
-
-.security-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border: 1px solid var(--el-border-color-extra-light);
-  border-radius: var(--gk-radius-md);
-  background: var(--el-fill-color-lighter);
-}
-
-.security-item-label {
-  font-size: 14px;
-  color: var(--el-text-color-regular);
-}
-
-/* Toleration row */
-.toleration-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  align-items: center;
-}
-
-.toleration-row :deep(.el-input) {
-  flex: 1;
-}
-
-/* Env row */
-.env-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  align-items: center;
-}
-
-.env-row :deep(.el-input) {
-  flex: 1;
-}
-
-/* Affinity section */
-.affinity-section {
-  padding: 12px;
-  border: 1px solid var(--el-border-color-extra-light);
-  border-radius: var(--gk-radius-md);
-  background: var(--el-fill-color-lighter);
-}
-
-.affinity-section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--el-text-color-regular);
-  margin-bottom: 12px;
-}
-
-.affinity-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  align-items: center;
-}
-
-.affinity-row :deep(.el-input) {
-  flex: 1;
-}
-
-/* Topology row */
-.topology-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  align-items: center;
-}
-
-.topology-row :deep(.el-input) {
-  flex: 1;
-}
-
 </style>

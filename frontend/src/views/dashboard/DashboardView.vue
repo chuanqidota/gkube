@@ -146,7 +146,7 @@ async function fetchWorkloads() {
 async function fetchNodes() {
   nodesLoading.value = true
   try { const res = await getNodeList({ clusterName: clusterStore.clusterName }); nodeList.value = res.data || [] }
-  catch (e) { console.error('Failed to fetch nodes:', e) }
+  catch (e) { ElMessage.error('获取节点列表失败'); console.error('Failed to fetch nodes:', e) }
   finally { nodesLoading.value = false }
 }
 async function fetchNamespaces() {
@@ -154,13 +154,13 @@ async function fetchNamespaces() {
   try {
     const res = await getNamespaceResources({ clusterId: clusterId.value })
     nsList.value = res.data.namespaces || []
-  } catch (e) { console.error('Failed to fetch namespace resources:', e); nsList.value = [] }
+  } catch (e) { ElMessage.error('获取命名空间资源失败'); console.error('Failed to fetch namespace resources:', e); nsList.value = [] }
   finally { nsLoading.value = false }
 }
 async function fetchHealth() {
   healthLoading.value = true
   try { const res = await getHealth({ clusterId: clusterId.value }); health.value = res.data }
-  catch (e) { console.error('Failed to fetch health:', e); health.value = null }
+  catch (e) { ElMessage.error('获取集群健康状态失败'); console.error('Failed to fetch health:', e); health.value = null }
   finally { healthLoading.value = false }
 }
 

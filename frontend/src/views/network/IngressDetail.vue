@@ -3,10 +3,15 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getIngressDetail, deleteIngress, getIngressEvents, getIngressTLSCertStatus } from '@/api/resource'
-import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
+import { FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
+import DetailPageLayout from '@/components/DetailPageLayout.vue'
+import DetailPageHeader from '@/components/DetailPageHeader.vue'
+import EventsTable from '@/components/EventsTable.vue'
+import LabelsBlock from '@/components/LabelsBlock.vue'
 import IngressForm from './components/IngressForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useEditDrawer } from '@/composables/useEditDrawer'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,8 +28,9 @@ const tlsCerts = ref<any[]>([])
 const tlsCertsLoading = ref(false)
 
 // Edit dialog
-const editDialogVisible = ref(false)
-const editFullscreen = ref(false)
+const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess, handleEditCancel } = useEditDrawer(async () => {
+  fetchDetail()
+})
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
@@ -76,12 +82,18 @@ const ingress = computed(() => {
   }
 })
 
+const statusTag = computed(() => {
+  if (ingress.value?.ingressClassName) {
+    return { text: ingress.value.ingressClassName, type: 'info' as const }
+  }
+  return undefined
+})
+
 async function fetchDetail() {
   loading.value = true
   try {
     const res: any = await getIngressDetail({ namespace, name })
     ingressRaw.value = res.data
-    // Only fetch TLS cert status when ingress actually has TLS config
     if (res.data?.spec?.tls?.length > 0) {
       fetchTLSCerts()
     } else {
@@ -143,19 +155,6 @@ async function handleDelete() {
   }
 }
 
-function handleEdit() {
-  editDialogVisible.value = true
-}
-
-function handleEditSuccess() {
-  editDialogVisible.value = false
-  fetchDetail()
-}
-
-function handleEditCancel() {
-  editDialogVisible.value = false
-}
-
 function certStatusType(status: string) {
   switch (status) {
     case 'valid': return 'success'
@@ -189,51 +188,6 @@ const tlsCertMap = computed(() => {
   return map
 })
 
-// ---- Resize: left-right ----
-const leftWidth = ref(300)
-const resizingH = ref(false)
-let startX = 0, startW = 0
-function onHResizeStart(e: MouseEvent) {
-  e.preventDefault()
-  resizingH.value = true
-  startX = e.clientX
-  startW = leftWidth.value
-  const onMove = (ev: MouseEvent) => {
-    leftWidth.value = Math.min(Math.max(startW + ev.clientX - startX, 220), 500)
-  }
-  const onUp = () => {
-    resizingH.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-  }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
-}
-
-// ---- Resize: top-bottom (Rules / Events) ----
-const rightTopHeight = ref<number | null>(null)
-const resizingV = ref(false)
-let startY = 0, startH = 0
-function onVResizeStart(e: MouseEvent) {
-  e.preventDefault()
-  const rightPanel = (e.target as HTMLElement).closest('.right-panel')
-  if (!rightPanel) return
-  resizingV.value = true
-  startY = e.clientY
-  startH = rightPanel.getBoundingClientRect().height
-  const onMove = (ev: MouseEvent) => {
-    const delta = ev.clientY - startY
-    rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
-  }
-  const onUp = () => {
-    resizingV.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
-  }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
-}
-
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
   fetchDetail()
   fetchEvents()
@@ -246,226 +200,163 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
-    <!-- 顶部标题栏 -->
-    <div class="page-header">
-      <div class="header-left">
-        <h2 class="res-name">{{ name }}</h2>
-        <div class="meta-line">
-          <el-tag v-if="ingress?.ingressClassName" effect="dark" size="small">{{ ingress.ingressClassName }}</el-tag>
-          <span class="ns-tag">ns/{{ namespace }}</span>
-          <span class="replicas-info" v-if="ingress?.rules?.length">
-            {{ ingress.rules.length }} 条规则
-          </span>
-        </div>
-      </div>
-      <div class="header-actions">
+  <DetailPageLayout :resizable="true">
+    <!-- Header -->
+    <DetailPageHeader
+      :title="name"
+      :status-tag="statusTag"
+      :namespace="namespace"
+      :loading="loading"
+      :is-running="isRunning"
+      :countdown="countdown"
+      :current-interval="currentInterval"
+      :available-intervals="availableIntervals"
+      @refresh="manualRefresh()"
+      @toggle="toggle()"
+      @set-interval-option="setIntervalOption"
+      @back="router.push('/network/ingresses')"
+    >
+      <template #meta>
+        <span class="replicas-info" v-if="ingress?.rules?.length">
+          {{ ingress.rules.length }} 条规则
+        </span>
+      </template>
+      <template #actions>
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" @click="handleDelete">删除</el-button>
-        <div class="action-divider" />
-        <el-popover placement="bottom" :width="200" trigger="click">
-          <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
-          </template>
-          <div class="auto-refresh-popover">
-            <div class="popover-title">
-              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
-            </div>
-            <el-select
-              :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
-              :teleported="false"
-              size="small"
-              style="width: 100%;"
-            >
-              <el-option
-                v-for="sec in availableIntervals"
-                :key="sec"
-                :value="sec"
-                :label="`每 ${sec} 秒刷新`"
-              />
-            </el-select>
-          </div>
-        </el-popover>
-        <el-tooltip content="刷新" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
-        </el-tooltip>
-        <el-tooltip content="返回列表" placement="top">
-          <el-button :icon="ArrowLeft" @click="router.push('/network/ingresses')" />
-        </el-tooltip>
+      </template>
+    </DetailPageHeader>
+
+    <!-- Left panel: basic info -->
+    <template v-if="ingress" #left>
+      <div class="panel-title">基本信息</div>
+      <div class="info-body">
+        <el-descriptions :column="1" border size="small">
+          <el-descriptions-item label="名称">{{ ingress.name }}</el-descriptions-item>
+          <el-descriptions-item label="命名空间">{{ ingress.namespace }}</el-descriptions-item>
+          <el-descriptions-item label="Ingress Class">{{ ingress.ingressClassName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="地址">
+            <span v-if="ingress.address">{{ ingress.address }}</span>
+            <span v-else class="text-muted">-</span>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <!-- Labels -->
+        <div v-if="ingress.labels && Object.keys(ingress.labels).length > 0" style="margin-top: var(--gk-space-4);">
+          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Labels</h4>
+          <LabelsBlock :labels="ingress.labels" />
+        </div>
       </div>
-    </div>
+    </template>
 
-    <template v-if="ingress">
-      <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
-
-        <!-- 左侧：基本信息 -->
-        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
-          <div class="panel-title">基本信息</div>
-          <div class="info-body">
-            <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="名称">{{ ingress.name }}</el-descriptions-item>
-              <el-descriptions-item label="命名空间">{{ ingress.namespace }}</el-descriptions-item>
-              <el-descriptions-item label="Ingress Class">{{ ingress.ingressClassName || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="地址">
-                <span v-if="ingress.address">{{ ingress.address }}</span>
-                <span v-else class="text-muted">-</span>
-              </el-descriptions-item>
-            </el-descriptions>
-
-            <!-- Labels -->
-            <div v-if="ingress.labels && Object.keys(ingress.labels).length > 0" style="margin-top: var(--gk-space-4);">
-              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Labels</h4>
-              <el-tag
-                v-for="(val, key) in ingress.labels"
-                :key="key"
-                style="margin-right: 8px; margin-bottom: 8px;"
-                size="small"
-              >
-                {{ key }}={{ val }}
-              </el-tag>
-            </div>
+    <!-- Right-top: Rules + TLS -->
+    <template v-if="ingress" #right-top>
+      <div class="right-panel-inner">
+        <!-- Default Backend -->
+        <div v-if="ingress.defaultBackend" class="section-block">
+          <div class="panel-title">默认后端</div>
+          <div class="rules-body">
+            <el-alert type="info" :closable="false" show-icon>
+              <template #title>
+                所有未匹配规则的流量将转发至
+                <el-button
+                  v-if="ingress.defaultBackend.serviceName"
+                  link
+                  type="primary"
+                  size="small"
+                  @click="router.push(`/network/services/${namespace}/${ingress.defaultBackend.serviceName}`)"
+                >{{ ingress.defaultBackend.serviceName }}</el-button>
+                <span v-else>-</span>
+                :{{ ingress.defaultBackend.servicePort || '-' }}
+              </template>
+            </el-alert>
           </div>
         </div>
 
-        <!-- 右侧：Rules + TLS + Events -->
-        <div class="right-panel">
-
-          <!-- Default Backend -->
-          <div class="right-section" v-if="ingress.defaultBackend">
-            <div class="panel-title">默认后端</div>
-            <div class="rules-body">
-              <el-alert type="info" :closable="false" show-icon>
-                <template #title>
-                  所有未匹配规则的流量将转发至
-                  <el-button
-                    v-if="ingress.defaultBackend.serviceName"
-                    link
-                    type="primary"
-                    size="small"
-                    @click="router.push(`/network/services/${namespace}/${ingress.defaultBackend.serviceName}`)"
-                  >{{ ingress.defaultBackend.serviceName }}</el-button>
-                  <span v-else>-</span>
-                  :{{ ingress.defaultBackend.servicePort || '-' }}
-                </template>
-              </el-alert>
-            </div>
+        <!-- Rules -->
+        <div v-if="ingress.rules && ingress.rules.length > 0" class="section-block">
+          <div class="panel-title">
+            路由规则
+            <span class="count-badge">{{ ingress.rules.length }} 条</span>
           </div>
-
-          <!-- Rules -->
-          <div class="right-section" v-if="ingress.rules && ingress.rules.length > 0" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
-            <div class="panel-title">
-              路由规则
-              <span class="count-badge">{{ ingress.rules.length }} 条</span>
-            </div>
-            <div class="rules-body">
-              <el-table :data="ingress.rules" border stripe size="small">
-                <el-table-column prop="host" label="Host" min-width="200" show-overflow-tooltip />
-                <el-table-column label="Paths" min-width="300">
-                  <template #default="{ row }">
-                    <div v-if="row.paths && row.paths.length > 0">
-                      <div v-for="(p, idx) in row.paths" :key="idx" style="margin-bottom: 4px;">
-                        <el-tag size="small" type="info">{{ p.pathType || 'ImplementationSpecific' }}</el-tag>
-                        {{ p.path || '/' }} ->
-                        <el-button
-                          v-if="p.backend?.serviceName"
-                          link
-                          type="primary"
-                          size="small"
-                          @click="router.push(`/network/services/${namespace}/${p.backend.serviceName}`)"
-                        >{{ p.backend.serviceName }}</el-button>
-                        <span v-else>-</span>:{{ p.backend?.servicePort || '-' }}
-                      </div>
-                    </div>
-                    <span v-else>-</span>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
-          </div>
-
-          <!-- TLS -->
-          <div class="right-section" v-if="ingress.tls && ingress.tls.length > 0">
-            <div class="panel-title">
-              TLS
-              <span class="count-badge">{{ ingress.tls.length }} 条</span>
-            </div>
-            <div class="rules-body" v-loading="tlsCertsLoading">
-              <el-table :data="ingress.tls" border stripe size="small">
-                <el-table-column label="Hosts" min-width="180">
-                  <template #default="{ row }">
-                    <el-tag v-for="h in (row.hosts || [])" :key="h" size="small" style="margin-right: 4px;">{{ h }}</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="secretName" label="Secret Name" min-width="160" />
-                <el-table-column label="证书状态" min-width="160">
-                  <template #default="{ row }">
-                    <template v-if="tlsCertMap[row.secretName]">
-                      <el-tag
-                        :type="certStatusType(tlsCertMap[row.secretName].status)"
+          <div class="rules-body">
+            <el-table :data="ingress.rules" border stripe size="small">
+              <el-table-column prop="host" label="Host" min-width="200" show-overflow-tooltip />
+              <el-table-column label="Paths" min-width="300">
+                <template #default="{ row }">
+                  <div v-if="row.paths && row.paths.length > 0">
+                    <div v-for="(p, idx) in row.paths" :key="idx" style="margin-bottom: 4px;">
+                      <el-tag size="small" type="info">{{ p.pathType || 'ImplementationSpecific' }}</el-tag>
+                      {{ p.path || '/' }} ->
+                      <el-button
+                        v-if="p.backend?.serviceName"
+                        link
+                        type="primary"
                         size="small"
-                        effect="dark"
-                      >
-                        {{ certStatusText(tlsCertMap[row.secretName].status) }}
-                      </el-tag>
-                      <div class="cert-detail">{{ tlsCertMap[row.secretName].message }}</div>
-                    </template>
-                    <span v-else class="text-muted">-</span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="过期时间" min-width="160">
-                  <template #default="{ row }">
-                    <template v-if="tlsCertMap[row.secretName]?.notAfter">
-                      <div>{{ formatDate(tlsCertMap[row.secretName].notAfter) }}</div>
-                      <div class="cert-issuer">签发: {{ tlsCertMap[row.secretName].issuer || '-' }}</div>
-                    </template>
-                    <span v-else class="text-muted">-</span>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
+                        @click="router.push(`/network/services/${namespace}/${p.backend.serviceName}`)"
+                      >{{ p.backend.serviceName }}</el-button>
+                      <span v-else>-</span>:{{ p.backend?.servicePort || '-' }}
+                    </div>
+                  </div>
+                  <span v-else>-</span>
+                </template>
+              </el-table-column>
+            </el-table>
           </div>
-
-          <!-- 垂直拖拽条 -->
-          <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
-
-          <!-- Events -->
-          <div class="right-section events-section">
-            <div class="panel-title">
-              事件
-              <span class="count-badge">{{ events.length }} 条</span>
-            </div>
-            <div v-loading="eventsLoading" class="events-body">
-              <el-table v-if="events.length > 0" :data="events" size="small" stripe max-height="260">
-                <el-table-column prop="type" label="类型" width="80">
-                  <template #default="{ row }">
-                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="reason" label="原因" width="130" />
-                <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="last_seen" label="最后发生" width="150" />
-              </el-table>
-              <div v-else class="empty-hint">暂无事件</div>
-            </div>
-          </div>
-
         </div>
 
-        <!-- 水平拖拽条 -->
-        <div
-          class="resize-handle-h"
-          :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
-          @mousedown="onHResizeStart"
-        />
+        <!-- TLS -->
+        <div v-if="ingress.tls && ingress.tls.length > 0" class="section-block">
+          <div class="panel-title">
+            TLS
+            <span class="count-badge">{{ ingress.tls.length }} 条</span>
+          </div>
+          <div class="rules-body" v-loading="tlsCertsLoading">
+            <el-table :data="ingress.tls" border stripe size="small">
+              <el-table-column label="Hosts" min-width="180">
+                <template #default="{ row }">
+                  <el-tag v-for="h in (row.hosts || [])" :key="h" size="small" style="margin-right: 4px;">{{ h }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="secretName" label="Secret Name" min-width="160" />
+              <el-table-column label="证书状态" min-width="160">
+                <template #default="{ row }">
+                  <template v-if="tlsCertMap[row.secretName]">
+                    <el-tag
+                      :type="certStatusType(tlsCertMap[row.secretName].status)"
+                      size="small"
+                      effect="dark"
+                    >
+                      {{ certStatusText(tlsCertMap[row.secretName].status) }}
+                    </el-tag>
+                    <div class="cert-detail">{{ tlsCertMap[row.secretName].message }}</div>
+                  </template>
+                  <span v-else class="text-muted">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="过期时间" min-width="160">
+                <template #default="{ row }">
+                  <template v-if="tlsCertMap[row.secretName]?.notAfter">
+                    <div>{{ formatDate(tlsCertMap[row.secretName].notAfter) }}</div>
+                    <div class="cert-issuer">签发: {{ tlsCertMap[row.secretName].issuer || '-' }}</div>
+                  </template>
+                  <span v-else class="text-muted">-</span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
       </div>
+    </template>
+
+    <!-- Right-bottom: Events -->
+    <template v-if="ingress" #right-bottom>
+      <div class="panel-title">
+        事件
+        <span class="count-badge">{{ events.length }} 条</span>
+      </div>
+      <EventsTable :events="events" :loading="eventsLoading" time-field="last_seen" />
     </template>
 
     <!-- YAML Drawer -->
@@ -507,116 +398,13 @@ onMounted(() => {
         />
       </div>
     </el-drawer>
-  </div>
+  </DetailPageLayout>
 </template>
 
 <style scoped>
-.detail-page {
-  padding: var(--gk-space-4) var(--gk-space-5);
-  height: calc(100dvh - var(--gk-header-height));
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-/* Header */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--gk-space-3);
-  flex-shrink: 0;
-}
-
-.header-left {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gk-space-1);
-}
-
-.res-name {
-  margin: 0;
-  font-size: var(--gk-font-size-lg);
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.meta-line {
-  display: flex;
-  align-items: center;
-  gap: var(--gk-space-2);
-}
-
-.ns-tag {
-  font-size: 11px;
-  color: var(--gk-color-text-secondary);
-  background: var(--gk-neutral-100);
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
 .replicas-info {
   font-size: 12px;
   color: var(--gk-color-text-primary);
-}
-
-.header-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-}
-
-.header-actions .el-button {
-  border-radius: 0;
-  margin-left: -1px;
-}
-
-.header-actions .el-button:first-child {
-  border-radius: var(--gk-radius-sm) 0 0 var(--gk-radius-sm);
-  margin-left: 0;
-}
-
-.header-actions .el-button:last-of-type {
-  border-radius: 0 var(--gk-radius-sm) var(--gk-radius-sm) 0;
-}
-
-.action-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--el-border-color-lighter);
-  margin: 0 var(--gk-space-1);
-}
-
-.auto-refresh-popover {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.popover-title {
-  font-size: var(--gk-font-size-sm);
-  font-weight: 500;
-  color: var(--gk-color-text-primary);
-}
-
-/* Main Layout */
-.main-layout {
-  display: flex;
-  gap: 2px;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  position: relative;
-}
-
-/* Left Panel */
-.left-panel {
-  border: 1px solid var(--gk-color-border-light);
-  border-radius: var(--gk-radius-md);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--el-bg-color);
 }
 
 .panel-title {
@@ -643,17 +431,15 @@ onMounted(() => {
   padding: 14px;
 }
 
-/* Right Panel */
-.right-panel {
+.right-panel-inner {
   flex: 1;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 0;
-  overflow: hidden;
 }
 
-.right-section {
+.section-block {
   border: 1px solid var(--gk-color-border-light);
   border-radius: var(--gk-radius-md);
   display: flex;
@@ -663,64 +449,9 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.right-section.events-section {
-  flex: 1;
-  min-height: 0;
-}
-
-/* Resize handles */
-.resize-handle-h {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 8px;
-  cursor: col-resize;
-  z-index: 10;
-}
-
-.resize-handle-h:hover,
-.resize-handle-h.active {
-  background: var(--gk-color-primary-bg);
-}
-
-.resize-handle-v {
-  height: 4px;
-  cursor: row-resize;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 5;
-  margin: -2px 0;
-}
-
-.resize-handle-v:hover,
-.resize-handle-v.active {
-  background: var(--gk-color-primary-bg);
-}
-
-.is-resizing {
-  user-select: none;
-}
-
-.is-resizing * {
-  pointer-events: none;
-}
-
 .rules-body {
   padding: 14px;
   overflow-y: auto;
-}
-
-.events-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
-.empty-hint {
-  padding: 24px;
-  text-align: center;
-  color: var(--gk-color-text-secondary);
-  font-size: var(--gk-font-size-sm);
 }
 
 .text-muted {
@@ -741,23 +472,6 @@ onMounted(() => {
   margin-top: 2px;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .main-layout {
-    flex-direction: column;
-    overflow: auto;
-  }
-  .left-panel {
-    width: 100% !important;
-    min-width: 100% !important;
-    max-height: 300px;
-  }
-  .resize-handle-h {
-    display: none;
-  }
-}
-
-/* Edit Drawer */
 .drawer-header {
   display: flex;
   align-items: center;

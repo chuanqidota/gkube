@@ -25,12 +25,13 @@ export interface ResourceListOptions {
   deleteConfirm?: (row: any) => string
   /** Force-delete a single resource (optional; if set, handleDelete accepts force flag) */
   forceDeleteResource?: (params: any) => Promise<any>
+  /** @deprecated Auto-refresh is handled by useAutoRefresh in views. Kept for backward compatibility. */
+  autoRefreshInterval?: number
   /** Enable server-side pagination (default: false) */
   paginated?: boolean
   /** Page size for pagination (default: 50) */
   pageSize?: number
   /** Auto-refresh interval in ms (default: 0 = disabled) */
-  autoRefreshInterval?: number
 }
 
 export function useResourceList(options: ResourceListOptions) {
@@ -48,8 +49,6 @@ export function useResourceList(options: ResourceListOptions) {
   const labelConditions = ref<LabelCondition[]>([])
 
   // Auto-refresh state
-  const autoRefreshEnabled = ref(false)
-  let autoRefreshTimer: ReturnType<typeof setInterval> | null = null
 
   // Pagination state
   const currentPage = ref(1)
@@ -158,7 +157,7 @@ export function useResourceList(options: ResourceListOptions) {
       }
     } catch (e) {
       // Resource type may legitimately not exist in the cluster; log rather than swallow silently
-      console.error(`[useResourceList] Failed to fetch ${options.resourceName} list:`, e)
+      ElMessage.error(`加载${options.resourceName || '资源'}列表失败`); console.error(`[useResourceList] Failed to fetch ${options.resourceName} list:`, e)
     } finally {
       loading.value = false
     }
@@ -387,24 +386,6 @@ export function useResourceList(options: ResourceListOptions) {
     }
   }
 
-  // Auto-refresh
-  function toggleAutoRefresh() {
-    autoRefreshEnabled.value = !autoRefreshEnabled.value
-    if (autoRefreshEnabled.value) {
-      const interval = options.autoRefreshInterval || 30000
-      autoRefreshTimer = setInterval(() => {
-        fetchResources()
-      }, interval)
-      ElMessage.info(`自动刷新已开启（${interval / 1000}s）`)
-    } else {
-      if (autoRefreshTimer) {
-        clearInterval(autoRefreshTimer)
-        autoRefreshTimer = null
-      }
-      ElMessage.info('自动刷新已关闭')
-    }
-  }
-
   // Keyboard shortcut: R to refresh
   function handleKeyboard(e: KeyboardEvent) {
     if (e.key === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -468,7 +449,6 @@ export function useResourceList(options: ResourceListOptions) {
   })
 
   onUnmounted(() => {
-    if (autoRefreshTimer) clearInterval(autoRefreshTimer)
     if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
     pendingDeleteTimers.forEach((t) => clearTimeout(t))
     document.removeEventListener('keydown', handleKeyboard)
@@ -486,9 +466,6 @@ export function useResourceList(options: ResourceListOptions) {
     // Label selector
     labelConditions,
     onLabelConditionsChange,
-    // Auto-refresh
-    autoRefreshEnabled,
-    toggleAutoRefresh,
     // Pagination
     currentPage,
     pageSize,

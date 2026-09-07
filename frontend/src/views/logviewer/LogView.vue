@@ -77,7 +77,7 @@ async function fetchClusters() {
       displayName: c.displayName || c.display_name || c.clusterName || c.name,
     }))
   } catch (e) {
-    console.error('[LogView] Failed to load clusters:', e)
+    ElMessage.error('加载集群列表失败'); console.error('[LogView] Failed to load clusters:', e)
   }
 }
 

@@ -12,14 +12,14 @@ export interface ResourceApiOptions {
  * @param basePath API 路径前缀，如 '/k8s/deployment'
  * @param options 可选配置
  */
-export function createResourceApi(basePath: string, options?: ResourceApiOptions) {
+export function createResourceApi<TList = any, TDetail = any>(basePath: string, options?: ResourceApiOptions) {
   const updateEndpoint = options?.updatePath ?? `${basePath}/update-yaml`
   return {
     /** List — POST, body 可含 namespace/limit/continue/labelFilters */
-    list:       (data?: any) => request.post(`${basePath}/list`, data),
-    detail:     (params: any) => request.get(`${basePath}/detail`, { params }),
-    getYaml:    (params: any) => request.get(`${basePath}/get-yaml`, { params }),
-    create:     (data: any) => request.post(`${basePath}/create`, data),
+    list:       (data?: any) => request.post<TList>(`${basePath}/list`, data),
+    detail:     (params: any) => request.get<TDetail>(`${basePath}/detail`, { params }),
+    getYaml:    (params: any) => request.get<string>(`${basePath}/get-yaml`, { params }),
+    create:     (data: any) => request.post(basePath, data),
     updateYaml: (data: any) => request.put(updateEndpoint, data),
     delete:     (data: any) => request.delete(`${basePath}/delete`, { data }),
     events:     (params: any) => request.get(`${basePath}/events`, { params }),

@@ -56,7 +56,7 @@ async function fetchSecrets() {
     const items = res.data?.items || res.data || []
     secretList.value = transformSecrets(items)
   } catch (e) {
-    console.warn('Failed to fetch secrets:', e)
+    ElMessage.error('获取保密字典列表失败'); console.warn('Failed to fetch secrets:', e)
   } finally { loading.value = false }
 }
 

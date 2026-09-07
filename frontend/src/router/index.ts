@@ -591,10 +591,13 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
   // 高危路由仅管理员可访问（客户端 best-effort，真实鉴权在服务端）。
-  // 仅在已加载到用户信息时可判定；未加载（如刷新后未恢复）时放行，避免误锁管理员。
   if (to.meta.requireAdmin) {
     const authStore = useAuthStore()
-    if (authStore.user && !authStore.user.isSuperAdmin && !authStore.user.isAdmin) {
+    if (!authStore.user) {
+      next({ path: '/login', query: { redirect: to.fullPath } })
+      return
+    }
+    if (!authStore.user.isSuperAdmin && !authStore.user.isAdmin) {
       next({ path: '/dashboard' })
       return
     }

@@ -45,7 +45,7 @@ export const useClusterStore = defineStore('cluster', () => {
 
   async function fetchClusters() {
     const res: any = await getClusterList({ page: 1, size: 100 })
-    clusterList.value = res.data.items || []
+    clusterList.value = res.data?.items ?? []
 
     // 验证当前选中集群是否仍在列表中
     if (currentCluster.value) {

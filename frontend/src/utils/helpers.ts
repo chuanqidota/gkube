@@ -102,6 +102,18 @@ export function formatAge(creationTimestamp: string, suffix: boolean = true): st
 }
 
 /**
+ * 将 ISO 时间戳格式化为 "YYYY-MM-DD HH:mm:ss" 本地展示字符串。
+ * 用于"创建时间"/"最后变更"等需要绝对时间的场景（区别于 formatAge 的相对年龄）。
+ */
+export function formatDateTime(iso: string): string {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+/**
  * Truncate a string to a maximum length with ellipsis
  */
 export function truncate(str: string, maxLen: number): string {

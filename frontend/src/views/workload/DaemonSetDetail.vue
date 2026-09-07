@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
+import { FullScreen, Aim } from '@element-plus/icons-vue'
 import {
   getDaemonSetDetail,
   getDaemonSetEvents,
   deleteDaemonSet,
   restartDaemonSet,
   getDaemonSetPods,
-  deletePod,
   updateDaemonSetImage,
   rollbackDaemonSet,
   getDaemonSetRollbacks,
@@ -17,21 +16,26 @@ import {
 import type { NodeInfo } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
+import DetailPageLayout from '@/components/DetailPageLayout.vue'
+import DetailPageHeader from '@/components/DetailPageHeader.vue'
+import EventsTable from '@/components/EventsTable.vue'
+import LabelsBlock from '@/components/LabelsBlock.vue'
+import ConditionsBlock from '@/components/ConditionsBlock.vue'
+import SelectorBlock from '@/components/SelectorBlock.vue'
 import DaemonSetForm from '@/views/workload/components/DaemonSetForm.vue'
 import UpdateImageDialog from '@/views/workload/components/UpdateImageDialog.vue'
 import { useDetailPage } from '@/composables/useDetailPage'
-import { useResizable } from '@/composables/useResizable'
-import { formatAge } from '@/utils/time'
-import { buildFullscreenUrl } from '@/utils/pod'
+import { usePodActions } from '@/composables/usePodActions'
+import { useRestartAction } from '@/composables/useRestartAction'
+import { useEditDrawer } from '@/composables/useEditDrawer'
+import { formatAge } from '@/utils/helpers'
 
-// useDetailPage handles: loading, detail, events, eventsLoading, yamlDialogVisible,
-// handleDelete, handleOpenYaml, auto-refresh, namespace/name, router, clusterName
 const {
   namespace, name,
   loading, detail: daemonset, events, eventsLoading, yamlDialogVisible,
   isRunning, countdown, currentInterval, availableIntervals,
   toggle, manualRefresh, setIntervalOption,
-  fetchDetail, handleDelete, handleOpenYaml,
+  fetchDetail, fetchEvents, handleDelete, handleOpenYaml,
   router, clusterName,
 } = useDetailPage({
   resourceName: 'DaemonSet',
@@ -46,6 +50,11 @@ const {
     await fetchNodes()
   },
 })
+
+// Shared composables
+const { handlePodLogs, handlePodExec, handlePodDelete } = usePodActions(clusterName)
+const { handleRestart } = useRestartAction('daemonset', restartDaemonSet)
+const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess, handleEditCancel } = useEditDrawer(fetchDetail)
 
 // Revisions & Pods
 const revisions = ref<any[]>([])
@@ -65,27 +74,12 @@ const leftView = ref<'revisions' | 'info' | 'nodes'>('revisions')
 // Image update dialog
 const imageDialogVisible = ref(false)
 
-// Edit dialog
-const editDialogVisible = ref(false)
-const editFullscreen = ref(false)
-
-// ---- Resize: left-right + top-bottom ----
-const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
-
-const statusTagType = computed(() => {
+const statusTag = computed(() => {
   const desired = daemonset.value?.status?.desiredNumberScheduled || 0
   const ready = daemonset.value?.status?.numberReady || 0
-  if (ready === desired && desired > 0) return 'success'
-  if (ready > 0) return 'warning'
-  return 'danger'
-})
-
-const statusText = computed(() => {
-  const desired = daemonset.value?.status?.desiredNumberScheduled || 0
-  const ready = daemonset.value?.status?.numberReady || 0
-  if (ready === desired && desired > 0) return 'Ready'
-  if (ready > 0) return 'Progressing'
-  return 'Unavailable'
+  if (ready === desired && desired > 0) return { text: 'Ready', type: 'success' as const }
+  if (ready > 0) return { text: 'Progressing', type: 'warning' as const }
+  return { text: 'Unavailable', type: 'danger' as const }
 })
 
 const imageContainers = computed(() => {
@@ -98,17 +92,15 @@ async function fetchRevisions() {
   try {
     const res: any = await getDaemonSetRollbacks({ namespace, name })
     revisions.value = res.data || []
-    // 自动选中当前 revision（DaemonSet status 无 currentRevision，由后端按模板对比标记 isCurrent）
     const current = revisions.value.find((r: any) => r.isCurrent)
     if (current) {
       handleRevisionSelect(current)
       return
     }
-    // fallback：选中第一个（最新）
     if (revisions.value.length > 0) {
       handleRevisionSelect(revisions.value[0])
     }
-  } catch (e) {
+  } catch {
     revisions.value = []
   } finally {
     revisionsLoading.value = false
@@ -120,13 +112,12 @@ async function fetchAllPods() {
   try {
     const res: any = await getDaemonSetPods({ namespace, name })
     allPods.value = res.data?.items || res.data || []
-    // 若已选中 revision 则过滤
     if (selectedRevision.value) {
       handleRevisionSelect(selectedRevision.value)
     } else {
       rsPods.value = allPods.value
     }
-  } catch (e) {
+  } catch {
     allPods.value = []
     rsPods.value = []
   } finally {
@@ -170,7 +161,6 @@ function nodeBarClass(node: NodePodItem): string {
 }
 
 const nodeDistribution = computed<NodePodItem[]>(() => {
-  // 以集群节点为基准，匹配 DaemonSet Pod
   const nodeMap = new Map<string, NodePodItem>()
   for (const node of nodeList.value) {
     nodeMap.set(node.name, {
@@ -180,14 +170,12 @@ const nodeDistribution = computed<NodePodItem[]>(() => {
       pods: [],
     })
   }
-  // 将 Pod 按 nodeName 归入对应节点
   const displayPods = selectedRevision.value ? rsPods.value : allPods.value
   for (const pod of displayPods) {
     const nodeName = pod.spec?.nodeName || ''
     if (!nodeName) continue
     let entry = nodeMap.get(nodeName)
     if (!entry) {
-      // Pod 所在节点不在 nodeList 中（罕见，如节点刚删除）
       entry = { nodeName, ip: pod.status?.hostIP || '-', isReady: false, pods: [] }
       nodeMap.set(nodeName, entry)
     }
@@ -198,7 +186,6 @@ const nodeDistribution = computed<NodePodItem[]>(() => {
       ready: allReady,
     })
   }
-  // 排序：有异常 Pod → 无 Pod → 正常
   const items = Array.from(nodeMap.values())
   const score = (item: NodePodItem) => item.pods.some(p => p.phase !== 'Running' || !p.ready) ? 0 : item.pods.length === 0 ? 1 : 2
   return items.sort((a, b) => score(a) - score(b))
@@ -238,94 +225,44 @@ async function handleRevisionRollback(rev: any) {
   }
 }
 
-function handlePodLogs(pod: any) {
-  const cluster = clusterName.value
-  window.open(buildFullscreenUrl('logs', { namespace: pod.metadata?.namespace || namespace, pod: pod.metadata?.name, cluster }), '_blank')
+// Pod action wrappers
+function onPodLogs(pod: any) {
+  handlePodLogs({ namespace: pod.metadata?.namespace || namespace, name: pod.metadata?.name })
 }
 
-function handlePodExec(pod: any) {
-  const cluster = clusterName.value
-  window.open(buildFullscreenUrl('terminal', { namespace: pod.metadata?.namespace || namespace, pod: pod.metadata?.name, cluster }), '_blank')
+function onPodExec(pod: any) {
+  handlePodExec({ namespace: pod.metadata?.namespace || namespace, name: pod.metadata?.name })
 }
 
-async function handlePodDelete(pod: any, force = false) {
-  if (force) {
-    try {
-      await ElMessageBox.confirm(
-        `强制删除 Pod "${pod.metadata?.name}" 将跳过优雅终止，控制器管理的 Pod 会被立即重建。确定继续？`,
-        '确认强制删除',
-        { type: 'warning', confirmButtonText: '强制删除', cancelButtonText: '取消' }
-      )
-    } catch {
-      return
-    }
-    try {
-      await deletePod({ namespace: pod.metadata.namespace || namespace, name: pod.metadata.name, force: true })
-      ElMessage.success('Pod 已强制删除')
-      if (selectedRevision.value) handleRevisionSelect(selectedRevision.value)
-    } catch (e: any) {
-      if (e !== 'cancel') ElMessage.error(e?.message || '强制删除失败')
-    }
-    return
-  }
-  try {
-    await ElMessageBox.confirm(
-      `确定要删除 Pod "${pod.metadata?.name}" 吗？`,
-      '确认删除',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
-    )
-    await deletePod({ namespace: pod.metadata.namespace || namespace, name: pod.metadata.name })
-    ElMessage.success('Pod 已删除')
-    if (selectedRevision.value) handleRevisionSelect(selectedRevision.value)
-  } catch (e: any) {
-    if (e !== 'cancel') {
-      ElMessage.error(e?.message || '删除失败')
-    }
-  }
+function onPodDelete(pod: any, force?: boolean) {
+  handlePodDelete(
+    { namespace: pod.metadata?.namespace || namespace, name: pod.metadata?.name },
+    () => { if (selectedRevision.value) handleRevisionSelect(selectedRevision.value) },
+    force
+  )
 }
 
 function handleYamlSaved() {
   fetchDetail()
+  fetchEvents()
   fetchRevisions()
 }
 
-async function handleRestart() {
-  try {
-    await ElMessageBox.confirm(
-      `确定要重启 DaemonSet "${name}" 吗？这将触发滚动更新。`,
-      '确认重启',
-      { type: 'warning' }
-    )
-    await restartDaemonSet({ namespace, name })
-    ElMessage.success('DaemonSet 已重启')
+function onRestart() {
+  handleRestart(namespace, name, () => {
     fetchDetail()
     fetchRevisions()
     fetchAllPods()
-  } catch {
-    // cancelled
-  }
+  })
 }
 
-function handleEdit() {
-  editDialogVisible.value = true
-}
-
-function handleEditSuccess() {
-  editDialogVisible.value = false
-  fetchDetail()
+function onEditSuccess() {
+  handleEditSuccess()
   fetchRevisions()
   fetchAllPods()
 }
 
-function handleEditCancel() {
-  editDialogVisible.value = false
-}
-
 // Image update handlers
-function handleUpdateImage() {
-  imageDialogVisible.value = true
-}
-
 async function handleImageUpdateFn(data: { namespace: string; name: string; containerName: string; image: string }) {
   return updateDaemonSetImage(data)
 }
@@ -339,281 +276,191 @@ function handleImageUpdated() {
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
-    <!-- ===== 顶部标题栏 ===== -->
-    <div class="page-header">
-      <div class="header-left">
-        <h2 class="res-name">{{ name }}</h2>
-        <div class="meta-line">
-          <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
-          <span class="ns-tag">ns/{{ namespace }}</span>
-          <span class="replicas-info" v-if="daemonset">
-            {{ daemonset.status?.numberReady ?? 0 }}/{{ daemonset.status?.desiredNumberScheduled ?? 0 }} ready
-          </span>
-        </div>
-      </div>
-      <div class="header-actions">
-        <el-button type="warning" @click="handleRestart">重启</el-button>
-        <el-button type="success" @click="handleUpdateImage">更新镜像</el-button>
+  <DetailPageLayout :resizable="true">
+    <DetailPageHeader
+      :title="name"
+      :status-tag="statusTag"
+      :namespace="namespace"
+      :loading="loading"
+      :is-running="isRunning"
+      :countdown="countdown"
+      :current-interval="currentInterval"
+      :available-intervals="availableIntervals"
+      @refresh="manualRefresh()"
+      @toggle="toggle()"
+      @set-interval-option="setIntervalOption"
+      @back="router.push('/workloads/daemonsets')"
+    >
+      <template #meta>
+        <span class="replicas-info" v-if="daemonset">
+          {{ daemonset.status?.numberReady ?? 0 }}/{{ daemonset.status?.desiredNumberScheduled ?? 0 }} ready
+        </span>
+      </template>
+      <template #actions>
+        <el-button type="warning" @click="onRestart">重启</el-button>
+        <el-button type="success" @click="imageDialogVisible = true">更新镜像</el-button>
         <el-button type="info" @click="handleEdit">编辑</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" @click="handleDelete">删除</el-button>
-        <div class="action-divider" />
-        <el-popover placement="bottom" :width="200" trigger="click">
-          <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
-          </template>
-          <div class="auto-refresh-popover">
-            <div class="popover-title">
-              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
-            </div>
-            <el-select
-              :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
-              :teleported="false"
-              size="small"
-              style="width: 100%;"
-            >
-              <el-option
-                v-for="sec in availableIntervals"
-                :key="sec"
-                :value="sec"
-                :label="`每 ${sec} 秒刷新`"
-              />
-            </el-select>
-          </div>
-        </el-popover>
-        <el-tooltip content="刷新" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
-        </el-tooltip>
-        <el-tooltip content="返回列表" placement="top">
-          <el-button :icon="ArrowLeft" @click="router.push('/workloads/daemonsets')" />
-        </el-tooltip>
-      </div>
-    </div>
+      </template>
+    </DetailPageHeader>
 
-    <template v-if="daemonset">
-      <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
-
-        <!-- 左侧：修订历史 / 基本信息 -->
-        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
-          <div class="left-tabs">
-            <el-segmented
-              v-model="leftView"
-              :options="[
-                { label: '修订历史', value: 'revisions' },
-                { label: '基本信息', value: 'info' },
-                { label: '节点分布', value: 'nodes' },
-              ]"
-              size="small"
-              block
-            />
-          </div>
-
-          <!-- 修订历史 -->
-          <div v-show="leftView === 'revisions'" class="rs-list" v-loading="revisionsLoading">
-            <div v-if="revisions.length === 0" class="empty-hint">暂无修订历史</div>
-            <div
-              v-for="rev in revisions"
-              :key="rev.revision"
-              class="rs-item"
-              :class="{ active: selectedRevision?.name === rev.name }"
-              @click="handleRevisionSelect(rev)"
-            >
-              <div class="rs-name">{{ rev.name }}</div>
-              <div class="rs-meta">
-                <span class="rs-rev">v{{ rev.revision }}</span>
-                <span class="rs-replicas">{{ revisionPodCount(rev) }} 个 Pod</span>
-                <el-tag
-                  v-if="rev.isCurrent"
-                  type="success" size="small">当前</el-tag>
-                <el-tag v-else-if="revisionPodCount(rev) > 0" type="primary" size="small">活跃</el-tag>
-              </div>
-              <div class="rs-image" v-for="(img, i) in (rev.images || [])" :key="i">{{ img }}</div>
-              <div class="rs-age">{{ formatAge(rev.createdAt) }}</div>
-              <div class="rs-rollback" v-if="!rev.isCurrent">
-                <el-button size="small" type="warning" @click.stop="handleRevisionRollback(rev)">回滚</el-button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 基本信息 -->
-          <div v-show="leftView === 'info'" class="info-body">
-            <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="名称">{{ daemonset?.metadata?.name || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="命名空间">{{ daemonset?.metadata?.namespace || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="调度数">
-                {{ daemonset?.status?.desiredNumberScheduled ?? 0 }} 期望 ·
-                {{ daemonset?.status?.currentNumberScheduled ?? 0 }} 当前 ·
-                {{ daemonset?.status?.numberReady ?? 0 }} 就绪 ·
-                {{ daemonset?.status?.updatedNumberScheduled ?? 0 }} 更新中 ·
-                {{ daemonset?.status?.numberAvailable ?? 0 }} 可用 ·
-                {{ daemonset?.status?.numberUnavailable ?? 0 }} 不可用
-              </el-descriptions-item>
-              <el-descriptions-item label="更新策略">
-                {{ daemonset?.spec?.updateStrategy?.type || 'RollingUpdate' }}
-                <span v-if="(daemonset?.spec?.updateStrategy?.type || 'RollingUpdate') === 'RollingUpdate'" class="info-sub">
-                  (maxUnavailable {{ daemonset?.spec?.updateStrategy?.rollingUpdate?.maxUnavailable ?? '-' }},
-                  maxSurge {{ daemonset?.spec?.updateStrategy?.rollingUpdate?.maxSurge ?? '-' }})
-                </span>
-              </el-descriptions-item>
-              <el-descriptions-item label="当前 revision">{{ revisions.find((r: any) => r.isCurrent)?.name || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="历史上限">{{ daemonset?.spec?.revisionHistoryLimit ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="创建时间">{{ daemonset?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="UID">{{ daemonset?.metadata?.uid || '-' }}</el-descriptions-item>
-            </el-descriptions>
-
-            <div class="info-section-title">容器镜像</div>
-            <div class="vct-list">
-              <div v-for="c in (daemonset?.spec?.template?.spec?.containers || [])" :key="c.name" class="vct-item">
-                <span class="vct-name">{{ c.name }}</span>
-                <span class="vct-meta">{{ c.image || '-' }}</span>
-              </div>
-              <div v-if="!daemonset?.spec?.template?.spec?.containers?.length" class="info-empty">无</div>
-            </div>
-
-            <div class="info-section-title">Conditions</div>
-            <div v-if="daemonset?.status?.conditions?.length" class="conditions-list">
-              <div v-for="cond in daemonset.status.conditions" :key="cond.type" class="condition-item">
-                <div class="condition-head">
-                  <span class="condition-type">{{ cond.type }}</span>
-                  <el-tag :type="cond.status === 'True' ? 'success' : (cond.status === 'False' ? 'danger' : 'info')" size="small">{{ cond.status }}</el-tag>
-                </div>
-                <div v-if="cond.reason || cond.message" class="condition-msg">
-                  <span v-if="cond.reason" class="condition-reason">{{ cond.reason }}</span>
-                  <span v-if="cond.message" class="condition-text">{{ cond.message }}</span>
-                </div>
-                <div v-if="cond.lastTransitionTime" class="condition-time">{{ cond.lastTransitionTime }}</div>
-              </div>
-            </div>
-            <div v-else class="info-empty">无</div>
-
-            <div class="info-section-title">Selector</div>
-            <div class="label-list">
-              <el-tag v-for="(v, k) in (daemonset?.spec?.selector?.matchLabels || {})" :key="k" size="small" class="label-tag">{{ k }}={{ v }}</el-tag>
-              <span v-if="!daemonset?.spec?.selector?.matchLabels || Object.keys(daemonset.spec.selector.matchLabels).length === 0" class="info-empty">无</span>
-            </div>
-
-            <div class="info-section-title">Labels</div>
-            <div class="label-list">
-              <el-tag v-for="(v, k) in (daemonset?.metadata?.labels || {})" :key="k" size="small" type="info" class="label-tag">{{ k }}={{ v }}</el-tag>
-              <span v-if="!daemonset?.metadata?.labels || Object.keys(daemonset.metadata.labels).length === 0" class="info-empty">无</span>
-            </div>
-          </div>
-
-          <!-- 节点分布 -->
-          <div v-show="leftView === 'nodes'" class="node-dist-body" v-loading="nodesLoading">
-            <!-- 汇总条 -->
-            <div class="node-stats">
-              <div class="node-stat">
-                <span class="node-stat-num">{{ nodeDistStats.total }}</span>
-                <span class="node-stat-label">节点</span>
-              </div>
-              <div class="node-stat">
-                <span class="node-stat-num" style="color: var(--el-color-success)">{{ nodeDistStats.withPod }}</span>
-                <span class="node-stat-label">有 Pod</span>
-              </div>
-              <div class="node-stat">
-                <span class="node-stat-num" style="color: var(--el-color-warning)">{{ nodeDistStats.missing }}</span>
-                <span class="node-stat-label">缺失</span>
-              </div>
-              <div class="node-stat">
-                <span class="node-stat-num" style="color: var(--el-color-danger)">{{ nodeDistStats.abnormal }}</span>
-                <span class="node-stat-label">异常</span>
-              </div>
-            </div>
-
-            <div v-if="nodeDistribution.length === 0 && !nodesLoading" class="empty-hint">暂无节点信息</div>
-
-            <div class="node-cards">
-              <div
-                v-for="node in nodeDistribution"
-                :key="node.nodeName"
-                class="node-card"
-              >
-                <div
-                  class="node-card-bar"
-                  :class="nodeBarClass(node)"
-                />
-                <div class="node-card-body">
-                  <div class="node-card-head">
-                    <span class="node-card-name" :title="node.nodeName">{{ node.nodeName }}</span>
-                    <span class="node-card-ip mono">{{ node.ip }}</span>
-                  </div>
-                  <div v-if="node.pods.length === 0" class="node-card-empty">未调度</div>
-                  <div v-else class="node-card-pods">
-                    <div v-for="pod in node.pods" :key="pod.name" class="node-pod-row">
-                      <span class="node-pod-name" :title="pod.name">{{ pod.name }}</span>
-                      <el-tag
-                        :type="pod.phase === 'Running' && pod.ready ? 'success' : pod.phase === 'Pending' ? 'warning' : 'danger'"
-                        size="small"
-                      >{{ pod.phase }}</el-tag>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 右侧：Pods + Events -->
-        <div class="right-panel">
-
-          <!-- Pod 列表 -->
-          <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
-            <div class="panel-title">
-              关联 Pod
-              <span class="count-badge">{{ rsPods.length }} 个</span>
-              <span class="rs-label" v-if="selectedRevision">{{ selectedRevision.name }}</span>
-            </div>
-            <PodListPanel
-              :pods="rsPods"
-              :loading="rsPodsLoading"
-              @logs="handlePodLogs"
-              @exec="handlePodExec"
-              @delete="handlePodDelete"
-            />
-          </div>
-
-          <!-- 垂直拖拽条 -->
-          <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
-
-          <!-- Events -->
-          <div class="right-section events-section">
-            <div class="panel-title">
-              事件
-              <span class="count-badge">{{ events.length }} 条</span>
-            </div>
-            <div v-loading="eventsLoading" class="events-body">
-              <el-table v-if="events.length > 0" :data="events" size="small" stripe max-height="260">
-                <el-table-column prop="type" label="类型" width="80">
-                  <template #default="{ row }">
-                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="reason" label="原因" width="130" />
-                <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="last_seen" label="最后发生" width="150" />
-              </el-table>
-              <div v-else class="empty-hint">暂无事件</div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- 水平拖拽条 -->
-        <div
-          class="resize-handle-h"
-          :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
-          @mousedown="onHResizeStart"
+    <template v-if="daemonset" #left>
+      <div class="left-tabs">
+        <el-segmented
+          v-model="leftView"
+          :options="[
+            { label: '修订历史', value: 'revisions' },
+            { label: '基本信息', value: 'info' },
+            { label: '节点分布', value: 'nodes' },
+          ]"
+          size="small"
+          block
         />
       </div>
+
+      <!-- 修订历史 -->
+      <div v-show="leftView === 'revisions'" class="rs-list" v-loading="revisionsLoading">
+        <div v-if="revisions.length === 0" class="empty-hint">暂无修订历史</div>
+        <div
+          v-for="rev in revisions"
+          :key="rev.revision"
+          class="rs-item"
+          :class="{ active: selectedRevision?.name === rev.name }"
+          @click="handleRevisionSelect(rev)"
+        >
+          <div class="rs-name">{{ rev.name }}</div>
+          <div class="rs-meta">
+            <span class="rs-rev">v{{ rev.revision }}</span>
+            <span class="rs-replicas">{{ revisionPodCount(rev) }} 个 Pod</span>
+            <el-tag v-if="rev.isCurrent" type="success" size="small">当前</el-tag>
+            <el-tag v-else-if="revisionPodCount(rev) > 0" type="primary" size="small">活跃</el-tag>
+          </div>
+          <div class="rs-image" v-for="(img, i) in (rev.images || [])" :key="i">{{ img }}</div>
+          <div class="rs-age">{{ formatAge(rev.createdAt) }}</div>
+          <div class="rs-rollback" v-if="!rev.isCurrent">
+            <el-button size="small" type="warning" @click.stop="handleRevisionRollback(rev)">回滚</el-button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 基本信息 -->
+      <div v-show="leftView === 'info'" class="info-body">
+        <el-descriptions :column="1" border size="small">
+          <el-descriptions-item label="名称">{{ daemonset?.metadata?.name || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="命名空间">{{ daemonset?.metadata?.namespace || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="调度数">
+            {{ daemonset?.status?.desiredNumberScheduled ?? 0 }} 期望 ·
+            {{ daemonset?.status?.currentNumberScheduled ?? 0 }} 当前 ·
+            {{ daemonset?.status?.numberReady ?? 0 }} 就绪 ·
+            {{ daemonset?.status?.updatedNumberScheduled ?? 0 }} 更新中 ·
+            {{ daemonset?.status?.numberAvailable ?? 0 }} 可用 ·
+            {{ daemonset?.status?.numberUnavailable ?? 0 }} 不可用
+          </el-descriptions-item>
+          <el-descriptions-item label="更新策略">
+            {{ daemonset?.spec?.updateStrategy?.type || 'RollingUpdate' }}
+            <span v-if="(daemonset?.spec?.updateStrategy?.type || 'RollingUpdate') === 'RollingUpdate'" class="info-sub">
+              (maxUnavailable {{ daemonset?.spec?.updateStrategy?.rollingUpdate?.maxUnavailable ?? '-' }},
+              maxSurge {{ daemonset?.spec?.updateStrategy?.rollingUpdate?.maxSurge ?? '-' }})
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="当前 revision">{{ revisions.find((r: any) => r.isCurrent)?.name || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="历史上限">{{ daemonset?.spec?.revisionHistoryLimit ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ daemonset?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="UID">{{ daemonset?.metadata?.uid || '-' }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div class="info-section-title">容器镜像</div>
+        <div class="vct-list">
+          <div v-for="c in (daemonset?.spec?.template?.spec?.containers || [])" :key="c.name" class="vct-item">
+            <span class="vct-name">{{ c.name }}</span>
+            <span class="vct-meta">{{ c.image || '-' }}</span>
+          </div>
+          <div v-if="!daemonset?.spec?.template?.spec?.containers?.length" class="info-empty">无</div>
+        </div>
+
+        <div class="info-section-title">Conditions</div>
+        <ConditionsBlock :conditions="daemonset?.status?.conditions || []" />
+
+        <div class="info-section-title">Selector</div>
+        <SelectorBlock :selector="daemonset?.spec?.selector?.matchLabels || {}" />
+
+        <div class="info-section-title">Labels</div>
+        <LabelsBlock :labels="daemonset?.metadata?.labels || {}" />
+      </div>
+
+      <!-- 节点分布 -->
+      <div v-show="leftView === 'nodes'" class="node-dist-body" v-loading="nodesLoading">
+        <div class="node-stats">
+          <div class="node-stat">
+            <span class="node-stat-num">{{ nodeDistStats.total }}</span>
+            <span class="node-stat-label">节点</span>
+          </div>
+          <div class="node-stat">
+            <span class="node-stat-num" style="color: var(--el-color-success)">{{ nodeDistStats.withPod }}</span>
+            <span class="node-stat-label">有 Pod</span>
+          </div>
+          <div class="node-stat">
+            <span class="node-stat-num" style="color: var(--el-color-warning)">{{ nodeDistStats.missing }}</span>
+            <span class="node-stat-label">缺失</span>
+          </div>
+          <div class="node-stat">
+            <span class="node-stat-num" style="color: var(--el-color-danger)">{{ nodeDistStats.abnormal }}</span>
+            <span class="node-stat-label">异常</span>
+          </div>
+        </div>
+
+        <div v-if="nodeDistribution.length === 0 && !nodesLoading" class="empty-hint">暂无节点信息</div>
+
+        <div class="node-cards">
+          <div
+            v-for="node in nodeDistribution"
+            :key="node.nodeName"
+            class="node-card"
+          >
+            <div class="node-card-bar" :class="nodeBarClass(node)" />
+            <div class="node-card-body">
+              <div class="node-card-head">
+                <span class="node-card-name" :title="node.nodeName">{{ node.nodeName }}</span>
+                <span class="node-card-ip mono">{{ node.ip }}</span>
+              </div>
+              <div v-if="node.pods.length === 0" class="node-card-empty">未调度</div>
+              <div v-else class="node-card-pods">
+                <div v-for="pod in node.pods" :key="pod.name" class="node-pod-row">
+                  <span class="node-pod-name" :title="pod.name">{{ pod.name }}</span>
+                  <el-tag
+                    :type="pod.phase === 'Running' && pod.ready ? 'success' : pod.phase === 'Pending' ? 'warning' : 'danger'"
+                    size="small"
+                  >{{ pod.phase }}</el-tag>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <template v-if="daemonset" #right-top>
+      <div class="panel-title">
+        关联 Pod
+        <span class="count-badge">{{ rsPods.length }} 个</span>
+        <span class="rs-label" v-if="selectedRevision">{{ selectedRevision.name }}</span>
+      </div>
+      <PodListPanel
+        :pods="rsPods"
+        :loading="rsPodsLoading"
+        @logs="onPodLogs"
+        @exec="onPodExec"
+        @delete="onPodDelete"
+      />
+    </template>
+
+    <template v-if="daemonset" #right-bottom>
+      <div class="panel-title">
+        事件
+        <span class="count-badge">{{ events.length }} 条</span>
+      </div>
+      <EventsTable :events="events" :loading="eventsLoading" time-field="last_seen" />
     </template>
 
     <!-- ===== Dialogs ===== -->
@@ -659,122 +506,18 @@ function handleImageUpdated() {
           v-if="editDialogVisible && daemonset"
           :is-edit="true"
           :initial-data="daemonset"
-          @success="handleEditSuccess"
+          @success="onEditSuccess"
           @cancel="handleEditCancel"
         />
       </div>
     </el-drawer>
-  </div>
+  </DetailPageLayout>
 </template>
 
 <style scoped>
-.detail-page {
-  padding: var(--gk-space-4) var(--gk-space-5);
-  height: calc(100dvh - var(--gk-header-height));
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-/* Header */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--gk-space-3);
-  flex-shrink: 0;
-}
-
-.header-left {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gk-space-1);
-}
-
-.res-name {
-  margin: 0;
-  font-size: var(--gk-font-size-lg);
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.meta-line {
-  display: flex;
-  align-items: center;
-  gap: var(--gk-space-2);
-}
-
-.ns-tag {
-  font-size: 11px;
-  color: var(--gk-color-text-secondary);
-  background: var(--gk-neutral-100);
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
 .replicas-info {
   font-size: 12px;
   color: var(--gk-color-text-primary);
-}
-
-.header-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-}
-
-.header-actions .el-button {
-  border-radius: 0;
-  margin-left: -1px;
-}
-
-.header-actions .el-button:first-child {
-  border-radius: var(--gk-radius-sm) 0 0 var(--gk-radius-sm);
-  margin-left: 0;
-}
-
-.header-actions .el-button:last-of-type,
-.header-actions .el-dropdown:last-of-type {
-  border-radius: 0 var(--gk-radius-sm) var(--gk-radius-sm) 0;
-}
-
-.action-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--el-border-color-lighter);
-  margin: 0 var(--gk-space-1);
-}
-
-.auto-refresh-popover {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.popover-title {
-  font-size: var(--gk-font-size-sm);
-  font-weight: 500;
-  color: var(--gk-color-text-primary);
-}
-
-/* Main Layout */
-.main-layout {
-  display: flex;
-  gap: 2px;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  position: relative;
-}
-
-/* Left Panel */
-.left-panel {
-  border: 1px solid var(--gk-color-border-light);
-  border-radius: var(--gk-radius-md);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--el-bg-color);
 }
 
 .panel-title {
@@ -807,12 +550,6 @@ function handleImageUpdated() {
   white-space: nowrap;
 }
 
-.rs-list {
-  flex: 1;
-  overflow-y: auto;
-}
-
-/* 左侧视图切换 */
 .left-tabs {
   padding: 8px 10px;
   border-bottom: 1px solid var(--el-border-color-extra-light);
@@ -823,6 +560,11 @@ function handleImageUpdated() {
   flex: 1;
   overflow-y: auto;
   padding: 10px;
+}
+
+.rs-list {
+  flex: 1;
+  overflow-y: auto;
 }
 
 /* 节点分布 */
@@ -888,21 +630,10 @@ function handleImageUpdated() {
   flex-shrink: 0;
 }
 
-.bar-success {
-  background: var(--el-color-success);
-}
-
-.bar-warning {
-  background: var(--el-color-warning);
-}
-
-.bar-danger {
-  background: var(--el-color-danger);
-}
-
-.bar-empty {
-  background: var(--el-fill-color);
-}
+.bar-success { background: var(--el-color-success); }
+.bar-warning { background: var(--el-color-warning); }
+.bar-danger { background: var(--el-color-danger); }
+.bar-empty { background: var(--el-fill-color); }
 
 .node-card-body {
   flex: 1;
@@ -1004,66 +735,9 @@ function handleImageUpdated() {
   font-size: 11px;
 }
 
-.label-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--gk-space-1);
-}
-
-.label-tag {
-  font-family: var(--gk-font-mono);
-}
-
 .info-empty {
   font-size: 12px;
   color: var(--gk-color-text-placeholder);
-}
-
-.conditions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.condition-item {
-  padding: 6px 8px;
-  background: var(--gk-neutral-100);
-  border-radius: 4px;
-}
-
-.condition-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.condition-type {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--gk-color-text-primary);
-}
-
-.condition-msg {
-  font-size: 11px;
-  margin-top: 2px;
-  display: flex;
-  gap: 6px;
-}
-
-.condition-reason {
-  color: var(--el-color-warning);
-  flex-shrink: 0;
-}
-
-.condition-text {
-  color: var(--gk-color-text-secondary);
-  word-break: break-all;
-}
-
-.condition-time {
-  font-size: 10px;
-  color: var(--gk-color-text-placeholder);
-  margin-top: 2px;
 }
 
 .rs-item {
@@ -1124,102 +798,13 @@ function handleImageUpdated() {
   margin-top: 6px;
 }
 
-/* Right Panel */
-.right-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.right-section {
-  border: 1px solid var(--gk-color-border-light);
-  border-radius: var(--gk-radius-md);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--el-bg-color);
-}
-
-.right-section:first-child {
-  flex: 1;
-  min-height: 0;
-}
-
-.right-section.events-section {
-  flex: 1;
-  min-height: 0;
-}
-
-/* Resize handles */
-.resize-handle-h {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 8px;
-  cursor: col-resize;
-  z-index: 10;
-}
-
-.resize-handle-h:hover,
-.resize-handle-h.active {
-  background: var(--gk-color-primary-bg);
-}
-
-.resize-handle-v {
-  height: 4px;
-  cursor: row-resize;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 5;
-  margin: -2px 0;
-}
-
-.resize-handle-v:hover,
-.resize-handle-v.active {
-  background: var(--gk-color-primary-bg);
-}
-
-.is-resizing {
-  user-select: none;
-}
-
-.is-resizing * {
-  pointer-events: none;
-}
-
-.events-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
 .empty-hint {
   padding: 24px;
   text-align: center;
-  color: var(--gk-color-text-secondary);
+  color: var(--el-text-color-secondary);
   font-size: var(--gk-font-size-sm);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .main-layout {
-    flex-direction: column;
-    overflow: auto;
-  }
-  .left-panel {
-    width: 100% !important;
-    min-width: 100% !important;
-    max-height: 300px;
-  }
-  .resize-handle-h {
-    display: none;
-  }
-}
-
-/* Edit Drawer */
 .drawer-header {
   display: flex;
   align-items: center;

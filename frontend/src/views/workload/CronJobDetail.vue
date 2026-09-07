@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { computed } from 'vue'
+import { FullScreen, Aim, VideoPause, VideoPlay } from '@element-plus/icons-vue'
 import {
   getCronJobDetail,
   deleteCronJob,
@@ -10,12 +10,17 @@ import {
   suspendCronJob,
   resumeCronJob,
 } from '@/api/resource'
-import { Refresh, Timer, ArrowLeft, FullScreen, Aim, VideoPause, VideoPlay } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import CronJobForm from '@/views/workload/components/CronJobForm.vue'
+import DetailPageLayout from '@/components/DetailPageLayout.vue'
+import DetailPageHeader from '@/components/DetailPageHeader.vue'
+import EventsTable from '@/components/EventsTable.vue'
+import LabelsBlock from '@/components/LabelsBlock.vue'
 import { useDetailPage } from '@/composables/useDetailPage'
-import { useResizable } from '@/composables/useResizable'
-import { formatAge } from '@/utils/time'
+import { useEditDrawer } from '@/composables/useEditDrawer'
+import { formatAge } from '@/utils/helpers'
+import { ref } from 'vue'
 
 // ---- useDetailPage composable ----
 const {
@@ -23,7 +28,7 @@ const {
   loading, detail: cronjob, events, eventsLoading, yamlDialogVisible,
   isRunning, countdown, currentInterval, availableIntervals,
   toggle, manualRefresh, setIntervalOption,
-  fetchDetail, handleOpenYaml,
+  fetchDetail, handleDelete, handleOpenYaml,
   router,
 } = useDetailPage({
   resourceName: 'CronJob',
@@ -35,6 +40,9 @@ const {
   onRefresh: async () => { await fetchJobs() },
 })
 
+// ---- Edit drawer composable ----
+const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess, handleEditCancel } = useEditDrawer(fetchDetail)
+
 // ---- Execution history ----
 const jobs = ref<any[]>([])
 const jobsLoading = ref(false)
@@ -44,64 +52,27 @@ async function fetchJobs() {
   try {
     const res: any = await getCronJobExecutionHistory({ namespace, name })
     jobs.value = res.data || []
-  } catch (e: any) {
+  } catch {
     jobs.value = []
   } finally {
     jobsLoading.value = false
   }
 }
 
-// ---- Resize: left-right + top-bottom ----
-const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 300 })
-
-// ---- Edit dialog ----
-const editDialogVisible = ref(false)
-const editFullscreen = ref(false)
-
 // ---- Status ----
-const statusTagType = computed(() => {
-  if (cronjob.value?.spec?.suspend) return 'warning'
-  return 'success'
+const statusTag = computed(() => {
+  if (cronjob.value?.spec?.suspend) return { text: 'Suspended', type: 'warning' as const }
+  return { text: 'Active', type: 'success' as const }
 })
 
-const statusText = computed(() => {
-  if (cronjob.value?.spec?.suspend) return 'Suspended'
-  return 'Active'
-})
-
+// ---- Actions ----
 function handleYamlSaved() {
   fetchDetail()
 }
 
-async function handleDelete() {
-  try {
-    await ElMessageBox.confirm(
-      `确定要删除 CronJob "${name}" 吗？此操作不可恢复。`,
-      '确认删除',
-      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
-    )
-    await deleteCronJob({ namespace, name })
-    ElMessage.success('CronJob 已删除')
-    router.push('/workloads/cronjobs')
-  } catch (e: any) {
-    if (e !== 'cancel') {
-      ElMessage.error(e?.message || '删除失败')
-    }
-  }
-}
-
-function handleEdit() {
-  editDialogVisible.value = true
-}
-
-function handleEditSuccess() {
-  editDialogVisible.value = false
-  fetchDetail()
+function onEditSuccess() {
+  handleEditSuccess()
   fetchJobs()
-}
-
-function handleEditCancel() {
-  editDialogVisible.value = false
 }
 
 async function handleTrigger() {
@@ -149,6 +120,7 @@ async function handleToggleSuspend() {
   }
 }
 
+// ---- Job helpers ----
 function getJobStatus(job: any): string {
   if (job.status?.succeeded > 0) return 'Complete'
   if (job.status?.active > 0) return 'Running'
@@ -197,7 +169,7 @@ function getJobDuration(job: any): string {
 
 function getJobImages(job: any): string {
   const containers = job.spec?.template?.spec?.containers || []
-  return containers.map((container: any) => container.image).filter(Boolean).join(', ') || '-'
+  return containers.map((c: any) => c.image).filter(Boolean).join(', ') || '-'
 }
 
 function isManualJob(job: any): boolean {
@@ -206,19 +178,27 @@ function isManualJob(job: any): boolean {
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
+  <DetailPageLayout v-loading="loading" :resizable="true" :initial-left-width="300">
 
-    <!-- 顶部标题栏 -->
-    <div class="page-header">
-      <div class="header-left">
-        <h2 class="res-name">{{ name }}</h2>
-        <div class="meta-line">
-          <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
-          <span class="ns-tag">ns/{{ namespace }}</span>
-          <span class="replicas-info" v-if="cronjob">{{ cronjob.spec?.schedule }}</span>
-        </div>
-      </div>
-      <div class="header-actions">
+    <!-- Header -->
+    <DetailPageHeader
+      :title="name"
+      :status-tag="statusTag"
+      :namespace="namespace"
+      :loading="loading"
+      :is-running="isRunning"
+      :countdown="countdown"
+      :current-interval="currentInterval"
+      :available-intervals="availableIntervals"
+      @refresh="manualRefresh()"
+      @toggle="toggle()"
+      @set-interval-option="setIntervalOption"
+      @back="router.push('/workloads/cronjobs')"
+    >
+      <template #meta>
+        <span class="replicas-info" v-if="cronjob">{{ cronjob.spec?.schedule }}</span>
+      </template>
+      <template #actions>
         <el-button
           v-if="cronjob"
           :type="cronjob.spec?.suspend ? 'success' : 'warning'"
@@ -229,171 +209,92 @@ function isManualJob(job: any): boolean {
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="primary" @click="handleTrigger">触发</el-button>
         <el-button type="danger" @click="handleDelete">删除</el-button>
-        <div class="action-divider" />
-        <el-popover placement="bottom" :width="200" trigger="click">
-          <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
-          </template>
-          <div class="auto-refresh-popover">
-            <div class="popover-title">
-              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
-            </div>
-            <el-select
-              :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
-              :teleported="false"
-              size="small"
-              style="width: 100%;"
-            >
-              <el-option
-                v-for="sec in availableIntervals"
-                :key="sec"
-                :value="sec"
-                :label="`每 ${sec} 秒刷新`"
-              />
-            </el-select>
-          </div>
-        </el-popover>
-        <el-tooltip content="刷新" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
-        </el-tooltip>
-        <el-tooltip content="返回列表" placement="top">
-          <el-button :icon="ArrowLeft" @click="router.push('/workloads/cronjobs')" />
-        </el-tooltip>
-      </div>
-    </div>
+      </template>
+    </DetailPageHeader>
 
-    <template v-if="cronjob">
-      <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
+    <!-- Left: Basic info -->
+    <template v-if="cronjob" #left>
+      <div class="panel-title">基本信息</div>
+      <div class="info-body">
+        <el-descriptions :column="1" border size="small">
+          <el-descriptions-item label="名称">{{ cronjob.metadata?.name }}</el-descriptions-item>
+          <el-descriptions-item label="命名空间">{{ cronjob.metadata?.namespace }}</el-descriptions-item>
+          <el-descriptions-item label="调度计划">{{ cronjob.spec?.schedule || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="暂停">{{ cronjob.spec?.suspend ?? false }}</el-descriptions-item>
+          <el-descriptions-item label="并发策略">{{ cronjob.spec?.concurrencyPolicy || 'Allow' }}</el-descriptions-item>
+          <el-descriptions-item label="成功历史限制">{{ cronjob.spec?.successfulJobsHistoryLimit ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="失败历史限制">{{ cronjob.spec?.failedJobsHistoryLimit ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="最后调度">{{ cronjob.status?.lastScheduleTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="下次执行时间">
+            <span v-if="cronjob.nextScheduleTime">{{ cronjob.nextScheduleTime }}</span>
+            <el-tag v-else-if="cronjob.spec?.suspend" type="info" size="small">已暂停</el-tag>
+            <span v-else>-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="活跃 Job 数">{{ cronjob.status?.active?.length ?? 0 }}</el-descriptions-item>
+        </el-descriptions>
 
-        <!-- 左侧：基本信息 -->
-        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
-          <div class="panel-title">基本信息</div>
-          <div class="info-body">
-            <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="名称">{{ cronjob.metadata?.name }}</el-descriptions-item>
-              <el-descriptions-item label="命名空间">{{ cronjob.metadata?.namespace }}</el-descriptions-item>
-              <el-descriptions-item label="调度计划">{{ cronjob.spec?.schedule || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="暂停">{{ cronjob.spec?.suspend ?? false }}</el-descriptions-item>
-              <el-descriptions-item label="并发策略">{{ cronjob.spec?.concurrencyPolicy || 'Allow' }}</el-descriptions-item>
-              <el-descriptions-item label="成功历史限制">{{ cronjob.spec?.successfulJobsHistoryLimit ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="失败历史限制">{{ cronjob.spec?.failedJobsHistoryLimit ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="最后调度">{{ cronjob.status?.lastScheduleTime || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="下次执行时间">
-                <span v-if="cronjob.nextScheduleTime">{{ cronjob.nextScheduleTime }}</span>
-                <el-tag v-else-if="cronjob.spec?.suspend" type="info" size="small">已暂停</el-tag>
-                <span v-else>-</span>
-              </el-descriptions-item>
-              <el-descriptions-item label="活跃 Job 数">{{ cronjob.status?.active?.length ?? 0 }}</el-descriptions-item>
-            </el-descriptions>
-
-            <!-- Labels -->
-            <div v-if="cronjob.metadata?.labels && Object.keys(cronjob.metadata.labels).length > 0" style="margin-top: var(--gk-space-4);">
-              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Labels</h4>
-              <el-tag
-                v-for="(val, key) in cronjob.metadata.labels"
-                :key="key"
-                style="margin-right: 8px; margin-bottom: 8px;"
-                size="small"
-              >
-                {{ key }}={{ val }}
-              </el-tag>
-            </div>
-          </div>
+        <!-- Labels -->
+        <div style="margin-top: var(--gk-space-4);">
+          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Labels</h4>
+          <LabelsBlock :labels="cronjob.metadata?.labels || {}" />
         </div>
+      </div>
+    </template>
 
-        <!-- 右侧：Execution History + Events -->
-        <div class="right-panel">
-
-          <!-- 执行历史 -->
-          <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
-            <div class="panel-title execution-title">
-              <div class="title-main">
-                <span>执行历史</span>
-                <span class="count-badge">{{ jobs.length }} 条</span>
+    <!-- Right-top: Execution history -->
+    <template v-if="cronjob" #right-top>
+      <div class="panel-title execution-title">
+        <div class="title-main">
+          <span>执行历史</span>
+          <span class="count-badge">{{ jobs.length }} 条</span>
+        </div>
+        <span class="title-hint">由 CronJob 创建的 Job，保留数量受成功/失败历史限制控制</span>
+      </div>
+      <div v-loading="jobsLoading" class="jobs-body">
+        <el-table v-if="jobs.length > 0" :data="jobs" size="small" stripe>
+          <el-table-column label="名称" min-width="240" show-overflow-tooltip>
+            <template #default="{ row }">
+              <div class="job-name-cell">
+                <el-button link type="primary" @click="router.push(`/workloads/jobs/${row.metadata?.namespace}/${row.metadata?.name}`)">
+                  {{ row.metadata?.name }}
+                </el-button>
+                <el-tag v-if="isManualJob(row)" type="info" size="small">手动触发</el-tag>
               </div>
-              <span class="title-hint">由 CronJob 创建的 Job，保留数量受成功/失败历史限制控制</span>
-            </div>
-            <div v-loading="jobsLoading" class="jobs-body">
-              <el-table v-if="jobs.length > 0" :data="jobs" size="small" stripe>
-                <el-table-column label="名称" min-width="240" show-overflow-tooltip>
-                  <template #default="{ row }">
-                    <div class="job-name-cell">
-                      <el-button link type="primary" @click="router.push(`/workloads/jobs/${row.metadata?.namespace}/${row.metadata?.name}`)">
-                        {{ row.metadata?.name }}
-                      </el-button>
-                      <el-tag v-if="isManualJob(row)" type="info" size="small">手动触发</el-tag>
-                    </div>
-                  </template>
-                </el-table-column>
-                <el-table-column label="状态" width="100">
-                  <template #default="{ row }">
-                    <el-tag :type="getJobStatusType(row)" size="small">{{ getJobStatus(row) }}</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column label="完成数" width="90">
-                  <template #default="{ row }">
-                    {{ row.status?.succeeded || 0 }}/{{ row.spec?.completions || 1 }}
-                  </template>
-                </el-table-column>
-                <el-table-column label="开始时间" width="150">
-                  <template #default="{ row }">{{ formatDateTime(getJobStartedAt(row)) }}</template>
-                </el-table-column>
-                <el-table-column label="完成时间" width="150">
-                  <template #default="{ row }">{{ formatDateTime(getJobFinishedAt(row)) }}</template>
-                </el-table-column>
-                <el-table-column label="耗时" width="90">
-                  <template #default="{ row }">{{ getJobDuration(row) }}</template>
-                </el-table-column>
-                <el-table-column label="Age" width="100">
-                  <template #default="{ row }">{{ formatAge(row.metadata?.creationTimestamp) }}</template>
-                </el-table-column>
-                <el-table-column label="镜像" min-width="220" show-overflow-tooltip>
-                  <template #default="{ row }">{{ getJobImages(row) }}</template>
-                </el-table-column>
-              </el-table>
-              <div v-else class="empty-hint">暂无执行记录</div>
-            </div>
-          </div>
-
-          <!-- 垂直拖拽条 -->
-          <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
-
-          <!-- Events -->
-          <div class="right-section events-section">
-            <div class="panel-title">
-              事件
-              <span class="count-badge">{{ events.length }} 条</span>
-            </div>
-            <div v-loading="eventsLoading" class="events-body">
-              <el-table v-if="events.length > 0" :data="events" size="small" stripe max-height="260">
-                <el-table-column prop="type" label="类型" width="80">
-                  <template #default="{ row }">
-                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="reason" label="原因" width="130" />
-                <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="last_seen" label="最后发生" width="150" />
-              </el-table>
-              <div v-else class="empty-hint">暂无事件</div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- 水平拖拽条 -->
-        <div
-          class="resize-handle-h"
-          :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
-          @mousedown="onHResizeStart"
-        />
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag :type="getJobStatusType(row)" size="small">{{ getJobStatus(row) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="完成数" width="90">
+            <template #default="{ row }">
+              {{ row.status?.succeeded || 0 }}/{{ row.spec?.completions || 1 }}
+            </template>
+          </el-table-column>
+          <el-table-column label="开始时间" width="150">
+            <template #default="{ row }">{{ formatDateTime(getJobStartedAt(row)) }}</template>
+          </el-table-column>
+          <el-table-column label="完成时间" width="150">
+            <template #default="{ row }">{{ formatDateTime(getJobFinishedAt(row)) }}</template>
+          </el-table-column>
+          <el-table-column label="耗时" width="90">
+            <template #default="{ row }">{{ getJobDuration(row) }}</template>
+          </el-table-column>
+          <el-table-column label="Age" width="100">
+            <template #default="{ row }">{{ formatAge(row.metadata?.creationTimestamp) }}</template>
+          </el-table-column>
+          <el-table-column label="镜像" min-width="220" show-overflow-tooltip>
+            <template #default="{ row }">{{ getJobImages(row) }}</template>
+          </el-table-column>
+        </el-table>
+        <div v-else class="empty-hint">暂无执行记录</div>
       </div>
+    </template>
+
+    <!-- Right-bottom: Events -->
+    <template v-if="cronjob" #right-bottom>
+      <EventsTable :events="events" :loading="eventsLoading" time-field="last_seen" />
     </template>
 
     <!-- YAML Drawer -->
@@ -430,122 +331,19 @@ function isManualJob(job: any): boolean {
           v-if="editDialogVisible && cronjob"
           :is-edit="true"
           :initial-data="cronjob"
-          @success="handleEditSuccess"
+          @success="onEditSuccess"
           @cancel="handleEditCancel"
         />
       </div>
     </el-drawer>
-  </div>
+  </DetailPageLayout>
 </template>
 
 <style scoped>
-.detail-page {
-  padding: var(--gk-space-4) var(--gk-space-5);
-  height: calc(100dvh - var(--gk-header-height));
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-/* Header */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--gk-space-3);
-  flex-shrink: 0;
-}
-
-.header-left {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gk-space-1);
-}
-
-.res-name {
-  margin: 0;
-  font-size: var(--gk-font-size-lg);
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.meta-line {
-  display: flex;
-  align-items: center;
-  gap: var(--gk-space-2);
-}
-
-.ns-tag {
-  font-size: 11px;
-  color: var(--gk-color-text-secondary);
-  background: var(--gk-neutral-100);
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
 .replicas-info {
   font-size: 12px;
   color: var(--gk-color-text-primary);
   font-family: var(--gk-font-mono);
-}
-
-.header-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-}
-
-.header-actions .el-button {
-  border-radius: 0;
-  margin-left: -1px;
-}
-
-.header-actions .el-button:first-child {
-  border-radius: var(--gk-radius-sm) 0 0 var(--gk-radius-sm);
-  margin-left: 0;
-}
-
-.header-actions .el-button:last-of-type {
-  border-radius: 0 var(--gk-radius-sm) var(--gk-radius-sm) 0;
-}
-
-.action-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--el-border-color-lighter);
-  margin: 0 var(--gk-space-1);
-}
-
-.auto-refresh-popover {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.popover-title {
-  font-size: var(--gk-font-size-sm);
-  font-weight: 500;
-  color: var(--gk-color-text-primary);
-}
-
-/* Main Layout */
-.main-layout {
-  display: flex;
-  gap: 2px;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  position: relative;
-}
-
-/* Left Panel */
-.left-panel {
-  border: 1px solid var(--gk-color-border-light);
-  border-radius: var(--gk-radius-md);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--el-bg-color);
 }
 
 .panel-title {
@@ -586,6 +384,18 @@ function isManualJob(job: any): boolean {
   text-align: right;
 }
 
+.info-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+.jobs-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
 .job-name-cell {
   display: flex;
   align-items: center;
@@ -597,114 +407,13 @@ function isManualJob(job: any): boolean {
   min-width: 0;
 }
 
-.info-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 14px;
-}
-
-/* Right Panel */
-.right-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.right-section {
-  border: 1px solid var(--gk-color-border-light);
-  border-radius: var(--gk-radius-md);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--el-bg-color);
-}
-
-.right-section:first-child {
-  flex: 1;
-  min-height: 0;
-}
-
-.right-section.events-section {
-  flex: 1;
-  min-height: 0;
-}
-
-/* Resize handles */
-.resize-handle-h {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 8px;
-  cursor: col-resize;
-  z-index: 10;
-}
-
-.resize-handle-h:hover,
-.resize-handle-h.active {
-  background: var(--gk-color-primary-bg);
-}
-
-.resize-handle-v {
-  height: 4px;
-  cursor: row-resize;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 5;
-  margin: -2px 0;
-}
-
-.resize-handle-v:hover,
-.resize-handle-v.active {
-  background: var(--gk-color-primary-bg);
-}
-
-.is-resizing {
-  user-select: none;
-}
-
-.is-resizing * {
-  pointer-events: none;
-}
-
-.jobs-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
-.events-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
 .empty-hint {
   padding: 24px;
   text-align: center;
-  color: var(--gk-color-text-secondary);
+  color: var(--el-text-color-secondary);
   font-size: var(--gk-font-size-sm);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .main-layout {
-    flex-direction: column;
-    overflow: auto;
-  }
-  .left-panel {
-    width: 100% !important;
-    min-width: 100% !important;
-    max-height: 300px;
-  }
-  .resize-handle-h {
-    display: none;
-  }
-}
-
-/* Edit Drawer */
 .drawer-header {
   display: flex;
   align-items: center;

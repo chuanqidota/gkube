@@ -2,22 +2,24 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
 import {
   getReplicaSetDetail,
   getReplicaSetEvents,
   deleteReplicaSet,
-  deletePod,
-  calcAge,
 } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PodListPanel from '@/components/PodListPanel.vue'
-import { useClusterNameRef } from '@/composables/useClusterName'
+import DetailPageLayout from '@/components/DetailPageLayout.vue'
+import DetailPageHeader from '@/components/DetailPageHeader.vue'
+import EventsTable from '@/components/EventsTable.vue'
+import SelectorBlock from '@/components/SelectorBlock.vue'
+import { usePodActions } from '@/composables/usePodActions'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useClusterStore } from '@/stores/cluster'
+import { formatAge } from '@/utils/helpers'
 
-const clusterName = useClusterNameRef()
-import { useResizable } from '@/composables/useResizable'
-
+const clusterStore = useClusterStore()
+const clusterName = computed(() => clusterStore.clusterName)
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
@@ -29,12 +31,9 @@ const eventsLoading = ref(false)
 const namespace = route.params.namespace as string
 const name = route.params.name as string
 
-// ---- Resize: left-right + top-bottom ----
-const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
-
 const rs = computed(() => detail.value?.rs)
 
-const statusInfo = computed(() => {
+const statusTag = computed(() => {
   const conditions = rs.value?.status?.conditions || []
   const available = conditions.find((c: any) => c.type === 'Available')
   if (available?.status === 'True') return { type: 'success' as const, text: 'Available' }
@@ -47,10 +46,26 @@ const controllerOf = computed(() => detail.value?.controllerOf || null)
 
 const containers = computed(() => rs.value?.spec?.template?.spec?.containers || [])
 
-const selectorLabels = computed(() => {
-  const matchLabels = rs.value?.spec?.selector?.matchLabels || {}
-  return Object.entries(matchLabels).map(([k, v]) => `${k}=${v}`)
-})
+const selectorLabels = computed(() => rs.value?.spec?.selector?.matchLabels || {})
+
+// ---- Shared composables ----
+const { handlePodLogs, handlePodExec, handlePodDelete } = usePodActions(clusterName)
+
+function onPodLogs(pod: any) {
+  handlePodLogs({ namespace: pod.metadata.namespace || namespace, name: pod.metadata.name })
+}
+
+function onPodExec(pod: any) {
+  handlePodExec({ namespace: pod.metadata.namespace || namespace, name: pod.metadata.name })
+}
+
+function onPodDelete(pod: any, force?: boolean) {
+  handlePodDelete(
+    { namespace: pod.metadata.namespace || namespace, name: pod.metadata.name },
+    () => fetchDetail(),
+    force
+  )
+}
 
 async function fetchDetail() {
   loading.value = true
@@ -74,52 +89,6 @@ async function fetchEvents() {
     ElMessage.error('获取事件失败')
   } finally {
     eventsLoading.value = false
-  }
-}
-
-function handlePodLogs(pod: any) {
-  const cluster = clusterName.value
-  window.open(`/fullscreen/logs?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
-}
-
-function handlePodExec(pod: any) {
-  const cluster = clusterName.value
-  window.open(`/fullscreen/terminal?namespace=${pod.metadata.namespace || namespace}&pod=${pod.metadata.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
-}
-
-async function handlePodDelete(pod: any, force = false) {
-  if (force) {
-    try {
-      await ElMessageBox.confirm(
-        `强制删除 Pod "${pod.metadata.name}" 将跳过优雅终止，控制器管理的 Pod 会被立即重建。确定继续？`,
-        '确认强制删除',
-        { type: 'warning', confirmButtonText: '强制删除', cancelButtonText: '取消' }
-      )
-    } catch {
-      return
-    }
-    try {
-      await deletePod({ namespace, name: pod.metadata.name, force: true })
-      ElMessage.success('Pod 已强制删除')
-      await fetchDetail()
-    } catch (e: any) {
-      if (e !== 'cancel') ElMessage.error(e?.message || '强制删除失败')
-    }
-    return
-  }
-  try {
-    await ElMessageBox.confirm(
-      `确定要删除 Pod ${pod.metadata.name} 吗？`,
-      '确认删除',
-      { type: 'warning' }
-    )
-    await deletePod({ namespace, name: pod.metadata.name })
-    ElMessage.success('Pod 已删除')
-    await fetchDetail()
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败')
-    }
   }
 }
 
@@ -163,168 +132,102 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
-    <!-- ===== 顶部标题栏 ===== -->
-    <div class="page-header">
-      <div class="header-left">
-        <h2 class="res-name">{{ name }}</h2>
-        <div class="meta-line">
-          <el-tag :type="statusInfo.type" effect="dark" size="small">{{ statusInfo.text }}</el-tag>
-          <span class="ns-tag">ns/{{ namespace }}</span>
-          <span class="replicas-info" v-if="rs">
-            {{ rs.status?.readyReplicas ?? 0 }}/{{ rs.spec?.replicas ?? 0 }} ready
-          </span>
-          <el-tag
-            v-if="controllerOf"
-            type="primary"
-            size="small"
-            :class="{ clickable: controllerOf.kind === 'Deployment' }"
-            @click="goController"
-          >
-            由 {{ controllerOf.kind }}/{{ controllerOf.name }} 管理
-          </el-tag>
-        </div>
-      </div>
-      <div class="header-actions">
+  <DetailPageLayout :resizable="true">
+    <!-- 头部 -->
+    <DetailPageHeader
+      :title="name"
+      :status-tag="statusTag"
+      :namespace="namespace"
+      :loading="loading"
+      :is-running="isRunning"
+      :countdown="countdown"
+      :current-interval="currentInterval"
+      :available-intervals="availableIntervals"
+      @refresh="manualRefresh()"
+      @toggle="toggle()"
+      @set-interval-option="setIntervalOption"
+      @back="router.push('/workloads/replicasets')"
+    >
+      <template #meta>
+        <span class="replicas-info" v-if="rs">
+          {{ rs.status?.readyReplicas ?? 0 }}/{{ rs.spec?.replicas ?? 0 }} ready
+        </span>
+        <el-tag
+          v-if="controllerOf"
+          type="primary"
+          size="small"
+          :class="{ clickable: controllerOf.kind === 'Deployment' }"
+          @click="goController"
+        >
+          由 {{ controllerOf.kind }}/{{ controllerOf.name }} 管理
+        </el-tag>
+      </template>
+      <template #actions>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" @click="handleDelete">删除</el-button>
-        <div class="action-divider" />
-        <el-popover placement="bottom" :width="200" trigger="click">
-          <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
-          </template>
-          <div class="auto-refresh-popover">
-            <div class="popover-title">
-              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
-            </div>
-            <el-select
-              :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
-              :teleported="false"
-              size="small"
-              style="width: 100%;"
-            >
-              <el-option
-                v-for="sec in availableIntervals"
-                :key="sec"
-                :value="sec"
-                :label="`每 ${sec} 秒刷新`"
-              />
-            </el-select>
-          </div>
-        </el-popover>
-        <el-tooltip content="刷新" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
-        </el-tooltip>
-        <el-tooltip content="返回列表" placement="top">
-          <el-button :icon="ArrowLeft" @click="router.push('/workloads/replicasets')" />
-        </el-tooltip>
-      </div>
-    </div>
+      </template>
+    </DetailPageHeader>
 
-    <template v-if="rs">
-      <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
-
-        <!-- 左侧：基本信息 + 容器模板 + 选择器 -->
-        <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
-          <div class="left-scroll">
-
-            <div class="info-block">
-              <div class="block-title">基本信息</div>
-              <div class="info-row"><span class="info-label">名称</span><span class="info-value mono">{{ rs.metadata?.name }}</span></div>
-              <div class="info-row"><span class="info-label">命名空间</span><span class="info-value">{{ rs.metadata?.namespace }}</span></div>
-              <div class="info-row"><span class="info-label">期望副本</span><span class="info-value">{{ rs.spec?.replicas ?? 0 }}</span></div>
-              <div class="info-row"><span class="info-label">当前副本</span><span class="info-value">{{ rs.status?.replicas ?? 0 }}</span></div>
-              <div class="info-row"><span class="info-label">就绪副本</span><span class="info-value">{{ rs.status?.readyReplicas ?? 0 }}</span></div>
-              <div class="info-row"><span class="info-label">可用副本</span><span class="info-value">{{ rs.status?.availableReplicas ?? 0 }}</span></div>
-              <div class="info-row"><span class="info-label">创建时间</span><span class="info-value">{{ calcAge(rs.metadata?.creationTimestamp) }}</span></div>
-              <div class="info-row" v-if="controllerOf">
-                <span class="info-label">拥有者</span>
-                <span
-                  class="info-value link"
-                  :class="{ disabled: controllerOf.kind !== 'Deployment' }"
-                  @click="goController"
-                >{{ controllerOf.kind }}/{{ controllerOf.name }}</span>
-              </div>
-            </div>
-
-            <div class="info-block">
-              <div class="block-title">容器模板</div>
-              <div v-if="containers.length === 0" class="empty-hint">暂无容器</div>
-              <div v-for="c in containers" :key="c.name" class="container-item">
-                <div class="container-name mono">{{ c.name }}</div>
-                <div class="container-image mono">{{ c.image || '-' }}</div>
-              </div>
-            </div>
-
-            <div class="info-block">
-              <div class="block-title">选择器</div>
-              <div v-if="selectorLabels.length === 0" class="empty-hint">无</div>
-              <div class="label-list">
-                <el-tag v-for="l in selectorLabels" :key="l" size="small" class="label-tag">{{ l }}</el-tag>
-              </div>
-            </div>
-
+    <!-- 左侧：基本信息 + 容器模板 + 选择器 -->
+    <template v-if="rs" #left>
+      <div class="left-scroll">
+        <div class="info-block">
+          <div class="block-title">基本信息</div>
+          <div class="info-row"><span class="info-label">名称</span><span class="info-value mono">{{ rs.metadata?.name }}</span></div>
+          <div class="info-row"><span class="info-label">命名空间</span><span class="info-value">{{ rs.metadata?.namespace }}</span></div>
+          <div class="info-row"><span class="info-label">期望副本</span><span class="info-value">{{ rs.spec?.replicas ?? 0 }}</span></div>
+          <div class="info-row"><span class="info-label">当前副本</span><span class="info-value">{{ rs.status?.replicas ?? 0 }}</span></div>
+          <div class="info-row"><span class="info-label">就绪副本</span><span class="info-value">{{ rs.status?.readyReplicas ?? 0 }}</span></div>
+          <div class="info-row"><span class="info-label">可用副本</span><span class="info-value">{{ rs.status?.availableReplicas ?? 0 }}</span></div>
+          <div class="info-row"><span class="info-label">创建时间</span><span class="info-value">{{ formatAge(rs.metadata?.creationTimestamp) }}</span></div>
+          <div class="info-row" v-if="controllerOf">
+            <span class="info-label">拥有者</span>
+            <span
+              class="info-value link"
+              :class="{ disabled: controllerOf.kind !== 'Deployment' }"
+              @click="goController"
+            >{{ controllerOf.kind }}/{{ controllerOf.name }}</span>
           </div>
         </div>
 
-        <!-- 右侧：Pods + Events -->
-        <div class="right-panel">
-
-          <!-- Pod 列表 -->
-          <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
-            <div class="panel-title">
-              Pod 列表
-              <span class="count-badge">{{ (detail?.pods || []).length }} 个</span>
-            </div>
-            <PodListPanel
-              :pods="detail?.pods || []"
-              :loading="loading"
-              @logs="handlePodLogs"
-              @exec="handlePodExec"
-              @delete="handlePodDelete"
-            />
+        <div class="info-block">
+          <div class="block-title">容器模板</div>
+          <div v-if="containers.length === 0" class="empty-hint">暂无容器</div>
+          <div v-for="c in containers" :key="c.name" class="container-item">
+            <div class="container-name mono">{{ c.name }}</div>
+            <div class="container-image mono">{{ c.image || '-' }}</div>
           </div>
-
-          <!-- 垂直拖拽条 -->
-          <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
-
-          <!-- Events -->
-          <div class="right-section events-section">
-            <div class="panel-title">
-              事件
-              <span class="count-badge">{{ events.length }} 条</span>
-            </div>
-            <div v-loading="eventsLoading" class="events-body">
-              <el-table v-if="events.length > 0" :data="events" size="small" stripe max-height="260">
-                <el-table-column prop="type" label="类型" width="80">
-                  <template #default="{ row }">
-                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="reason" label="原因" width="130" />
-                <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="last_seen" label="最后发生" width="150" />
-              </el-table>
-              <div v-else class="empty-hint">暂无事件</div>
-            </div>
-          </div>
-
         </div>
 
-        <!-- 水平拖拽条 -->
-        <div
-          class="resize-handle-h"
-          :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
-          @mousedown="onHResizeStart"
-        />
+        <div class="info-block">
+          <div class="block-title">选择器</div>
+          <SelectorBlock :selector="selectorLabels" />
+        </div>
       </div>
+    </template>
+
+    <!-- 右上：Pod 列表 -->
+    <template v-if="rs" #right-top>
+      <div class="panel-title">
+        Pod 列表
+        <span class="count-badge">{{ (detail?.pods || []).length }} 个</span>
+      </div>
+      <PodListPanel
+        :pods="detail?.pods || []"
+        :loading="loading"
+        @logs="onPodLogs"
+        @exec="onPodExec"
+        @delete="onPodDelete"
+      />
+    </template>
+
+    <!-- 右下：Events -->
+    <template v-if="rs" #right-bottom>
+      <div class="panel-title">
+        事件
+        <span class="count-badge">{{ events.length }} 条</span>
+      </div>
+      <EventsTable :events="events" :loading="eventsLoading" time-field="last_seen" />
     </template>
 
     <!-- ===== YAML Drawer (只读) ===== -->
@@ -334,54 +237,10 @@ onMounted(() => {
       :namespace="namespace"
       :name="name"
     />
-  </div>
+  </DetailPageLayout>
 </template>
 
 <style scoped>
-.detail-page {
-  padding: var(--gk-space-4) var(--gk-space-5);
-  height: calc(100dvh - var(--gk-header-height));
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-/* Header */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--gk-space-3);
-  flex-shrink: 0;
-}
-
-.header-left {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gk-space-1);
-}
-
-.res-name {
-  margin: 0;
-  font-size: var(--gk-font-size-lg);
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.meta-line {
-  display: flex;
-  align-items: center;
-  gap: var(--gk-space-2);
-}
-
-.ns-tag {
-  font-size: 11px;
-  color: var(--gk-color-text-secondary);
-  background: var(--gk-neutral-100);
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
 .replicas-info {
   font-size: 12px;
   color: var(--gk-color-text-primary);
@@ -391,64 +250,22 @@ onMounted(() => {
   cursor: pointer;
 }
 
-.header-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-}
-
-.header-actions .el-button {
-  border-radius: 0;
-  margin-left: -1px;
-}
-
-.header-actions .el-button:first-child {
-  border-radius: var(--gk-radius-sm) 0 0 var(--gk-radius-sm);
-  margin-left: 0;
-}
-
-.header-actions .el-button:last-of-type,
-.header-actions .el-dropdown:last-of-type {
-  border-radius: 0 var(--gk-radius-sm) var(--gk-radius-sm) 0;
-}
-
-.action-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--el-border-color-lighter);
-  margin: 0 var(--gk-space-1);
-}
-
-.auto-refresh-popover {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.popover-title {
+.panel-title {
   font-size: var(--gk-font-size-sm);
-  font-weight: 500;
-  color: var(--gk-color-text-primary);
+  font-weight: 600;
+  padding: var(--gk-space-2) var(--gk-space-4);
+  background: var(--gk-neutral-100);
+  border-bottom: 1px solid var(--gk-color-border-light);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-/* Main Layout */
-.main-layout {
-  display: flex;
-  gap: 2px;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  position: relative;
-}
-
-/* Left Panel */
-.left-panel {
-  border: 1px solid var(--gk-color-border-light);
-  border-radius: var(--gk-radius-md);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--el-bg-color);
+.count-badge {
+  font-weight: 400;
+  font-size: var(--gk-font-size-xs);
+  color: var(--gk-color-text-secondary);
 }
 
 .left-scroll {
@@ -524,106 +341,6 @@ onMounted(() => {
   word-break: break-all;
 }
 
-.label-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.label-tag {
-  font-family: var(--gk-font-mono);
-}
-
-/* Right Panel */
-.right-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.right-section {
-  border: 1px solid var(--gk-color-border-light);
-  border-radius: var(--gk-radius-md);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--el-bg-color);
-}
-
-.right-section:first-child {
-  flex: 1;
-  min-height: 0;
-}
-
-.right-section.events-section {
-  flex: 1;
-  min-height: 0;
-}
-
-.panel-title {
-  font-size: var(--gk-font-size-sm);
-  font-weight: 600;
-  padding: var(--gk-space-2) var(--gk-space-4);
-  background: var(--gk-neutral-100);
-  border-bottom: 1px solid var(--gk-color-border-light);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.count-badge {
-  font-weight: 400;
-  font-size: var(--gk-font-size-xs);
-  color: var(--gk-color-text-secondary);
-}
-
-/* Resize handles */
-.resize-handle-h {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 8px;
-  cursor: col-resize;
-  z-index: 10;
-}
-
-.resize-handle-h:hover,
-.resize-handle-h.active {
-  background: var(--gk-color-primary-bg);
-}
-
-.resize-handle-v {
-  height: 4px;
-  cursor: row-resize;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 5;
-  margin: -2px 0;
-}
-
-.resize-handle-v:hover,
-.resize-handle-v.active {
-  background: var(--gk-color-primary-bg);
-}
-
-.is-resizing {
-  user-select: none;
-}
-
-.is-resizing * {
-  pointer-events: none;
-}
-
-.events-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
 .empty-hint {
   padding: 16px 4px;
   text-align: center;
@@ -633,21 +350,5 @@ onMounted(() => {
 
 .mono {
   font-family: var(--gk-font-mono);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .main-layout {
-    flex-direction: column;
-    overflow: auto;
-  }
-  .left-panel {
-    width: 100% !important;
-    min-width: 100% !important;
-    max-height: 300px;
-  }
-  .resize-handle-h {
-    display: none;
-  }
 }
 </style>

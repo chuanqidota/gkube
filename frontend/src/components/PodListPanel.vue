@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowDown } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import { formatAge } from '@/utils/time'
+import { formatAge } from '@/utils/helpers'
 import { getPodStatusType } from '@/utils/pod'
 
 const router = useRouter()

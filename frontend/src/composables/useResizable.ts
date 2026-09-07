@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, onBeforeUnmount } from 'vue'
 
 export interface ResizableOptions {
   /** 左侧面板初始宽度（px） */
@@ -35,6 +35,10 @@ export function useResizable(options: ResizableOptions = {}) {
   const resizingH = ref(false)
   const resizingV = ref(false)
 
+  // Track active listeners for cleanup on unmount
+  let cleanupH: (() => void) | null = null
+  let cleanupV: (() => void) | null = null
+
   function onHResizeStart(e: MouseEvent) {
     e.preventDefault()
     resizingH.value = true
@@ -47,7 +51,9 @@ export function useResizable(options: ResizableOptions = {}) {
       resizingH.value = false
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
+      cleanupH = null
     }
+    cleanupH = onUp
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
   }
@@ -68,10 +74,18 @@ export function useResizable(options: ResizableOptions = {}) {
       resizingV.value = false
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
+      cleanupV = null
     }
+    cleanupV = onUp
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
   }
+
+  // Clean up any active listeners when the component unmounts
+  onBeforeUnmount(() => {
+    cleanupH?.()
+    cleanupV?.()
+  })
 
   return { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart }
 }
