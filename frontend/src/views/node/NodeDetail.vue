@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Cpu, Coin, Grid, Files, Search, Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
 import {
@@ -27,6 +28,7 @@ interface PodRow {
   age: string
 }
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
@@ -71,7 +73,7 @@ async function fetchDetail(silent = false) {
     const res = await getNodeDetail({ name: nodeName.value })
     node.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载节点详情失败')
+    ElMessage.error(e?.message || t('node.loadNodeDetailFailed'))
   } finally {
     loading.value = false
   }
@@ -97,7 +99,7 @@ async function fetchPods(silent = false) {
       }
     })
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载 Pod 列表失败')
+    ElMessage.error(e?.message || t('node.loadPodListFailed'))
   } finally {
     podsLoading.value = false
   }
@@ -109,7 +111,7 @@ async function fetchEvents(silent = false) {
     const res = await getNodeEvents({ name: nodeName.value })
     events.value = res.data || []
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载事件列表失败')
+    ElMessage.error(e?.message || t('node.loadEventsFailed'))
   } finally {
     eventsLoading.value = false
   }
@@ -190,23 +192,23 @@ watch(nodeName, () => {
         <div class="meta-line">
           <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
           <span v-if="node?.roles" class="role-tag">{{ node.roles }}</span>
-          <el-tag v-if="node?.unschedulable" type="warning" size="small" effect="plain">不可调度</el-tag>
+          <el-tag v-if="node?.unschedulable" type="warning" size="small" effect="plain">{{ t('node.unschedulable') }}</el-tag>
           <span v-if="node?.internal_ip" class="info-text">{{ node.internal_ip }}</span>
         </div>
       </div>
       <div class="header-actions">
         <el-button-group>
           <el-button :type="node?.unschedulable ? 'success' : 'warning'" @click="handleCordon(nodeName, node?.unschedulable || false)">
-            {{ node?.unschedulable ? '解除封锁' : '封锁' }}
+            {{ node?.unschedulable ? t('node.uncordonButton') : t('node.cordonButton') }}
           </el-button>
-          <el-button type="primary" @click="handleTaints">污点</el-button>
-          <el-button type="info" @click="handleLabels">标签</el-button>
+          <el-button type="primary" @click="handleTaints">{{ t('node.taintButton') }}</el-button>
+          <el-button type="info" @click="handleLabels">{{ t('node.labelButton') }}</el-button>
           <el-button @click="handleOpenYaml">YAML</el-button>
-          <el-button type="danger" @click="handleDrain">驱逐</el-button>
-          <el-tooltip v-if="node?.status === 'Ready'" content="节点在线，删除后会重新注册（需先停止 kubelet）" placement="top">
-            <span><el-button type="danger" disabled>删除</el-button></span>
+          <el-button type="danger" @click="handleDrain">{{ t('node.drainButton') }}</el-button>
+          <el-tooltip v-if="node?.status === 'Ready'" :content="t('node.deleteReadyWarning')" placement="top">
+            <span><el-button type="danger" disabled>{{ t('node.deleteButton') }}</el-button></span>
           </el-tooltip>
-          <el-button v-else type="danger" @click="handleDelete(nodeName, node?.status === 'Ready', () => router.push('/nodes'))">删除</el-button>
+          <el-button v-else type="danger" @click="handleDelete(nodeName, node?.status === 'Ready', () => router.push('/nodes'))">{{ t('node.deleteButton') }}</el-button>
         </el-button-group>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
@@ -219,7 +221,7 @@ watch(nodeName, () => {
           </template>
           <div class="auto-refresh-popover">
             <div class="popover-title">
-              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
+              {{ isRunning ? `${t('common.autoRefresh')} ${countdown}s` : t('common.autoRefresh') }}
             </div>
             <el-select
               :model-value="currentInterval / 1000"
@@ -232,15 +234,15 @@ watch(nodeName, () => {
                 v-for="sec in availableIntervals"
                 :key="sec"
                 :value="sec"
-                :label="`每 ${sec} 秒刷新`"
+                :label="`${t('common.refreshInterval')}: ${sec}s`"
               />
             </el-select>
           </div>
         </el-popover>
-        <el-tooltip content="刷新" placement="top">
+        <el-tooltip :content="t('common.refresh')" placement="top">
           <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
         </el-tooltip>
-        <el-tooltip content="返回列表" placement="top">
+        <el-tooltip :content="t('common.backToList')" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/nodes')" />
         </el-tooltip>
       </div>
@@ -251,33 +253,33 @@ watch(nodeName, () => {
 
         <!-- 左侧：基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
-          <div class="panel-title">基本信息</div>
+          <div class="panel-title">{{ t('node.basicInfo') }}</div>
           <div class="info-body">
             <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="名称">{{ node.name }}</el-descriptions-item>
-              <el-descriptions-item label="状态">
+              <el-descriptions-item :label="t('common.name')">{{ node.name }}</el-descriptions-item>
+              <el-descriptions-item :label="t('common.status')">
                 <el-tag :type="statusTagType" size="small">{{ node.status || 'Unknown' }}</el-tag>
               </el-descriptions-item>
-              <el-descriptions-item label="角色">{{ node.roles || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="Kubelet 版本">{{ node.version || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="操作系统">{{ node.os || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="内核版本">{{ node.kernel || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="容器运行时">{{ node.container_runtime || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="内部 IP">{{ node.internal_ip || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="外部 IP">{{ node.external_ip || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="主机名">{{ node.hostname || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="架构">{{ node.architecture || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="创建时间">{{ node.creationTimestamp ? formatDateTime(node.creationTimestamp) : '-' }}</el-descriptions-item>
-              <el-descriptions-item label="不可调度">
-                <el-tag :type="node.unschedulable ? 'danger' : 'success'" size="small">{{ node.unschedulable ? '是' : '否' }}</el-tag>
+              <el-descriptions-item :label="t('node.roles')">{{ node.roles || '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="`Kubelet ${t('node.version')}`">{{ node.version || '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.os')">{{ node.os || '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.kernel')">{{ node.kernel || '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.runtime')">{{ node.container_runtime || '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.internalIp')">{{ node.internal_ip || '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.externalIp')">{{ node.external_ip || '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.hostname')">{{ node.hostname || '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.architecture')">{{ node.architecture || '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('common.age')">{{ node.creationTimestamp ? formatDateTime(node.creationTimestamp) : '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.unschedulable')">
+                <el-tag :type="node.unschedulable ? 'danger' : 'success'" size="small">{{ node.unschedulable ? t('node.unschedulableYes') : t('node.unschedulableNo') }}</el-tag>
               </el-descriptions-item>
             </el-descriptions>
 
             <!-- Labels -->
             <div v-if="node.labels && Object.keys(node.labels).length > 0" style="margin-top: var(--gk-space-4);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; font-size: 13px;">Labels</h4>
-                <el-button size="small" @click="handleLabels">编辑</el-button>
+                <h4 style="margin: 0; font-size: 13px;">{{ t('node.labels') }}</h4>
+                <el-button size="small" @click="handleLabels">{{ t('common.edit') }}</el-button>
               </div>
               <el-tag
                 v-for="(val, key) in node.labels"
@@ -292,20 +294,20 @@ watch(nodeName, () => {
             <!-- Taints -->
             <div style="margin-top: var(--gk-space-4);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; font-size: 13px;">Taints</h4>
-                <el-button size="small" @click="handleTaints">编辑</el-button>
+                <h4 style="margin: 0; font-size: 13px;">{{ t('node.taints') }}</h4>
+                <el-button size="small" @click="handleTaints">{{ t('common.edit') }}</el-button>
               </div>
               <el-table v-if="node.taints && node.taints.length > 0" :data="node.taints" size="small" border>
                 <el-table-column prop="key" label="Key" min-width="150" />
                 <el-table-column prop="value" label="Value" min-width="100" />
                 <el-table-column prop="effect" label="Effect" min-width="120" />
               </el-table>
-              <span v-else style="color: #909399; font-size: 12px;">无污点</span>
+              <span v-else style="color: #909399; font-size: 12px;">{{ t('node.noTaints') }}</span>
             </div>
 
             <!-- Resource Capacity -->
             <div v-if="node.capacity || node.allocatable" style="margin-top: var(--gk-space-4);">
-              <h4 style="margin: 0 0 12px; font-size: 13px;">资源容量</h4>
+              <h4 style="margin: 0 0 12px; font-size: 13px;">{{ t('node.resourceCapacity') }}</h4>
               <div class="resource-cards">
                 <div class="resource-card">
                   <div class="resource-icon cpu-icon"><el-icon><Cpu /></el-icon></div>
@@ -313,11 +315,11 @@ watch(nodeName, () => {
                     <div class="resource-label">CPU</div>
                     <div class="resource-values">
                       <div class="value-item">
-                        <span class="value-label">总容量</span>
+                        <span class="value-label">{{ t('node.totalCapacity') }}</span>
                         <span class="value-number">{{ formatCPU(node.capacity?.cpu) }}</span>
                       </div>
                       <div class="value-item">
-                        <span class="value-label">可分配</span>
+                        <span class="value-label">{{ t('node.allocatable') }}</span>
                         <span class="value-number highlight">{{ formatCPU(node.allocatable?.cpu) }}</span>
                       </div>
                     </div>
@@ -327,14 +329,14 @@ watch(nodeName, () => {
                 <div class="resource-card">
                   <div class="resource-icon memory-icon"><el-icon><Coin /></el-icon></div>
                   <div class="resource-info">
-                    <div class="resource-label">内存</div>
+                    <div class="resource-label">{{ t('node.memory') }}</div>
                     <div class="resource-values">
                       <div class="value-item">
-                        <span class="value-label">总容量</span>
+                        <span class="value-label">{{ t('node.totalCapacity') }}</span>
                         <span class="value-number">{{ formatMemory(node.capacity?.memory) }}</span>
                       </div>
                       <div class="value-item">
-                        <span class="value-label">可分配</span>
+                        <span class="value-label">{{ t('node.allocatable') }}</span>
                         <span class="value-number highlight">{{ formatMemory(node.allocatable?.memory) }}</span>
                       </div>
                     </div>
@@ -344,14 +346,14 @@ watch(nodeName, () => {
                 <div class="resource-card">
                   <div class="resource-icon pods-icon"><el-icon><Grid /></el-icon></div>
                   <div class="resource-info">
-                    <div class="resource-label">Pod 数量</div>
+                    <div class="resource-label">{{ t('node.podCount') }}</div>
                     <div class="resource-values">
                       <div class="value-item">
-                        <span class="value-label">总容量</span>
+                        <span class="value-label">{{ t('node.totalCapacity') }}</span>
                         <span class="value-number">{{ formatCapacity(node.capacity?.pods) }}</span>
                       </div>
                       <div class="value-item">
-                        <span class="value-label">可分配</span>
+                        <span class="value-label">{{ t('node.allocatable') }}</span>
                         <span class="value-number highlight">{{ formatCapacity(node.allocatable?.pods) }}</span>
                       </div>
                     </div>
@@ -361,14 +363,14 @@ watch(nodeName, () => {
                 <div class="resource-card">
                   <div class="resource-icon storage-icon"><el-icon><Files /></el-icon></div>
                   <div class="resource-info">
-                    <div class="resource-label">临时存储</div>
+                    <div class="resource-label">{{ t('node.ephemeralStorage') }}</div>
                     <div class="resource-values">
                       <div class="value-item">
-                        <span class="value-label">总容量</span>
+                        <span class="value-label">{{ t('node.totalCapacity') }}</span>
                         <span class="value-number">{{ formatMemory(node.capacity?.['ephemeral-storage']) }}</span>
                       </div>
                       <div class="value-item">
-                        <span class="value-label">可分配</span>
+                        <span class="value-label">{{ t('node.allocatable') }}</span>
                         <span class="value-number highlight">{{ formatMemory(node.allocatable?.['ephemeral-storage']) }}</span>
                       </div>
                     </div>
@@ -379,15 +381,15 @@ watch(nodeName, () => {
 
             <!-- Conditions -->
             <div v-if="node.conditions && node.conditions.length > 0" style="margin-top: var(--gk-space-4);">
-              <h4 style="margin: 0 0 8px; font-size: 13px;">节点状态</h4>
+              <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('node.nodeConditions') }}</h4>
               <el-table :data="node.conditions" size="small" border>
-                <el-table-column prop="type" label="类型" width="120" />
-                <el-table-column label="状态" width="80">
+                <el-table-column prop="type" :label="t('node.typeLabel')" width="120" />
+                <el-table-column :label="t('node.statusLabel')" width="80">
                   <template #default="{ row }"><el-tag :type="row.status === 'True' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag></template>
                 </el-table-column>
-                <el-table-column prop="reason" label="原因" width="150" />
-                <el-table-column prop="message" label="消息" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="lastTransitionTime" label="最后变更" width="150" />
+                <el-table-column prop="reason" :label="t('node.reasonLabel')" width="150" />
+                <el-table-column prop="message" :label="t('node.messageLabel')" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="lastTransitionTime" :label="t('node.lastTransition')" width="150" />
               </el-table>
             </div>
           </div>
@@ -400,23 +402,23 @@ watch(nodeName, () => {
           <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
             <div class="panel-title">
               Pods
-              <span class="count-badge">{{ pods.length }} 个</span>
-              <el-input v-model="podSearch" placeholder="搜索" size="small" style="width: 200px; margin-left: auto;" clearable>
+              <span class="count-badge">{{ pods.length }} {{ t('node.countUnit') }}</span>
+              <el-input v-model="podSearch" :placeholder="t('node.searchPods')" size="small" style="width: 200px; margin-left: auto;" clearable>
                 <template #prefix><el-icon><Search /></el-icon></template>
               </el-input>
             </div>
             <div v-loading="podsLoading" class="pods-body">
               <el-table v-if="filteredPods.length > 0" :data="filteredPods" size="small" stripe>
-                <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+                <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
                   <template #default="{ row }"><el-button link type="primary" @click="handlePodDetail(row)">{{ row.name }}</el-button></template>
                 </el-table-column>
-                <el-table-column prop="namespace" label="命名空间" width="140" />
-                <el-table-column prop="status" label="状态" width="120"><template #default="{ row }"><el-tag :type="podStatusType(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
+                <el-table-column prop="namespace" :label="t('node.namespaceLabel')" width="140" />
+                <el-table-column prop="status" :label="t('common.status')" width="120"><template #default="{ row }"><el-tag :type="podStatusType(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
                 <el-table-column prop="ip" label="IP" width="140" />
-                <el-table-column prop="restarts" label="重启次数" width="100" />
-                <el-table-column prop="age" label="年龄" width="120" />
+                <el-table-column prop="restarts" :label="t('node.restartCount')" width="100" />
+                <el-table-column prop="age" :label="t('node.ageLabel')" width="120" />
               </el-table>
-              <div v-else class="empty-hint">该节点上暂无 Pod</div>
+              <div v-else class="empty-hint">{{ t('node.noPodsOnNode') }}</div>
             </div>
           </div>
 
@@ -426,21 +428,21 @@ watch(nodeName, () => {
           <!-- Events -->
           <div class="right-section events-section">
             <div class="panel-title">
-              事件
-              <span class="count-badge">{{ events.length }} 条</span>
+              {{ t('node.events') }}
+              <span class="count-badge">{{ events.length }} {{ t('node.eventUnit') }}</span>
             </div>
             <div v-loading="eventsLoading" class="events-body">
               <el-table v-if="events.length > 0" :data="events" size="small" stripe max-height="260">
-                <el-table-column prop="type" label="类型" width="80">
+                <el-table-column prop="type" :label="t('node.typeLabel')" width="80">
                   <template #default="{ row }">
                     <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="reason" label="原因" width="130" />
-                <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="last_seen" label="最后发生" width="150" />
+                <el-table-column prop="reason" :label="t('node.reasonLabel')" width="130" />
+                <el-table-column prop="message" :label="t('node.messageLabel')" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="last_seen" :label="t('event.lastSeen')" width="150" />
               </el-table>
-              <div v-else class="empty-hint">暂无事件</div>
+              <div v-else class="empty-hint">{{ t('node.noEvents') }}</div>
             </div>
           </div>
 

@@ -5,11 +5,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, ArrowLeft } from '@element-plus/icons-vue'
 import { getCustomResourceDetail, getCustomResourceYaml, updateCustomResource, deleteCustomResource } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
+import { useI18n } from 'vue-i18n'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useResizable } from '@/composables/useResizable'
 import * as jsYaml from 'js-yaml'
 
 const { leftWidth, resizingH, onHResizeStart } = useResizable({ initialWidth: 320 })
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -74,7 +76,7 @@ async function fetchDetail() {
     const res: any = await getCustomResourceDetail(params)
     resource.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载详情失败')
+    ElMessage.error(e?.message || t('common.fetchFailed'))
   } finally {
     loading.value = false
   }
@@ -90,7 +92,7 @@ async function handleOpenYaml() {
     const res: any = await getCustomResourceYaml(params)
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
-    ElMessage.error(e?.message || '获取 YAML 失败')
+    ElMessage.error(e?.message || t('common.yamlLoadFailed'))
     yamlDialogVisible.value = false
   } finally {
     yamlLoading.value = false
@@ -103,11 +105,11 @@ async function handleYamlSave() {
     const data: any = { group, version, resource: resourceName, yaml: yamlContent.value }
     if (namespace) data.namespace = namespace
     await updateCustomResource(data)
-    ElMessage.success('保存成功')
+    ElMessage.success(t('common.saveSuccess'))
     yamlDialogVisible.value = false
     fetchDetail()
   } catch (e: any) {
-    ElMessage.error(e?.message || '保存失败')
+    ElMessage.error(e?.message || t('common.saveFailed'))
   } finally {
     yamlSaving.value = false
   }
@@ -119,7 +121,7 @@ async function handleDelete() {
     const params: any = { group, version, resource: resourceName, name }
     if (namespace) params.namespace = namespace
     await deleteCustomResource(params)
-    ElMessage.success('删除成功')
+    ElMessage.success(t('common.deleteSuccess'))
     router.push(backRoute.value)
   } catch {
     /* cancelled */

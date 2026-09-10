@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
@@ -30,6 +31,7 @@ const router = useRouter()
 const submitting = ref(false)
 const namespaceLoading = ref(false)
 const namespaces = ref<string[]>([])
+const { t } = useI18n()
 
 const form = reactive<CronJobFormData>({
   name: '', namespace: 'default',
@@ -444,18 +446,18 @@ async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
   for (let i = 0; i < form.containers.length; i++) {
-    if (!form.containers[i].name) { ElMessage.error(`容器 ${i + 1}: 名称不能为空`); return }
-    if (!form.containers[i].image) { ElMessage.error(`容器 ${i + 1}: 镜像不能为空`); return }
+    if (!form.containers[i].name) { ElMessage.error(t('workload.containerNameRequired', { n: i + 1 })); return }
+    if (!form.containers[i].image) { ElMessage.error(t('workload.containerImageRequired', { n: i + 1 })); return }
     const c = form.containers[i]
     if (c.resources.requests.cpu && c.resources.limits.cpu) {
       const reqCpu = parseCpuToMillicores(c.resources.requests.cpu)
       const limCpu = parseCpuToMillicores(c.resources.limits.cpu)
-      if (reqCpu !== null && limCpu !== null && reqCpu > limCpu) { ElMessage.error(`容器 ${i + 1}: CPU requests 不能大于 limits`); return }
+      if (reqCpu !== null && limCpu !== null && reqCpu > limCpu) { ElMessage.error(t('workload.cpuRequestsExceedLimits', { n: i + 1 })); return }
     }
     if (c.resources.requests.memory && c.resources.limits.memory) {
       const reqMem = parseMemoryToBytes(c.resources.requests.memory)
       const limMem = parseMemoryToBytes(c.resources.limits.memory)
-      if (reqMem !== null && limMem !== null && reqMem > limMem) { ElMessage.error(`容器 ${i + 1}: Memory requests 不能大于 limits`); return }
+      if (reqMem !== null && limMem !== null && reqMem > limMem) { ElMessage.error(t('workload.memoryRequestsExceedLimits', { n: i + 1 })); return }
     }
   }
 
@@ -465,14 +467,14 @@ async function handleSubmit() {
       await props.onSubmit(generatedYaml.value)
     } else if (props.isEdit) {
       await updateCronJobYaml({ namespace: form.namespace, name: form.name, yaml: generatedYaml.value })
-      ElMessage.success('CronJob 更新成功')
+      ElMessage.success(t('common.updateSuccess'))
       emit('success')
     } else {
       await createCronJob({ namespace: form.namespace, yaml: generatedYaml.value })
-      ElMessage.success('CronJob 创建成功')
+      ElMessage.success(t('common.createSuccess'))
       router.push('/workloads/cronjobs')
     }
-  } catch (e: any) { ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败')) }
+  } catch (e: any) { ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed'))) }
   finally { submitting.value = false }
 }
 
@@ -488,14 +490,14 @@ function handleCancel() {
       <!-- Basic Info -->
       <div class="form-section">
         <div class="section-sidebar">
-          <div class="section-title">基本信息</div>
+          <div class="section-title">{{ t('config.basicInfo') }}</div>
         </div>
         <div class="section-content">
           <div class="fields-grid">
-            <el-form-item label="名称" prop="name">
+            <el-form-item :label="t('common.name')" prop="name">
               <el-input v-model="form.name" placeholder="my-cronjob" />
             </el-form-item>
-            <el-form-item label="命名空间" prop="namespace">
+            <el-form-item :label="t('common.namespace_label')" prop="namespace">
               <el-select v-model="form.namespace" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
                 <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
               </el-select>
@@ -673,8 +675,8 @@ function handleCancel() {
         <div class="section-sidebar"></div>
         <div class="section-content">
           <div class="form-actions">
-            <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
+            <el-button @click="handleCancel">{{ t('common.cancel') }}</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? t('common.update') : t('common.create') }}</el-button>
           </div>
         </div>
       </div>

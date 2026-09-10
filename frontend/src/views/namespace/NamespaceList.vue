@@ -71,7 +71,7 @@ async function fetchNamespaces() {
     const res: any = await getNamespaceList(params)
     namespaceList.value = transformNamespaces(res.data || [])
   } catch (e: any) {
-    ElMessage.error(e?.message || '获取命名空间列表失败')
+    ElMessage.error(e?.message || t('namespace.fetchFailed'))
   } finally {
     loading.value = false
   }

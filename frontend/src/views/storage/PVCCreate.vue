@@ -43,7 +43,7 @@ const {
 
 async function handleYamlSubmit() {
   if (!yamlContent.value.trim()) {
-    ElMessage.error('YAML内容不能为空')
+    ElMessage.error(t('common.yamlEmpty'))
     return
   }
   submitting.value = true
@@ -51,10 +51,10 @@ async function handleYamlSubmit() {
     const parsed = yaml.load(yamlContent.value) as any
     const ns = parsed?.metadata?.namespace || 'default'
     await createPvc({ namespace: ns, yaml: yamlContent.value })
-    ElMessage.success('PVC创建成功')
+    ElMessage.success(t('storage.pvcCreated'))
     router.push('/storage/pvcs')
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || t('common.createFailed'))
   } finally {
     submitting.value = false
   }

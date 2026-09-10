@@ -64,31 +64,31 @@ defineExpose({ open })
 </script>
 
 <template>
-  <el-dialog v-model="visible" title="驱逐 Pod" width="500px">
+  <el-dialog v-model="visible" :title="t('node.drainPod')" width="500px">
     <el-alert type="warning" :closable="false" style="margin-bottom: 16px;">
-      <template #title>驱逐操作会先封锁节点，然后提交驱逐请求。Pod 进入终止需要时间，请稍后刷新查看实际状态。</template>
+      <template #title>{{ t('node.drainWarning') }}</template>
     </el-alert>
     <el-form label-width="160px">
-      <el-form-item label="忽略 DaemonSet">
+      <el-form-item :label="t('node.ignoreDaemonSets')">
         <el-switch v-model="drainOptions.ignoreDaemonSets" />
-        <span class="hint">跳过 DaemonSet 管理的 Pod</span>
+        <span class="hint">{{ t('node.ignoreDaemonSetsHint') }}</span>
       </el-form-item>
-      <el-form-item label="删除本地数据">
+      <el-form-item :label="t('node.deleteLocalData')">
         <el-switch v-model="drainOptions.deleteLocalData" />
-        <span class="hint">删除使用 emptyDir/hostPath 的 Pod</span>
+        <span class="hint">{{ t('node.deleteLocalDataHint') }}</span>
       </el-form-item>
-      <el-form-item label="优雅终止时间(秒)">
+      <el-form-item :label="t('node.gracePeriod')">
         <el-input-number v-model="drainOptions.gracePeriod" :min="-1" :max="3600" />
-        <span class="hint">-1 使用 Pod 默认值</span>
+        <span class="hint">{{ t('node.gracePeriodHint') }}</span>
       </el-form-item>
-      <el-form-item label="强制驱逐">
+      <el-form-item :label="t('node.forceDrain')">
         <el-switch v-model="drainOptions.force" />
-        <span class="hint">驱逐不被控制器管理的 standalone Pod（与 kubectl --force 一致）</span>
+        <span class="hint">{{ t('node.forceDrainHint') }}</span>
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
-      <el-button type="warning" @click="handleConfirm">确认驱逐</el-button>
+      <el-button @click="visible = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="warning" @click="handleConfirm">{{ t('node.confirmDrain') }}</el-button>
     </template>
   </el-dialog>
 </template>

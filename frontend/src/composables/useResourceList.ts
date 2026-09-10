@@ -198,7 +198,6 @@ export function useResourceList(options: ResourceListOptions) {
   }
 
   function handleNamespaceChange() {
-    labelConditions.value = [] // 命名空间切换时清空 label 条件
     currentPage.value = 1
     continueTokens.value = []
     fetchResources()
@@ -208,23 +207,22 @@ export function useResourceList(options: ResourceListOptions) {
     selectedRows.value = rows
   }
 
-  async function handleViewYaml(row: any) {
+  const handleViewYaml = async (row: any) => {
     yamlTarget.value = row
     yamlDialogVisible.value = true
     yamlEditing.value = false
-    yamlLoading.value = true
-    yamlContent.value = ''
-    try {
-      const res: any = await options.getYaml({
-        namespace: row.namespace,
-        name: row.name,
-      })
-      yamlContent.value = res.data?.yaml || res.data || ''
-    } catch (e: any) {
-      ElMessage.error(e?.message || t('common.yamlLoadFailed'))
-      yamlDialogVisible.value = false
-    } finally {
-      yamlLoading.value = false
+    // Fetch YAML for pages that use el-drawer+YamlEditor (not YamlDrawer)
+    if (options.getYaml) {
+      yamlLoading.value = true
+      try {
+        const res = await options.getYaml({ namespace: row.namespace, name: row.name })
+        yamlContent.value = typeof res === 'string' ? res : (res?.data ?? res ?? '')
+      } catch (e: any) {
+        yamlContent.value = ''
+        ElMessage.error(e?.message || t('common.yamlLoadFailed'))
+      } finally {
+        yamlLoading.value = false
+      }
     }
   }
 
@@ -392,7 +390,7 @@ export function useResourceList(options: ResourceListOptions) {
   function handleKeyboard(e: KeyboardEvent) {
     if (e.key === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.getAttribute('contenteditable') === 'true') return
       e.preventDefault()
       fetchResources()
     }

@@ -22,7 +22,7 @@ let searchTimer: ReturnType<typeof setTimeout> | null = null
 const selectedRows = ref<any[]>([])
 
 const dialogVisible = ref(false)
-const dialogTitle = ref('创建用户')
+const dialogTitle = ref(t('user.createUser'))
 const formRef = ref<FormInstance>()
 const saving = ref(false)
 const editingId = ref<number | null>(null)
@@ -36,8 +36,8 @@ const resetForm = reactive({ newPassword: '' })
 
 const resetRules: FormRules = {
   newPassword: [
-    { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' },
+    { required: true, message: t('user.passwordRequired'), trigger: 'blur' },
+    { min: 6, message: t('user.passwordMinLength'), trigger: 'blur' },
   ],
 }
 
@@ -49,16 +49,16 @@ const form = reactive({
 })
 
 const rules: FormRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  username: [{ required: true, message: t('user.usernameRequired'), trigger: 'blur' }],
   password: [
     {
       trigger: 'blur',
       validator: (_rule: any, value: string, callback: any) => {
         if (!editingId.value) {
           if (!value) {
-            callback(new Error('请输入密码'))
+            callback(new Error(t('user.passwordRequired')))
           } else if (value.length < 6) {
-            callback(new Error('密码长度不能少于6位'))
+            callback(new Error(t('user.passwordMinLength')))
           } else {
             callback()
           }
@@ -107,7 +107,7 @@ async function fetchUsers() {
 
 function openCreate() {
   editingId.value = null
-  dialogTitle.value = '创建用户'
+  dialogTitle.value = t('user.createUser')
   form.username = ''
   form.password = ''
   form.email = ''
@@ -117,7 +117,7 @@ function openCreate() {
 
 function openEdit(row: any) {
   editingId.value = row.id
-  dialogTitle.value = '编辑用户'
+  dialogTitle.value = t('user.editUser')
   form.username = row.username || ''
   form.password = ''
   form.email = row.email || ''
@@ -167,7 +167,7 @@ async function handleSave() {
 
 async function handleDelete(row: any) {
   try {
-    await ElMessageBox.confirm(`确定删除用户 "${row.username}" 吗？`, '确认删除', { type: 'warning' })
+    await ElMessageBox.confirm(t('user.deleteUserConfirm', { name: row.username }), t('common.confirmDelete'), { type: 'warning' })
   } catch {
     return // 用户取消确认框
   }
@@ -176,7 +176,7 @@ async function handleDelete(row: any) {
     ElMessage.success(t('common.deleted'))
     fetchUsers()
   } catch (e: any) {
-    ElMessage.error(e?.message || '删除失败')
+    ElMessage.error(e?.message || t('user.deleteFailed'))
   }
 }
 
@@ -184,8 +184,8 @@ async function handleBatchDelete() {
   if (!selectedRows.value.length) return
   try {
     await ElMessageBox.confirm(
-      `确定删除选中的 ${selectedRows.value.length} 个用户吗？`,
-      '确认删除',
+      t('common.batchDeleteConfirm', { count: selectedRows.value.length, type: t('user.title') }),
+      t('common.confirmDelete'),
       { type: 'warning' }
     )
     const results = await Promise.allSettled(
@@ -246,15 +246,15 @@ onMounted(fetchUsers)
       :total-count="total"
       :selected-count="selectedRows.length"
       :show-namespace="false"
-      search-placeholder="搜索用户名、昵称或邮箱"
+      :search-placeholder="t('user.searchPlaceholder')"
       @search-input="onSearchInput"
     >
       <template #actions>
         <el-button type="success" @click="openCreate">
-          <el-icon><Plus /></el-icon> 创建
+          <el-icon><Plus /></el-icon> {{ t('common.create') }}
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})
         </el-button>
       </template>
       <template #extra>
@@ -280,23 +280,23 @@ onMounted(fetchUsers)
       >
         <el-table-column type="selection" width="45" />
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="username" label="用户名" min-width="140" />
-        <el-table-column prop="display_name" label="昵称" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="email" label="邮箱" min-width="200" />
-        <el-table-column prop="status" label="状态" width="90">
+        <el-table-column prop="username" :label="t('user.username')" min-width="140" />
+        <el-table-column prop="display_name" :label="t('user.nickname')" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="email" :label="t('user.email')" min-width="200" />
+        <el-table-column prop="status" :label="t('user.status')" width="90">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-              {{ row.status === 1 ? '启用' : '禁用' }}
+              {{ row.status === 1 ? t('user.enabled') : t('user.disabled') }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" min-width="180" :formatter="formatDate" />
-        <el-table-column label="操作" width="230" fixed="right">
+        <el-table-column prop="created_at" :label="t('user.createdAt')" min-width="180" :formatter="formatDate" />
+        <el-table-column :label="t('common.actions')" width="230" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" type="warning" @click="openEdit(row)">编辑</el-button>
-            <el-button size="small" type="warning" @click="openResetPassword(row)">重置密码</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button size="small" type="warning" @click="openEdit(row)">{{ t('common.edit') }}</el-button>
+            <el-button size="small" type="warning" @click="openResetPassword(row)">{{ t('user.resetPassword') }}</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -316,50 +316,50 @@ onMounted(fetchUsers)
     <!-- Create / Edit Dialog -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="480px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="用户名" prop="username">
+        <el-form-item :label="t('user.username')" prop="username">
           <el-input v-model="form.username" :disabled="!!editingId" />
         </el-form-item>
-        <el-form-item label="密码" prop="password">
+        <el-form-item :label="t('user.password')" prop="password">
           <el-input
             v-model="form.password"
             type="password"
             show-password
-            :placeholder="editingId ? '留空保持不变' : ''"
+            :placeholder="editingId ? t('user.leaveBlankToKeep') : ''"
           />
         </el-form-item>
-        <el-form-item label="昵称" prop="displayName">
+        <el-form-item :label="t('user.nickname')" prop="displayName">
           <el-input v-model="form.displayName" />
         </el-form-item>
-        <el-form-item label="邮箱" prop="email">
+        <el-form-item :label="t('user.email')" prop="email">
           <el-input v-model="form.email" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" :loading="saving" @click="handleSave">
-          {{ editingId ? '更新' : '创建' }}
+          {{ editingId ? t('common.update') : t('common.create') }}
         </el-button>
       </template>
     </el-dialog>
 
     <!-- Reset Password Dialog -->
-    <el-dialog v-model="resetDialogVisible" title="重置密码" width="420px" destroy-on-close>
+    <el-dialog v-model="resetDialogVisible" :title="t('user.resetPassword')" width="420px" destroy-on-close>
       <el-form ref="resetFormRef" :model="resetForm" :rules="resetRules" label-width="100px">
-        <el-form-item label="用户">
+        <el-form-item :label="t('user.userLabel')">
           <el-input :model-value="resetTargetUser?.username" disabled />
         </el-form-item>
-        <el-form-item label="新密码" prop="newPassword">
+        <el-form-item :label="t('user.newPassword')" prop="newPassword">
           <el-input
             v-model="resetForm.newPassword"
             type="password"
             show-password
-            placeholder="请输入新密码（不少于6位）"
+            :placeholder="t('user.newPasswordPlaceholder')"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="resetDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="resetSaving" @click="handleResetPassword">确认重置</el-button>
+        <el-button @click="resetDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="resetSaving" @click="handleResetPassword">{{ t('user.confirmReset') }}</el-button>
       </template>
     </el-dialog>
   </div>

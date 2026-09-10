@@ -66,8 +66,8 @@ const { t } = useI18n()
 
 // ---- Status ----
 const statusTag = computed(() => {
-  if (cronjob.value?.spec?.suspend) return { text: 'Suspended', type: 'warning' as const }
-  return { text: 'Active', type: 'success' as const }
+  if (cronjob.value?.spec?.suspend) return { text: t('workload.suspended'), type: 'warning' as const }
+  return { text: t('workload.active'), type: 'success' as const }
 })
 
 // ---- Actions ----
@@ -102,11 +102,11 @@ async function handleTrigger() {
 async function handleToggleSuspend() {
   if (!cronjob.value) return
   const willSuspend = !cronjob.value.spec?.suspend
-  const actionLabel = willSuspend ? '暂停' : '恢复'
+  const actionLabel = willSuspend ? t('workload.suspendLabel') : t('workload.resumeLabel')
   try {
     await ElMessageBox.confirm(
-      `确定要${actionLabel} CronJob "${name}" 吗？`,
-      `确认${actionLabel}`,
+      t('workload.suspendConfirm', { action: actionLabel, type: 'CronJob', name }),
+      t('common.confirmAction'),
       { type: 'warning' }
     )
   } catch {
@@ -118,10 +118,10 @@ async function handleToggleSuspend() {
     } else {
       await resumeCronJob({ namespace, name })
     }
-    ElMessage.success(`CronJob 已${actionLabel}`)
+    ElMessage.success(t(willSuspend ? 'workload.cronJobSuspendSuccess' : 'workload.cronJobResumeSuccess'))
     fetchDetail()
   } catch (e: any) {
-    ElMessage.error(e?.message || `${actionLabel}失败`)
+    ElMessage.error(e?.message || t(willSuspend ? 'workload.cronJobSuspendFailed' : 'workload.cronJobResumeFailed'))
   }
 }
 
@@ -209,10 +209,10 @@ function isManualJob(job: any): boolean {
           :type="cronjob.spec?.suspend ? 'success' : 'warning'"
           :icon="cronjob.spec?.suspend ? VideoPlay : VideoPause"
           @click="handleToggleSuspend"
-        >{{ cronjob.spec?.suspend ? '恢复' : '暂停' }}</el-button>
+        >{{ cronjob.spec?.suspend ? t('workload.resumeLabel') : t('workload.suspendLabel') }}</el-button>
         <el-button type="info" @click="handleEdit">{{ t('common.edit') }}</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="primary" @click="handleTrigger">触发</el-button>
+        <el-button type="primary" @click="handleTrigger">{{ t('workload.trigger') }}</el-button>
         <el-button type="danger" @click="handleDelete">{{ t('common.delete') }}</el-button>
       </template>
     </DetailPageHeader>
@@ -229,13 +229,13 @@ function isManualJob(job: any): boolean {
           <el-descriptions-item :label="t('workload.concurrencyPolicy')">{{ cronjob.spec?.concurrencyPolicy || 'Allow' }}</el-descriptions-item>
           <el-descriptions-item label="成功历史限制">{{ cronjob.spec?.successfulJobsHistoryLimit ?? '-' }}</el-descriptions-item>
           <el-descriptions-item label="失败历史限制">{{ cronjob.spec?.failedJobsHistoryLimit ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="最后调度">{{ cronjob.status?.lastScheduleTime || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="下次执行时间">
+          <el-descriptions-item :label="t('workload.lastSchedule')">{{ cronjob.status?.lastScheduleTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.nextScheduleTime')">
             <span v-if="cronjob.nextScheduleTime">{{ cronjob.nextScheduleTime }}</span>
-            <el-tag v-else-if="cronjob.spec?.suspend" type="info" size="small">已暂停</el-tag>
+            <el-tag v-else-if="cronjob.spec?.suspend" type="info" size="small">{{ t('workload.suspended') }}</el-tag>
             <span v-else>-</span>
           </el-descriptions-item>
-          <el-descriptions-item label="活跃 Job 数">{{ cronjob.status?.active?.length ?? 0 }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.activeJobs')">{{ cronjob.status?.active?.length ?? 0 }}</el-descriptions-item>
         </el-descriptions>
 
         <!-- Labels -->
@@ -263,7 +263,7 @@ function isManualJob(job: any): boolean {
                 <el-button link type="primary" @click="router.push(`/workloads/jobs/${row.metadata?.namespace}/${row.metadata?.name}`)">
                   {{ row.metadata?.name }}
                 </el-button>
-                <el-tag v-if="isManualJob(row)" type="info" size="small">手动触发</el-tag>
+                <el-tag v-if="isManualJob(row)" type="info" size="small">{{ t('workload.manuallyTriggered') }}</el-tag>
               </div>
             </template>
           </el-table-column>

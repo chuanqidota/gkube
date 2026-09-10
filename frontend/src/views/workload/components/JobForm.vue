@@ -455,10 +455,10 @@ async function handleSubmit() {
       emit('success')
     } else {
       await createJob({ namespace: form.namespace, yaml: generatedYaml.value })
-      ElMessage.success('Job 创建成功')
+      ElMessage.success(t('common.createSuccess'))
       router.push('/workloads/jobs')
     }
-  } catch (e: any) { ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败')) }
+  } catch (e: any) { ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed'))) }
   finally { submitting.value = false }
 }
 
@@ -477,14 +477,14 @@ function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
       <!-- Section 1: Basic Info -->
       <div class="form-section">
         <div class="section-sidebar">
-          <div class="section-title">基本信息</div>
+          <div class="section-title">{{ t('config.basicInfo') }}</div>
         </div>
         <div class="section-content">
           <div class="fields-grid">
-            <el-form-item label="名称" prop="name">
+            <el-form-item :label="t('common.name')" prop="name">
               <el-input v-model="form.name" placeholder="my-job" />
             </el-form-item>
-            <el-form-item label="命名空间" prop="namespace">
+            <el-form-item :label="t('common.namespace_label')" prop="namespace">
               <el-select v-model="form.namespace" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
                 <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
               </el-select>
@@ -644,8 +644,8 @@ function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
         <div class="section-sidebar"></div>
         <div class="section-content">
           <div class="form-actions">
-            <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
+            <el-button @click="handleCancel">{{ t('common.cancel') }}</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.create') }}</el-button>
           </div>
         </div>
       </div>

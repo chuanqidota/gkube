@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Search } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import LabelFilterPopover from './LabelFilterPopover.vue'
 import type { LabelCondition } from './LabelFilterPopover.vue'
+
+const { t } = useI18n()
 
 interface Props {
   searchValue: string
@@ -29,8 +33,8 @@ const props = withDefaults(defineProps<Props>(), {
   showCreate: true,
   showNamespace: true,
   showTotalCount: true,
-  searchPlaceholder: '搜索名称',
-  namespacePlaceholder: '所有命名空间',
+  searchPlaceholder: '',
+  namespacePlaceholder: '',
   clusterName: '',
   resourceType: '',
   labelConditions: () => [],
@@ -45,6 +49,9 @@ const emit = defineEmits<{
   batchDelete: []
   'labelSelectorChange': [conditions: LabelCondition[]]
 }>()
+
+const searchPlaceholderText = computed(() => props.searchPlaceholder || t('common.searchName'))
+const namespacePlaceholderText = computed(() => props.namespacePlaceholder || t('common.allNamespaces'))
 </script>
 
 <template>
@@ -55,7 +62,7 @@ const emit = defineEmits<{
         v-if="showNamespace"
         :model-value="namespaceValue"
         @update:model-value="emit('update:namespaceValue', $event)"
-        :placeholder="namespacePlaceholder"
+        :placeholder="namespacePlaceholderText"
         clearable
         style="width: 180px;"
         @change="emit('namespaceChange', $event)"
@@ -65,7 +72,7 @@ const emit = defineEmits<{
       <el-input
         :model-value="searchValue"
         @input="emit('searchInput', $event)"
-        :placeholder="searchPlaceholder"
+        :placeholder="searchPlaceholderText"
         style="width: 220px;"
         clearable
       >
@@ -81,7 +88,7 @@ const emit = defineEmits<{
         @update:model-value="emit('labelSelectorChange', $event)"
       />
       <!-- 总计数 -->
-      <span class="total-count" v-if="showTotalCount && totalCount">总计: {{ totalCount }}</span>
+      <span class="total-count" v-if="showTotalCount && totalCount">{{ t('common.total') }}: {{ totalCount }}</span>
 
       <!-- 右侧操作区（推到最右） -->
       <div class="right-actions">

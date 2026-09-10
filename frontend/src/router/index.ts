@@ -1,13 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getToken } from '@/utils/auth'
 import { useAuthStore } from '@/stores/auth'
+import i18n from '@/locales'
 
 import { workloadRoutes } from './workload'
 import { networkRoutes } from './network'
 import { storageRoutes } from './storage'
 import { configRoutes } from './config'
 import { nodeRoutes } from './node'
+import { clusterRoutes } from './cluster'
+import { eventRoutes } from './event'
 import { systemRoutes } from './system'
+
+const { t } = i18n.global
 
 const router = createRouter({
   history: createWebHistory(),
@@ -28,13 +33,13 @@ const router = createRouter({
           path: 'terminal',
           name: 'Terminal',
           component: () => import('@/views/terminal/TerminalView.vue'),
-          meta: { title: 'Web终端', icon: 'Promotion' },
+          meta: { titleKey: 'terminal.title', icon: 'Promotion' },
         },
         {
           path: 'logs',
           name: 'Logs',
           component: () => import('@/views/logviewer/LogView.vue'),
-          meta: { title: '日志查看', icon: 'Document' },
+          meta: { titleKey: 'log.title', icon: 'Document' },
         },
       ],
     },
@@ -48,7 +53,7 @@ const router = createRouter({
           path: 'dashboard',
           name: 'Dashboard',
           component: () => import('@/views/dashboard/DashboardView.vue'),
-          meta: { title: '仪表盘', icon: 'Odometer' },
+          meta: { titleKey: 'sidebar.dashboard', icon: 'Odometer' },
         },
         {
           path: 'system/overview',
@@ -59,13 +64,15 @@ const router = createRouter({
         ...storageRoutes,
         ...configRoutes,
         ...nodeRoutes,
+        ...clusterRoutes,
+        ...eventRoutes,
         ...systemRoutes,
         // 404 catch-all inside the app shell (keeps sidebar/header)
         {
           path: ':pathMatch(.*)*',
           name: 'NotFound',
           component: () => import('@/views/system/NotFound.vue'),
-          meta: { title: '页面不存在' },
+          meta: { titleKey: 'common.notFound' },
         },
       ],
     },
@@ -110,8 +117,8 @@ router.beforeEach(async (to, _from, next) => {
 })
 
 router.afterEach((to) => {
-  const title = to.meta.title as string | undefined
-  document.title = title ? `${title} - GKube` : 'GKube - Kubernetes 管理平台'
+  const title = to.meta.titleKey ? t(to.meta.titleKey as string) : (to.meta.title as string | undefined) || ''
+  document.title = title ? `${title} - GKube` : `GKube - ${t('common.appDescription')}`
 })
 
 export default router

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -17,6 +18,7 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const { t } = useI18n()
 const submitting = ref(false)
 const namespaceLoading = ref(false)
 const namespaces = ref<string[]>([])
@@ -210,7 +212,7 @@ async function handleSubmit() {
   if (!valid) return
 
   if (!form.accessModes.length) {
-    ElMessage.error('至少需要选择一种访问模式')
+    ElMessage.error(t('storage.accessModeRequired'))
     return
   }
 
@@ -219,15 +221,15 @@ async function handleSubmit() {
     const yamlStr = (await import('js-yaml')).default.dump(buildK8sPVC(), { indent: 2, lineWidth: -1, noRefs: true })
     if (props.isEdit) {
       await updatePvcYaml({ namespace: form.namespace, name: form.name, yaml: yamlStr })
-      ElMessage.success('PVC更新成功')
+      ElMessage.success(t('storage.pvcUpdated'))
       emit('success')
     } else {
       await createPvc({ namespace: form.namespace, yaml: yamlStr })
-      ElMessage.success('PVC创建成功')
+      ElMessage.success(t('storage.pvcCreated'))
       router.push('/storage/pvcs')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
+    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
   } finally {
     submitting.value = false
   }

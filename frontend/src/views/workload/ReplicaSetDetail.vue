@@ -212,7 +212,7 @@ onMounted(() => {
     <!-- 右上：Pod 列表 -->
     <template v-if="rs" #right-top>
       <div class="panel-title">
-        Pod 列表
+        {{ t('workload.pod') }}
         <span class="count-badge">{{ (detail?.pods || []).length }} 个</span>
       </div>
       <PodListPanel
@@ -227,7 +227,7 @@ onMounted(() => {
     <!-- 右下：Events -->
     <template v-if="rs" #right-bottom>
       <div class="panel-title">
-        事件
+        {{ t('event.title') }}
         <span class="count-badge">{{ events.length }} 条</span>
       </div>
       <EventsTable :events="events" :loading="eventsLoading" time-field="last_seen" />

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { createCustomResource } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const submitting = ref(false)
 
 const group = route.query.group as string
@@ -32,17 +34,17 @@ const backRoute = computed(() =>
 
 async function handleSubmit() {
   if (!yamlContent.value.trim()) {
-    ElMessage.warning('请输入 YAML')
+    ElMessage.warning(t('common.yamlEmpty'))
     return
   }
   submitting.value = true
   try {
     const data: any = { group, version, resource, yaml: yamlContent.value }
     await createCustomResource(data)
-    ElMessage.success('自定义资源创建成功')
+    ElMessage.success(t('crd.customResourceCreateSuccess'))
     router.push(backRoute.value)
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || t('common.createFailed'))
   } finally {
     submitting.value = false
   }

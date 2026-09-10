@@ -213,7 +213,7 @@ async function handleResume(row: any) {
           style="width: 130px;"
         >
           <el-option label="正常" value="active" />
-          <el-option label="已暂停" value="paused" />
+          <el-option :label="t('workload.suspended')" value="paused" />
           <el-option label="未激活" value="inactive" />
           <el-option label="孤立" value="orphan" />
         </el-select>
@@ -289,29 +289,29 @@ async function handleResume(row: any) {
                 size="small"
                 type="success"
                 @click="handleResume(row)"
-              >恢复</el-button>
+              >{{ t('workload.resumeLabel') }}</el-button>
               <el-button
                 v-else
                 size="small"
                 type="warning"
                 @click="handlePause(row)"
-              >暂停</el-button>
+              >{{ t('workload.suspendLabel') }}</el-button>
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
             </div>
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty description="暂无 HPA 配置">
+          <el-empty :description="t('common.noData')">
             <el-button type="success" @click="$router.push('/autoscaling/hpa/create')">
-              <el-icon><Plus /></el-icon> 创建
+              <el-icon><Plus /></el-icon> {{ t('common.create') }}
             </el-button>
           </el-empty>
         </template>
       </el-table>
       <div v-if="hasMore" class="load-more">
         <el-button @click="fetchNextPage" :loading="loading" link type="primary">
-          Load More...
+          {{ t('workload.loadMore') }}
         </el-button>
       </div>
     </el-card>
@@ -327,7 +327,7 @@ async function handleResume(row: any) {
     <!-- Edit Drawer -->
     <el-drawer
       v-model="editDrawerVisible"
-      title="编辑 HPA"
+      :title="t('common.edit') + ' HPA'"
       :size="editFullscreen ? '100%' : '85%'"
       direction="rtl"
       destroy-on-close
@@ -335,7 +335,7 @@ async function handleResume(row: any) {
     >
       <template #header>
         <div class="drawer-header">
-          <span class="drawer-title">编辑 HPA</span>
+          <span class="drawer-title">{{ t('common.edit') }} HPA</span>
           <el-button text @click="editFullscreen = !editFullscreen">
             <el-icon>
               <FullScreen v-if="!editFullscreen" />

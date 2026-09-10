@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import { getCrdList, deleteCrd, getCrdYaml, updateCrd } from '@/api/resource'
@@ -12,6 +13,7 @@ import { useClusterStore } from '@/stores/cluster'
 import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 
 const router = useRouter()
+const { t } = useI18n()
 const clusterStore = useClusterStore()
 const loading = ref(false)
 const crdList = ref<any[]>([])
@@ -74,7 +76,7 @@ async function handleDelete(row: any) {
       { type: 'error' }
     )
     await deleteCrd({ name: row.name })
-    ElMessage.success('CRD 已删除')
+    ElMessage.success(t('crd.crdDeleted'))
     fetchCrds()
   } catch { /* cancelled */ }
 }
@@ -93,9 +95,9 @@ async function handleBatchDelete() {
     const successCount = results.filter((r) => r.status === 'fulfilled').length
     const failCount = results.filter((r) => r.status === 'rejected').length
     if (failCount > 0) {
-      ElMessage.warning(`已删除 ${successCount} 个，失败 ${failCount} 个`)
+      ElMessage.warning(t('crd.batchDeleteResult', { success: successCount, failed: failCount }))
     } else {
-      ElMessage.success(`已删除 ${successCount} 个 CRD`)
+      ElMessage.success(t('crd.batchDeleteSuccess', { count: successCount }))
     }
     fetchCrds()
   } catch { /* cancelled */ }

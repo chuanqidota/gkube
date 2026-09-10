@@ -41,16 +41,16 @@ const {
 
 async function handleYamlSubmit() {
   if (!yamlContent.value.trim()) {
-    ElMessage.error('YAML内容不能为空')
+    ElMessage.error(t('common.yamlEmpty'))
     return
   }
   submitting.value = true
   try {
     await createStorageClass({ yaml: yamlContent.value })
-    ElMessage.success('StorageClass 创建成功')
+    ElMessage.success(t('storage.scCreated'))
     router.push('/storage/storageclasses')
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || t('common.createFailed'))
   } finally {
     submitting.value = false
   }

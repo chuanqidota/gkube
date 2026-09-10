@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Upload, Delete, Warning } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+
+const { t } = useI18n()
 
 export interface FileImportEntry {
   key: string
@@ -172,7 +175,7 @@ async function processFiles(files: File[]) {
       item.status = 'done'
     } catch (e: any) {
       item.status = 'error'
-      item.errorMsg = e?.message || '读取失败'
+      item.errorMsg = e?.message || t('config.readFailed')
     }
   }
   reading.value = false
@@ -182,7 +185,7 @@ function readFileAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = (e) => resolve(e.target?.result as string)
-    reader.onerror = () => reject(new Error('无法读取文件'))
+    reader.onerror = () => reject(new Error(t('config.cannotReadFile')))
     reader.readAsText(file)
   })
 }
@@ -191,7 +194,7 @@ function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = (e) => resolve(e.target?.result as ArrayBuffer)
-    reader.onerror = () => reject(new Error('无法读取文件'))
+    reader.onerror = () => reject(new Error(t('config.cannotReadFile')))
     reader.readAsArrayBuffer(file)
   })
 }
@@ -255,15 +258,15 @@ function removeFile(id: number) {
 // ---- Confirm import ----
 async function handleConfirm() {
   if (fileList.value.length === 0) {
-    ElMessage.warning('请先选择文件')
+    ElMessage.warning(t('config.selectFilesFirst'))
     return
   }
   if (hasInvalidKeys.value) {
-    ElMessage.warning('存在非法 Key，请修正后再导入')
+    ElMessage.warning(t('config.invalidKeyWarning'))
     return
   }
   if (sizeExceeded.value) {
-    ElMessage.warning(`数据总量超出 K8s 1 MiB 限制 (${formatBytes(estimatedTotalSize.value)})`)
+    ElMessage.warning(t('config.sizeExceeded', { size: formatBytes(estimatedTotalSize.value) }))
     return
   }
 
@@ -279,7 +282,7 @@ async function handleConfirm() {
         // Retrieve base64 from the map (populated during processFiles)
         const base64 = binaryDataMap.get(item.id)
         if (!base64) {
-          ElMessage.error(`文件 ${item.originalName} 的二进制数据未读取`)
+          ElMessage.error(t('config.binaryDataNotRead', { name: item.originalName }))
           reading.value = false
           return
         }
@@ -298,7 +301,7 @@ async function handleConfirm() {
         })
       }
     } catch (e: any) {
-      ElMessage.error(`读取文件 ${item.originalName} 失败: ${e?.message}`)
+      ElMessage.error(t('config.readFileFailed', { name: item.originalName, error: e?.message }))
       reading.value = false
       return
     }
@@ -307,12 +310,12 @@ async function handleConfirm() {
   reading.value = false
 
   if (entries.length === 0) {
-    ElMessage.warning('没有可导入的文件（全部读取失败）')
+    ElMessage.warning(t('config.noImportableFiles'))
     return
   }
 
   emit('confirm', entries)
-  ElMessage.success(`已导入 ${entries.length} 个文件`)
+  ElMessage.success(t('config.importSuccess', { count: entries.length }))
   visible.value = false
   fileList.value = []
   binaryDataMap.clear()
@@ -333,7 +336,7 @@ watch(visible, (v) => {
 <template>
   <el-dialog
     v-model="visible"
-    title="导入文件到数据"
+    :title="t('config.importFilesToData')"
     width="620px"
     :close-on-click-modal="false"
     @close="fileList = []; binaryDataMap.clear()"
@@ -357,23 +360,23 @@ watch(visible, (v) => {
       />
       <el-icon :size="36" class="drop-icon"><Upload /></el-icon>
       <div class="drop-text">
-        <template v-if="dragover">释放以导入文件</template>
-        <template v-else>拖拽文件到此处，或点击选择</template>
+        <template v-if="dragover">{{ t('config.dropToImport') }}</template>
+        <template v-else>{{ t('config.dragOrClick') }}</template>
       </div>
-      <div class="drop-hint">支持多个文件，文件名将作为 Key</div>
+      <div class="drop-hint">{{ t('config.importHint') }}</div>
     </div>
 
     <!-- File list -->
     <div v-if="fileList.length > 0" class="file-list">
       <div class="file-list-header">
-        <span>已选择 {{ fileList.length }} 个文件</span>
+        <span>{{ t('config.selectedFileCount', { count: fileList.length }) }}</span>
       </div>
 
       <div class="file-table">
         <div class="file-row file-row-header">
-          <span class="col-name">文件</span>
-          <span class="col-key">Key（可编辑）</span>
-          <span class="col-size">大小</span>
+          <span class="col-name">{{ t('config.fileColumn') }}</span>
+          <span class="col-key">{{ t('config.keyColumn') }}</span>
+          <span class="col-size">{{ t('config.sizeColumn') }}</span>
           <span class="col-action"></span>
         </div>
         <div
@@ -406,8 +409,8 @@ watch(visible, (v) => {
       <!-- Size estimation -->
       <div class="size-bar" :class="{ 'size-exceeded': sizeExceeded }">
         <div class="size-info">
-          <span>预估数据大小: {{ formatBytes(estimatedTotalSize) }} / {{ formatBytes(MAX_TOTAL_SIZE) }}</span>
-          <span v-if="sizeExceeded" class="size-warning">⚠️ 超出 K8s 1 MiB 限制</span>
+          <span>{{ t('config.estimatedSize', { current: formatBytes(estimatedTotalSize), max: formatBytes(MAX_TOTAL_SIZE) }) }}</span>
+          <span v-if="sizeExceeded" class="size-warning">⚠️ {{ t('config.sizeExceededWarning') }}</span>
         </div>
         <el-progress
           :percentage="sizePercentage"
@@ -419,14 +422,14 @@ watch(visible, (v) => {
     </div>
 
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
+      <el-button @click="visible = false">{{ t('common.cancel') }}</el-button>
       <el-button
         type="primary"
         :loading="reading"
         :disabled="fileList.length === 0 || hasInvalidKeys || sizeExceeded"
         @click="handleConfirm"
       >
-        确认导入
+        {{ t('config.confirmImport') }}
       </el-button>
     </template>
   </el-dialog>

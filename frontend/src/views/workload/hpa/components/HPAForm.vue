@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
@@ -33,6 +34,7 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const { t } = useI18n()
 const loading = ref(false)
 const namespaceList = ref<string[]>([])
 
@@ -306,17 +308,17 @@ async function handleSubmit() {
   try {
     // Validate at least one metric is configured
     if (form.value.cpuUtilization <= 0 && form.value.memoryUtilization <= 0 && form.value.customMetrics.length === 0) {
-      ElMessage.warning('请至少配置一个伸缩指标（CPU、内存或自定义指标）')
+      ElMessage.warning(t('workload.hpaMetricRequired'))
       loading.value = false
       return
     }
     const yaml = buildYaml()
     if (props.isEdit) {
       await updateHpa({ namespace: form.value.namespace, yaml })
-      ElMessage.success('弹性伸缩更新成功')
+      ElMessage.success(t('workload.hpaUpdateSuccess'))
     } else {
       await createHpa({ namespace: form.value.namespace, yaml })
-      ElMessage.success('弹性伸缩创建成功')
+      ElMessage.success(t('workload.hpaCreateSuccess'))
     }
     if (props.isEdit) {
       emit('success')
@@ -327,7 +329,7 @@ async function handleSubmit() {
       router.push('/autoscaling/hpa')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
+    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
   } finally {
     loading.value = false
   }

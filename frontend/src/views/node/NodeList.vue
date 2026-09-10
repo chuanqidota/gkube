@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { getNodeList, getNodeYaml, updateNodeYaml, type NodeInfo } from '@/api/resource'
 import { usagePercent, progressColor, formatAge } from '@/utils/helpers'
@@ -17,6 +18,7 @@ import ViewModeToggle from '@/components/ViewModeToggle.vue'
 import { useClusterStore } from '@/stores/cluster'
 import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const clusterStore = useClusterStore()
 const storedView = localStorage.getItem('gkube.node.viewMode')
@@ -56,7 +58,7 @@ async function fetchNodes(silent = false) {
     nodeList.value = res.data || []
   } catch (e: any) {
     // 不静默吞掉：网络/权限/服务端错误都需要提示，否则用户无法区分"无节点"与"加载失败"
-    ElMessage.error(e?.message || '加载节点列表失败')
+    ElMessage.error(e?.message || t('node.loadNodeListFailed'))
   } finally {
     loading.value = false
   }
@@ -102,7 +104,7 @@ onMounted(() => fetchNodes())
       :search-value="searchName"
       :total-count="nodeList.length"
       :show-namespace="false"
-      search-placeholder="搜索节点名称"
+      :search-placeholder="t('common.searchByName')"
       :cluster-name="clusterStore.clusterName"
       resource-type="node"
       :label-conditions="labelConditions"
@@ -125,38 +127,38 @@ onMounted(() => fetchNodes())
     </ResourceListToolbar>
     <el-card shadow="never" class="table-card">
       <el-table v-if="viewMode === 'table'" :data="filteredList" v-loading="loading" stripe>
-        <el-table-column label="状态" width="90" align="center">
+        <el-table-column :label="t('common.status')" width="90" align="center">
           <template #default="{ row }"><el-tag :type="statusType(row)" size="small" effect="dark">{{ row.status || 'Unknown' }}</el-tag></template>
         </el-table-column>
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
           <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
         </el-table-column>
-        <el-table-column prop="internal_ip" label="IP 地址" width="150">
+        <el-table-column prop="internal_ip" :label="t('node.internalIp')" width="150">
           <template #default="{ row }">{{ row.internal_ip || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="roles" label="角色" width="110">
+        <el-table-column prop="roles" :label="t('node.roles')" width="110">
           <template #default="{ row }">{{ row.roles || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="version" label="版本" width="120" show-overflow-tooltip>
+        <el-table-column prop="version" :label="t('node.version')" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.version || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="creationTimestamp" label="年龄" width="110" show-overflow-tooltip>
+        <el-table-column prop="creationTimestamp" :label="t('common.age')" width="110" show-overflow-tooltip>
           <template #default="{ row }">{{ formatAge(row.creationTimestamp, false) }}</template>
         </el-table-column>
-        <el-table-column label="操作" min-width="380" fixed="right" align="center">
+        <el-table-column :label="t('common.actions')" min-width="380" fixed="right" align="center">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
               <el-button size="small" :type="row.unschedulable ? 'success' : 'warning'" @click="handleCordon(row.name, row.unschedulable)">
-                {{ row.unschedulable ? '解除封锁' : '封锁' }}
+                {{ row.unschedulable ? t('node.uncordonButton') : t('node.cordonButton') }}
               </el-button>
-              <el-button size="small" type="primary" @click="handleTaints(row)">污点</el-button>
-              <el-button size="small" type="info" @click="handleLabels(row)">标签</el-button>
-              <el-button size="small" type="danger" @click="handleDrain(row)">驱逐</el-button>
-              <el-tooltip v-if="row.status === 'Ready'" content="节点在线，删除后会重新注册（需先停止 kubelet）" placement="top">
-                <span><el-button size="small" type="danger" disabled>删除</el-button></span>
+              <el-button size="small" type="primary" @click="handleTaints(row)">{{ t('node.taintButton') }}</el-button>
+              <el-button size="small" type="info" @click="handleLabels(row)">{{ t('node.labelButton') }}</el-button>
+              <el-button size="small" type="danger" @click="handleDrain(row)">{{ t('node.drainButton') }}</el-button>
+              <el-tooltip v-if="row.status === 'Ready'" :content="t('node.deleteReadyWarning')" placement="top">
+                <span><el-button size="small" type="danger" disabled>{{ t('node.deleteButton') }}</el-button></span>
               </el-tooltip>
-              <el-button v-else size="small" type="danger" @click="handleDelete(row.name, row.status === 'Ready')">删除</el-button>
+              <el-button v-else size="small" type="danger" @click="handleDelete(row.name, row.status === 'Ready')">{{ t('node.deleteButton') }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -170,7 +172,7 @@ onMounted(() => fetchNodes())
                 <div class="node-header-tags">
                   <el-tag :type="statusType(node)" size="small" effect="dark">{{ node.status || 'Unknown' }}</el-tag>
                   <el-tag v-if="node.roles" size="small" effect="plain">{{ node.roles }}</el-tag>
-                  <el-tag v-if="node.unschedulable" type="warning" size="small">已封锁</el-tag>
+                  <el-tag v-if="node.unschedulable" type="warning" size="small">{{ t('node.alreadyCordoned') }}</el-tag>
                 </div>
               </div>
             </template>
@@ -185,7 +187,7 @@ onMounted(() => fetchNodes())
                 <el-progress :percentage="usagePercent(node.cpu_used, node.cpu_total)" :color="progressColor(usagePercent(node.cpu_used, node.cpu_total))" :stroke-width="16" :text-inside="true" :format="(p: number) => `${fmtCpu(node.cpu_used)}/${fmtCpu(node.cpu_total)}核 ${p}%`" />
               </div>
               <div class="usage-item">
-                <span class="usage-label">内存</span>
+                <span class="usage-label">{{ t('node.memory') }}</span>
                 <el-progress :percentage="usagePercent(node.mem_used, node.mem_total)" :color="progressColor(usagePercent(node.mem_used, node.mem_total))" :stroke-width="16" :text-inside="true" :format="(p: number) => `${fmtMem(node.mem_used)}/${fmtMem(node.mem_total)}GiB ${p}%`" />
               </div>
               <div class="usage-item">
@@ -197,15 +199,15 @@ onMounted(() => fetchNodes())
             <div class="node-footer">
               <el-button size="small" @click="handleViewYaml(node)">YAML</el-button>
               <el-button size="small" :type="node.unschedulable ? 'success' : 'warning'" @click="handleCordon(node.name, node.unschedulable)">
-                {{ node.unschedulable ? '解除封锁' : '封锁' }}
+                {{ node.unschedulable ? t('node.uncordonButton') : t('node.cordonButton') }}
               </el-button>
-              <el-button size="small" type="primary" @click="handleTaints(node)">污点</el-button>
-              <el-button size="small" type="info" @click="handleLabels(node)">标签</el-button>
-              <el-button size="small" type="danger" @click="handleDrain(node)">驱逐</el-button>
-              <el-tooltip v-if="node.status === 'Ready'" content="节点在线，删除后会重新注册（需先停止 kubelet）" placement="top">
-                <span><el-button size="small" type="danger" disabled>删除</el-button></span>
+              <el-button size="small" type="primary" @click="handleTaints(node)">{{ t('node.taintButton') }}</el-button>
+              <el-button size="small" type="info" @click="handleLabels(node)">{{ t('node.labelButton') }}</el-button>
+              <el-button size="small" type="danger" @click="handleDrain(node)">{{ t('node.drainButton') }}</el-button>
+              <el-tooltip v-if="node.status === 'Ready'" :content="t('node.deleteReadyWarning')" placement="top">
+                <span><el-button size="small" type="danger" disabled>{{ t('node.deleteButton') }}</el-button></span>
               </el-tooltip>
-              <el-button v-else size="small" type="danger" @click="handleDelete(node.name, node.status === 'Ready')">删除</el-button>
+              <el-button v-else size="small" type="danger" @click="handleDelete(node.name, node.status === 'Ready')">{{ t('node.deleteButton') }}</el-button>
             </div>
           </el-card>
         </el-col>

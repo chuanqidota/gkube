@@ -1,81 +1,64 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { getSecretList, getSecretDetail, deleteSecret, getNamespaceList, extractNamespaceNames, transformSecrets, secretApi } from '@/api/resource'
+import { secretApi, transformSecrets, getSecretDetail } from '@/api/resource'
 import { base64Decode } from '@/utils/helpers'
+import { useResourceList } from '@/composables/useResourceList'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useClusterStore } from '@/stores/cluster'
-import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 
 const { t } = useI18n()
-const router = useRouter()
 const clusterStore = useClusterStore()
-const loading = ref(false)
-const secretList = ref<any[]>([])
-const namespaceList = ref<string[]>([])
-const selectedNamespace = ref('')
-const searchName = ref('')
-const labelConditions = ref<LabelCondition[]>([])
-const selectedRows = ref<any[]>([])
-const yamlDialogVisible = ref(false)
-const yamlTarget = ref<{ namespace: string; name: string } | null>(null)
+
+const {
+  loading,
+  filteredList,
+  selectedNamespace,
+  searchName,
+  onSearchInput,
+  selectedRows,
+  namespaceList,
+  yamlDialogVisible,
+  yamlTarget,
+  fetchResources,
+  handleNamespaceChange,
+  handleSelectionChange,
+  handleViewYaml,
+  handleDetail,
+  handleDelete,
+  handleBatchDelete,
+  labelConditions,
+  onLabelConditionsChange,
+} = useResourceList({
+  resourceName: 'Secret',
+  fetchList: secretApi.list,
+  transform: transformSecrets,
+  getYaml: secretApi.getYaml,
+  updateYaml: secretApi.updateYaml,
+  deleteResource: secretApi.delete,
+  detailRoute: '/config/secrets',
+  createRoute: '/config/secrets/create',
+})
+
+const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh, setIntervalOption } = useAutoRefresh(fetchResources)
+
+// Secret-specific: data viewer with base64 decode
 const dataDialogVisible = ref(false)
 const dataDialogTitle = ref('')
 const dataEntries = ref<{ key: string; rawValue: string; decodedValue: string }[]>([])
 const dataLoading = ref(false)
 const showDecoded = ref(true)
 
-const filteredList = computed(() => {
-  if (!searchName.value) return secretList.value
-  const keyword = searchName.value.toLowerCase()
-  return secretList.value.filter((d) => d.name?.toLowerCase().includes(keyword))
-})
-
-async function fetchNamespaces() {
-  try {
-    const res: any = await getNamespaceList()
-    namespaceList.value = extractNamespaceNames(res.data)
-  } catch { /* ignore */ }
-}
-
-function onLabelConditionsChange(conditions: LabelCondition[]) {
-  labelConditions.value = conditions
-  fetchSecrets()
-}
-
-async function fetchSecrets() {
-  loading.value = true
-  try {
-    const params: any = {}
-    if (selectedNamespace.value) params.namespace = selectedNamespace.value
-    if (labelConditions.value.length > 0) params.labelFilters = labelConditions.value
-    const res: any = await getSecretList(params)
-    const items = res.data?.items || res.data || []
-    secretList.value = transformSecrets(items)
-  } catch (e) {
-    ElMessage.error(t('common.fetchFailed')); console.warn('Failed to fetch secrets:', e)
-  } finally { loading.value = false }
-}
-
-function handleNamespaceChange() { fetchSecrets() }
-function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
-
-function handleViewYaml(row: any) {
-  yamlTarget.value = { namespace: row.namespace, name: row.name }
-  yamlDialogVisible.value = true
-}
-
 async function handleViewData(row: any) {
   try {
-    await ElMessageBox.confirm('即将查看保密字典的敏感数据，请确认当前环境安全。', '查看敏感数据', { type: 'warning', confirmButtonText: '确定查看', cancelButtonText: '取消' })
+    await ElMessageBox.confirm(t('config.secretViewConfirm'), t('config.secretViewData'), { type: 'warning', confirmButtonText: t('config.secretViewConfirmBtn'), cancelButtonText: t('common.cancel') })
   } catch { return }
-  dataLoading.value = true; dataDialogVisible.value = true; dataDialogTitle.value = `保密字典: ${row.name}`; dataEntries.value = []
+  dataLoading.value = true; dataDialogVisible.value = true; dataDialogTitle.value = t('config.secretTitle', { name: row.name }); dataEntries.value = []
   try {
     const res: any = await getSecretDetail({ name: row.name, namespace: row.namespace })
     const data = res.data?.data || res.data || {}
@@ -86,33 +69,6 @@ async function handleViewData(row: any) {
   } catch (e: any) { ElMessage.error(e?.message || t('config.loadDataFailed')); dataDialogVisible.value = false }
   finally { dataLoading.value = false }
 }
-
-function handleDetail(row: any) { router.push(`/config/secrets/${row.namespace}/${row.name}`) }
-
-async function handleDelete(row: any) {
-  try {
-    await ElMessageBox.confirm(`确定要删除命名空间 "${row.namespace}" 中的保密字典 "${row.name}" 吗？`, '确认', { type: 'warning' })
-    await deleteSecret({ name: row.name, namespace: row.namespace })
-    ElMessage.success(t('common.deleteSuccess')); fetchSecrets()
-  } catch { /* cancelled */ }
-}
-
-async function handleBatchDelete() {
-  if (!selectedRows.value.length) return
-  try {
-    await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 个保密字典吗？`, '确认', { type: 'warning' })
-    const results = await Promise.allSettled(
-      selectedRows.value.map((row: any) => deleteSecret({ name: row.name, namespace: row.namespace }))
-    )
-    const count = results.filter((r) => r.status === 'fulfilled').length
-    const failed = results.length - count
-    ElMessage.success(t('config.batchDeleteResult', { count, type: t('config.secret'), failed: failed ? `，${failed} 个失败` : '' })); fetchSecrets()
-  } catch { /* cancelled */ }
-}
-
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh, setIntervalOption } = useAutoRefresh(fetchSecrets)
-
-onMounted(() => { fetchNamespaces(); fetchSecrets() })
 </script>
 
 <template>
@@ -126,12 +82,12 @@ onMounted(() => { fetchNamespaces(); fetchSecrets() })
       :cluster-name="clusterStore.clusterName"
       resource-type="secret"
       :label-conditions="labelConditions"
-      @search-input="(val: string) => searchName = val"
+      @search-input="onSearchInput"
       @namespace-change="handleNamespaceChange"
       @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
-        <el-button type="success" @click="router.push('/config/secrets/create')">
+        <el-button type="success" @click="$router.push('/config/secrets/create')">
           <el-icon><Plus /></el-icon> 创建
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
@@ -154,20 +110,20 @@ onMounted(() => { fetchNamespaces(); fetchSecrets() })
     <el-card shadow="never" class="table-card">
       <el-table :data="filteredList" v-loading="loading" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
           <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
         </el-table-column>
-        <el-table-column prop="namespace" label="命名空间" width="140" />
-        <el-table-column prop="type" label="类型" min-width="160" show-overflow-tooltip />
-        <el-table-column label="数据键数量" width="120">
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
+        <el-table-column prop="type" :label="t('common.type')" min-width="160" show-overflow-tooltip />
+        <el-table-column :label="t('config.dataKeys')" width="120">
           <template #default="{ row }"><el-tag size="small">{{ row.data_keys_count }}</el-tag></template>
         </el-table-column>
-        <el-table-column prop="age" label="创建时间" width="120" />
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column prop="age" :label="t('common.creationTime')" width="120" />
+        <el-table-column :label="t('common.actions')" width="240" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="primary" @click="handleViewData(row)">查看数据</el-button>
+            <el-button size="small" type="primary" @click="handleViewData(row)">{{ t('config.viewData') }}</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
@@ -181,18 +137,18 @@ onMounted(() => { fetchNamespaces(); fetchSecrets() })
       :namespace="yamlTarget?.namespace || ''"
       :name="yamlTarget?.name || ''"
       title="Secret YAML"
-      @saved="fetchSecrets"
+      @saved="fetchResources"
     />
     <el-dialog v-model="dataDialogVisible" :title="dataDialogTitle" width="60%" top="8vh">
-      <div style="margin-bottom: var(--gk-space-3);"><el-switch v-model="showDecoded" active-text="已解密 (Base64)" inactive-text="原始 (Base64)" /></div>
+      <div style="margin-bottom: var(--gk-space-3);"><el-switch v-model="showDecoded" :active-text="t('config.decoded')" :inactive-text="t('config.raw')" /></div>
       <div v-loading="dataLoading">
         <el-table :data="dataEntries" stripe style="width: 100%" max-height="400">
-          <el-table-column prop="key" label="键" min-width="200" show-overflow-tooltip />
+          <el-table-column prop="key" :label="t('config.key')" min-width="200" show-overflow-tooltip />
           <el-table-column label="值" min-width="300">
             <template #default="{ row }"><div style="white-space: pre-wrap; word-break: break-all; max-height: 100px; overflow-y: auto;">{{ showDecoded ? row.decodedValue : row.rawValue }}</div></template>
           </el-table-column>
         </el-table>
-        <el-empty v-if="!dataLoading && dataEntries.length === 0" description="暂无数据" />
+        <el-empty v-if="!dataLoading && dataEntries.length === 0" :description="t('common.noData')" />
       </div>
     </el-dialog>
   </div>

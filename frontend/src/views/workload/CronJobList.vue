@@ -172,11 +172,11 @@ async function handleTrigger(row: any) {
         <el-table-column prop="nextScheduleTime" :label="t('workload.lastScheduleTime')" width="170">
           <template #default="{ row }">
             <span v-if="row.nextScheduleTime">{{ row.nextScheduleTime }}</span>
-            <el-tag v-else-if="row.suspend" type="info" size="small">已暂停</el-tag>
+            <el-tag v-else-if="row.suspend" type="info" size="small">{{ t('workload.suspended') }}</el-tag>
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="age" label="Age" width="120" />
+        <el-table-column prop="age" :label="t('common.age')" width="120" />
         <el-table-column :label="t('common.actions')" width="350" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">

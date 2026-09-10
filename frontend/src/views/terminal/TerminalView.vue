@@ -138,7 +138,7 @@ async function fetchContainers(): Promise<boolean> {
     return true
   } catch (e: any) {
     // 取容器列表失败时显式报错,避免误报"Pod 无容器"并把选择器卡死
-    ElMessage.error('获取容器列表失败: ' + (e?.message || 'unknown error'))
+    ElMessage.error(t('terminal.containerListFailed') + (e?.message ? ': ' + e.message : ''))
     return false
   }
 }
@@ -158,11 +158,11 @@ async function connectTerminal() {
     const res: any = await getWsTicket()
     ticket = res.data?.ticket || ''
   } catch (e: any) {
-    if (gen === connectGen) ElMessage.error('获取终端鉴权票据失败：' + (e?.message || 'unknown error'))
+    if (gen === connectGen) ElMessage.error(t('terminal.authTicketFailed') + (e?.message ? ': ' + e.message : ''))
     return
   }
   if (!ticket) {
-    if (gen === connectGen) ElMessage.error('获取终端鉴权票据失败')
+    if (gen === connectGen) ElMessage.error(t('terminal.authTicketError'))
     return
   }
   // 等待 ticket 期间用户又切换了容器:让更新的连接接管,本次放弃

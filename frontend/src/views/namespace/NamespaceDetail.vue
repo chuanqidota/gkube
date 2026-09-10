@@ -107,7 +107,7 @@ async function fetchLimitRanges() {
 
 async function handleDeleteRq(rqName: string) {
   try {
-    await ElMessageBox.confirm(`确定要删除 ResourceQuota "${rqName}" 吗？`, '确认删除', { type: 'warning' })
+    await ElMessageBox.confirm(t('common.deleteResourceConfirm', { type: 'ResourceQuota', name: rqName }), t('common.confirmDelete'), { type: 'warning' })
     await deleteResourceQuota({ namespace: name, name: rqName })
     ElMessage.success(t('config.resourceQuotaDeleted'))
     fetchResourceQuotas()
@@ -118,7 +118,7 @@ async function handleDeleteRq(rqName: string) {
 
 async function handleDeleteLr(lrName: string) {
   try {
-    await ElMessageBox.confirm(`确定要删除 LimitRange "${lrName}" 吗？`, '确认删除', { type: 'warning' })
+    await ElMessageBox.confirm(t('common.deleteResourceConfirm', { type: 'LimitRange', name: lrName }), t('common.confirmDelete'), { type: 'warning' })
     await deleteLimitRange({ namespace: name, name: lrName })
     ElMessage.success(t('config.limitRangeDeleted'))
     fetchLimitRanges()
@@ -528,9 +528,9 @@ onMounted(() => {
                   </template>
                 </el-table-column>
                 <el-table-column prop="age" :label="t('namespace.ageLabel')" width="180" />
-                <el-table-column label="操作" width="100" fixed="right">
+                <el-table-column :label="t('common.actions')" width="100" fixed="right">
                   <template #default="{ row }">
-                    <el-button size="small" type="danger" text @click="handleDeleteRq(row.name)">删除</el-button>
+                    <el-button size="small" type="danger" text @click="handleDeleteRq(row.name)">{{ t('common.delete') }}</el-button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -566,9 +566,9 @@ onMounted(() => {
                   </template>
                 </el-table-column>
                 <el-table-column prop="age" :label="t('namespace.ageLabel')" width="180" />
-                <el-table-column label="操作" width="100" fixed="right">
+                <el-table-column :label="t('common.actions')" width="100" fixed="right">
                   <template #default="{ row }">
-                    <el-button size="small" type="danger" text @click="handleDeleteLr(row.name)">删除</el-button>
+                    <el-button size="small" type="danger" text @click="handleDeleteLr(row.name)">{{ t('common.delete') }}</el-button>
                   </template>
                 </el-table-column>
               </el-table>

@@ -26,6 +26,27 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('node_modules/element-plus')) {
+            return 'element-plus';
+          }
+          if (id.includes('node_modules/vue-i18n')) {
+            return 'vue-i18n';
+          }
+          if (id.includes('node_modules/echarts')) {
+            return 'echarts';
+          }
+          if (id.includes('node_modules/monaco-editor') || id.includes('node_modules/@guolao/vue-monaco-editor')) {
+            return 'monaco-editor';
+          }
+          if (id.includes('node_modules/vue/') || id.includes('node_modules/vue-router') || id.includes('node_modules/pinia') || id.includes('node_modules/axios')) {
+            return 'vendor';
+          }
+        },
+      },
+    },
   },
   optimizeDeps: {
     include: ['element-plus'],

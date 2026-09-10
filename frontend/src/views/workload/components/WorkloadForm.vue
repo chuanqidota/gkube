@@ -543,7 +543,7 @@ async function handleSubmit() {
         : props.kind === 'DaemonSet' ? updateDaemonSetYaml
         : null
       if (!updateFn) {
-        ElMessage.error(`不支持的资源类型: ${props.kind}`)
+        ElMessage.error(t('workload.unsupportedResourceType', { type: props.kind }))
         return
       }
       await updateFn({ namespace: form.namespace, name: form.name, yaml: generatedYaml.value })

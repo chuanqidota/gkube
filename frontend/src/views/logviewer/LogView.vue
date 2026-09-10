@@ -77,7 +77,7 @@ async function fetchClusters() {
       displayName: c.displayName || c.display_name || c.clusterName || c.name,
     }))
   } catch (e) {
-    ElMessage.error('加载集群列表失败'); console.error('[LogView] Failed to load clusters:', e)
+    ElMessage.error(t('log.loadClusterListFailed')); console.error('[LogView] Failed to load clusters:', e)
   }
 }
 
@@ -132,7 +132,7 @@ async function fetchContainers(): Promise<boolean> {
     return true
   } catch (e: any) {
     // 取容器列表失败时显式报错,避免误报"Pod 无容器"并把选择器卡死
-    ElMessage.error('获取容器列表失败: ' + (e?.message || 'unknown error'))
+    ElMessage.error(t('log.fetchContainersFailed') + ': ' + (e?.message || 'unknown error'))
     return false
   }
 }
@@ -154,14 +154,14 @@ async function startLogStream() {
   } catch (e: any) {
     if (gen === streamGen) {
       status.value = 'error'
-      appendLog(`[Error] 获取鉴权票据失败: ${e?.message || 'unknown error'}\n`)
+      appendLog(`[Error] ${t('log.fetchTicketFailed')}: ${e?.message || 'unknown error'}\n`)
     }
     return
   }
   if (!ticket) {
     if (gen === streamGen) {
       status.value = 'error'
-      appendLog('[Error] 获取鉴权票据失败\n')
+      appendLog(`[Error] ${t('log.fetchTicketFailed')}\n`)
     }
     return
   }
@@ -296,7 +296,7 @@ async function initWithQueryParams() {
   } else if (initContainers.value.length > 0) {
     selectedContainer.value = initContainers.value[0].name
   } else {
-    ElMessage.warning('Pod has no containers')
+    ElMessage.warning(t('log.noContainers'))
   }
 
   skipWatchers.value = false

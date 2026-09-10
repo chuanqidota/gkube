@@ -101,8 +101,8 @@ async function handleYamlSave() {
 async function handleDelete() {
   try {
     await ElMessageBox.confirm(
-      `删除 CRD "${name}"？这将同时删除该类型的所有自定义资源！`,
-      '确认删除',
+      t('crd.deleteCrdConfirm', { name }),
+      t('crd.confirmDelete'),
       { type: 'error' }
     )
     await deleteCrd({ name })
@@ -127,15 +127,15 @@ onMounted(fetchDetail)
         <h2 class="res-name">{{ name }}</h2>
         <div class="meta-line">
           <el-tag size="small" :type="crd?.spec?.scope === 'Namespaced' ? 'info' : 'warning'">
-            {{ crd?.spec?.scope === 'Namespaced' ? '命名空间' : '集群' }}
+            {{ crd?.spec?.scope === 'Namespaced' ? t('crd.namespaced') : t('crd.clusterScope') }}
           </el-tag>
           <el-tag size="small" type="info">{{ crd?.spec?.group }}</el-tag>
           <span class="info-text">{{ crd?.spec?.names?.kind }}</span>
         </div>
       </div>
       <div class="header-actions">
-        <el-button type="info" @click="handleOpenYaml">YAML 编辑</el-button>
-        <el-button type="danger" @click="handleDelete">删除</el-button>
+        <el-button type="info" @click="handleOpenYaml">{{ t('crd.yamlEdit') }}</el-button>
+        <el-button type="danger" @click="handleDelete">{{ t('common.delete') }}</el-button>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
@@ -147,7 +147,7 @@ onMounted(fetchDetail)
           </template>
           <div class="auto-refresh-popover">
             <div class="popover-title">
-              {{ isRunning ? `自动刷新中 ${countdown}s` : '自动刷新' }}
+              {{ isRunning ? `${t('common.autoRefresh')} ${countdown}s` : t('common.autoRefresh') }}
             </div>
             <el-select
               :model-value="currentInterval / 1000"
@@ -160,15 +160,15 @@ onMounted(fetchDetail)
                 v-for="sec in availableIntervals"
                 :key="sec"
                 :value="sec"
-                :label="`每 ${sec} 秒刷新`"
+                :label="`${t('common.refreshInterval')}: ${sec}s`"
               />
             </el-select>
           </div>
         </el-popover>
-        <el-tooltip content="刷新" placement="top">
+        <el-tooltip :content="t('common.refresh')" placement="top">
           <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
         </el-tooltip>
-        <el-tooltip content="返回列表" placement="top">
+        <el-tooltip :content="t('common.backToList')" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/crd')" />
         </el-tooltip>
       </div>
@@ -179,50 +179,50 @@ onMounted(fetchDetail)
 
         <!-- Left Panel: Basic Info -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
-          <div class="panel-title">基本信息</div>
+          <div class="panel-title">{{ t('crd.basicInfo') }}</div>
           <div class="info-body">
             <div class="info-row">
-              <span class="info-label">名称</span>
+              <span class="info-label">{{ t('common.name') }}</span>
               <span class="info-value">{{ crd.metadata?.name || name }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Kind</span>
+              <span class="info-label">{{ t('crd.kind') }}</span>
               <span class="info-value">{{ crd.spec?.names?.kind || '-' }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Plural</span>
+              <span class="info-label">{{ t('crd.plural') }}</span>
               <span class="info-value mono">{{ crd.spec?.names?.plural || '-' }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Singular</span>
+              <span class="info-label">{{ t('crd.singular') }}</span>
               <span class="info-value mono">{{ crd.spec?.names?.singular || '-' }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Short Names</span>
+              <span class="info-label">{{ t('crd.shortNames') }}</span>
               <span class="info-value mono">{{ shortNames }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">API 组</span>
+              <span class="info-label">{{ t('crd.apiGroup') }}</span>
               <span class="info-value mono">{{ crd.spec?.group || '-' }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">作用域</span>
+              <span class="info-label">{{ t('crd.scope') }}</span>
               <span class="info-value">
                 <el-tag size="small" :type="crd.spec?.scope === 'Namespaced' ? 'info' : 'warning'">
-                  {{ crd.spec?.scope === 'Namespaced' ? '命名空间' : '集群' }}
+                  {{ crd.spec?.scope === 'Namespaced' ? t('crd.namespaced') : t('crd.clusterScope') }}
                 </el-tag>
               </span>
             </div>
             <div class="info-row">
-              <span class="info-label">版本</span>
+              <span class="info-label">{{ t('crd.versions') }}</span>
               <span class="info-value">
                 <el-tag v-for="v in versions" :key="v.name" size="small" :type="v.storage ? 'success' : 'info'" class="label-tag">
-                  {{ v.name }}{{ v.storage ? ' (存储)' : '' }}
+                  {{ v.name }}{{ v.storage ? t('crd.storageTag') : '' }}
                 </el-tag>
               </span>
             </div>
             <div class="info-row">
-              <span class="info-label">分类</span>
+              <span class="info-label">{{ t('crd.categories') }}</span>
               <span class="info-value">{{ categories }}</span>
             </div>
             <div class="info-row">
@@ -230,14 +230,14 @@ onMounted(fetchDetail)
               <span class="info-value mono">{{ crd.metadata?.uid || '-' }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">创建时间</span>
+              <span class="info-label">{{ t('crd.createTimestamp') }}</span>
               <span class="info-value">{{ crd.metadata?.creationTimestamp || '-' }}</span>
             </div>
 
             <!-- Labels -->
             <template v-if="crd.metadata?.labels && Object.keys(crd.metadata.labels).length > 0">
               <div class="info-row">
-                <span class="info-label">标签</span>
+                <span class="info-label">{{ t('crd.labelTag') }}</span>
                 <span class="info-value">
                   <el-tag v-for="(val, key) in crd.metadata.labels" :key="key" size="small" class="label-tag">{{ key }}={{ val }}</el-tag>
                 </span>
@@ -265,19 +265,19 @@ onMounted(fetchDetail)
               >
                 <template #label>
                   <span>{{ ver.name }}</span>
-                  <el-tag v-if="ver.storage" size="small" type="success" style="margin-left: 4px;">存储</el-tag>
-                  <el-tag v-if="ver.served" size="small" type="info" style="margin-left: 4px;">启用</el-tag>
+                  <el-tag v-if="ver.storage" size="small" type="success" style="margin-left: 4px;">{{ t('crd.storageVersion') }}</el-tag>
+                  <el-tag v-if="ver.served" size="small" type="info" style="margin-left: 4px;">{{ t('crd.enabled') }}</el-tag>
                 </template>
 
                 <div v-if="selectedVersion" class="version-body">
                   <!-- Subresources -->
                   <template v-if="selectedVersion.subresources">
                     <div class="section-block">
-                      <div class="section-title">子资源 (Subresources)</div>
+                      <div class="section-title">{{ t('crd.subresources') }}</div>
                       <div class="section-content">
                         <el-tag v-if="selectedVersion.subresources.status" size="small" type="warning">status</el-tag>
                         <el-tag v-if="selectedVersion.subresources.scale" size="small" type="warning">scale</el-tag>
-                        <span v-if="!selectedVersion.subresources.status && !selectedVersion.subresources.scale" class="empty-text">无</span>
+                        <span v-if="!selectedVersion.subresources.status && !selectedVersion.subresources.scale" class="empty-text">{{ t('common.no') }}</span>
                       </div>
                     </div>
                   </template>
@@ -285,13 +285,13 @@ onMounted(fetchDetail)
                   <!-- Additional Printer Columns -->
                   <template v-if="selectedVersion.additionalPrinterColumns?.length > 0">
                     <div class="section-block">
-                      <div class="section-title">额外打印列 (Additional Printer Columns)</div>
+                      <div class="section-title">{{ t('crd.additionalPrinterColumns') }}</div>
                       <div class="section-content">
                         <el-table :data="selectedVersion.additionalPrinterColumns" size="small" border stripe>
-                          <el-table-column prop="name" label="名称" min-width="120" />
-                          <el-table-column prop="type" label="类型" width="100" />
+                          <el-table-column prop="name" :label="t('common.name')" min-width="120" />
+                          <el-table-column prop="type" :label="t('common.type')" width="100" />
                           <el-table-column prop="jsonPath" label="JSON Path" min-width="180" show-overflow-tooltip />
-                          <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+                          <el-table-column prop="description" :label="t('common.description')" min-width="200" show-overflow-tooltip />
                         </el-table>
                       </div>
                     </div>
@@ -309,7 +309,7 @@ onMounted(fetchDetail)
                         auto-format
                         :show-toolbar="false"
                       />
-                      <div v-else class="empty-text" style="padding: 20px;">无 Schema 定义</div>
+                      <div v-else class="empty-text" style="padding: 20px;">{{ t('crd.noSchema') }}</div>
                     </div>
                   </div>
                 </div>

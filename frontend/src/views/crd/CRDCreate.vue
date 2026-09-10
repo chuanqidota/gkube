@@ -78,18 +78,18 @@ function handleMaximize() {
     <div class="yaml-card">
       <div class="yaml-card-header">
         <div class="yaml-card-left">
-          <span class="yaml-card-title">YAML 配置</span>
+          <span class="yaml-card-title">{{ t('crd.yamlConfig') }}</span>
           <el-button-group>
             <el-button size="small" @click="handleFormat">Format</el-button>
-            <el-button size="small" @click="handleCopy">复制</el-button>
+            <el-button size="small" @click="handleCopy">{{ t('common.copy') }}</el-button>
           </el-button-group>
-          <el-tooltip content="最大化" placement="top">
+          <el-tooltip :content="t('crd.maximize')" placement="top">
             <el-icon class="maximize-btn" @click="handleMaximize"><FullScreen /></el-icon>
           </el-tooltip>
         </div>
         <div class="yaml-card-actions">
-          <el-button size="small" @click="handleCancel">取消</el-button>
-          <el-button size="small" type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
+          <el-button size="small" @click="handleCancel">{{ t('common.cancel') }}</el-button>
+          <el-button size="small" type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.create') }}</el-button>
         </div>
       </div>
       <div class="yaml-card-body">
@@ -101,11 +101,11 @@ function handleMaximize() {
           editable
           auto-format
           :show-toolbar="false"
-          title="YAML 配置"
+          :title="t('crd.yamlConfig')"
         >
           <template #fullscreen-actions>
-            <el-button size="small" @click="handleCancel">取消</el-button>
-            <el-button size="small" type="primary" :loading="submitting" @click="handleSubmit">创建</el-button>
+            <el-button size="small" @click="handleCancel">{{ t('common.cancel') }}</el-button>
+            <el-button size="small" type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.create') }}</el-button>
           </template>
         </YamlEditor>
       </div>

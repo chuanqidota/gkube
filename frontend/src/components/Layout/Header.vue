@@ -104,22 +104,32 @@ const authStore = useAuthStore()
 const { locale, t } = useI18n()
 const { isDark, toggle } = useTheme()
 
+function resolveTitle(meta: Record<string, unknown> | undefined): string {
+  if (!meta) return ''
+  if (meta.titleKey) return t(meta.titleKey as string)
+  return (meta.title as string) || ''
+}
+
 const breadcrumbs = computed(() => {
   const items: Array<{ title: string; path?: string; to?: { path: string } }> = []
 
   if (route.meta?.parent) {
     const parentRoute = router.getRoutes().find(r => r.name === route.meta.parent)
-    if (parentRoute?.meta?.title) {
-      items.push({
-        title: parentRoute.meta.title as string,
-        path: parentRoute.path,
-        to: { path: parentRoute.path },
-      })
+    if (parentRoute?.meta) {
+      const parentTitle = resolveTitle(parentRoute.meta as Record<string, unknown>)
+      if (parentTitle) {
+        items.push({
+          title: parentTitle,
+          path: parentRoute.path,
+          to: { path: parentRoute.path },
+        })
+      }
     }
   }
 
-  if (route.meta?.title) {
-    items.push({ title: route.meta.title as string })
+  const currentTitle = resolveTitle(route.meta as Record<string, unknown>)
+  if (currentTitle) {
+    items.push({ title: currentTitle })
   }
 
   return items

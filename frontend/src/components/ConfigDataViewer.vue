@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Editor as MonacoEditor } from '@guolao/vue-monaco-editor'
 import { ElMessage } from 'element-plus'
 import { Search, CopyDocument, Download, FullScreen, Aim } from '@element-plus/icons-vue'
+
+const { t } = useI18n()
 
 interface DataEntry {
   key: string
@@ -15,9 +18,10 @@ const props = withDefaults(defineProps<{
   emptyText?: string
 }>(), {
   loading: false,
-  emptyText: '暂无数据',
+  emptyText: '',
 })
 
+const emptyTextDisplay = computed(() => props.emptyText || t('config.noDataDefault'))
 const selectedKey = ref('')
 const search = ref('')
 const isFullscreen = ref(false)
@@ -114,8 +118,8 @@ function handleEditorMount() {
 function handleCopy() {
   if (!selectedEntry.value) return
   navigator.clipboard.writeText(selectedEntry.value.value)
-    .then(() => ElMessage.success('已复制到剪贴板'))
-    .catch(() => ElMessage.error('复制失败'))
+    .then(() => ElMessage.success(t('config.copiedToClipboard')))
+    .catch(() => ElMessage.error(t('config.copyFailed')))
 }
 
 function handleDownload() {
@@ -149,7 +153,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 
 <template>
   <div class="config-data-viewer" :class="{ 'is-fullscreen': isFullscreen }" v-loading="loading">
-    <el-empty v-if="!loading && !entries.length" :description="emptyText" class="viewer-empty" />
+    <el-empty v-if="!loading && !entries.length" :description="emptyTextDisplay" class="viewer-empty" />
     <div v-else class="viewer-body">
       <!-- 左侧：Key 列表 -->
       <div class="key-panel">
@@ -157,7 +161,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
           v-model="search"
           size="small"
           clearable
-          placeholder="搜索键"
+          :placeholder="t('config.searchKey')"
           :prefix-icon="Search"
           class="key-search"
         />
@@ -173,36 +177,36 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
             <span class="key-dot" />
             <span class="key-name">{{ entry.key }}</span>
           </div>
-          <div v-if="!filteredEntries.length" class="key-empty">无匹配键</div>
+          <div v-if="!filteredEntries.length" class="key-empty">{{ t('config.noMatchingKey') }}</div>
         </div>
-        <div class="key-count">共 {{ entries.length }} 项</div>
+        <div class="key-count">{{ t('config.totalItems', { count: entries.length }) }}</div>
       </div>
 
       <!-- 右侧：值视图 -->
       <div class="value-panel">
         <div class="value-toolbar">
-          <span class="value-title" :title="selectedEntry?.key">值: {{ selectedEntry?.key || '-' }}</span>
+          <span class="value-title" :title="selectedEntry?.key">{{ t('config.valuePrefix') }}: {{ selectedEntry?.key || '-' }}</span>
           <el-tag size="small" type="info" effect="plain" class="lang-tag">{{ displayLanguage }}</el-tag>
           <el-tag v-if="isLargeValue" size="small" type="warning" effect="plain">
             {{ (selectedEntry!.value.length / 1024).toFixed(0) }} KB
           </el-tag>
           <div class="toolbar-actions">
-            <el-tooltip content="复制" placement="top">
+            <el-tooltip :content="t('config.copyTooltip')" placement="top">
               <el-button size="small" :icon="CopyDocument" :disabled="!selectedEntry" @click="handleCopy" />
             </el-tooltip>
-            <el-tooltip content="下载" placement="top">
+            <el-tooltip :content="t('config.downloadTooltip')" placement="top">
               <el-button size="small" :icon="Download" :disabled="!selectedEntry" @click="handleDownload" />
             </el-tooltip>
-            <el-tooltip :content="isFullscreen ? '退出全屏' : '全屏'" placement="top">
+            <el-tooltip :content="isFullscreen ? t('config.exitFullscreen') : t('config.fullscreen')" placement="top">
               <el-button size="small" :icon="isFullscreen ? Aim : FullScreen" @click="toggleFullscreen" />
             </el-tooltip>
           </div>
         </div>
         <div v-if="isLargeValue && !showFull" class="large-value-banner">
           <el-alert type="warning" :closable="false" show-icon>
-            值较大（{{ (selectedEntry!.value.length / 1024).toFixed(0) }} KB），已截断显示。
-            <el-button size="small" text type="primary" @click="showFull = true">加载全部</el-button>
-            <el-button size="small" text type="primary" @click="handleDownload">下载</el-button>
+            {{ t('config.largeValueWarning', { size: (selectedEntry!.value.length / 1024).toFixed(0) }) }}
+            <el-button size="small" text type="primary" @click="showFull = true">{{ t('config.loadAll') }}</el-button>
+            <el-button size="small" text type="primary" @click="handleDownload">{{ t('config.downloadTooltip') }}</el-button>
           </el-alert>
         </div>
         <div class="editor-wrap">

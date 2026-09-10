@@ -49,14 +49,14 @@ const { cloneMode, cloneNamespace, cloneName, cloneNsOptions, cloneNameOptions,
 watch(mode, (newMode, oldMode) => {
   if (oldMode === 'yaml' && newMode === 'form') {
     if (yamlContent.value.trim() !== defaultYaml.trim()) {
-      ElMessage.warning('切换到表单模式后，YAML 编辑内容将不会保留')
+      ElMessage.warning(t('common.yamlDiscardWarning'))
     }
   }
 })
 
 async function handleYamlSubmit() {
   if (!yamlContent.value.trim()) {
-    ElMessage.error('YAML 内容不能为空')
+    ElMessage.error(t('common.yamlEmpty'))
     return
   }
   submitting.value = true
@@ -64,10 +64,10 @@ async function handleYamlSubmit() {
     const parsed = yaml.load(yamlContent.value) as any
     const ns = parsed?.metadata?.namespace || 'default'
     await createService({ namespace: ns, yaml: yamlContent.value })
-    ElMessage.success('Service 创建成功')
+    ElMessage.success(t('network.serviceCreated'))
     router.push('/network/services')
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || t('common.createFailed'))
   } finally {
     submitting.value = false
   }

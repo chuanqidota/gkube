@@ -46,16 +46,16 @@ const {
 
 async function handleYamlSubmit() {
   if (!yamlContent.value.trim()) {
-    ElMessage.error('YAML内容不能为空')
+    ElMessage.error(t('common.yamlEmpty'))
     return
   }
   submitting.value = true
   try {
     await createPv({ yaml: yamlContent.value })
-    ElMessage.success('持久卷创建成功')
+    ElMessage.success(t('storage.pvCreated'))
     router.push('/storage/pvs')
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || t('common.createFailed'))
   } finally {
     submitting.value = false
   }

@@ -45,10 +45,10 @@ async function handleYamlSubmit() {
     const parsed = yaml.load(yamlContent.value) as any
     const ns = parsed?.metadata?.namespace || 'default'
     await createHpa({ namespace: ns, yaml: yamlContent.value })
-    ElMessage.success('弹性伸缩创建成功')
+    ElMessage.success(t('workload.hpaCreateSuccess'))
     router.push('/autoscaling/hpa')
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Create failed')
+    ElMessage.error(e?.message || t('common.createFailed'))
   } finally {
     submitting.value = false
   }
