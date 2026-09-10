@@ -12,6 +12,7 @@ import { useClusterStore } from '@/stores/cluster'
 
 const clusterStore = useClusterStore()
 const { t } = useI18n()
+void t // used in template
 
 function transformReplicaSets(items: any[]) {
   if (!Array.isArray(items)) return []
