@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   visible: boolean
@@ -30,11 +33,11 @@ async function handleConfirm() {
   loading.value = true
   try {
     await props.scaleFn({ namespace: props.namespace, name: props.name, replicas: replicas.value })
-    ElMessage.success(`已扩缩容至 ${replicas.value} 副本`)
+    ElMessage.success(t('workload.scaleToReplicas', { n: replicas.value }))
     emit('update:visible', false)
     emit('scaled')
   } catch (e: any) {
-    ElMessage.error(e?.message || '扩缩容失败')
+    ElMessage.error(e?.message || t('common.scaleFailed'))
   } finally {
     loading.value = false
   }
@@ -45,24 +48,24 @@ async function handleConfirm() {
   <el-dialog
     :model-value="visible"
     @update:model-value="emit('update:visible', $event)"
-    :title="`扩缩容 ${resourceName}`"
+    :title="`${t('workload.scale')} ${resourceName}`"
     width="480px"
     destroy-on-close
   >
     <div>
-      <p style="margin-bottom: var(--gk-space-4);">调整 <strong>{{ name }}</strong> 副本数</p>
+      <p style="margin-bottom: var(--gk-space-4);">{{ t('workload.targetReplicas') }} <strong>{{ name }}</strong></p>
       <el-descriptions :column="1" border size="small" style="margin-bottom: var(--gk-space-4);">
-        <el-descriptions-item label="当前">{{ currentReplicas }}</el-descriptions-item>
-        <el-descriptions-item v-if="readyReplicas !== undefined" label="就绪">{{ readyReplicas }}</el-descriptions-item>
+        <el-descriptions-item :label="t('workload.currentReplicasLabel')">{{ currentReplicas }}</el-descriptions-item>
+        <el-descriptions-item v-if="readyReplicas !== undefined" :label="t('workload.readyReplicas')">{{ readyReplicas }}</el-descriptions-item>
       </el-descriptions>
-      <el-form-item label="目标">
+      <el-form-item :label="t('workload.targetReplicas')">
         <el-input-number v-model="replicas" :min="0" :max="10000" style="width: 200px;" />
       </el-form-item>
-      <el-alert v-if="replicas === 0" title="设为 0 将停止所有 Pod。" type="warning" :closable="false" show-icon style="margin-top: 8px;" />
+      <el-alert v-if="replicas === 0" :title="t('workload.zeroReplicasWarning')" type="warning" :closable="false" show-icon style="margin-top: 8px;" />
     </div>
     <template #footer>
-      <el-button @click="emit('update:visible', false)">取消</el-button>
-      <el-button type="primary" :loading="loading" @click="handleConfirm">确认</el-button>
+      <el-button @click="emit('update:visible', false)">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="loading" @click="handleConfirm">{{ t('common.confirm') }}</el-button>
     </template>
   </el-dialog>
 </template>

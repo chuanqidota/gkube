@@ -1,5 +1,6 @@
 import request from './request'
 import { calcAge } from './core'
+import { createResourceApi } from './factory'
 
 // ============ 类型定义 ============
 
@@ -154,99 +155,157 @@ export function transformCronJobs(items: any[]): CronJob[] {
 
 // ============ 标准 CRUD（工厂生成） ============
 
-export const podApi = {
-  list:    (data?: any) => request.post('/k8s/pod/list', data),
-  detail:  (params: { namespace: string; name: string }) => request.get('/k8s/pod/detail', { params }),
-  getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/pod/get-yaml', { params }),
-  delete:  (data: { namespace: string; name: string; force?: boolean }) => request.delete('/k8s/pod/delete', { data }),
-  events:  (params: { namespace: string; name: string }) => request.get('/k8s/pod/events', { params }),
-}
+export const podApi = createResourceApi('/k8s/pod')
 
-export const deploymentApi = {
-  list:    (data?: any) => request.post('/k8s/deployment/list', data),
-  detail:  (params: { namespace: string; name: string }) => request.get('/k8s/deployment/detail', { params }),
-  getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/deployment/get-yaml', { params }),
-  create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/deployment/create', data),
-  updateYaml: (data: { namespace: string; name: string; yaml: string }) => request.put('/k8s/deployment/update-yaml', data),
-  delete:  (data: { namespace: string; name: string }) => request.delete('/k8s/deployment/delete', { data }),
-  events:  (params: { namespace: string; name: string }) => request.get('/k8s/deployment/events', { params }),
-}
+export const deploymentApi = createResourceApi('/k8s/deployment', {
+  updatePath: '/k8s/deployment/update-yaml',
+})
 
-export const statefulSetApi = {
-  list:    (data?: any) => request.post('/k8s/statefulset/list', data),
-  detail:  (params: any) => request.get('/k8s/statefulset/detail', { params }),
-  getYaml: (params: any) => request.get('/k8s/statefulset/get-yaml', { params }),
-  create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/statefulset/create', data),
-  updateYaml: (data: { namespace: string; name: string; yaml: string }) => request.put('/k8s/statefulset/update', data),
-  delete:  (data: any) => request.delete('/k8s/statefulset/delete', { data }),
-  events:  (params: { namespace: string; name: string }) => request.get('/k8s/statefulset/events', { params }),
-}
+export const statefulSetApi = createResourceApi('/k8s/statefulset')
 
-export const daemonSetApi = {
-  list:    (data?: any) => request.post('/k8s/daemonset/list', data),
-  detail:  (params: any) => request.get('/k8s/daemonset/detail', { params }),
-  getYaml: (params: any) => request.get('/k8s/daemonset/get-yaml', { params }),
-  create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/daemonset/create', data),
-  updateYaml: (data: { namespace: string; name: string; yaml: string }) => request.put('/k8s/daemonset/update', data),
-  delete:  (data: { namespace: string; name: string }) => request.delete('/k8s/daemonset/delete', { data }),
-  events:  (params: { namespace: string; name: string }) => request.get('/k8s/daemonset/events', { params }),
-}
+export const daemonSetApi = createResourceApi('/k8s/daemonset')
 
-export const jobApi = {
-  list:    (data?: any) => request.post('/k8s/job/list', data),
-  detail:  (params: any) => request.get('/k8s/job/detail', { params }),
-  getYaml: (params: any) => request.get('/k8s/job/get-yaml', { params }),
-  create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/job/create', data),
-  updateYaml: (data: { namespace: string; name: string; yaml: string }) => request.put('/k8s/job/update', data),
-  delete:  (data: any) => request.delete('/k8s/job/delete', { data }),
-  events:  (params: { namespace: string; name: string }) => request.get('/k8s/job/events', { params }),
-}
+export const jobApi = createResourceApi('/k8s/job')
 
-export const cronJobApi = {
-  list:    (data?: any) => request.post('/k8s/cronjob/list', data),
-  detail:  (params: any) => request.get('/k8s/cronjob/detail', { params }),
-  getYaml: (params: any) => request.get('/k8s/cronjob/get-yaml', { params }),
-  create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/cronjob/create', data),
-  updateYaml: (data: { namespace: string; name: string; yaml: string }) => request.put('/k8s/cronjob/update', data),
-  delete:  (data: any) => request.delete('/k8s/cronjob/delete', { data }),
-  events:  (params: { namespace: string; name: string }) => request.get('/k8s/cronjob/events', { params }),
-}
+export const cronJobApi = createResourceApi('/k8s/cronjob')
 
-export const replicaSetApi = {
-  list:    (data?: any) => request.post('/k8s/replicaset/list', data),
-  detail:  (params: { namespace: string; name: string }) => request.get('/k8s/replicaset/detail', { params }),
-  getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/replicaset/get-yaml', { params }),
-  delete:  (params: { namespace: string; name: string }) => request.delete('/k8s/replicaset/delete', { params }),
-  events:  (params: { namespace: string; name: string }) => request.get('/k8s/replicaset/events', { params }),
-}
+export const replicaSetApi = createResourceApi('/k8s/replicaset', {
+  deleteUseParams: true,
+})
 
-export const hpaApi = {
-  list:    (data?: any) => request.post('/k8s/hpa/list', data),
-  detail:  (params: { namespace: string; name: string }) => request.get('/k8s/hpa/detail', { params }),
-  getYaml: (params: { namespace: string; name: string }) => request.get('/k8s/hpa/get-yaml', { params }),
-  create:  (data: { namespace: string; yaml: string }) => request.post('/k8s/hpa/create', data),
-  updateYaml: (data: { namespace: string; yaml: string }) => request.put('/k8s/hpa/update', data),
-  delete:  (params: { namespace: string; name: string }) => request.delete('/k8s/hpa/delete', { params }),
-  events:  (params: { namespace: string; name: string }) => request.get('/k8s/hpa/events', { params }),
-}
+export const hpaApi = createResourceApi('/k8s/hpa', {
+  deleteUseParams: true,
+})
+
+// ============ 向后兼容函数别名（deprecated） ============
+
+// Pod
+/** @deprecated 使用 podApi.list() */
+export const getPodList = podApi.list
+/** @deprecated 使用 podApi.detail() */
+export const getPodDetail = podApi.detail
+/** @deprecated 使用 podApi.getYaml() */
+export const getPodYaml = podApi.getYaml
+/** @deprecated 使用 podApi.delete() */
+export const deletePod = podApi.delete
+/** @deprecated 使用 podApi.events() */
+export const getPodEvents = podApi.events
+
+// Deployment
+/** @deprecated 使用 deploymentApi.list() */
+export const getDeploymentList = deploymentApi.list
+/** @deprecated 使用 deploymentApi.detail() */
+export const getDeploymentDetail = deploymentApi.detail
+/** @deprecated 使用 deploymentApi.getYaml() */
+export const getDeploymentYaml = deploymentApi.getYaml
+/** @deprecated 使用 deploymentApi.create() */
+export const createDeployment = deploymentApi.create
+/** @deprecated 使用 deploymentApi.updateYaml() */
+export const updateDeploymentYaml = deploymentApi.updateYaml
+/** @deprecated 使用 deploymentApi.delete() */
+export const deleteDeployment = deploymentApi.delete
+/** @deprecated 使用 deploymentApi.events() */
+export const getDeploymentEvents = deploymentApi.events
+
+// StatefulSet
+/** @deprecated 使用 statefulSetApi.list() */
+export const getStatefulSetList = statefulSetApi.list
+/** @deprecated 使用 statefulSetApi.detail() */
+export const getStatefulSetDetail = statefulSetApi.detail
+/** @deprecated 使用 statefulSetApi.getYaml() */
+export const getStatefulSetYaml = statefulSetApi.getYaml
+/** @deprecated 使用 statefulSetApi.create() */
+export const createStatefulSet = statefulSetApi.create
+/** @deprecated 使用 statefulSetApi.updateYaml() */
+export const updateStatefulSetYaml = statefulSetApi.updateYaml
+/** @deprecated 使用 statefulSetApi.delete() */
+export const deleteStatefulSet = statefulSetApi.delete
+/** @deprecated 使用 statefulSetApi.events() */
+export const getStatefulSetEvents = statefulSetApi.events
+
+// DaemonSet
+/** @deprecated 使用 daemonSetApi.list() */
+export const getDaemonSetList = daemonSetApi.list
+/** @deprecated 使用 daemonSetApi.detail() */
+export const getDaemonSetDetail = daemonSetApi.detail
+/** @deprecated 使用 daemonSetApi.getYaml() */
+export const getDaemonSetYaml = daemonSetApi.getYaml
+/** @deprecated 使用 daemonSetApi.create() */
+export const createDaemonSet = daemonSetApi.create
+/** @deprecated 使用 daemonSetApi.updateYaml() */
+export const updateDaemonSetYaml = daemonSetApi.updateYaml
+/** @deprecated 使用 daemonSetApi.delete() */
+export const deleteDaemonSet = daemonSetApi.delete
+/** @deprecated 使用 daemonSetApi.events() */
+export const getDaemonSetEvents = daemonSetApi.events
+
+// Job
+/** @deprecated 使用 jobApi.list() */
+export const getJobList = jobApi.list
+/** @deprecated 使用 jobApi.detail() */
+export const getJobDetail = jobApi.detail
+/** @deprecated 使用 jobApi.getYaml() */
+export const getJobYaml = jobApi.getYaml
+/** @deprecated 使用 jobApi.create() */
+export const createJob = jobApi.create
+/** @deprecated 使用 jobApi.updateYaml() */
+export const updateJobYaml = jobApi.updateYaml
+/** @deprecated 使用 jobApi.delete() */
+export const deleteJob = jobApi.delete
+/** @deprecated 使用 jobApi.events() */
+export const getJobEvents = jobApi.events
+
+// CronJob
+/** @deprecated 使用 cronJobApi.list() */
+export const getCronJobList = cronJobApi.list
+/** @deprecated 使用 cronJobApi.detail() */
+export const getCronJobDetail = cronJobApi.detail
+/** @deprecated 使用 cronJobApi.getYaml() */
+export const getCronJobYaml = cronJobApi.getYaml
+/** @deprecated 使用 cronJobApi.create() */
+export const createCronJob = cronJobApi.create
+/** @deprecated 使用 cronJobApi.updateYaml() */
+export const updateCronJobYaml = cronJobApi.updateYaml
+/** @deprecated 使用 cronJobApi.delete() */
+export const deleteCronJob = cronJobApi.delete
+/** @deprecated 使用 cronJobApi.events() */
+export const getCronJobEvents = cronJobApi.events
+
+// ReplicaSet
+/** @deprecated 使用 replicaSetApi.list() */
+export const getReplicaSetList = replicaSetApi.list
+/** @deprecated 使用 replicaSetApi.detail() */
+export const getReplicaSetDetail = replicaSetApi.detail
+/** @deprecated 使用 replicaSetApi.getYaml() */
+export const getReplicaSetYaml = replicaSetApi.getYaml
+/** @deprecated 使用 replicaSetApi.delete() */
+export const deleteReplicaSet = replicaSetApi.delete
+/** @deprecated 使用 replicaSetApi.events() */
+export const getReplicaSetEvents = replicaSetApi.events
+
+// HPA
+/** @deprecated 使用 hpaApi.list() */
+export const getHpaList = hpaApi.list
+/** @deprecated 使用 hpaApi.detail() */
+export const getHpaDetail = hpaApi.detail
+/** @deprecated 使用 hpaApi.getYaml() */
+export const getHpaYaml = hpaApi.getYaml
+/** @deprecated 使用 hpaApi.create() */
+export const createHpa = hpaApi.create
+/** @deprecated 使用 hpaApi.updateYaml() */
+export const updateHpa = hpaApi.updateYaml
+/** @deprecated 使用 hpaApi.delete() */
+export const deleteHpa = hpaApi.delete
+/** @deprecated 使用 hpaApi.events() */
+export const getHpaEvents = hpaApi.events
 
 // ============ 资源特有操作 ============
 
 // Pod
-export const getPodList = podApi.list
-export const getPodDetail = podApi.detail
-export const getPodYaml = podApi.getYaml
-export const deletePod = podApi.delete
-export const getPodEvents = podApi.events
+export const getPodLogs = (params: { namespace: string; name: string; container?: string; tailLines?: number }) =>
+  request.get('/k8s/pod/logs', { params })
 
 // Deployment
-export const getDeploymentList = deploymentApi.list
-export const getDeploymentDetail = deploymentApi.detail
-export const getDeploymentYaml = deploymentApi.getYaml
-export const createDeployment = deploymentApi.create
-export const updateDeploymentYaml = deploymentApi.updateYaml
-export const deleteDeployment = deploymentApi.delete
-export const getDeploymentEvents = deploymentApi.events
 export const scaleDeployment = (data: { namespace: string; name: string; replicas: number }) => request.put('/k8s/deployment/scale', data)
 export const restartDeployment = (data: { namespace: string; name: string }) => request.post('/k8s/deployment/restart', data)
 export const rollbackDeployment = (data: { namespace: string; name: string; revision: number }) => request.post('/k8s/deployment/rollback', data)
@@ -255,13 +314,6 @@ export const getDeploymentReplicaSets = (params: { namespace: string; name: stri
 export const getDeploymentPodList = (params: { namespace: string; name: string }) => request.get('/k8s/deployment/pods', { params })
 
 // StatefulSet
-export const getStatefulSetList = statefulSetApi.list
-export const getStatefulSetDetail = statefulSetApi.detail
-export const getStatefulSetYaml = statefulSetApi.getYaml
-export const createStatefulSet = statefulSetApi.create
-export const updateStatefulSetYaml = statefulSetApi.updateYaml
-export const deleteStatefulSet = statefulSetApi.delete
-export const getStatefulSetEvents = statefulSetApi.events
 export const scaleStatefulSet = (data: { namespace: string; name: string; replicas: number }) => request.put('/k8s/statefulset/scale', data)
 export const restartStatefulSet = (data: { namespace: string; name: string }) => request.post('/k8s/statefulset/restart', data)
 export const rollbackStatefulSet = (data: { namespace: string; name: string; revision: number }) => request.post('/k8s/statefulset/rollback', data)
@@ -271,13 +323,6 @@ export const getStatefulSetPVCs = (params: { namespace: string; name: string }) 
 export const getStatefulSetPods = (params: { namespace: string; name: string }) => request.get('/k8s/statefulset/pods', { params })
 
 // DaemonSet
-export const getDaemonSetList = daemonSetApi.list
-export const getDaemonSetDetail = daemonSetApi.detail
-export const getDaemonSetYaml = daemonSetApi.getYaml
-export const createDaemonSet = daemonSetApi.create
-export const updateDaemonSetYaml = daemonSetApi.updateYaml
-export const deleteDaemonSet = daemonSetApi.delete
-export const getDaemonSetEvents = daemonSetApi.events
 export const getDaemonSetPods = (params: { namespace: string; name: string }) => request.get('/k8s/daemonset/pods', { params })
 export const restartDaemonSet = (data: { namespace: string; name: string }) => request.post('/k8s/daemonset/restart', data)
 export const updateDaemonSetImage = (data: { namespace: string; name: string; containerName: string; image: string }) => request.put('/k8s/daemonset/update-image', data)
@@ -285,44 +330,18 @@ export const rollbackDaemonSet = (data: { namespace: string; name: string; revis
 export const getDaemonSetRollbacks = (params: { namespace: string; name: string }) => request.get('/k8s/daemonset/rollbacks', { params })
 
 // Job
-export const getJobList = jobApi.list
-export const getJobDetail = jobApi.detail
-export const getJobYaml = jobApi.getYaml
-export const createJob = jobApi.create
-export const updateJobYaml = jobApi.updateYaml
-export const deleteJob = jobApi.delete
-export const getJobEvents = jobApi.events
 export const getJobPods = (params: { namespace: string; name: string }) => request.get('/k8s/job/pods', { params })
 export const rerunJob = (params: { namespace: string; name: string }) => request.post('/k8s/job/rerun', undefined, { params })
 
 // CronJob
-export const getCronJobList = cronJobApi.list
-export const getCronJobDetail = cronJobApi.detail
-export const getCronJobYaml = cronJobApi.getYaml
-export const createCronJob = cronJobApi.create
-export const updateCronJobYaml = cronJobApi.updateYaml
-export const deleteCronJob = cronJobApi.delete
-export const getCronJobEvents = cronJobApi.events
 export const getCronJobExecutionHistory = (params: { namespace: string; name: string }) => request.get('/k8s/cronjob/jobs', { params })
 export const suspendCronJob = (params: { namespace: string; name: string }) => request.put('/k8s/cronjob/suspend', undefined, { params })
 export const resumeCronJob = (params: { namespace: string; name: string }) => request.put('/k8s/cronjob/resume', undefined, { params })
 export const triggerCronJob = (params: { namespace: string; name: string }) => request.post('/k8s/cronjob/trigger', undefined, { params })
 
 // ReplicaSet
-export const getReplicaSetList = replicaSetApi.list
-export const getReplicaSetDetail = replicaSetApi.detail
-export const getReplicaSetYaml = replicaSetApi.getYaml
-export const deleteReplicaSet = replicaSetApi.delete
-export const getReplicaSetEvents = replicaSetApi.events
 export const getReplicaSetPodList = (params: { namespace: string; name: string }) => request.get('/k8s/replicaset/pods', { params })
 
 // HPA
-export const getHpaList = hpaApi.list
-export const getHpaDetail = hpaApi.detail
-export const getHpaYaml = hpaApi.getYaml
-export const createHpa = hpaApi.create
-export const updateHpa = hpaApi.updateYaml
-export const deleteHpa = hpaApi.delete
-export const getHpaEvents = hpaApi.events
 export const pauseHpa = (params: { namespace: string; name: string }) => request.post('/k8s/hpa/pause', null, { params })
 export const resumeHpa = (params: { namespace: string; name: string }) => request.post('/k8s/hpa/resume', null, { params })

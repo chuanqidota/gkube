@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
-import { getStorageClassDetail, deleteStorageClass, getPvcListByStorageClass, calcAge } from '@/api/resource'
+import { getStorageClassDetail, deleteStorageClass, getPvcListByStorageClass, calcAge, getStorageClassYaml, updateStorageClass } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import StorageClassForm from '@/views/storage/components/StorageClassForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -321,8 +321,10 @@ onMounted(() => {
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="storageclass"
+      :get-yaml="getStorageClassYaml"
+      :update-yaml="updateStorageClass"
       :name="name"
+      title="StorageClass YAML"
       @saved="handleYamlSaved"
     />
 

@@ -1,10 +1,12 @@
 import { type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { deletePod } from '@/api/resource'
 
 export function usePodActions(clusterName: Ref<string>) {
   const router = useRouter()
+  const { t } = useI18n()
 
   const handlePodLogs = (pod: { namespace: string; name: string }) => {
     const route = router.resolve({
@@ -30,17 +32,17 @@ export function usePodActions(clusterName: Ref<string>) {
     try {
       await ElMessageBox.confirm(
         force
-          ? `确定强制删除 Pod "${pod.name}"？这将跳过优雅终止。`
-          : `确定删除 Pod "${pod.name}"？`,
-        force ? '强制删除 Pod' : '删除 Pod',
-        { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+          ? t('workload.forceDeletePodConfirm', { name: pod.name })
+          : t('workload.deletePodConfirm', { name: pod.name }),
+        force ? t('workload.forceDeletePod') : t('workload.deletePod'),
+        { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
       )
       await deletePod({ namespace: pod.namespace, name: pod.name, force })
-      ElMessage.success('删除成功')
+      ElMessage.success(t('common.deleteSuccess', { type: 'Pod' }))
       onSuccess?.()
     } catch (e: any) {
       if (e !== 'cancel') {
-        ElMessage.error(e?.response?.data?.message || '删除失败')
+        ElMessage.error(e?.response?.data?.message || t('common.deleteFailed', { type: 'Pod' }))
       }
     }
   }

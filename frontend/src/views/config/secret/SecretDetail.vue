@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
-import { getSecretDetail, deleteSecret } from '@/api/resource'
+import { getSecretDetail, deleteSecret, secretApi } from '@/api/resource'
 import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import YamlDrawer from '@/components/YamlDrawer.vue'
@@ -276,9 +276,11 @@ onMounted(fetchDetail)
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="secret"
+      :get-yaml="secretApi.getYaml"
+      :update-yaml="secretApi.updateYaml"
       :namespace="namespace"
       :name="name"
+      title="Secret YAML"
       @saved="handleYamlSaved"
     />
 

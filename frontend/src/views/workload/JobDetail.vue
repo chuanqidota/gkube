@@ -4,6 +4,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { FullScreen, Aim, RefreshRight } from '@element-plus/icons-vue'
 import {
   getJobDetail,
+  getJobYaml,
+  updateJobYaml,
   deleteJob,
   getJobEvents,
   getJobPods,
@@ -241,9 +243,11 @@ function onPodDelete(pod: any, force?: boolean) {
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="job"
+      :get-yaml="getJobYaml"
+      :update-yaml="updateJobYaml"
       :namespace="namespace"
       :name="name"
+      title="Job YAML"
       @saved="handleYamlSaved"
     />
 

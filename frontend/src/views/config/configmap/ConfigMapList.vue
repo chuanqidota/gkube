@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { getConfigMapList, getConfigMapDetail, deleteConfigMap, getNamespaceList, extractNamespaceNames, transformConfigMaps } from '@/api/resource'
+import { getConfigMapList, getConfigMapDetail, getConfigMapYaml, updateConfigMap, deleteConfigMap, getNamespaceList, extractNamespaceNames, transformConfigMaps } from '@/api/resource'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
@@ -183,9 +183,11 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
     </el-card>
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="configmap"
+      :get-yaml="getConfigMapYaml"
+      :update-yaml="updateConfigMap"
       :namespace="yamlTarget?.namespace || ''"
       :name="yamlTarget?.name || ''"
+      title="ConfigMap YAML"
       @saved="fetchConfigMaps"
     />
     <el-drawer

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getNodeList, type NodeInfo } from '@/api/resource'
+import { getNodeList, getNodeYaml, updateNodeYaml, type NodeInfo } from '@/api/resource'
 import { usagePercent, progressColor, formatAge } from '@/utils/helpers'
 import { formatCpuCores, formatMemGiB } from '@/utils/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
@@ -215,8 +215,10 @@ onMounted(() => fetchNodes())
     <!-- YAML Drawer（复用通用组件） -->
     <YamlDrawer
       v-model="yamlDrawerVisible"
-      resource-type="node"
+      :get-yaml="getNodeYaml"
+      :update-yaml="updateNodeYaml"
       :name="yamlTargetName"
+      title="Node YAML"
       @saved="handleYamlSaved"
     />
 

@@ -196,11 +196,3 @@ async function handleRerun(row: any) {
   border-top: 1px solid var(--el-border-color-lighter);
 }
 </style>
-
-<style>
-.yaml-drawer .el-drawer__header {
-  padding: 6px 16px;
-  margin-bottom: 0;
-  min-height: auto;
-}
-</style>

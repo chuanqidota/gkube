@@ -3,7 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { getSecretList, getSecretDetail, deleteSecret, getNamespaceList, extractNamespaceNames, transformSecrets } from '@/api/resource'
+import { getSecretList, getSecretDetail, deleteSecret, getNamespaceList, extractNamespaceNames, transformSecrets, secretApi } from '@/api/resource'
+import { base64Decode } from '@/utils/helpers'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
@@ -62,8 +63,6 @@ async function fetchSecrets() {
 
 function handleNamespaceChange() { fetchSecrets() }
 function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
-
-function base64Decode(str: string): string { try { return decodeURIComponent(escape(atob(str))) } catch { try { return atob(str) } catch { return str } } }
 
 function handleViewYaml(row: any) {
   yamlTarget.value = { namespace: row.namespace, name: row.name }
@@ -175,9 +174,11 @@ onMounted(() => { fetchNamespaces(); fetchSecrets() })
     </el-card>
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="secret"
+      :get-yaml="secretApi.getYaml"
+      :update-yaml="secretApi.updateYaml"
       :namespace="yamlTarget?.namespace || ''"
       :name="yamlTarget?.name || ''"
+      title="Secret YAML"
       @saved="fetchSecrets"
     />
     <el-dialog v-model="dataDialogVisible" :title="dataDialogTitle" width="60%" top="8vh">

@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
-import { getConfigMapDetail, deleteConfigMap } from '@/api/resource'
+import { getConfigMapDetail, deleteConfigMap, configMapApi } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import ConfigDataViewer from '@/components/ConfigDataViewer.vue'
 import ConfigMapForm from '@/views/config/components/ConfigMapForm.vue'
@@ -232,9 +232,11 @@ onMounted(fetchDetail)
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="configmap"
+      :get-yaml="configMapApi.getYaml"
+      :update-yaml="configMapApi.updateYaml"
       :namespace="namespace"
       :name="name"
+      title="ConfigMap YAML"
       @saved="handleYamlSaved"
     />
 

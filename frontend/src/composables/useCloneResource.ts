@@ -1,5 +1,6 @@
 import yaml from 'js-yaml'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 
 /**
  * Reusable helpers for clone-from-existing flows.
@@ -49,12 +50,13 @@ export async function fetchAndPrepareClone(
   namespace: string | undefined,
   name: string,
 ): Promise<{ parsed: any; originalName: string } | null> {
+  const { t } = useI18n()
   if (!name) {
-    ElMessage.warning('请选择资源名称')
+    ElMessage.warning(t('common.cloneResourceNameRequired'))
     return null
   }
   if (namespace !== undefined && !namespace) {
-    ElMessage.warning('请选择命名空间和资源名称')
+    ElMessage.warning(t('common.cloneNamespaceRequired'))
     return null
   }
   try {
@@ -62,12 +64,12 @@ export async function fetchAndPrepareClone(
     const rawYaml = extractYamlString(res)
     if (!rawYaml) {
       const errMsg = res?.msg || res?.message || `响应为空 (code=${res?.code || 'unknown'})`
-      ElMessage.error(`获取 YAML 失败: ${errMsg}`)
+      ElMessage.error(`${t('common.yamlLoadFailed')}: ${errMsg}`)
       return null
     }
     const parsed = yaml.load(rawYaml) as any
     if (!parsed || typeof parsed !== 'object' || !parsed.metadata) {
-      ElMessage.error('解析克隆源失败：YAML 内容无效或缺失 metadata')
+      ElMessage.error(t('common.cloneParseFailed'))
       return null
     }
     const originalName = parsed.metadata.name
@@ -82,7 +84,7 @@ export async function fetchAndPrepareClone(
     }
     return { parsed, originalName }
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载克隆源失败')
+    ElMessage.error(e?.message || t('common.cloneLoadFailed'))
     return null
   }
 }

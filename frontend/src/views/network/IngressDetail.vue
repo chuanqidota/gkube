@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getIngressDetail, deleteIngress, getIngressEvents, getIngressTLSCertStatus } from '@/api/resource'
+import { getIngressDetail, deleteIngress, getIngressEvents, getIngressTLSCertStatus, ingressApi } from '@/api/resource'
 import { FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import DetailPageLayout from '@/components/DetailPageLayout.vue'
@@ -362,9 +362,11 @@ onMounted(() => {
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="ingress"
+      :get-yaml="ingressApi.getYaml"
+      :update-yaml="ingressApi.updateYaml"
       :namespace="namespace"
       :name="name"
+      title="Ingress YAML"
       @saved="handleYamlSaved"
     />
 

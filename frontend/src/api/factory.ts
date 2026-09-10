@@ -3,6 +3,8 @@ import request from './request'
 export interface ResourceApiOptions {
   /** 更新 YAML 的端点路径，默认 '${basePath}/update-yaml'，部分资源用 '${basePath}/update' */
   updatePath?: string
+  /** 删除时使用 query params 而非 request body，默认 false（使用 body） */
+  deleteUseParams?: boolean
 }
 
 /**
@@ -14,6 +16,7 @@ export interface ResourceApiOptions {
  */
 export function createResourceApi<TList = any, TDetail = any>(basePath: string, options?: ResourceApiOptions) {
   const updateEndpoint = options?.updatePath ?? `${basePath}/update-yaml`
+  const useParamsForDelete = options?.deleteUseParams ?? false
   return {
     /** List — POST, body 可含 namespace/limit/continue/labelFilters */
     list:       (data?: any) => request.post<TList>(`${basePath}/list`, data),
@@ -21,7 +24,9 @@ export function createResourceApi<TList = any, TDetail = any>(basePath: string, 
     getYaml:    (params: any) => request.get<string>(`${basePath}/get-yaml`, { params }),
     create:     (data: any) => request.post(basePath, data),
     updateYaml: (data: any) => request.put(updateEndpoint, data),
-    delete:     (data: any) => request.delete(`${basePath}/delete`, { data }),
+    delete:     useParamsForDelete
+      ? (params: any) => request.delete(`${basePath}/delete`, { params })
+      : (data: any) => request.delete(`${basePath}/delete`, { data }),
     events:     (params: any) => request.get(`${basePath}/events`, { params }),
   }
 }

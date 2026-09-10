@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
-import { getPodDetail, deletePod, getPodEvents, calcAge } from '@/api/resource'
+import { getPodDetail, getPodYaml, deletePod, getPodEvents, calcAge } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import DetailPageLayout from '@/components/DetailPageLayout.vue'
 import DetailPageHeader from '@/components/DetailPageHeader.vue'
@@ -354,9 +354,11 @@ async function handleDelete(force = false) {
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="pod"
+      :get-yaml="getPodYaml"
+      :update-yaml="null"
       :namespace="namespace"
       :name="name"
+      title="Pod YAML"
       @saved="handleYamlSaved"
     />
   </DetailPageLayout>

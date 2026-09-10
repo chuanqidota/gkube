@@ -2,7 +2,7 @@
   <el-drawer
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
-    :title="drawerTitle"
+    :title="title || 'YAML'"
     size="85%"
     direction="rtl"
     class="yaml-drawer"
@@ -25,134 +25,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import YamlEditor from './YamlEditor.vue'
-import {
-  // Workload
-  getDeploymentYaml, updateDeploymentYaml,
-  getStatefulSetYaml, updateStatefulSetYaml,
-  getDaemonSetYaml, updateDaemonSetYaml,
-  getPodYaml,
-  getJobYaml, updateJobYaml,
-  getCronJobYaml, updateCronJobYaml,
-  getReplicaSetYaml,
-  // Network
-  getServiceYaml, updateService,
-  getIngressYaml, updateIngress,
-  getNetworkPolicyYaml, updateNetworkPolicyYaml,
-  // Storage
-  getPvYaml, updatePvYaml,
-  getPvcYaml, updatePvcYaml,
-  getStorageClassYaml, updateStorageClass,
-  getVolumeSnapshotYaml, updateVolumeSnapshot,
-  getVolumeSnapshotClassYaml, updateVolumeSnapshotClass,
-  // Config
-  getConfigMapYaml, updateConfigMap,
-  getSecretYaml, updateSecret,
-  getResourceQuotaYaml, updateResourceQuota,
-  getLimitRangeYaml, updateLimitRange,
-  // Node
-  getNodeYaml, updateNodeYaml,
-  // Namespace
-  getNamespaceYaml, updateNamespace,
-  // CRD
-  getCrdYaml, updateCrd,
-  // HPA
-  getHpaYaml, updateHpa,
-} from '@/api/resource'
 
-// Resource type definition
-export type ResourceType =
-  | 'deployment' | 'statefulset' | 'daemonset' | 'pod' | 'job' | 'cronjob' | 'replicaset'
-  | 'service' | 'ingress' | 'networkpolicy'
-  | 'pv' | 'pvc' | 'storageclass' | 'volumesnapshot' | 'volumesnapshotclass'
-  | 'configmap' | 'secret' | 'resourcequota' | 'limitrange'
-  | 'node' | 'namespace'
-  | 'crd' | 'hpa'
-
-// Resource display names
-const resourceDisplayNames: Record<ResourceType, string> = {
-  deployment: 'Deployment',
-  statefulset: 'StatefulSet',
-  daemonset: 'DaemonSet',
-  pod: 'Pod',
-  job: 'Job',
-  cronjob: 'CronJob',
-  replicaset: 'ReplicaSet',
-  service: 'Service',
-  ingress: 'Ingress',
-  networkpolicy: 'NetworkPolicy',
-  pv: 'PersistentVolume',
-  pvc: 'PersistentVolumeClaim',
-  storageclass: 'StorageClass',
-  volumesnapshot: 'VolumeSnapshot',
-  volumesnapshotclass: 'VolumeSnapshotClass',
-  configmap: 'ConfigMap',
-  secret: 'Secret',
-  resourcequota: 'ResourceQuota',
-  limitrange: 'LimitRange',
-  node: 'Node',
-  namespace: 'Namespace',
-  crd: 'CRD',
-  hpa: 'HPA',
-}
-
-// Check if resource is cluster-scoped (no namespace)
-const clusterScopedResources: ResourceType[] = [
-  'pv', 'storageclass', 'volumesnapshotclass',
-  'node', 'namespace',
-  'crd',
-]
-
-// API function signatures
-interface ResourceApi {
-  getYaml: (params: any) => Promise<any>
-  updateYaml: ((data: any) => Promise<any>) | null
-}
-
-// Resource API registry
-const resourceApis: Record<ResourceType, ResourceApi> = {
-  // Workload
-  deployment: { getYaml: getDeploymentYaml, updateYaml: updateDeploymentYaml },
-  statefulset: { getYaml: getStatefulSetYaml, updateYaml: updateStatefulSetYaml },
-  daemonset: { getYaml: getDaemonSetYaml, updateYaml: updateDaemonSetYaml },
-  pod: { getYaml: getPodYaml, updateYaml: null },  // Pod spec 创建后不可变,只读
-  job: { getYaml: getJobYaml, updateYaml: updateJobYaml },
-  cronjob: { getYaml: getCronJobYaml, updateYaml: updateCronJobYaml },
-  replicaset: { getYaml: getReplicaSetYaml, updateYaml: null },
-  // Network
-  service: { getYaml: getServiceYaml, updateYaml: updateService },
-  ingress: { getYaml: getIngressYaml, updateYaml: updateIngress },
-  networkpolicy: { getYaml: getNetworkPolicyYaml, updateYaml: updateNetworkPolicyYaml },
-  // Storage
-  pv: { getYaml: getPvYaml, updateYaml: updatePvYaml },
-  pvc: { getYaml: getPvcYaml, updateYaml: updatePvcYaml },
-  storageclass: { getYaml: getStorageClassYaml, updateYaml: updateStorageClass },
-  volumesnapshot: { getYaml: getVolumeSnapshotYaml, updateYaml: updateVolumeSnapshot },
-  volumesnapshotclass: { getYaml: getVolumeSnapshotClassYaml, updateYaml: updateVolumeSnapshotClass },
-  // Config
-  configmap: { getYaml: getConfigMapYaml, updateYaml: updateConfigMap },
-  secret: { getYaml: getSecretYaml, updateYaml: updateSecret },
-  resourcequota: { getYaml: getResourceQuotaYaml, updateYaml: updateResourceQuota },
-  limitrange: { getYaml: getLimitRangeYaml, updateYaml: updateLimitRange },
-  // Node & Namespace
-  node: { getYaml: getNodeYaml, updateYaml: updateNodeYaml },
-  namespace: { getYaml: getNamespaceYaml, updateYaml: updateNamespace },
-  // Others
-  crd: { getYaml: getCrdYaml, updateYaml: updateCrd },
-  hpa: { getYaml: getHpaYaml, updateYaml: updateHpa },
-}
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   modelValue: boolean
-  resourceType: ResourceType
+  getYaml: (params: any) => Promise<any>
+  updateYaml?: ((data: any) => Promise<any>) | null
   namespace?: string
   name: string
   title?: string
 }>(), {
   namespace: '',
   title: '',
+  updateYaml: null,
 })
 
 const emit = defineEmits<{
@@ -164,40 +54,20 @@ const loading = ref(false)
 const saving = ref(false)
 const yamlContent = ref('')
 
-// Computed title
-const drawerTitle = computed(() => {
-  if (props.title) return props.title
-  const typeName = resourceDisplayNames[props.resourceType] || props.resourceType
-  return `${typeName} YAML: ${props.name}`
-})
-
-// Resources that don't need name in update data (name is extracted from YAML)
-const noNameInUpdateData: ResourceType[] = [
-  'volumesnapshot', 'volumesnapshotclass', 'hpa',
-]
-
-// Build params for getYaml based on resource type
+// Build params for getYaml
 function buildGetYamlParams() {
-  const isCluster = clusterScopedResources.includes(props.resourceType)
-  if (isCluster) {
-    return { name: props.name }
+  if (props.namespace) {
+    return { namespace: props.namespace, name: props.name }
   }
-  return { namespace: props.namespace, name: props.name }
+  return { name: props.name }
 }
 
-// Build data for updateYaml based on resource type
+// Build data for updateYaml
 function buildUpdateData() {
-  const isCluster = clusterScopedResources.includes(props.resourceType)
-  const needsName = !noNameInUpdateData.includes(props.resourceType)
-
-  if (isCluster) {
-    return needsName
-      ? { name: props.name, yaml: yamlContent.value }
-      : { yaml: yamlContent.value }
+  if (props.namespace) {
+    return { namespace: props.namespace, name: props.name, yaml: yamlContent.value }
   }
-  return needsName
-    ? { namespace: props.namespace, name: props.name, yaml: yamlContent.value }
-    : { namespace: props.namespace, yaml: yamlContent.value }
+  return { name: props.name, yaml: yamlContent.value }
 }
 
 // Load YAML
@@ -208,14 +78,13 @@ async function fetchYaml() {
   yamlContent.value = ''
 
   try {
-    const api = resourceApis[props.resourceType]
     const params = buildGetYamlParams()
-    const res = await api.getYaml(params)
+    const res = await props.getYaml(params)
     // 兼容两种后端返回格式：直接返回字符串 或 包装在 { yaml: "..." } 中
     const raw = res.data ?? res
     yamlContent.value = typeof raw === 'object' && raw?.yaml ? raw.yaml : raw
   } catch (error: any) {
-    ElMessage.error('获取 YAML 失败: ' + (error.message || '未知错误'))
+    ElMessage.error(t('common.yamlLoadFailed') + ': ' + (error.message || t('common.unknown')))
   } finally {
     loading.value = false
   }
@@ -223,21 +92,20 @@ async function fetchYaml() {
 
 // Save YAML
 async function handleSave() {
-  const api = resourceApis[props.resourceType]
-  if (!api.updateYaml) {
-    ElMessage.warning('该资源类型不支持编辑')
+  if (!props.updateYaml) {
+    ElMessage.warning(t('common.yamlReadOnly'))
     return
   }
 
   saving.value = true
   try {
     const data = buildUpdateData()
-    await api.updateYaml(data)
-    ElMessage.success('保存成功')
+    await props.updateYaml(data)
+    ElMessage.success(t('common.yamlSaveSuccess'))
     emit('saved')
     emit('update:modelValue', false)
   } catch (error: any) {
-    ElMessage.error('保存失败: ' + (error.message || '未知错误'))
+    ElMessage.error(t('common.yamlSaveFailed') + ': ' + (error.message || t('common.unknown')))
   } finally {
     saving.value = false
   }

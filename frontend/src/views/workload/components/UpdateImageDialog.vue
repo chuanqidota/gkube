@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   visible: boolean
@@ -35,7 +38,7 @@ function onContainerChange() {
 
 async function handleConfirm() {
   if (!form.value.containerName || !form.value.image) {
-    ElMessage.warning('请选择容器并填写镜像')
+    ElMessage.warning(t('workload.containerImageRequired', { n: '' }))
     return
   }
   loading.value = true

@@ -8,6 +8,7 @@ import {
   getNetworkPolicyEvents,
   getNetworkPolicyPods,
   deletePod,
+  networkPolicyApi,
 } from '@/api/resource'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
@@ -514,9 +515,11 @@ onMounted(() => {
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="networkpolicy"
+      :get-yaml="networkPolicyApi.getYaml"
+      :update-yaml="networkPolicyApi.updateYaml"
       :namespace="namespace"
       :name="name"
+      title="NetworkPolicy YAML"
       @saved="handleYamlSaved"
     />
 

@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { getLimitRangeList, deleteLimitRange, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { getLimitRangeList, deleteLimitRange, getNamespaceList, extractNamespaceNames, limitRangeApi } from '@/api/resource'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
@@ -153,9 +153,11 @@ onMounted(() => { fetchNamespaces(); fetchLimitRanges() })
     </el-card>
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="limitrange"
+      :get-yaml="limitRangeApi.getYaml"
+      :update-yaml="limitRangeApi.updateYaml"
       :namespace="yamlTarget?.namespace || ''"
       :name="yamlTarget?.name || ''"
+      title="LimitRange YAML"
       @saved="fetchLimitRanges"
     />
   </div>

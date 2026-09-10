@@ -4,6 +4,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { FullScreen, Aim } from '@element-plus/icons-vue'
 import {
   getDaemonSetDetail,
+  getDaemonSetYaml,
+  updateDaemonSetYaml,
   getDaemonSetEvents,
   deleteDaemonSet,
   restartDaemonSet,
@@ -466,9 +468,11 @@ function handleImageUpdated() {
     <!-- ===== Dialogs ===== -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="daemonset"
+      :get-yaml="getDaemonSetYaml"
+      :update-yaml="updateDaemonSetYaml"
       :namespace="namespace"
       :name="name"
+      title="DaemonSet YAML"
       @saved="handleYamlSaved"
     />
 

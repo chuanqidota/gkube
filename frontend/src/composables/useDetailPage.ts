@@ -1,6 +1,7 @@
 import { ref, onMounted, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { useAutoRefresh } from './useAutoRefresh'
 import { useClusterNameRef } from './useClusterName'
 
@@ -30,6 +31,7 @@ export interface DetailPageOptions {
 export function useDetailPage(options: DetailPageOptions) {
   const route = useRoute()
   const router = useRouter()
+  const { t } = useI18n()
   const clusterName = useClusterNameRef()
 
   const loading = ref(false)
@@ -50,7 +52,7 @@ export function useDetailPage(options: DetailPageOptions) {
       const res: any = await options.fetchDetail(options.buildParams())
       detail.value = res?.data ?? res
     } catch (e: any) {
-      ElMessage.error(e?.message || `获取${options.resourceName}详情失败`)
+      ElMessage.error(e?.message || t('common.fetchFailed', { type: options.resourceName }))
     } finally {
       loading.value = false
     }
@@ -73,9 +75,9 @@ export function useDetailPage(options: DetailPageOptions) {
 
   async function handleDelete(force = false) {
     const msg = options.deleteConfirm?.(detail.value, name)
-      || `确定要删除 ${options.resourceName} "${name}" 吗？此操作不可恢复。`
+      || t('common.deleteResourceConfirm', { type: options.resourceName, name })
     try {
-      await ElMessageBox.confirm(msg, '确认删除', { type: 'error', confirmButtonText: '确定删除', cancelButtonText: '取消' })
+      await ElMessageBox.confirm(msg, t('common.confirmDelete'), { type: 'error', confirmButtonText: t('common.confirmDelete'), cancelButtonText: t('common.cancel') })
     } catch { return }
 
     deleteLoading.value = true
@@ -86,10 +88,10 @@ export function useDetailPage(options: DetailPageOptions) {
       } else {
         await options.deleteResource(params)
       }
-      ElMessage.success('已删除')
+      ElMessage.success(t('common.deleteSuccess', { type: options.resourceName }))
       router.push(options.listRoute)
     } catch (e: any) {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('common.deleteFailed', { type: options.resourceName }))
     } finally {
       deleteLoading.value = false
     }

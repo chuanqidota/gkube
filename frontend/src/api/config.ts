@@ -1,5 +1,5 @@
-import request from './request'
 import { calcAge } from './core'
+import { createResourceApi } from './factory'
 
 // ============ Transform 函数 ============
 
@@ -25,106 +25,74 @@ export function transformSecrets(items: any[]) {
   }))
 }
 
-// ============ ConfigMap API ============
+// ============ 标准 CRUD（工厂生成） ============
 
-export function getConfigMapList(data?: any) {
-  return request.post('/k8s/configmap/list', data)
-}
+export const configMapApi = createResourceApi('/k8s/configmap')
 
-export function getConfigMapDetail(params: { namespace: string; name: string }) {
-  return request.get('/k8s/configmap/detail', { params })
-}
+export const secretApi = createResourceApi('/k8s/secret')
 
-export function getConfigMapYaml(params: { namespace: string; name: string }) {
-  return request.get('/k8s/configmap/get-yaml', { params })
-}
+export const resourceQuotaApi = createResourceApi('/k8s/resourcequota', {
+  deleteUseParams: true,
+})
 
-export function createConfigMap(data: { namespace: string; yaml: string }) {
-  return request.post('/k8s/configmap/create', data, { timeout: 30000 })
-}
+export const limitRangeApi = createResourceApi('/k8s/limitrange', {
+  deleteUseParams: true,
+})
 
-export function updateConfigMap(data: { namespace: string; name: string; yaml: string }) {
-  return request.put('/k8s/configmap/update', data)
-}
+// ============ 向后兼容函数别名（deprecated） ============
 
-export function deleteConfigMap(data: { namespace: string; name: string }) {
-  return request.delete('/k8s/configmap/delete', { data })
-}
+// ConfigMap
+/** @deprecated 使用 configMapApi.list() */
+export const getConfigMapList = configMapApi.list
+/** @deprecated 使用 configMapApi.detail() */
+export const getConfigMapDetail = configMapApi.detail
+/** @deprecated 使用 configMapApi.getYaml() */
+export const getConfigMapYaml = configMapApi.getYaml
+/** @deprecated 使用 configMapApi.create() */
+export const createConfigMap = configMapApi.create
+/** @deprecated 使用 configMapApi.updateYaml() */
+export const updateConfigMap = configMapApi.updateYaml
+/** @deprecated 使用 configMapApi.delete() */
+export const deleteConfigMap = configMapApi.delete
 
-// ============ Secret API ============
+// Secret
+/** @deprecated 使用 secretApi.list() */
+export const getSecretList = secretApi.list
+/** @deprecated 使用 secretApi.detail() */
+export const getSecretDetail = secretApi.detail
+/** @deprecated 使用 secretApi.getYaml() */
+export const getSecretYaml = secretApi.getYaml
+/** @deprecated 使用 secretApi.create() */
+export const createSecret = secretApi.create
+/** @deprecated 使用 secretApi.updateYaml() */
+export const updateSecret = secretApi.updateYaml
+/** @deprecated 使用 secretApi.delete() */
+export const deleteSecret = secretApi.delete
 
-export function getSecretList(data?: any) {
-  return request.post('/k8s/secret/list', data)
-}
+// ResourceQuota
+/** @deprecated 使用 resourceQuotaApi.list() */
+export const getResourceQuotaList = resourceQuotaApi.list
+/** @deprecated 使用 resourceQuotaApi.detail() */
+export const getResourceQuotaDetail = resourceQuotaApi.detail
+/** @deprecated 使用 resourceQuotaApi.getYaml() */
+export const getResourceQuotaYaml = resourceQuotaApi.getYaml
+/** @deprecated 使用 resourceQuotaApi.create() */
+export const createResourceQuota = resourceQuotaApi.create
+/** @deprecated 使用 resourceQuotaApi.updateYaml() */
+export const updateResourceQuota = resourceQuotaApi.updateYaml
+/** @deprecated 使用 resourceQuotaApi.delete() */
+export const deleteResourceQuota = resourceQuotaApi.delete
 
-export function getSecretDetail(params: { namespace: string; name: string }) {
-  return request.get('/k8s/secret/detail', { params })
-}
-
-export function getSecretYaml(params: { namespace: string; name: string }) {
-  return request.get('/k8s/secret/get-yaml', { params })
-}
-
-export function createSecret(data: { namespace: string; yaml: string }) {
-  return request.post('/k8s/secret/create', data, { timeout: 30000 })
-}
-
-export function updateSecret(data: { namespace: string; name: string; yaml: string }) {
-  return request.put('/k8s/secret/update', data)
-}
-
-export function deleteSecret(data: { namespace: string; name: string }) {
-  return request.delete('/k8s/secret/delete', { data })
-}
-
-// ============ ResourceQuota API ============
-
-export function getResourceQuotaList(data?: any) {
-  return request.post('/k8s/resourcequota/list', data)
-}
-
-export function getResourceQuotaDetail(params: { namespace: string; name: string }) {
-  return request.get('/k8s/resourcequota/detail', { params })
-}
-
-export function getResourceQuotaYaml(params: { namespace: string; name: string }) {
-  return request.get('/k8s/resourcequota/get-yaml', { params })
-}
-
-export function createResourceQuota(data: { namespace: string; yaml: string }) {
-  return request.post('/k8s/resourcequota/create', data)
-}
-
-export function updateResourceQuota(data: { namespace: string; yaml: string }) {
-  return request.put('/k8s/resourcequota/update', data)
-}
-
-export function deleteResourceQuota(params: { namespace: string; name: string }) {
-  return request.delete('/k8s/resourcequota/delete', { params })
-}
-
-// ============ LimitRange API ============
-
-export function getLimitRangeList(data?: any) {
-  return request.post('/k8s/limitrange/list', data)
-}
-
-export function getLimitRangeDetail(params: { namespace: string; name: string }) {
-  return request.get('/k8s/limitrange/detail', { params })
-}
-
-export function getLimitRangeYaml(params: { namespace: string; name: string }) {
-  return request.get('/k8s/limitrange/get-yaml', { params })
-}
-
-export function createLimitRange(data: { namespace: string; yaml: string }) {
-  return request.post('/k8s/limitrange/create', data)
-}
-
-export function updateLimitRange(data: { namespace: string; yaml: string }) {
-  return request.put('/k8s/limitrange/update', data)
-}
-
-export function deleteLimitRange(params: { namespace: string; name: string }) {
-  return request.delete('/k8s/limitrange/delete', { params })
-}
+// LimitRange
+/** @deprecated 使用 limitRangeApi.list() */
+export const getLimitRangeList = limitRangeApi.list
+/** @deprecated 使用 limitRangeApi.detail() */
+export const getLimitRangeDetail = limitRangeApi.detail
+/** @deprecated 使用 limitRangeApi.getYaml() */
+export const getLimitRangeYaml = limitRangeApi.getYaml
+/** @deprecated 使用 limitRangeApi.create() */
+export const createLimitRange = limitRangeApi.create
+/** @deprecated 使用 limitRangeApi.updateYaml() */
+export const updateLimitRange = limitRangeApi.updateYaml
+/** @deprecated 使用 limitRangeApi.delete() */
+export const deleteLimitRange = limitRangeApi.delete

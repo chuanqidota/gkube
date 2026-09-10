@@ -352,11 +352,3 @@ onMounted(fetchNamespaces)
   margin-left: 0;
 }
 </style>
-
-<style>
-.yaml-drawer .el-drawer__header {
-  padding: 6px 16px;
-  margin-bottom: 0;
-  min-height: auto;
-}
-</style>

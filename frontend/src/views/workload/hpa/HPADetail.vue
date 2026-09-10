@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getHpaDetail, deleteHpa, getHpaEvents, pauseHpa, resumeHpa } from '@/api/resource'
+import { getHpaDetail, deleteHpa, getHpaEvents, pauseHpa, resumeHpa, getHpaYaml, updateHpa } from '@/api/resource'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import HPAForm from './components/HPAForm.vue'
@@ -565,9 +565,11 @@ onMounted(() => {
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="hpa"
+      :get-yaml="getHpaYaml"
+      :update-yaml="updateHpa"
       :namespace="namespace"
       :name="name"
+      title="HPA YAML"
       @saved="handleYamlSaved"
     />
 

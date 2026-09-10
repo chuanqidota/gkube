@@ -4,6 +4,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { FullScreen, Aim } from '@element-plus/icons-vue'
 import {
   getStatefulSetDetail,
+  getStatefulSetYaml,
+  updateStatefulSetYaml,
   deleteStatefulSet,
   scaleStatefulSet,
   restartStatefulSet,
@@ -379,9 +381,11 @@ function onEditSuccess() {
     <!-- ===== Dialogs ===== -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="statefulset"
+      :get-yaml="getStatefulSetYaml"
+      :update-yaml="updateStatefulSetYaml"
       :namespace="namespace"
       :name="name"
+      title="StatefulSet YAML"
       @saved="handleYamlSaved"
     />
 

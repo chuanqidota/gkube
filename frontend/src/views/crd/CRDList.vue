@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { getCrdList, deleteCrd } from '@/api/resource'
+import { getCrdList, deleteCrd, getCrdYaml, updateCrd } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
@@ -187,8 +187,10 @@ onMounted(fetchCrds)
 
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="crd"
+      :get-yaml="getCrdYaml"
+      :update-yaml="updateCrd"
       :name="yamlTarget?.name || ''"
+      title="CRD YAML"
       @saved="fetchCrds"
     />
   </div>

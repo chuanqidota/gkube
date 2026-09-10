@@ -4,6 +4,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { FullScreen, Aim } from '@element-plus/icons-vue'
 import {
   getDeploymentDetail,
+  getDeploymentYaml,
+  updateDeploymentYaml,
   restartDeployment,
   rollbackDeployment,
   scaleDeployment,
@@ -362,9 +364,11 @@ function onEditSuccess() {
     <!-- ===== Dialogs ===== -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="deployment"
+      :get-yaml="getDeploymentYaml"
+      :update-yaml="updateDeploymentYaml"
       :namespace="namespace"
       :name="name"
+      title="Deployment YAML"
       @saved="handleYamlSaved"
     />
 

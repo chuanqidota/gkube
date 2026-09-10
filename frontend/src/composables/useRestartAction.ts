@@ -1,9 +1,11 @@
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 
 export function useRestartAction(
   kind: 'deployment' | 'statefulset' | 'daemonset',
   restartApi: (params: { namespace: string; name: string }) => Promise<any>
 ) {
+  const { t } = useI18n()
   const kindLabel = { deployment: 'Deployment', statefulset: 'StatefulSet', daemonset: 'DaemonSet' }[kind]
 
   const handleRestart = async (
@@ -13,16 +15,16 @@ export function useRestartAction(
   ) => {
     try {
       await ElMessageBox.confirm(
-        `确定重启 ${kindLabel} "${name}"？这将触发所有 Pod 滚动更新。`,
-        '重启确认',
-        { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+        t('workload.restartConfirm', { kind: kindLabel, name }),
+        t('workload.restartConfirmTitle'),
+        { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
       )
       await restartApi({ namespace, name })
-      ElMessage.success('重启指令已发送')
+      ElMessage.success(t('common.restartSuccess'))
       onSuccess?.()
     } catch (e: any) {
       if (e !== 'cancel') {
-        ElMessage.error(e?.response?.data?.message || '重启失败')
+        ElMessage.error(e?.response?.data?.message || t('common.restartFailed'))
       }
     }
   }

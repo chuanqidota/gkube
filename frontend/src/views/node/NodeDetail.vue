@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Cpu, Coin, Grid, Files, Search, Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
 import {
-  getNodeDetail, getNodePods, getNodeEvents,
+  getNodeDetail, getNodePods, getNodeEvents, getNodeYaml, updateNodeYaml,
   type NodeDetail as NodeDetailType, type K8sPod, type NodeEvent,
 } from '@/api/resource'
 import { formatAge } from '@/utils/helpers'
@@ -459,8 +459,10 @@ watch(nodeName, () => {
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="node"
+      :get-yaml="getNodeYaml"
+      :update-yaml="updateNodeYaml"
       :name="nodeName"
+      title="Node YAML"
       @saved="handleYamlSaved"
     />
 

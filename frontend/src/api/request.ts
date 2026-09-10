@@ -2,6 +2,9 @@ import axios, { type AxiosResponse, type InternalAxiosRequestConfig } from 'axio
 import { ElMessage } from 'element-plus'
 import { getToken, removeToken, getRefreshToken, setToken, setRefreshToken } from '@/utils/auth'
 import { useClusterStore } from '@/stores/cluster'
+import i18n from '@/locales'
+
+const { t } = i18n.global
 
 // 扩展 axios 内部配置类型，声明 _retry 标志
 declare module 'axios' {
@@ -70,7 +73,7 @@ request.interceptors.response.use(
     const data = response.data
     // 正向判断业务成功：code === 200 视为成功，否则 reject（与后端契约对齐）
     if (data && typeof data === 'object' && 'code' in data && data.code !== SUCCESS_CODE) {
-      return Promise.reject(new Error(data.msg || '请求失败'))
+      return Promise.reject(new Error(data.msg || t('common.requestFailed')))
     }
     // 解包后端响应：将 { code, msg, data } 中的 data 提升到 response.data
     // 使得调用方可以直接通过 res.data 访问业务数据
@@ -110,7 +113,7 @@ request.interceptors.response.use(
         const refreshClient = axios.create({ baseURL: '/api/v1', timeout: 15000 })
         const res = await refreshClient.post('/auth/refresh', { refreshToken })
         const data = res.data as any
-        if (data?.code !== 200) throw new Error(data?.msg || '刷新Token失败')
+        if (data?.code !== 200) throw new Error(data?.msg || t('common.refreshTokenFailed'))
 
         const newToken = data?.accessToken
         const newRefreshToken = data?.refreshToken
@@ -131,13 +134,13 @@ request.interceptors.response.use(
 
           return request(originalRequest)
         } else {
-          throw new Error('刷新Token响应格式异常')
+          throw new Error(t('common.refreshTokenFailed'))
         }
       } catch {
         // Refresh failed: clear tokens, reject 排队中的请求，再由调用方/路由守卫处理跳转。
         // 不再返回永不 resolve 的 Promise（避免内存泄漏）。
         removeToken()
-        const failure = new Error('登录已过期')
+        const failure = new Error(t('common.loginExpired'))
         const queue = pendingRequests
         pendingRequests = []
         queue.forEach((cb) => cb.reject(failure))
@@ -159,8 +162,8 @@ request.interceptors.response.use(
     // 对于非 401 的 HTTP 错误，提取后端返回的错误信息
     // 403 权限不足：统一提示
     if (error.response?.status === 403) {
-      ElMessage.error(error.response?.data?.msg || '权限不足')
-      return Promise.reject(new Error('权限不足'))
+      ElMessage.error(error.response?.data?.msg || t('common.permissionDenied'))
+      return Promise.reject(new Error(t('common.permissionDenied')))
     }
     if (error.response?.data?.msg) {
       return Promise.reject(new Error(error.response.data.msg))

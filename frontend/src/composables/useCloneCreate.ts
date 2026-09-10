@@ -1,5 +1,6 @@
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import yaml from 'js-yaml'
 import {
   extractK8sItems,
@@ -35,6 +36,7 @@ export interface UseCloneCreateOptions {
  * Pages destructure the return so the refs are top-level bindings (auto-unwrapped in template).
  */
 export function useCloneCreate(opts: UseCloneCreateOptions) {
+  const { t } = useI18n()
   const namespaceScoped = opts.namespaceScoped !== false
   const hasForm = opts.hasForm !== false
 
@@ -95,7 +97,7 @@ export function useCloneCreate(opts: UseCloneCreateOptions) {
       } else {
         opts.onCloneToForm?.(result.parsed)
       }
-      ElMessage.success(`已成功克隆 "${result.originalName}"，请确认后点击创建`)
+      ElMessage.success(t('common.cloneSuccess', { name: result.originalName }))
     } finally {
       cloneLoading.value = false
     }

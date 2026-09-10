@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { getResourceQuotaList, deleteResourceQuota, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { getResourceQuotaList, deleteResourceQuota, getNamespaceList, extractNamespaceNames, resourceQuotaApi } from '@/api/resource'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
@@ -153,9 +153,11 @@ onMounted(() => { fetchNamespaces(); fetchResourceQuotas() })
     </el-card>
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="resourcequota"
+      :get-yaml="resourceQuotaApi.getYaml"
+      :update-yaml="resourceQuotaApi.updateYaml"
       :namespace="yamlTarget?.namespace || ''"
       :name="yamlTarget?.name || ''"
+      title="ResourceQuota YAML"
       @saved="fetchResourceQuotas"
     />
   </div>

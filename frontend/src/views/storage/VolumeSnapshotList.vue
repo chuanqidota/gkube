@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { getVolumeSnapshotList, deleteVolumeSnapshot, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import { getVolumeSnapshotList, deleteVolumeSnapshot, getNamespaceList, extractNamespaceNames, getVolumeSnapshotYaml, updateVolumeSnapshot } from '@/api/resource'
 import { useI18n } from 'vue-i18n'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -196,9 +196,11 @@ onMounted(() => { fetchNamespaces(); fetchSnapshots() })
     </el-card>
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="volumesnapshot"
+      :get-yaml="getVolumeSnapshotYaml"
+      :update-yaml="updateVolumeSnapshot"
       :namespace="yamlTarget?.namespace || ''"
       :name="yamlTarget?.name || ''"
+      title="VolumeSnapshot YAML"
       @saved="fetchSnapshots"
     />
   </div>

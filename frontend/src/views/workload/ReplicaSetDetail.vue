@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getReplicaSetDetail,
+  getReplicaSetYaml,
   getReplicaSetEvents,
   deleteReplicaSet,
 } from '@/api/resource'
@@ -233,9 +234,11 @@ onMounted(() => {
     <!-- ===== YAML Drawer (只读) ===== -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="replicaset"
+      :get-yaml="getReplicaSetYaml"
+      :update-yaml="null"
       :namespace="namespace"
       :name="name"
+      title="ReplicaSet YAML"
     />
   </DetailPageLayout>
 </template>

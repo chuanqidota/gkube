@@ -594,8 +594,10 @@ onMounted(() => {
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="namespace"
+      :get-yaml="getNamespaceYaml"
+      :update-yaml="updateNamespace"
       :name="name"
+      title="Namespace YAML"
       @saved="handleYamlSaved"
     />
 

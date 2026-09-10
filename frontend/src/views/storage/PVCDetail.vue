@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
-import { getPvcDetail, deletePvc } from '@/api/resource'
+import { getPvcDetail, deletePvc, getPvcYaml, updatePvcYaml } from '@/api/resource'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import PVCForm from '@/views/storage/components/PVCForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -269,9 +269,11 @@ onMounted(fetchDetail)
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="pvc"
+      :get-yaml="getPvcYaml"
+      :update-yaml="updatePvcYaml"
       :namespace="namespace"
       :name="name"
+      title="PVC YAML"
       @saved="handleYamlSaved"
     />
 

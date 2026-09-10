@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { FullScreen, Aim, VideoPause, VideoPlay } from '@element-plus/icons-vue'
 import {
   getCronJobDetail,
+  getCronJobYaml,
+  updateCronJobYaml,
   deleteCronJob,
   getCronJobEvents,
   getCronJobExecutionHistory,
@@ -300,9 +302,11 @@ function isManualJob(job: any): boolean {
     <!-- YAML Drawer -->
     <YamlDrawer
       v-model="yamlDialogVisible"
-      resource-type="cronjob"
+      :get-yaml="getCronJobYaml"
+      :update-yaml="updateCronJobYaml"
       :namespace="namespace"
       :name="name"
+      title="CronJob YAML"
       @saved="handleYamlSaved"
     />
 

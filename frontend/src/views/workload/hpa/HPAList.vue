@@ -381,11 +381,3 @@ async function handleResume(row: any) {
   font-weight: 600;
 }
 </style>
-
-<style>
-.yaml-drawer .el-drawer__header {
-  padding: 6px 16px;
-  margin-bottom: 0;
-  min-height: auto;
-}
-</style>
