@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -23,6 +24,7 @@ const clusterStore = useClusterStore()
 const clusterName = computed(() => clusterStore.clusterName)
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const loading = ref(false)
 const detail = ref<any>(null)
 const yamlDialogVisible = ref(false)
@@ -74,7 +76,7 @@ async function fetchDetail() {
     const res: any = await getReplicaSetDetail({ namespace, name })
     detail.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.message || '获取详情失败')
+    ElMessage.error(e?.message || t('common.fetchFailed'))
   } finally {
     loading.value = false
   }
@@ -87,7 +89,7 @@ async function fetchEvents() {
     events.value = res.data || []
   } catch (e) {
     console.error('Failed to fetch events:', e)
-    ElMessage.error('获取事件失败')
+    ElMessage.error(t('common.fetchFailed'))
   } finally {
     eventsLoading.value = false
   }
@@ -100,16 +102,16 @@ function handleOpenYaml() {
 async function handleDelete() {
   try {
     await ElMessageBox.confirm(
-      `确定要删除 ReplicaSet "${name}" 吗？此操作不可恢复。`,
-      '确认删除',
-      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
+      t('common.deleteResourceConfirm', { type: 'ReplicaSet', name }),
+      t('common.confirmDelete'),
+      { type: 'error', confirmButtonText: t('common.delete'), cancelButtonText: t('common.cancel') }
     )
     await deleteReplicaSet({ namespace, name })
-    ElMessage.success('ReplicaSet 已删除')
+    ElMessage.success(t('workload.deleteResourceSuccess', { type: 'ReplicaSet' }))
     router.push('/workloads/replicasets')
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('common.deleteFailed'))
     }
   }
 }
@@ -165,7 +167,7 @@ onMounted(() => {
       </template>
       <template #actions>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" @click="handleDelete">删除</el-button>
+        <el-button type="danger" @click="handleDelete">{{ t('common.delete') }}</el-button>
       </template>
     </DetailPageHeader>
 
@@ -173,9 +175,9 @@ onMounted(() => {
     <template v-if="rs" #left>
       <div class="left-scroll">
         <div class="info-block">
-          <div class="block-title">基本信息</div>
-          <div class="info-row"><span class="info-label">名称</span><span class="info-value mono">{{ rs.metadata?.name }}</span></div>
-          <div class="info-row"><span class="info-label">命名空间</span><span class="info-value">{{ rs.metadata?.namespace }}</span></div>
+          <div class="block-title">{{ t('config.basicInfo') }}</div>
+          <div class="info-row"><span class="info-label">{{ t('common.name') }}</span><span class="info-value mono">{{ rs.metadata?.name }}</span></div>
+          <div class="info-row"><span class="info-label">{{ t('common.namespace_label') }}</span><span class="info-value">{{ rs.metadata?.namespace }}</span></div>
           <div class="info-row"><span class="info-label">期望副本</span><span class="info-value">{{ rs.spec?.replicas ?? 0 }}</span></div>
           <div class="info-row"><span class="info-label">当前副本</span><span class="info-value">{{ rs.status?.replicas ?? 0 }}</span></div>
           <div class="info-row"><span class="info-label">就绪副本</span><span class="info-value">{{ rs.status?.readyReplicas ?? 0 }}</span></div>
@@ -193,7 +195,7 @@ onMounted(() => {
 
         <div class="info-block">
           <div class="block-title">容器模板</div>
-          <div v-if="containers.length === 0" class="empty-hint">暂无容器</div>
+          <div v-if="containers.length === 0" class="empty-hint">{{ t('common.noData') }}</div>
           <div v-for="c in containers" :key="c.name" class="container-item">
             <div class="container-name mono">{{ c.name }}</div>
             <div class="container-image mono">{{ c.image || '-' }}</div>
@@ -201,7 +203,7 @@ onMounted(() => {
         </div>
 
         <div class="info-block">
-          <div class="block-title">选择器</div>
+          <div class="block-title">{{ t('workload.selector') }}</div>
           <SelectorBlock :selector="selectorLabels" />
         </div>
       </div>

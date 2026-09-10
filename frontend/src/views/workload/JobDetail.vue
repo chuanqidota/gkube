@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { FullScreen, Aim, RefreshRight } from '@element-plus/icons-vue'
 import {
@@ -26,6 +27,7 @@ import { useEditDrawer } from '@/composables/useEditDrawer'
 import { useClusterStore } from '@/stores/cluster'
 
 const clusterStore = useClusterStore()
+const { t } = useI18n()
 const clusterName = computed(() => clusterStore.clusterName)
 
 const {
@@ -102,16 +104,16 @@ function handleYamlSaved() {
 async function handleRerun() {
   try {
     await ElMessageBox.confirm(
-      `确定要重跑 Job "${name}" 吗？将创建一个相同配置的新 Job。`,
-      '确认重跑',
-      { type: 'warning', confirmButtonText: '确定', cancelButtonText: '取消' }
+      t('workload.rerunConfirm', { name }),
+      t('common.confirmAction'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
     )
     await rerunJob({ namespace, name })
-    ElMessage.success('Job 重跑成功')
+    ElMessage.success(t('workload.rerunSuccess'))
     fetchDetail()
   } catch (e: any) {
     if (e === 'cancel' || e?.message === 'cancel') return
-    ElMessage.error(e?.message || '重跑失败')
+    ElMessage.error(e?.message || t('workload.rerunFailed'))
   }
 }
 
@@ -154,32 +156,32 @@ function onPodDelete(pod: any, force?: boolean) {
         <el-button type="success" :disabled="job?.status?.active > 0" @click="handleRerun">
           <el-icon><RefreshRight /></el-icon> 重跑
         </el-button>
-        <el-button type="info" @click="handleEdit">编辑</el-button>
+        <el-button type="info" @click="handleEdit">{{ t('common.edit') }}</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" @click="handleDelete">删除</el-button>
+        <el-button type="danger" @click="handleDelete">{{ t('common.delete') }}</el-button>
       </template>
     </DetailPageHeader>
 
     <!-- 左侧：基本信息 -->
     <template v-if="job" #left>
-      <div class="panel-title">基本信息</div>
+      <div class="panel-title">{{ t('config.basicInfo') }}</div>
       <div class="info-body">
         <el-descriptions :column="1" border size="small">
-          <el-descriptions-item label="名称">{{ job.metadata?.name }}</el-descriptions-item>
-          <el-descriptions-item label="命名空间">{{ job.metadata?.namespace }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.name')">{{ job.metadata?.name }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.namespace_label')">{{ job.metadata?.namespace }}</el-descriptions-item>
           <el-descriptions-item v-if="ownerCronJob" label="所属 CronJob">
             <el-button link type="primary" @click="router.push(`/workloads/cronjobs/${job.metadata?.namespace || namespace}/${ownerCronJob.name}`)">
               {{ ownerCronJob.name }}
             </el-button>
           </el-descriptions-item>
-          <el-descriptions-item label="完成数">{{ job.spec?.completions ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="并行数">{{ job.spec?.parallelism ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.completions')">{{ job.spec?.completions ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.parallelism')">{{ job.spec?.parallelism ?? '-' }}</el-descriptions-item>
           <el-descriptions-item label="最大失败次数">{{ job.spec?.backoffLimit ?? '-' }}</el-descriptions-item>
           <el-descriptions-item label="已成功">{{ job.status?.succeeded ?? '-' }}</el-descriptions-item>
           <el-descriptions-item label="进行中">{{ job.status?.active ?? '-' }}</el-descriptions-item>
           <el-descriptions-item label="已失败">{{ job.status?.failed ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="开始时间">{{ job.status?.startTime || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="完成时间">{{ job.status?.completionTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.startTime')">{{ job.status?.startTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.completionTime')">{{ job.status?.completionTime || '-' }}</el-descriptions-item>
         </el-descriptions>
 
         <!-- Completion Progress -->
@@ -234,7 +236,7 @@ function onPodDelete(pod: any, force?: boolean) {
     <!-- 右下：Events -->
     <template v-if="job" #right-bottom>
       <div class="panel-title">
-        事件
+        {{ t('event.title') }}
         <span class="count-badge">{{ events.length }} 条</span>
       </div>
       <EventsTable :events="events" :loading="eventsLoading" time-field="last_seen" />
@@ -254,7 +256,7 @@ function onPodDelete(pod: any, force?: boolean) {
     <!-- Edit Drawer -->
     <el-drawer
       v-model="editDialogVisible"
-      title="编辑 Job"
+      :title="t('common.edit') + ' Job'"
       :size="editFullscreen ? '100%' : '85%'"
       direction="rtl"
       :destroy-on-close="true"
@@ -262,7 +264,7 @@ function onPodDelete(pod: any, force?: boolean) {
     >
       <template #header>
         <div class="drawer-header">
-          <span class="drawer-title">编辑 Job</span>
+          <span class="drawer-title">{{ t('common.edit') }} Job</span>
           <el-tooltip :content="editFullscreen ? '退出全屏' : '全屏'" placement="top">
             <el-icon class="fullscreen-btn" @click="editFullscreen = !editFullscreen">
               <FullScreen v-if="!editFullscreen" />

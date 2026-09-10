@@ -32,6 +32,7 @@ import { usePodActions } from '@/composables/usePodActions'
 import { useRestartAction } from '@/composables/useRestartAction'
 import { useEditDrawer } from '@/composables/useEditDrawer'
 import { formatAge } from '@/utils/helpers'
+import { useI18n } from 'vue-i18n'
 
 // ---- useDetailPage composable ----
 const {
@@ -58,6 +59,8 @@ const {
 const { handlePodLogs, handlePodExec, handlePodDelete } = usePodActions(clusterName)
 const { handleRestart } = useRestartAction('statefulset', restartStatefulSet)
 const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess, handleEditCancel } = useEditDrawer(fetchDetail)
+
+const { t } = useI18n()
 
 // ---- Revisions & Pods ----
 const revisions = ref<any[]>([])
@@ -154,18 +157,18 @@ function revisionPodCount(rev: any): number {
 async function handleRevisionRollback(rev: any) {
   try {
     await ElMessageBox.confirm(
-      `确定要回滚到 revision ${rev.revision} 吗？`,
-      '确认回滚',
+      `${t('workload.rollback')} revision ${rev.revision}?`,
+      t('common.confirmAction'),
       { type: 'warning' }
     )
     await rollbackStatefulSet({ namespace, name, revision: rev.revision })
-    ElMessage.success('回滚成功')
+    ElMessage.success(t('common.success'))
     fetchDetail()
     fetchRevisions()
     fetchAllPods()
   } catch (error: any) {
     if (error !== 'cancel' && error !== 'close') {
-      ElMessage.error(error?.message || '回滚失败')
+      ElMessage.error(error?.message || t('common.failed'))
     }
   }
 }
@@ -247,13 +250,13 @@ function onEditSuccess() {
         </span>
       </template>
       <template #actions>
-        <el-button type="primary" @click="scaleDialogVisible = true">扩缩容</el-button>
-        <el-button type="warning" @click="onRestart">重启</el-button>
-        <el-button type="success" @click="imageDialogVisible = true">更新镜像</el-button>
-        <el-button type="info" @click="handleEdit">编辑</el-button>
+        <el-button type="primary" @click="scaleDialogVisible = true">{{ t('workload.scale') }}</el-button>
+        <el-button type="warning" @click="onRestart">{{ t('workload.restart') }}</el-button>
+        <el-button type="success" @click="imageDialogVisible = true">{{ t('workload.updateImage') }}</el-button>
+        <el-button type="info" @click="handleEdit">{{ t('common.edit') }}</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="warning" @click="autoscalingDrawerVisible = true">弹性伸缩</el-button>
-        <el-button type="danger" @click="handleDelete">删除</el-button>
+        <el-button type="warning" @click="autoscalingDrawerVisible = true">{{ t('workload.hpa') }}</el-button>
+        <el-button type="danger" @click="handleDelete">{{ t('common.delete') }}</el-button>
       </template>
     </DetailPageHeader>
 
@@ -263,8 +266,8 @@ function onEditSuccess() {
         <el-segmented
           v-model="leftView"
           :options="[
-            { label: '修订历史', value: 'revisions' },
-            { label: '基本信息', value: 'info' },
+            { label: t('workload.rollback'), value: 'revisions' },
+            { label: t('config.basicInfo'), value: 'info' },
           ]"
           size="small"
           block
@@ -273,7 +276,7 @@ function onEditSuccess() {
 
       <!-- 修订历史 -->
       <div v-show="leftView === 'revisions'" class="rs-list" v-loading="revisionsLoading">
-        <div v-if="revisions.length === 0" class="empty-hint">暂无修订历史</div>
+        <div v-if="revisions.length === 0" class="empty-hint">{{ t('common.noData') }}</div>
         <div
           v-for="rev in revisions"
           :key="rev.revision"
@@ -287,13 +290,13 @@ function onEditSuccess() {
             <span class="rs-replicas">{{ revisionPodCount(rev) }} 个 Pod</span>
             <el-tag
               v-if="rev.name === statefulset?.status?.currentRevision"
-              type="success" size="small">当前</el-tag>
-            <el-tag v-else-if="revisionPodCount(rev) > 0" type="primary" size="small">活跃</el-tag>
+              type="success" size="small">{{ t('workload.current') }}</el-tag>
+            <el-tag v-else-if="revisionPodCount(rev) > 0" type="primary" size="small">{{ t('workload.active') }}</el-tag>
           </div>
           <div class="rs-image" v-for="(img, i) in (rev.images || [])" :key="i">{{ img }}</div>
           <div class="rs-age">{{ formatAge(rev.createdAt) }}</div>
           <div class="rs-rollback" v-if="rev.name !== statefulset?.status?.currentRevision">
-            <el-button size="small" type="warning" @click.stop="handleRevisionRollback(rev)">回滚</el-button>
+            <el-button size="small" type="warning" @click.stop="handleRevisionRollback(rev)">{{ t('workload.rollback') }}</el-button>
           </div>
         </div>
       </div>
@@ -301,9 +304,9 @@ function onEditSuccess() {
       <!-- 基本信息 -->
       <div v-show="leftView === 'info'" class="info-body">
         <el-descriptions :column="1" border size="small">
-          <el-descriptions-item label="名称">{{ statefulset?.metadata?.name || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="命名空间">{{ statefulset?.metadata?.namespace || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="副本">
+          <el-descriptions-item :label="t('common.name')">{{ statefulset?.metadata?.name || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.namespace_label')">{{ statefulset?.metadata?.namespace || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.replicas')">
             {{ statefulset?.spec?.replicas ?? '-' }} 期望 ·
             {{ statefulset?.status?.readyReplicas ?? 0 }} 就绪 ·
             {{ statefulset?.status?.currentReplicas ?? 0 }} 当前 ·
@@ -311,7 +314,7 @@ function onEditSuccess() {
           </el-descriptions-item>
           <el-descriptions-item label="serviceName">{{ statefulset?.spec?.serviceName || '-' }}</el-descriptions-item>
           <el-descriptions-item label="Pod 管理策略">{{ statefulset?.spec?.podManagementPolicy || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="更新策略">
+          <el-descriptions-item :label="t('workload.strategy')">
             {{ statefulset?.spec?.updateStrategy?.type || '-' }}
             <span v-if="statefulset?.spec?.updateStrategy?.type === 'RollingUpdate'" class="info-sub">
               (partition {{ statefulset.spec.updateStrategy?.rollingUpdate?.partition ?? 0 }})
@@ -320,17 +323,17 @@ function onEditSuccess() {
           <el-descriptions-item label="当前 revision">{{ statefulset?.status?.currentRevision || '-' }}</el-descriptions-item>
           <el-descriptions-item label="更新 revision">{{ statefulset?.status?.updateRevision || '-' }}</el-descriptions-item>
           <el-descriptions-item label="历史上限">{{ statefulset?.spec?.revisionHistoryLimit ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ statefulset?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.created')">{{ statefulset?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
           <el-descriptions-item label="UID">{{ statefulset?.metadata?.uid || '-' }}</el-descriptions-item>
         </el-descriptions>
 
-        <div class="info-section-title">容器镜像</div>
+        <div class="info-section-title">{{ t('workload.containers') }} {{ t('workload.image') }}</div>
         <div class="vct-list">
           <div v-for="c in (statefulset?.spec?.template?.spec?.containers || [])" :key="c.name" class="vct-item">
             <span class="vct-name">{{ c.name }}</span>
             <span class="vct-meta">{{ c.image || '-' }}</span>
           </div>
-          <div v-if="!statefulset?.spec?.template?.spec?.containers?.length" class="info-empty">无</div>
+          <div v-if="!statefulset?.spec?.template?.spec?.containers?.length" class="info-empty">{{ t('common.noData') }}</div>
         </div>
 
         <div class="info-section-title">Conditions</div>
@@ -343,7 +346,7 @@ function onEditSuccess() {
             <span class="vct-meta">{{ vct.spec?.resources?.requests?.storage || '-' }} · {{ (vct.spec?.accessModes || []).join(', ') || '-' }}<span v-if="vct.spec?.storageClassName"> · {{ vct.spec.storageClassName }}</span></span>
           </div>
         </div>
-        <div v-else class="info-empty">无</div>
+        <div v-else class="info-empty">{{ t('common.noData') }}</div>
 
         <div class="info-section-title">Selector</div>
         <SelectorBlock :selector="statefulset?.spec?.selector?.matchLabels || {}" />
@@ -356,7 +359,7 @@ function onEditSuccess() {
     <!-- 右上：Pod 列表 -->
     <template v-if="statefulset" #right-top>
       <div class="panel-title">
-        关联 Pod
+        {{ t('workload.pod') }}
         <span class="count-badge">{{ rsPods.length }} 个</span>
         <span class="rs-label" v-if="selectedRevision">{{ selectedRevision.name }}</span>
       </div>
@@ -372,7 +375,7 @@ function onEditSuccess() {
     <!-- 右下：Events -->
     <template v-if="statefulset" #right-bottom>
       <div class="panel-title">
-        事件
+        {{ t('event.title') }}
         <span class="count-badge">{{ events.length }} 条</span>
       </div>
       <EventsTable :events="events" :loading="eventsLoading" time-field="last_seen" />
@@ -412,7 +415,7 @@ function onEditSuccess() {
 
     <el-drawer
       v-model="editDialogVisible"
-      title="编辑 StatefulSet"
+      :title="t('common.edit') + ' StatefulSet'"
       :size="editFullscreen ? '100%' : '85%'"
       direction="rtl"
       :destroy-on-close="true"
@@ -420,7 +423,7 @@ function onEditSuccess() {
     >
       <template #header>
         <div class="drawer-header">
-          <span class="drawer-title">编辑 StatefulSet</span>
+          <span class="drawer-title">{{ t('common.edit') }} StatefulSet</span>
           <el-tooltip :content="editFullscreen ? '退出全屏' : '全屏'" placement="top">
             <el-icon class="fullscreen-btn" @click="editFullscreen = !editFullscreen">
               <FullScreen v-if="!editFullscreen" />

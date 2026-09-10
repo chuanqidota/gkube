@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { FullScreen, Aim } from '@element-plus/icons-vue'
 import { getHpaList, getHpaDetail, getHpaYaml, updateHpa } from '@/api/resource'
@@ -35,6 +36,8 @@ const yamlContent = ref('')
 const yamlLoading = ref(false)
 const yamlSaving = ref(false)
 
+const { t } = useI18n()
+
 async function fetchHpaData() {
   if (!props.namespace || !props.workloadName) return
   loading.value = true
@@ -56,7 +59,7 @@ async function fetchHpaData() {
       matchedHpa.value = null
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || '获取 HPA 信息失败')
+    ElMessage.error(e?.message || t('workload.getHpaFailed'))
     hpaList.value = []
     matchedHpa.value = null
   } finally {
@@ -125,7 +128,7 @@ async function handleViewYaml() {
     const res: any = await getHpaYaml({ namespace: ns, name })
     yamlContent.value = res.data?.yaml || ''
   } catch (e: any) {
-    ElMessage.error(e?.message || '获取 YAML 失败')
+    ElMessage.error(e?.message || t('workload.loadHpaYamlFailed'))
     yamlContent.value = ''
   } finally {
     yamlLoading.value = false
@@ -137,11 +140,11 @@ async function handleSaveYaml() {
   yamlSaving.value = true
   try {
     await updateHpa({ namespace: matchedHpa.value.namespace, yaml: yamlContent.value })
-    ElMessage.success('YAML 已保存')
+    ElMessage.success(t('common.saveSuccess'))
     yamlDialogVisible.value = false
     fetchHpaData()
   } catch (e: any) {
-    ElMessage.error(e?.message || '保存失败')
+    ElMessage.error(e?.message || t('common.saveFailed'))
   } finally {
     yamlSaving.value = false
   }
@@ -156,7 +159,7 @@ function handleCancelYaml() {
   <el-drawer
     :model-value="visible"
     @update:model-value="emit('update:visible', $event)"
-    title="弹性伸缩"
+    :title="t('workload.hpa')"
     :size="fullscreen ? '100%' : '85%'"
     direction="rtl"
     destroy-on-close
@@ -164,7 +167,7 @@ function handleCancelYaml() {
   >
     <template #header>
       <div class="drawer-header">
-        <span class="drawer-title">弹性伸缩</span>
+        <span class="drawer-title">{{ t('workload.hpa') }}</span>
         <el-tooltip :content="fullscreen ? '退出全屏' : '全屏'" placement="top">
           <el-icon class="fullscreen-btn" @click="fullscreen = !fullscreen">
             <FullScreen v-if="!fullscreen" />

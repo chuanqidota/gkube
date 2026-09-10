@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { FullScreen, Aim } from '@element-plus/icons-vue'
 import {
@@ -35,6 +36,7 @@ import { useClusterStore } from '@/stores/cluster'
 import { formatAge } from '@/utils/helpers'
 
 const clusterStore = useClusterStore()
+const { t } = useI18n()
 
 // ---- useDetailPage composable ----
 const {
@@ -80,10 +82,10 @@ const autoscalingDrawerVisible = ref(false)
 const statusTag = computed(() => {
   const conditions = deployment.value?.status?.conditions || []
   const available = conditions.find((c: any) => c.type === 'Available')
-  if (available?.status === 'True') return { text: '可用', type: 'success' as const }
+  if (available?.status === 'True') return { text: t('workload.available'), type: 'success' as const }
   const progressing = conditions.find((c: any) => c.type === 'Progressing')
-  if (progressing?.status === 'True') return { text: '滚动更新中', type: 'warning' as const }
-  return { text: '不可用', type: 'danger' as const }
+  if (progressing?.status === 'True') return { text: t('workload.upToDate'), type: 'warning' as const }
+  return { text: t('common.failed'), type: 'danger' as const }
 })
 
 // ---- 副本数 ----
@@ -105,7 +107,7 @@ async function fetchReplicaSets() {
     replicasets.value = res.data?.items || res.data || []
   } catch (e) {
     console.error('Failed to fetch replicasets:', e)
-    ElMessage.error('加载 ReplicaSet 失败')
+    ElMessage.error(t('common.fetchFailed'))
   } finally {
     replicasetsLoading.value = false
   }
@@ -131,7 +133,7 @@ async function fetchAllPods() {
     rsPods.value = allPods.value
   } catch (e) {
     console.error("Failed to fetch pods:", e)
-    ElMessage.error("加载 Pod 失败")
+    ElMessage.error(t('common.fetchFailed'))
   } finally {
     rsPodsLoading.value = false
   }
@@ -151,17 +153,17 @@ async function handleReplicasetRollback(rs: any) {
   if (!revision) return
   try {
     await ElMessageBox.confirm(
-      `确定要回滚到 revision ${revision} 吗？`,
-      '确认回滚',
+      `${t('workload.rollback')} revision ${revision}?`,
+      t('common.confirmAction'),
       { type: 'warning' }
     )
     await rollbackDeployment({ namespace, name, revision: parseInt(revision, 10) })
-    ElMessage.success('回滚成功')
+    ElMessage.success(t('workload.rollbackSuccess', { revision }))
     fetchDetail()
     fetchReplicaSets()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('回滚失败')
+      ElMessage.error(t('common.failed'))
     }
   }
 }
@@ -237,13 +239,13 @@ function onEditSuccess() {
         </span>
       </template>
       <template #actions>
-        <el-button type="primary" @click="scaleDialogVisible = true">扩缩容</el-button>
-        <el-button type="warning" @click="onRestart">重启</el-button>
-        <el-button type="success" @click="imageDialogVisible = true">更新镜像</el-button>
-        <el-button type="info" @click="handleEdit">编辑</el-button>
+        <el-button type="primary" @click="scaleDialogVisible = true">{{ t('workload.scale') }}</el-button>
+        <el-button type="warning" @click="onRestart">{{ t('workload.restart') }}</el-button>
+        <el-button type="success" @click="imageDialogVisible = true">{{ t('workload.updateImage') }}</el-button>
+        <el-button type="info" @click="handleEdit">{{ t('common.edit') }}</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="warning" @click="autoscalingDrawerVisible = true">弹性伸缩</el-button>
-        <el-button type="danger" @click="handleDelete">删除</el-button>
+        <el-button type="warning" @click="autoscalingDrawerVisible = true">{{ t('workload.hpa') }}</el-button>
+        <el-button type="danger" @click="handleDelete">{{ t('common.delete') }}</el-button>
       </template>
     </DetailPageHeader>
 
@@ -254,7 +256,7 @@ function onEditSuccess() {
             v-model="leftView"
             :options="[
               { label: 'ReplicaSet', value: 'revisions' },
-              { label: '基本信息', value: 'info' },
+              { label: t('config.basicInfo'), value: 'info' },
             ]"
             size="small"
             block
@@ -263,7 +265,7 @@ function onEditSuccess() {
 
         <!-- 修订历史 -->
         <div v-show="leftView === 'revisions'" class="rs-list" v-loading="replicasetsLoading">
-          <div v-if="replicasets.length === 0" class="empty-hint">暂无 ReplicaSet</div>
+          <div v-if="replicasets.length === 0" class="empty-hint">{{ t('common.noData') }}</div>
           <div
             v-for="rs in replicasets"
             :key="rs.metadata.name"
@@ -277,13 +279,13 @@ function onEditSuccess() {
               <span class="rs-replicas">{{ rs.status?.readyReplicas ?? 0 }}/{{ rs.spec?.replicas ?? 0 }}</span>
               <el-tag
                 v-if="rs.metadata.annotations?.['deployment.kubernetes.io/revision'] === deployment?.metadata?.annotations?.['deployment.kubernetes.io/revision']"
-                type="success" size="small">当前</el-tag>
-              <el-tag v-else-if="(rs.status?.readyReplicas || 0) > 0" type="primary" size="small">活跃</el-tag>
+                type="success" size="small">{{ t('workload.current') }}</el-tag>
+              <el-tag v-else-if="(rs.status?.readyReplicas || 0) > 0" type="primary" size="small">{{ t('workload.active') }}</el-tag>
             </div>
             <div class="rs-image">{{ rs.spec?.template?.spec?.containers?.[0]?.image || '-' }}</div>
             <div class="rs-age">{{ formatAge(rs.metadata.creationTimestamp) }}</div>
             <div class="rs-rollback" v-if="rs.metadata.annotations?.['deployment.kubernetes.io/revision'] !== deployment?.metadata?.annotations?.['deployment.kubernetes.io/revision']">
-              <el-button size="small" type="warning" @click.stop="handleReplicasetRollback(rs)">回滚</el-button>
+              <el-button size="small" type="warning" @click.stop="handleReplicasetRollback(rs)">{{ t('workload.rollback') }}</el-button>
             </div>
           </div>
         </div>
@@ -291,38 +293,38 @@ function onEditSuccess() {
         <!-- 基本信息 -->
         <div v-show="leftView === 'info'" class="info-body">
           <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="名称">{{ deployment?.metadata?.name || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="命名空间">{{ deployment?.metadata?.namespace || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="副本">
+            <el-descriptions-item :label="t('common.name')">{{ deployment?.metadata?.name || '-' }}</el-descriptions-item>
+            <el-descriptions-item :label="t('common.namespace_label')">{{ deployment?.metadata?.namespace || '-' }}</el-descriptions-item>
+            <el-descriptions-item :label="t('workload.replicas')">
               {{ deployment?.spec?.replicas ?? '-' }} 期望 ·
               {{ deployment?.status?.readyReplicas ?? 0 }} 就绪 ·
               {{ deployment?.status?.availableReplicas ?? 0 }} 可用 ·
               {{ deployment?.status?.updatedReplicas ?? 0 }} 更新中
             </el-descriptions-item>
-            <el-descriptions-item label="更新策略">
+            <el-descriptions-item :label="t('workload.strategy')">
               {{ deployment?.spec?.strategy?.type || '-' }}
               <span v-if="deployment?.spec?.strategy?.type === 'RollingUpdate'" class="info-sub">
                 (maxSurge {{ deployment.spec.strategy.rollingUpdate?.maxSurge ?? '-' }},
                 maxUnavailable {{ deployment.spec.strategy.rollingUpdate?.maxUnavailable ?? '-' }})
               </span>
             </el-descriptions-item>
-            <el-descriptions-item label="历史上限">{{ deployment?.spec?.revisionHistoryLimit ?? '-' }}</el-descriptions-item>
-            <el-descriptions-item label="暂停">
+            <el-descriptions-item label="Revision History Limit">{{ deployment?.spec?.revisionHistoryLimit ?? '-' }}</el-descriptions-item>
+            <el-descriptions-item :label="t('workload.suspend')">
               <el-tag :type="deployment?.spec?.paused ? 'warning' : 'info'" size="small">
-                {{ deployment?.spec?.paused ? '已暂停' : '否' }}
+                {{ deployment?.spec?.paused ? t('workload.suspend') : t('common.no') }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ deployment?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
+            <el-descriptions-item :label="t('workload.created')">{{ deployment?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
             <el-descriptions-item label="UID">{{ deployment?.metadata?.uid || '-' }}</el-descriptions-item>
           </el-descriptions>
 
-          <div class="info-section-title">容器镜像</div>
+          <div class="info-section-title">{{ t('workload.containers') }} {{ t('workload.image') }}</div>
           <div class="vct-list">
             <div v-for="c in (deployment?.spec?.template?.spec?.containers || [])" :key="c.name" class="vct-item">
               <span class="vct-name">{{ c.name }}</span>
               <span class="vct-meta">{{ c.image || '-' }}</span>
             </div>
-            <div v-if="!deployment?.spec?.template?.spec?.containers?.length" class="info-empty">无</div>
+            <div v-if="!deployment?.spec?.template?.spec?.containers?.length" class="info-empty">{{ t('common.noData') }}</div>
           </div>
 
           <div class="info-section-title">Conditions</div>
@@ -339,8 +341,8 @@ function onEditSuccess() {
       <!-- 右上：Pod 列表 -->
       <template v-if="deployment" #right-top>
         <div class="panel-title">
-          Pod 列表
-          <span class="count-badge">{{ rsPods.length }} 个</span>
+          {{ t('workload.pod') }} {{ t('common.list') }}
+          <span class="count-badge">{{ rsPods.length }}</span>
           <span class="rs-label" v-if="selectedReplicaset">{{ selectedReplicaset.metadata.name }}</span>
         </div>
         <PodListPanel
@@ -355,8 +357,8 @@ function onEditSuccess() {
       <!-- 右下：Events -->
       <template v-if="deployment" #right-bottom>
         <div class="panel-title">
-          事件
-          <span class="count-badge">{{ events.length }} 条</span>
+          {{ t('event.title') }}
+          <span class="count-badge">{{ events.length }}</span>
         </div>
         <EventsTable :events="events" :loading="eventsLoading" />
       </template>
@@ -395,7 +397,7 @@ function onEditSuccess() {
 
     <el-drawer
       v-model="editDialogVisible"
-      title="编辑 Deployment"
+      :title="t('common.edit') + ' Deployment'"
       :size="editFullscreen ? '100%' : '85%'"
       direction="rtl"
       :destroy-on-close="true"
@@ -403,7 +405,7 @@ function onEditSuccess() {
     >
       <template #header>
         <div class="drawer-header">
-          <span class="drawer-title">编辑 Deployment</span>
+          <span class="drawer-title">{{ t('common.edit') }} Deployment</span>
           <el-tooltip :content="editFullscreen ? '退出全屏' : '全屏'" placement="top">
             <el-icon class="fullscreen-btn" @click="editFullscreen = !editFullscreen">
               <FullScreen v-if="!editFullscreen" />

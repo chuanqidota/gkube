@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Plus, Delete, FullScreen, Aim } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -20,6 +21,7 @@ import { useClusterStore } from '@/stores/cluster'
 import HPAForm from './components/HPAForm.vue'
 
 const clusterStore = useClusterStore()
+const { t } = useI18n()
 
 const {
   loading,
@@ -80,9 +82,9 @@ function getStatus(row: any): 'paused' | 'active' | 'inactive' | 'orphan' {
 
 function getStatusText(row: any): string {
   const s = getStatus(row)
-  if (s === 'paused') return '已暂停'
-  if (s === 'active') return '正常'
-  if (s === 'inactive') return '未激活'
+  if (s === 'paused') return t('workload.suspend')
+  if (s === 'active') return t('workload.active')
+  if (s === 'inactive') return 'Inactive'
   return '孤立'
 }
 
@@ -144,7 +146,7 @@ async function handleEdit(row: any) {
     editRow.value = res.data
     editDrawerVisible.value = true
   } catch (e: any) {
-    ElMessage.error(e?.message || '获取 HPA 详情失败')
+    ElMessage.error(e?.message || t('common.fetchFailed'))
   }
 }
 
@@ -163,16 +165,16 @@ function handleEditCancel() {
 async function handlePause(row: any) {
   try {
     await ElMessageBox.confirm(
-      `暂停后 HPA 将停止自动伸缩，副本数固定在当前值（${row.current_replicas}）。确定暂停吗？`,
-      '确认暂停',
-      { type: 'warning', confirmButtonText: '暂停', cancelButtonText: '取消' }
+      t('workload.pauseConfirm', { n: row.current_replicas }),
+      t('common.confirmAction'),
+      { type: 'warning', confirmButtonText: t('workload.suspend'), cancelButtonText: t('common.cancel') }
     )
     await pauseHpa({ namespace: row.namespace, name: row.name })
-    ElMessage.success('HPA 已暂停')
+    ElMessage.success(t('workload.hpaPauseSuccess'))
     fetchResources()
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error(e?.message || '暂停失败')
+      ElMessage.error(e?.message || t('workload.pauseFailed'))
     }
   }
 }
@@ -180,10 +182,10 @@ async function handlePause(row: any) {
 async function handleResume(row: any) {
   try {
     await resumeHpa({ namespace: row.namespace, name: row.name })
-    ElMessage.success('HPA 已恢复')
+    ElMessage.success(t('workload.hpaResumeSuccess'))
     fetchResources()
   } catch (e: any) {
-    ElMessage.error(e?.message || '恢复失败')
+    ElMessage.error(e?.message || t('workload.resumeFailed'))
   }
 }
 </script>
@@ -216,10 +218,10 @@ async function handleResume(row: any) {
           <el-option label="孤立" value="orphan" />
         </el-select>
         <el-button type="success" @click="$router.push('/autoscaling/hpa/create')">
-          <el-icon><Plus /></el-icon> 创建
+          <el-icon><Plus /></el-icon> {{ t('common.create') }}
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})
         </el-button>
       </template>
       <template #extra>
@@ -244,13 +246,13 @@ async function handleResume(row: any) {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="namespace" label="命名空间" width="140" />
-        <el-table-column label="状态" width="120">
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
+        <el-table-column :label="t('common.status')" width="120">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row)" effect="dark" size="small">{{ getStatusText(row) }}</el-tag>
           </template>
@@ -278,10 +280,10 @@ async function handleResume(row: any) {
           <template #default="{ row }">{{ row.current_replicas }} ({{ row.min_replicas }}-{{ row.max_replicas }})</template>
         </el-table-column>
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="320" fixed="right">
+        <el-table-column :label="t('common.actions')" width="320" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-button size="small" type="warning" @click="handleEdit(row)">编辑</el-button>
+              <el-button size="small" type="warning" @click="handleEdit(row)">{{ t('common.edit') }}</el-button>
               <el-button
                 v-if="row.paused"
                 size="small"

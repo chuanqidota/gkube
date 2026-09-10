@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { deleteHpa, pauseHpa, resumeHpa } from '@/api/resource'
 
@@ -13,6 +14,8 @@ const emit = defineEmits<{
   deleted: []
   refreshed: []
 }>()
+
+const { t } = useI18n()
 
 // Status
 const isPaused = computed(() => {
@@ -28,11 +31,11 @@ const statusTagType = computed(() => {
 })
 
 const statusText = computed(() => {
-  if (isPaused.value) return '已暂停'
+  if (isPaused.value) return t('workload.suspend')
   const conditions = props.hpa?.status?.conditions || []
   const scalingActive = conditions.find((c: any) => c.type === 'ScalingActive')
-  if (scalingActive?.status === 'True') return '正常'
-  return '未激活'
+  if (scalingActive?.status === 'True') return t('workload.active')
+  return 'Inactive'
 })
 
 // Metrics info
@@ -107,14 +110,14 @@ const metricInfos = computed<MetricInfo[]>(() => {
     }
 
     let color = '#67c23a'
-    let statusLabel = '当前未触发扩容'
+    let statusLabel = t('workload.unscheduledExpand')
     if (currentValue !== null && targetValue > 0) {
       if (currentValue >= targetValue) {
         color = '#f56c6c'
-        statusLabel = '⚠ 已触发扩容'
+        statusLabel = t('workload.triggeredExpand')
       } else if (currentValue >= targetValue * 0.8) {
         color = '#e6a23c'
-        statusLabel = '接近阈值'
+        statusLabel = t('workload.nearThreshold')
       }
     }
 
@@ -132,16 +135,16 @@ async function handleDelete() {
   const name = props.hpa?.metadata?.name || ''
   try {
     await ElMessageBox.confirm(
-      `确定要删除 HPA "${name}" 吗？此操作不可恢复。`,
-      '确认删除',
-      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
+      t('workload.confirmDeleteHpa', { name }),
+      t('common.confirmDelete'),
+      { type: 'error', confirmButtonText: t('common.delete'), cancelButtonText: t('common.cancel') }
     )
     await deleteHpa({ namespace: ns, name })
-    ElMessage.success('HPA 已删除')
+    ElMessage.success(t('workload.hpaDeleteSuccess'))
     emit('deleted')
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('common.deleteFailed'))
     }
   }
 }
@@ -152,16 +155,16 @@ async function handlePause() {
   const current = props.hpa?.status?.currentReplicas
   try {
     await ElMessageBox.confirm(
-      `暂停后 HPA 将停止自动伸缩，副本数固定在当前值（${current ?? '-'}）。确定暂停吗？`,
-      '确认暂停',
-      { type: 'warning', confirmButtonText: '暂停', cancelButtonText: '取消' }
+      t('workload.pauseConfirm', { n: current ?? '-' }),
+      t('common.confirmAction'),
+      { type: 'warning', confirmButtonText: t('workload.suspend'), cancelButtonText: t('common.cancel') }
     )
     await pauseHpa({ namespace: ns, name })
-    ElMessage.success('HPA 已暂停')
+    ElMessage.success(t('workload.hpaPauseSuccess'))
     emit('refreshed')
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error(e?.message || '暂停失败')
+      ElMessage.error(e?.message || t('workload.pauseFailed'))
     }
   }
 }
@@ -171,10 +174,10 @@ async function handleResume() {
   const name = props.hpa?.metadata?.name || ''
   try {
     await resumeHpa({ namespace: ns, name })
-    ElMessage.success('HPA 已恢复')
+    ElMessage.success(t('workload.hpaResumeSuccess'))
     emit('refreshed')
   } catch (e: any) {
-    ElMessage.error(e?.message || '恢复失败')
+    ElMessage.error(e?.message || t('workload.resumeFailed'))
   }
 }
 </script>
@@ -188,11 +191,11 @@ async function handleResume() {
         <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
       </div>
       <div class="header-actions">
-        <el-button size="small" type="info" @click="emit('edit')">编辑</el-button>
+        <el-button size="small" type="info" @click="emit('edit')">{{ t('common.edit') }}</el-button>
         <el-button v-if="isPaused" size="small" type="success" @click="handleResume">恢复</el-button>
         <el-button v-else size="small" type="warning" @click="handlePause">暂停</el-button>
         <el-button size="small" @click="emit('yaml')">YAML</el-button>
-        <el-button size="small" type="danger" @click="handleDelete">删除</el-button>
+        <el-button size="small" type="danger" @click="handleDelete">{{ t('common.delete') }}</el-button>
       </div>
     </div>
 

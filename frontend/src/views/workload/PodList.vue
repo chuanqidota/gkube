@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowDown, Delete } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import { getPodList, getPodYaml, deletePod, transformPods } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import { useClusterStore } from '@/stores/cluster'
@@ -10,6 +11,7 @@ import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const clusterStore = useClusterStore()
+const { t } = useI18n()
 
 const {
   loading,
@@ -75,7 +77,7 @@ function handleExec(row: any) {
     >
       <template #actions>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})
         </el-button>
       </template>
       <template #extra>
@@ -100,35 +102,35 @@ function handleExec(row: any) {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="namespace" label="命名空间" width="140" />
-        <el-table-column prop="status" label="状态" width="120">
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
+        <el-table-column prop="status" :label="t('common.status')" width="120">
           <template #default="{ row }">
             <el-tag :type="getPodStatusType(row.status)" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="ip" label="Pod IP" width="140" />
-        <el-table-column prop="hostIP" label="节点 IP" width="140" />
-        <el-table-column prop="restarts" label="重启" width="100" />
+        <el-table-column prop="hostIP" :label="t('workload.hostIp')" width="140" />
+        <el-table-column prop="restarts" :label="t('workload.restarts')" width="100" />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column :label="t('common.actions')" width="280" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-              <el-button size="small" type="primary" @click="handleViewLogs(row)">日志</el-button>
-              <el-button size="small" type="success" @click="handleExec(row)">终端</el-button>
+              <el-button size="small" type="primary" @click="handleViewLogs(row)">{{ t('log.title') }}</el-button>
+              <el-button size="small" type="success" @click="handleExec(row)">{{ t('terminal.title') }}</el-button>
               <el-dropdown @command="(cmd: string) => handleDelete(row, cmd === 'force')" trigger="click">
                 <el-button size="small" type="danger">
-                  删除 <el-icon><ArrowDown /></el-icon>
+                  {{ t('common.delete') }} <el-icon><ArrowDown /></el-icon>
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item command="normal">删除</el-dropdown-item>
-                    <el-dropdown-item command="force" divided>强制删除</el-dropdown-item>
+                    <el-dropdown-item command="normal">{{ t('common.delete') }}</el-dropdown-item>
+                    <el-dropdown-item command="force" divided>{{ t('common.forceDelete') }}</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>

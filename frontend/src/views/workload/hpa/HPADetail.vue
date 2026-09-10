@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getHpaDetail, deleteHpa, getHpaEvents, pauseHpa, resumeHpa, getHpaYaml, updateHpa } from '@/api/resource'
@@ -10,6 +11,7 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const loading = ref(false)
 const hpa = ref<any>(null)
 const yamlDialogVisible = ref(false)
@@ -38,11 +40,11 @@ const statusTagType = computed(() => {
 })
 
 const statusText = computed(() => {
-  if (isPaused.value) return '已暂停'
+  if (isPaused.value) return t('workload.suspend')
   const conditions = hpa.value?.status?.conditions || []
   const scalingReady = conditions.find((c: any) => c.type === 'ScalingActive')
-  if (scalingReady?.status === 'True') return '正常'
-  return '未激活'
+  if (scalingReady?.status === 'True') return t('workload.active')
+  return 'Inactive'
 })
 
 // Scale target link
@@ -126,14 +128,14 @@ const metricInfos = computed<MetricInfo[]>(() => {
     }
 
     let color: 'success' | 'warning' | 'exception' = 'success'
-    let statusLabel = '当前未触发扩容'
+    let statusLabel = t('workload.unscheduledExpand')
     if (currentValue !== null && targetValue > 0) {
       if (currentValue >= targetValue) {
         color = 'exception'
-        statusLabel = '⚠ 已触发扩容'
+        statusLabel = t('workload.triggeredExpand')
       } else if (currentValue >= targetValue * 0.8) {
         color = 'warning'
-        statusLabel = '接近阈值'
+        statusLabel = t('workload.nearThreshold')
       }
     }
 
@@ -180,7 +182,7 @@ async function fetchDetail() {
     const res: any = await getHpaDetail({ namespace, name })
     hpa.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载 HPA 详情失败')
+    ElMessage.error(e?.message || t('workload.loadHpaDetailFailed'))
   } finally {
     loading.value = false
   }
@@ -209,16 +211,16 @@ function handleYamlSaved() {
 async function handleDelete() {
   try {
     await ElMessageBox.confirm(
-      `确定要删除 HPA "${name}" 吗？此操作不可恢复。`,
-      '确认删除',
-      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
+      t('workload.confirmDeleteHpa', { name }),
+      t('common.confirmDelete'),
+      { type: 'error', confirmButtonText: t('common.delete'), cancelButtonText: t('common.cancel') }
     )
     await deleteHpa({ namespace, name })
-    ElMessage.success('HPA 已删除')
+    ElMessage.success(t('workload.hpaDeleteSuccess'))
     router.push('/autoscaling/hpa')
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('common.deleteFailed'))
     }
   }
 }
@@ -241,16 +243,16 @@ async function handlePause() {
   const current = hpa.value?.status?.currentReplicas
   try {
     await ElMessageBox.confirm(
-      `暂停后 HPA 将停止自动伸缩，副本数固定在当前值（${current ?? '-'}）。确定暂停吗？`,
-      '确认暂停',
-      { type: 'warning', confirmButtonText: '暂停', cancelButtonText: '取消' }
+      t('workload.pauseConfirm', { n: current ?? '-' }),
+      t('common.confirmAction'),
+      { type: 'warning', confirmButtonText: t('workload.suspend'), cancelButtonText: t('common.cancel') }
     )
     await pauseHpa({ namespace, name })
-    ElMessage.success('HPA 已暂停')
+    ElMessage.success(t('workload.hpaPauseSuccess'))
     fetchDetail()
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error(e?.message || '暂停失败')
+      ElMessage.error(e?.message || t('workload.pauseFailed'))
     }
   }
 }
@@ -258,10 +260,10 @@ async function handlePause() {
 async function handleResume() {
   try {
     await resumeHpa({ namespace, name })
-    ElMessage.success('HPA 已恢复')
+    ElMessage.success(t('workload.hpaResumeSuccess'))
     fetchDetail()
   } catch (e: any) {
-    ElMessage.error(e?.message || '恢复失败')
+    ElMessage.error(e?.message || t('workload.resumeFailed'))
   }
 }
 
@@ -344,11 +346,11 @@ onMounted(() => {
         </div>
       </div>
       <div class="header-actions">
-        <el-button type="info" @click="handleEdit">编辑</el-button>
+        <el-button type="info" @click="handleEdit">{{ t('common.edit') }}</el-button>
         <el-button v-if="isPaused" type="success" @click="handleResume">恢复</el-button>
         <el-button v-else type="warning" @click="handlePause">暂停</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-button type="danger" @click="handleDelete">删除</el-button>
+        <el-button type="danger" @click="handleDelete">{{ t('common.delete') }}</el-button>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
@@ -392,12 +394,12 @@ onMounted(() => {
 
         <!-- 左侧：基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
-          <div class="panel-title">基本信息</div>
+          <div class="panel-title">{{ t('config.basicInfo') }}</div>
           <div class="info-body">
             <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="名称">{{ hpa.metadata?.name || hpa.name }}</el-descriptions-item>
-              <el-descriptions-item label="命名空间">{{ hpa.metadata?.namespace || hpa.namespace }}</el-descriptions-item>
-              <el-descriptions-item label="伸缩目标">
+              <el-descriptions-item :label="t('common.name')">{{ hpa.metadata?.name || hpa.name }}</el-descriptions-item>
+              <el-descriptions-item :label="t('common.namespace_label')">{{ hpa.metadata?.namespace || hpa.namespace }}</el-descriptions-item>
+              <el-descriptions-item :label="t('workload.scaleTarget')">
                 <el-button
                   v-if="targetRoute"
                   link
@@ -406,10 +408,10 @@ onMounted(() => {
                 >{{ hpa.spec?.scaleTargetRef?.kind }}/{{ hpa.spec?.scaleTargetRef?.name }}</el-button>
                 <span v-else>{{ hpa.spec?.scaleTargetRef?.kind }}/{{ hpa.spec?.scaleTargetRef?.name }}</span>
               </el-descriptions-item>
-              <el-descriptions-item label="最小副本数">{{ hpa.spec?.minReplicas ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="最大副本数">{{ hpa.spec?.maxReplicas ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="当前副本数">{{ hpa.status?.currentReplicas ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item label="期望副本数">{{ hpa.status?.desiredReplicas ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('workload.minReplicas')">{{ hpa.spec?.minReplicas ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('workload.maxReplicas')">{{ hpa.spec?.maxReplicas ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('workload.currentReplicasLabel')">{{ hpa.status?.currentReplicas ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('workload.desiredReplicas')">{{ hpa.status?.desiredReplicas ?? '-' }}</el-descriptions-item>
               <template v-if="isPaused">
                 <el-descriptions-item label="原始最小副本数">
                   <el-tag type="warning" size="small">{{ hpa.metadata?.annotations?.['gkube.io/paused-min-replicas'] ?? '-' }}</el-tag>
@@ -474,7 +476,7 @@ onMounted(() => {
                   </div>
                 </div>
               </div>
-              <div v-else class="empty-hint">暂无指标配置</div>
+              <div v-else class="empty-hint">{{ t('workload.noMetricsConfig') }}</div>
             </div>
           </div>
 
@@ -513,7 +515,7 @@ onMounted(() => {
             <div class="conditions-body">
               <el-table v-if="hpa.status?.conditions?.length" :data="hpa.status.conditions" size="small" stripe max-height="260">
                 <el-table-column prop="type" label="类型" width="180" />
-                <el-table-column label="状态" width="100">
+                <el-table-column :label="t('common.status')" width="100">
                   <template #default="{ row }">
                     <el-tag :type="row.status === 'True' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag>
                   </template>
@@ -521,7 +523,7 @@ onMounted(() => {
                 <el-table-column prop="reason" label="原因" width="180" />
                 <el-table-column prop="message" label="信息" min-width="250" show-overflow-tooltip />
               </el-table>
-              <div v-else class="empty-hint">暂无状态条件</div>
+              <div v-else class="empty-hint">{{ t('workload.noStatusConditions') }}</div>
             </div>
           </div>
 
@@ -546,7 +548,7 @@ onMounted(() => {
                 <el-table-column prop="reason" label="原因" width="180" />
                 <el-table-column prop="message" label="消息" min-width="300" show-overflow-tooltip />
               </el-table>
-              <div v-else class="empty-hint">{{ eventsLoading ? '加载中...' : '暂无伸缩事件' }}</div>
+              <div v-else class="empty-hint">{{ eventsLoading ? t('common.loading') : t('workload.noScalingEvents') }}</div>
             </div>
           </div>
 
@@ -576,7 +578,7 @@ onMounted(() => {
     <!-- Edit Drawer -->
     <el-drawer
       v-model="editDialogVisible"
-      title="编辑 HPA"
+      :title="t('common.edit') + ' HPA'"
       :size="editFullscreen ? '100%' : '85%'"
       direction="rtl"
       :destroy-on-close="true"
@@ -584,7 +586,7 @@ onMounted(() => {
     >
       <template #header>
         <div class="drawer-header">
-          <span class="drawer-title">编辑 HPA</span>
+          <span class="drawer-title">{{ t('common.edit') }} HPA</span>
           <el-tooltip :content="editFullscreen ? '退出全屏' : '全屏'" placement="top">
             <el-icon class="fullscreen-btn" @click="editFullscreen = !editFullscreen">
               <FullScreen v-if="!editFullscreen" />

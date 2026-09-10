@@ -23,6 +23,7 @@ import { useDetailPage } from '@/composables/useDetailPage'
 import { useEditDrawer } from '@/composables/useEditDrawer'
 import { formatAge } from '@/utils/helpers'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 // ---- useDetailPage composable ----
 const {
@@ -61,6 +62,8 @@ async function fetchJobs() {
   }
 }
 
+const { t } = useI18n()
+
 // ---- Status ----
 const statusTag = computed(() => {
   if (cronjob.value?.spec?.suspend) return { text: 'Suspended', type: 'warning' as const }
@@ -80,8 +83,8 @@ function onEditSuccess() {
 async function handleTrigger() {
   try {
     await ElMessageBox.confirm(
-      `确定要手动触发 CronJob "${name}" 吗？`,
-      '确认触发',
+      t('workload.triggerConfirm', { name }),
+      t('common.confirmAction'),
       { type: 'info' }
     )
   } catch {
@@ -89,10 +92,10 @@ async function handleTrigger() {
   }
   try {
     await triggerCronJob({ namespace, name })
-    ElMessage.success('CronJob 已触发')
+    ElMessage.success(t('workload.triggerSuccess', { name: 'CronJob' }))
     fetchJobs()
   } catch (e: any) {
-    ElMessage.error(e?.message || '触发失败')
+    ElMessage.error(e?.message || t('workload.triggerFailed'))
   }
 }
 
@@ -207,23 +210,23 @@ function isManualJob(job: any): boolean {
           :icon="cronjob.spec?.suspend ? VideoPlay : VideoPause"
           @click="handleToggleSuspend"
         >{{ cronjob.spec?.suspend ? '恢复' : '暂停' }}</el-button>
-        <el-button type="info" @click="handleEdit">编辑</el-button>
+        <el-button type="info" @click="handleEdit">{{ t('common.edit') }}</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="primary" @click="handleTrigger">触发</el-button>
-        <el-button type="danger" @click="handleDelete">删除</el-button>
+        <el-button type="danger" @click="handleDelete">{{ t('common.delete') }}</el-button>
       </template>
     </DetailPageHeader>
 
     <!-- Left: Basic info -->
     <template v-if="cronjob" #left>
-      <div class="panel-title">基本信息</div>
+      <div class="panel-title">{{ t('config.basicInfo') }}</div>
       <div class="info-body">
         <el-descriptions :column="1" border size="small">
-          <el-descriptions-item label="名称">{{ cronjob.metadata?.name }}</el-descriptions-item>
-          <el-descriptions-item label="命名空间">{{ cronjob.metadata?.namespace }}</el-descriptions-item>
-          <el-descriptions-item label="调度计划">{{ cronjob.spec?.schedule || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="暂停">{{ cronjob.spec?.suspend ?? false }}</el-descriptions-item>
-          <el-descriptions-item label="并发策略">{{ cronjob.spec?.concurrencyPolicy || 'Allow' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.name')">{{ cronjob.metadata?.name }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.namespace_label')">{{ cronjob.metadata?.namespace }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.schedule')">{{ cronjob.spec?.schedule || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.suspend')">{{ cronjob.spec?.suspend ?? false }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.concurrencyPolicy')">{{ cronjob.spec?.concurrencyPolicy || 'Allow' }}</el-descriptions-item>
           <el-descriptions-item label="成功历史限制">{{ cronjob.spec?.successfulJobsHistoryLimit ?? '-' }}</el-descriptions-item>
           <el-descriptions-item label="失败历史限制">{{ cronjob.spec?.failedJobsHistoryLimit ?? '-' }}</el-descriptions-item>
           <el-descriptions-item label="最后调度">{{ cronjob.status?.lastScheduleTime || '-' }}</el-descriptions-item>
@@ -254,7 +257,7 @@ function isManualJob(job: any): boolean {
       </div>
       <div v-loading="jobsLoading" class="jobs-body">
         <el-table v-if="jobs.length > 0" :data="jobs" size="small" stripe>
-          <el-table-column label="名称" min-width="240" show-overflow-tooltip>
+          <el-table-column :label="t('common.name')" min-width="240" show-overflow-tooltip>
             <template #default="{ row }">
               <div class="job-name-cell">
                 <el-button link type="primary" @click="router.push(`/workloads/jobs/${row.metadata?.namespace}/${row.metadata?.name}`)">
@@ -264,7 +267,7 @@ function isManualJob(job: any): boolean {
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="100">
+          <el-table-column :label="t('common.status')" width="100">
             <template #default="{ row }">
               <el-tag :type="getJobStatusType(row)" size="small">{{ getJobStatus(row) }}</el-tag>
             </template>
@@ -290,7 +293,7 @@ function isManualJob(job: any): boolean {
             <template #default="{ row }">{{ getJobImages(row) }}</template>
           </el-table-column>
         </el-table>
-        <div v-else class="empty-hint">暂无执行记录</div>
+        <div v-else class="empty-hint">{{ t('common.noData') }}</div>
       </div>
     </template>
 
@@ -313,7 +316,7 @@ function isManualJob(job: any): boolean {
     <!-- Edit Drawer -->
     <el-drawer
       v-model="editDialogVisible"
-      title="编辑 CronJob"
+      :title="t('common.edit') + ' CronJob'"
       :size="editFullscreen ? '100%' : '85%'"
       direction="rtl"
       :destroy-on-close="true"
@@ -321,7 +324,7 @@ function isManualJob(job: any): boolean {
     >
       <template #header>
         <div class="drawer-header">
-          <span class="drawer-title">编辑 CronJob</span>
+          <span class="drawer-title">{{ t('common.edit') }} CronJob</span>
           <el-tooltip :content="editFullscreen ? '退出全屏' : '全屏'" placement="top">
             <el-icon class="fullscreen-btn" @click="editFullscreen = !editFullscreen">
               <FullScreen v-if="!editFullscreen" />

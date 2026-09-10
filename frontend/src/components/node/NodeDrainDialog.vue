@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { drainNode, type DrainResult } from '@/api/resource'
+
+const { t } = useI18n()
 
 const emit = defineEmits<{ saved: [] }>()
 
@@ -23,9 +26,9 @@ function open(name: string) {
 async function handleConfirm() {
   try {
     await ElMessageBox.confirm(
-      `确定要驱逐节点 "${nodeName.value}" 上的所有 Pod 吗？此操作会先封锁节点再提交驱逐请求。`,
-      '确认驱逐',
-      { type: 'warning', confirmButtonText: '驱逐', cancelButtonText: '取消' },
+      t('node.drainConfirmMsg', { name: nodeName.value }),
+      t('node.confirmDrain'),
+      { type: 'warning', confirmButtonText: t('node.confirmDrain'), cancelButtonText: t('common.cancel') },
     )
     const res = await drainNode({ name: nodeName.value, ...drainOptions.value })
     const result = (res.data || {}) as DrainResult
@@ -37,23 +40,23 @@ async function handleConfirm() {
     // drain 已先封锁节点，若需恢复调度需手动解除封锁——尤其有失败时必须提示。
     const submitted = evicted.length + failed.length
     const parts = [
-      `已提交 ${submitted} 个驱逐请求`,
-      skipped.length > 0 ? `${skipped.length} 个已跳过` : '',
-      failed.length > 0 ? `${failed.length} 个提交失败` : '',
+      t('node.drainSubmitted', { count: submitted }),
+      skipped.length > 0 ? t('node.drainSkipped', { count: skipped.length }) : '',
+      failed.length > 0 ? t('node.drainFailed', { count: failed.length }) : '',
     ].filter(Boolean)
     const type = failed.length > 0 ? 'warning' : 'success'
     const cordonedHint = failed.length > 0
-      ? '节点已封锁且部分驱逐失败，如需恢复调度请先处理失败 Pod 再手动解除封锁。'
-      : '节点已封锁，Pod 终止后如需恢复调度请手动解除封锁。'
+      ? t('node.drainCordonedPartialFailHint')
+      : t('node.drainCordonedHint')
     ElMessage({
       type,
-      message: `驱逐请求已提交：${parts.join('，')}。Pod 正在终止中，请稍后刷新查看实际状态。${cordonedHint}`,
+      message: `${t('node.drainResultSubmitted', { parts: parts.join(', ') })}${cordonedHint}`,
       duration: 8000,
     })
     visible.value = false
     emit('saved')
   } catch (e: any) {
-    if (e !== 'cancel') ElMessage.error(e?.message || '驱逐失败')
+    if (e !== 'cancel') ElMessage.error(e?.message || t('common.drainFailed'))
   }
 }
 

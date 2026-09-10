@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
@@ -30,6 +31,7 @@ const router = useRouter()
 const submitting = ref(false)
 const namespaceLoading = ref(false)
 const namespaces = ref<string[]>([])
+const { t } = useI18n()
 
 const form = reactive<JobFormData>({
   name: '', namespace: 'default',
@@ -424,21 +426,21 @@ async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
   for (let i = 0; i < form.containers.length; i++) {
-    if (!form.containers[i].name) { ElMessage.error(`容器 ${i + 1}: 名称不能为空`); return }
-    if (!form.containers[i].image) { ElMessage.error(`容器 ${i + 1}: 镜像不能为空`); return }
+    if (!form.containers[i].name) { ElMessage.error(t('workload.containerNameRequired', { n: i + 1 })); return }
+    if (!form.containers[i].image) { ElMessage.error(t('workload.containerImageRequired', { n: i + 1 })); return }
     const c = form.containers[i]
     if (c.resources.requests.cpu && c.resources.limits.cpu) {
       const reqCpu = parseCpuToMillicores(c.resources.requests.cpu)
       const limCpu = parseCpuToMillicores(c.resources.limits.cpu)
       if (reqCpu !== null && limCpu !== null && reqCpu > limCpu) {
-        ElMessage.error(`容器 ${i + 1}: CPU requests 不能大于 limits`); return
+        ElMessage.error(t('workload.cpuRequestsExceedLimits', { n: i + 1 })); return
       }
     }
     if (c.resources.requests.memory && c.resources.limits.memory) {
       const reqMem = parseMemoryToBytes(c.resources.requests.memory)
       const limMem = parseMemoryToBytes(c.resources.limits.memory)
       if (reqMem !== null && limMem !== null && reqMem > limMem) {
-        ElMessage.error(`容器 ${i + 1}: Memory requests 不能大于 limits`); return
+        ElMessage.error(t('workload.memoryRequestsExceedLimits', { n: i + 1 })); return
       }
     }
   }
@@ -449,7 +451,7 @@ async function handleSubmit() {
       await props.onSubmit(generatedYaml.value)
     } else if (props.isEdit) {
       await updateJobYaml({ namespace: form.namespace, name: form.name, yaml: generatedYaml.value })
-      ElMessage.success('Job 更新成功')
+      ElMessage.success(t('common.updateSuccess'))
       emit('success')
     } else {
       await createJob({ namespace: form.namespace, yaml: generatedYaml.value })

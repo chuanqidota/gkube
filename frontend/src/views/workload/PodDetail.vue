@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { getPodDetail, getPodYaml, deletePod, getPodEvents } from '@/api/resource'
@@ -15,6 +16,7 @@ import { useDetailPage } from '@/composables/useDetailPage'
 import { getPodStatusType, buildFullscreenUrl } from '@/utils/pod'
 
 const clusterStore = useClusterStore()
+const { t } = useI18n()
 
 const {
   namespace, name,
@@ -109,9 +111,9 @@ function containerStateType(state: string) {
 }
 
 function getContainerStateLabel(container: any): string {
-  if (container.state === 'Running') return '运行中'
-  if (container.state === 'Waiting') return `等待中 (${container.stateReason || '-'})`
-  if (container.state === 'Terminated') return `已终止 (${container.exitCode ?? '-'})`
+  if (container.state === 'Running') return t('dashboard.running')
+  if (container.state === 'Waiting') return `Waiting (${container.stateReason || '-'})`
+  if (container.state === 'Terminated') return `Terminated (${container.exitCode ?? '-'})`
   return container.state || '-'
 }
 
@@ -131,34 +133,34 @@ async function handleDelete(force = false) {
   if (force) {
     try {
       await ElMessageBox.confirm(
-        `强制删除 Pod "${name}" 将跳过优雅终止，控制器管理的 Pod 会被立即重建。确定继续？`,
-        '确认强制删除',
-        { type: 'warning', confirmButtonText: '强制删除', cancelButtonText: '取消' }
+        t('common.forceDeleteResourceConfirm', { type: 'Pod', name }),
+        t('common.confirmForceDelete'),
+        { type: 'warning', confirmButtonText: t('common.forceDelete'), cancelButtonText: t('common.cancel') }
       )
     } catch {
       return
     }
     try {
       await deletePod({ namespace, name, force: true })
-      ElMessage.success('Pod 已强制删除')
+      ElMessage.success(t('common.forceDeleteResourceSuccess', { type: 'Pod' }))
       router.push('/workloads/pods')
     } catch (e: any) {
-      if (e !== 'cancel') ElMessage.error(e?.message || '强制删除失败')
+      if (e !== 'cancel') ElMessage.error(e?.message || t('common.forceDeleteResourceFailed', { type: 'Pod' }))
     }
     return
   }
   try {
     await ElMessageBox.confirm(
-      `确定要删除 Pod "${name}"（命名空间：${namespace}）吗？`,
-      '确认删除',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+      t('common.deleteResourceConfirmNs', { type: 'Pod', name, ns: namespace }),
+      t('common.confirmDelete'),
+      { type: 'warning', confirmButtonText: t('common.delete'), cancelButtonText: t('common.cancel') }
     )
     await deletePod({ namespace, name })
-    ElMessage.success('Pod 已删除')
+    ElMessage.success(t('workload.deleteResourceSuccess', { type: 'Pod' }))
     router.push('/workloads/pods')
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('common.deleteFailed'))
     }
   }
 }
@@ -186,17 +188,17 @@ async function handleDelete(force = false) {
         </span>
       </template>
       <template #actions>
-        <el-button type="primary" @click="handleLogs">日志</el-button>
-        <el-button type="success" @click="handleExec">终端</el-button>
+        <el-button type="primary" @click="handleLogs">{{ t('log.title') }}</el-button>
+        <el-button type="success" @click="handleExec">{{ t('terminal.title') }}</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-dropdown @command="(cmd: string) => handleDelete(cmd === 'force')" trigger="click">
           <el-button type="danger">
-            删除 <el-icon><ArrowDown /></el-icon>
+            {{ t('common.delete') }} <el-icon><ArrowDown /></el-icon>
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="normal">删除</el-dropdown-item>
-              <el-dropdown-item command="force" divided>强制删除</el-dropdown-item>
+              <el-dropdown-item command="normal">{{ t('common.delete') }}</el-dropdown-item>
+              <el-dropdown-item command="force" divided>{{ t('common.forceDelete') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -205,23 +207,23 @@ async function handleDelete(force = false) {
 
     <!-- 左侧：基本信息 -->
     <template v-if="pod" #left>
-      <div class="panel-title">基本信息</div>
+      <div class="panel-title">{{ t('config.basicInfo') }}</div>
       <div class="info-body">
         <el-descriptions :column="1" border size="small">
-          <el-descriptions-item label="名称">{{ pod.name }}</el-descriptions-item>
-          <el-descriptions-item label="命名空间">{{ pod.namespace }}</el-descriptions-item>
-          <el-descriptions-item label="状态">
+          <el-descriptions-item :label="t('common.name')">{{ pod.name }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.namespace_label')">{{ pod.namespace }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.status')">
             <el-tag :type="getPodStatusType(pod.status)" size="small">{{ pod.status }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="Pod IP">{{ pod.ip || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="主机 IP">{{ pod.host_ip || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="节点">{{ pod.node || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="QoS 类别">{{ pod.qos_class || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="优先级">{{ pod.priority ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="服务账号">{{ pod.service_account || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="重启次数">{{ pod.restarts ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="年龄">{{ pod.age || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ pod.created_at || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.hostIp')">{{ pod.host_ip || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Node">{{ pod.node || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.qosClass')">{{ pod.qos_class || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.priority')">{{ pod.priority ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.serviceAccount')">{{ pod.service_account || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.restarts')">{{ pod.restarts ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Age">{{ pod.age || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.created')">{{ pod.created_at || '-' }}</el-descriptions-item>
         </el-descriptions>
 
         <!-- Labels -->
@@ -243,7 +245,7 @@ async function handleDelete(force = false) {
 
         <!-- Pod Conditions -->
         <div v-if="pod.conditions && pod.conditions.length > 0" style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: 13px;">Pod 条件</h4>
+          <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('workload.conditions') }}</h4>
           <ConditionsBlock :conditions="pod.conditions" />
         </div>
       </div>
@@ -252,8 +254,8 @@ async function handleDelete(force = false) {
     <!-- 右上：容器列表 -->
     <template v-if="pod" #right-top>
       <div class="panel-title">
-        容器
-        <span class="count-badge">{{ pod.containers?.length || 0 }} 个</span>
+        {{ t('workload.containers') }}
+        <span class="count-badge">{{ pod.containers?.length || 0 }}</span>
       </div>
       <div class="table-body">
         <el-table :data="pod.containers || []" size="small" stripe>
@@ -261,17 +263,17 @@ async function handleDelete(force = false) {
             <template #default="{ row }">
               <div style="padding: 12px 16px;">
                 <div v-if="row.ports && row.ports.length > 0" style="margin-bottom: var(--gk-space-4);">
-                  <h4 style="margin: 0 0 8px; font-size: 13px;">端口</h4>
+                  <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('workload.ports') }}</h4>
                   <el-table :data="row.ports" border size="small">
-                    <el-table-column prop="name" label="名称" width="120" />
-                    <el-table-column prop="containerPort" label="容器端口" width="130" />
-                    <el-table-column prop="protocol" label="协议" width="100" />
+                    <el-table-column prop="name" :label="t('common.name')" width="120" />
+                    <el-table-column prop="containerPort" :label="t('workload.containerPort')" width="130" />
+                    <el-table-column prop="protocol" :label="t('workload.protocol')" width="100" />
                   </el-table>
                 </div>
                 <div v-if="row.env && row.env.length > 0" style="margin-bottom: var(--gk-space-4);">
-                  <h4 style="margin: 0 0 8px; font-size: 13px;">环境变量</h4>
+                  <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('workload.environmentVariables') }}</h4>
                   <el-table :data="row.env" border size="small">
-                    <el-table-column prop="name" label="名称" min-width="180" />
+                    <el-table-column prop="name" :label="t('common.name')" min-width="180" />
                     <el-table-column label="值" min-width="250">
                       <template #default="{ row: envRow }">
                         <span v-if="envRow.value !== undefined && envRow.value !== ''">{{ envRow.value }}</span>
@@ -282,72 +284,72 @@ async function handleDelete(force = false) {
                   </el-table>
                 </div>
                 <div v-if="row.volumeMounts && row.volumeMounts.length > 0" style="margin-bottom: var(--gk-space-4);">
-                  <h4 style="margin: 0 0 8px; font-size: 13px;">卷挂载</h4>
+                  <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('workload.volumeMounts') }}</h4>
                   <el-table :data="row.volumeMounts" border size="small">
-                    <el-table-column prop="name" label="卷名称" min-width="150" />
-                    <el-table-column prop="mountPath" label="挂载路径" min-width="200" />
-                    <el-table-column prop="subPath" label="子路径" width="150" />
-                    <el-table-column label="只读" width="80">
+                    <el-table-column prop="name" :label="t('workload.volumeName')" min-width="150" />
+                    <el-table-column prop="mountPath" :label="t('workload.mountPath')" min-width="200" />
+                    <el-table-column prop="subPath" :label="t('workload.subPath')" width="150" />
+                    <el-table-column :label="t('workload.readOnly')" width="80">
                       <template #default="{ row: vm }">
-                        <el-tag :type="vm.readOnly ? 'warning' : 'success'" size="small">{{ vm.readOnly ? '是' : '否' }}</el-tag>
+                        <el-tag :type="vm.readOnly ? 'warning' : 'success'" size="small">{{ vm.readOnly ? t('common.yes') : t('common.no') }}</el-tag>
                       </template>
                     </el-table-column>
                   </el-table>
                 </div>
                 <div v-if="row.livenessProbe" style="margin-bottom: var(--gk-space-4);">
-                  <h4 style="margin: 0 0 8px; font-size: 13px;">存活探针</h4>
+                  <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('workload.livenessProbe') }}</h4>
                   <el-descriptions :column="2" border size="small">
-                    <el-descriptions-item v-if="row.livenessProbe.httpGet" label="类型">HTTP GET</el-descriptions-item>
-                    <el-descriptions-item v-if="row.livenessProbe.httpGet" label="路径">{{ row.livenessProbe.httpGet.path || '/' }}</el-descriptions-item>
-                    <el-descriptions-item v-if="row.livenessProbe.httpGet" label="端口">{{ row.livenessProbe.httpGet.port }}</el-descriptions-item>
-                    <el-descriptions-item v-if="row.livenessProbe.tcpSocket" label="类型">TCP Socket</el-descriptions-item>
-                    <el-descriptions-item v-if="row.livenessProbe.exec" label="类型">Exec</el-descriptions-item>
-                    <el-descriptions-item v-if="row.livenessProbe.exec" label="命令">{{ (row.livenessProbe.exec.command || []).join(' ') }}</el-descriptions-item>
-                    <el-descriptions-item label="初始延迟">{{ row.livenessProbe.initialDelaySeconds ?? '-' }}s</el-descriptions-item>
-                    <el-descriptions-item label="检查周期">{{ row.livenessProbe.periodSeconds ?? '-' }}s</el-descriptions-item>
+                    <el-descriptions-item v-if="row.livenessProbe.httpGet" label="Type">HTTP GET</el-descriptions-item>
+                    <el-descriptions-item v-if="row.livenessProbe.httpGet" label="Path">{{ row.livenessProbe.httpGet.path || '/' }}</el-descriptions-item>
+                    <el-descriptions-item v-if="row.livenessProbe.httpGet" label="Port">{{ row.livenessProbe.httpGet.port }}</el-descriptions-item>
+                    <el-descriptions-item v-if="row.livenessProbe.tcpSocket" label="Type">TCP Socket</el-descriptions-item>
+                    <el-descriptions-item v-if="row.livenessProbe.exec" label="Type">Exec</el-descriptions-item>
+                    <el-descriptions-item v-if="row.livenessProbe.exec" :label="t('workload.command')">{{ (row.livenessProbe.exec.command || []).join(' ') }}</el-descriptions-item>
+                    <el-descriptions-item :label="t('workload.initialDelay')">{{ row.livenessProbe.initialDelaySeconds ?? '-' }}s</el-descriptions-item>
+                    <el-descriptions-item :label="t('workload.period')">{{ row.livenessProbe.periodSeconds ?? '-' }}s</el-descriptions-item>
                   </el-descriptions>
                 </div>
                 <div v-if="row.readinessProbe">
-                  <h4 style="margin: 0 0 8px; font-size: 13px;">就绪探针</h4>
+                  <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('workload.readinessProbe') }}</h4>
                   <el-descriptions :column="2" border size="small">
-                    <el-descriptions-item v-if="row.readinessProbe.httpGet" label="类型">HTTP GET</el-descriptions-item>
-                    <el-descriptions-item v-if="row.readinessProbe.httpGet" label="路径">{{ row.readinessProbe.httpGet.path || '/' }}</el-descriptions-item>
-                    <el-descriptions-item v-if="row.readinessProbe.httpGet" label="端口">{{ row.readinessProbe.httpGet.port }}</el-descriptions-item>
-                    <el-descriptions-item label="初始延迟">{{ row.readinessProbe.initialDelaySeconds ?? '-' }}s</el-descriptions-item>
-                    <el-descriptions-item label="检查周期">{{ row.readinessProbe.periodSeconds ?? '-' }}s</el-descriptions-item>
+                    <el-descriptions-item v-if="row.readinessProbe.httpGet" label="Type">HTTP GET</el-descriptions-item>
+                    <el-descriptions-item v-if="row.readinessProbe.httpGet" label="Path">{{ row.readinessProbe.httpGet.path || '/' }}</el-descriptions-item>
+                    <el-descriptions-item v-if="row.readinessProbe.httpGet" label="Port">{{ row.readinessProbe.httpGet.port }}</el-descriptions-item>
+                    <el-descriptions-item :label="t('workload.initialDelay')">{{ row.readinessProbe.initialDelaySeconds ?? '-' }}s</el-descriptions-item>
+                    <el-descriptions-item :label="t('workload.period')">{{ row.readinessProbe.periodSeconds ?? '-' }}s</el-descriptions-item>
                   </el-descriptions>
                 </div>
                 <el-empty
                   v-if="(!row.ports || row.ports.length === 0) && (!row.env || row.env.length === 0) && (!row.volumeMounts || row.volumeMounts.length === 0) && !row.livenessProbe && !row.readinessProbe"
-                  description="无额外容器详情"
+                  :description="t('workload.noAdditionalDetails')"
                   :image-size="60"
                 />
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="name" label="名称" min-width="150" />
-          <el-table-column prop="image" label="镜像" min-width="260" show-overflow-tooltip />
-          <el-table-column label="就绪" width="70">
+          <el-table-column prop="name" :label="t('common.name')" min-width="150" />
+          <el-table-column prop="image" :label="t('workload.image')" min-width="260" show-overflow-tooltip />
+          <el-table-column :label="t('workload.ready')" width="70">
             <template #default="{ row }">
-              <el-tag :type="row.ready ? 'success' : 'danger'" size="small">{{ row.ready ? '是' : '否' }}</el-tag>
+              <el-tag :type="row.ready ? 'success' : 'danger'" size="small">{{ row.ready ? t('common.yes') : t('common.no') }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="restartCount" label="重启" width="70" />
-          <el-table-column label="状态" width="160">
+          <el-table-column prop="restartCount" :label="t('workload.restarts')" width="70" />
+          <el-table-column :label="t('common.status')" width="160">
             <template #default="{ row }">
               <el-tag :type="containerStateType(row.state)" size="small">{{ getContainerStateLabel(row) }}</el-tag>
             </template>
           </el-table-column>
         </el-table>
-        <el-empty v-if="!pod.containers || pod.containers.length === 0" description="无容器" />
+        <el-empty v-if="!pod.containers || pod.containers.length === 0" :description="t('workload.noContainers')" />
       </div>
     </template>
 
     <!-- 右下：Events -->
     <template v-if="pod" #right-bottom>
       <div class="panel-title">
-        事件
-        <span class="count-badge">{{ events.length }} 条</span>
+        {{ t('event.title') }}
+        <span class="count-badge">{{ events.length }}</span>
       </div>
       <EventsTable :events="events" :loading="eventsLoading" />
     </template>
