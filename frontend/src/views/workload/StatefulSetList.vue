@@ -2,6 +2,7 @@
 import { Plus, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   getStatefulSetList,
   getStatefulSetYaml,
@@ -21,6 +22,7 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useClusterStore } from '@/stores/cluster'
 
 const clusterStore = useClusterStore()
+const { t } = useI18n()
 
 const {
   loading,
@@ -81,11 +83,11 @@ async function handleScaleConfirm() {
   scaleLoading.value = true
   try {
     await scaleStatefulSet({ ...scaleTarget.value, replicas: scaleReplicas.value })
-    ElMessage.success(`已将 ${scaleTarget.value.name} 扩缩容至 ${scaleReplicas.value} 副本`)
+    ElMessage.success(t('workload.scaledToReplicas', { name: scaleTarget.value.name, n: scaleReplicas.value }))
     scaleDialogVisible.value = false
     fetchResources()
   } catch (e: any) {
-    ElMessage.error(e?.message || '扩缩容失败')
+    ElMessage.error(e?.message || t('common.scaleFailed'))
   } finally {
     scaleLoading.value = false
   }
@@ -93,12 +95,12 @@ async function handleScaleConfirm() {
 
 async function handleQuickRestart(row: any) {
   try {
-    await ElMessageBox.confirm(`确定要重启 StatefulSet "${row.name}" 吗？`, '确认重启', { type: 'warning' })
+    await ElMessageBox.confirm(t('workload.restartConfirmMsg', { type: 'StatefulSet', name: row.name }), t('common.confirmAction'), { type: 'warning' })
     await restartStatefulSet({ namespace: row.namespace, name: row.name })
-    ElMessage.success(`${row.name} 重启成功`)
+    ElMessage.success(t('workload.restartSuccessMsg', { name: row.name }))
     fetchResources()
   } catch (e: any) {
-    if (e !== 'cancel') ElMessage.error(e?.message || '重启失败')
+    if (e !== 'cancel') ElMessage.error(e?.message || t('workload.restartFailedMsg'))
   }
 }
 
@@ -127,17 +129,17 @@ async function handleQuickUpdateImage(row: any) {
 
 async function handleImageConfirm() {
   if (!imageTarget.value || !imageForm.value.containerName || !imageForm.value.image) {
-    ElMessage.warning('请填写容器名称和镜像')
+    ElMessage.warning(t('workload.selectContainerAndImage'))
     return
   }
   imageLoading.value = true
   try {
     await updateStatefulSetImage({ ...imageTarget.value, ...imageForm.value })
-    ElMessage.success('镜像更新成功')
+    ElMessage.success(t('workload.imageUpdateSuccess'))
     imageDialogVisible.value = false
     fetchResources()
   } catch (e: any) {
-    ElMessage.error(e?.message || '镜像更新失败')
+    ElMessage.error(e?.message || t('workload.imageUpdateFailed'))
   } finally {
     imageLoading.value = false
   }
@@ -161,10 +163,10 @@ async function handleImageConfirm() {
     >
       <template #actions>
         <el-button type="success" @click="$router.push('/workloads/statefulsets/create')">
-          <el-icon><Plus /></el-icon> 创建
+          <el-icon><Plus /></el-icon> {{ t('common.create') }}
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})
         </el-button>
       </template>
       <template #extra>
@@ -189,31 +191,31 @@ async function handleImageConfirm() {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="namespace" label="命名空间" width="140" />
-        <el-table-column prop="ready" label="就绪" width="100" />
-        <el-table-column prop="serviceName" label="服务" width="160" show-overflow-tooltip />
-        <el-table-column prop="updateStrategy" label="更新策略" width="140" />
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
+        <el-table-column prop="ready" :label="t('workload.ready')" width="100" />
+        <el-table-column prop="serviceName" :label="t('workload.serviceName')" width="160" show-overflow-tooltip />
+        <el-table-column prop="updateStrategy" :label="t('workload.updateStrategy')" width="140" />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="340" fixed="right">
+        <el-table-column :label="t('common.actions')" width="340" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-              <el-button size="small" type="primary" @click="handleQuickScale(row)">扩缩容</el-button>
-              <el-button size="small" type="warning" @click="handleQuickRestart(row)">重启</el-button>
-              <el-button size="small" type="primary" @click="handleQuickUpdateImage(row)">更新镜像</el-button>
-              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" type="primary" @click="handleQuickScale(row)">{{ t('workload.scale') }}</el-button>
+              <el-button size="small" type="warning" @click="handleQuickRestart(row)">{{ t('workload.restart') }}</el-button>
+              <el-button size="small" type="primary" @click="handleQuickUpdateImage(row)">{{ t('workload.updateImage') }}</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
             </div>
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty description="暂无有状态负载">
+          <el-empty :description="t('workload.statefulset')">
             <el-button type="success" @click="$router.push('/workloads/statefulsets/create')">
-              <el-icon><Plus /></el-icon> 创建
+              <el-icon><Plus /></el-icon> {{ t('common.create') }}
             </el-button>
           </el-empty>
         </template>
@@ -222,7 +224,7 @@ async function handleImageConfirm() {
       <!-- Load More Button -->
       <div v-if="hasMore" class="load-more">
         <el-button @click="fetchNextPage" :loading="loading" link type="primary">
-          加载更多...
+          {{ t('workload.loadMore') }}
         </el-button>
       </div>
     </el-card>
@@ -236,7 +238,7 @@ async function handleImageConfirm() {
     </el-drawer>
 
     <!-- Scale Dialog -->
-    <el-dialog v-model="scaleDialogVisible" title="扩缩容" width="420px" destroy-on-close>
+    <el-dialog v-model="scaleDialogVisible" :title="t('workload.scale')" width="420px" destroy-on-close>
       <div>
         <p style="margin-bottom: var(--gk-space-4);">调整 <strong>{{ scaleTarget?.name }}</strong> 副本数</p>
         <el-form-item label="目标副本数">

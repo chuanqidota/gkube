@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getIngressDetail, deleteIngress, getIngressEvents, getIngressTLSCertStatus, ingressApi } from '@/api/resource'
 import { FullScreen, Aim } from '@element-plus/icons-vue'
@@ -13,6 +14,7 @@ import IngressForm from './components/IngressForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useEditDrawer } from '@/composables/useEditDrawer'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
@@ -100,7 +102,7 @@ async function fetchDetail() {
       tlsCerts.value = []
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载 Ingress 详情失败')
+    ElMessage.error(e?.message || t('network.loadDetailFailed'))
   } finally {
     loading.value = false
   }
@@ -146,11 +148,11 @@ async function handleDelete() {
       { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
     await deleteIngress({ namespace, name })
-    ElMessage.success('Ingress 已删除')
+    ElMessage.success(t('network.ingressDeleted'))
     router.push('/network/ingresses')
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('common.deleteFailed'))
     }
   }
 }

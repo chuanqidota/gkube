@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
@@ -20,6 +21,7 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
+const { t } = useI18n()
 const router = useRouter()
 const submitting = ref(false)
 const namespaceLoading = ref(false)
@@ -377,12 +379,12 @@ async function handleSubmit() {
     for (const rule of rules) {
       for (const entry of rule.fromTo) {
         if (entry.type === 'ipBlock' && entry.cidr.trim() && !cidrPattern.test(entry.cidr.trim())) {
-          ElMessage.error(`CIDR 格式不正确: ${entry.cidr}`)
+          ElMessage.error(t('network.cidrInvalid', { cidr: entry.cidr }))
           return
         }
         for (const ex of entry.except) {
           if (ex.trim() && !cidrPattern.test(ex.trim())) {
-            ElMessage.error(`Except CIDR 格式不正确: ${ex}`)
+            ElMessage.error(t('network.exceptCidrInvalid', { cidr: ex }))
             return
           }
         }
@@ -395,7 +397,7 @@ async function handleSubmit() {
     for (const rule of rules) {
       for (const port of rule.ports) {
         if (port.endPort != null && port.port != null && port.endPort <= port.port) {
-          ElMessage.error(`端口范围结束端口必须大于起始端口: ${port.port}-${port.endPort}`)
+          ElMessage.error(t('network.endPortInvalid', { range: `${port.port}-${port.endPort}` }))
           return
         }
       }
@@ -411,7 +413,7 @@ async function handleSubmit() {
   ]
   for (const label of allLabels) {
     if (label.key.trim() && !labelKeyPattern.test(label.key.trim())) {
-      ElMessage.error(`Label Key 格式不正确: ${label.key}`)
+      ElMessage.error(t('network.labelKeyInvalid', { key: label.key }))
       return
     }
   }
@@ -462,15 +464,15 @@ async function handleSubmit() {
     const yamlContent = yaml.dump(resource, { indent: 2, lineWidth: -1, noRefs: true })
     if (props.isEdit) {
       await updateNetworkPolicyYaml({ namespace: form.namespace, name: form.name, yaml: yamlContent })
-      ElMessage.success('NetworkPolicy 更新成功')
+      ElMessage.success(t('network.networkPolicyUpdated'))
       emit('success')
     } else {
       await createNetworkPolicy({ namespace: form.namespace, yaml: yamlContent })
-      ElMessage.success('NetworkPolicy 创建成功')
+      ElMessage.success(t('network.networkPolicyCreated'))
       router.push('/network/networkpolicies')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
+    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
   } finally {
     submitting.value = false
   }

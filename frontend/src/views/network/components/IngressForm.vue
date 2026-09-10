@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
@@ -20,6 +21,7 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
+const { t } = useI18n()
 const router = useRouter()
 const submitting = ref(false)
 const namespaceLoading = ref(false)
@@ -142,14 +144,14 @@ function addRule() {
   form.rules.push({ host: '', paths: [{ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }] })
 }
 function removeRule(i: number) {
-  if (form.rules.length <= 1) { ElMessage.warning('至少需要一条规则'); return }
+  if (form.rules.length <= 1) { ElMessage.warning(t('network.atLeastOneRule')); return }
   form.rules.splice(i, 1)
 }
 function addPath(ruleIdx: number) {
   form.rules[ruleIdx].paths.push({ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 })
 }
 function removePath(ruleIdx: number, pathIdx: number) {
-  if (form.rules[ruleIdx].paths.length <= 1) { ElMessage.warning('每个 Host 至少需要一条路径'); return }
+  if (form.rules[ruleIdx].paths.length <= 1) { ElMessage.warning(t('network.hostPathRequired')); return }
   form.rules[ruleIdx].paths.splice(pathIdx, 1)
 }
 
@@ -157,7 +159,7 @@ function removePath(ruleIdx: number, pathIdx: number) {
 
 function addTls() { form.tls.push({ hosts: '', secretName: '' }) }
 function removeTls(i: number) {
-  if (form.tls.length <= 1) { ElMessage.warning('至少需要一条 TLS 配置'); return }
+  if (form.tls.length <= 1) { ElMessage.warning(t('network.atLeastOneTls')); return }
   form.tls.splice(i, 1)
 }
 
@@ -304,11 +306,11 @@ async function handleSubmit() {
   if (!valid) return
   for (let i = 0; i < form.rules.length; i++) {
     const r = form.rules[i]
-    if (!r.host.trim()) { ElMessage.error(`规则 ${i + 1}: Host 不能为空`); return }
+    if (!r.host.trim()) { ElMessage.error(t('network.hostRequired', { n: i + 1 })); return }
     for (let j = 0; j < r.paths.length; j++) {
       const p = r.paths[j]
-      if (!p.backendService.trim()) { ElMessage.error(`规则 ${i + 1}, 路径 ${j + 1}: 后端 Service 名称不能为空`); return }
-      if (!p.backendPort) { ElMessage.error(`规则 ${i + 1}, 路径 ${j + 1}: 后端端口不能为空`); return }
+      if (!p.backendService.trim()) { ElMessage.error(t('network.backendServiceRequired', { n: i + 1, m: j + 1 })); return }
+      if (!p.backendPort) { ElMessage.error(t('network.backendPortRequired', { n: i + 1, m: j + 1 })); return }
     }
   }
 
@@ -316,15 +318,15 @@ async function handleSubmit() {
   try {
     if (props.isEdit) {
       await updateIngress({ namespace: form.namespace, name: form.name, yaml: generatedYaml.value })
-      ElMessage.success('Ingress 更新成功')
+      ElMessage.success(t('network.ingressUpdated'))
       emit('success')
     } else {
       await createIngress({ namespace: form.namespace, yaml: generatedYaml.value })
-      ElMessage.success('Ingress 创建成功')
+      ElMessage.success(t('network.ingressCreated'))
       router.push('/network/ingresses')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
+    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
   } finally {
     submitting.value = false
   }

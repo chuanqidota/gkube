@@ -66,9 +66,9 @@ async function loadCloneSource() {
       yamlContent.value = yaml.dump(parsed, { indent: 2, lineWidth: -1, noRefs: true })
       cloneData.value = parsed
     }
-    ElMessage.success(`已从 ${cloneName} 加载配置，请修改名称后创建`)
+    ElMessage.success(t('network.cloneLoaded', { name: cloneName }))
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载克隆源失败')
+    ElMessage.error(e?.message || t('network.cloneLoadFailed'))
   }
 }
 
@@ -78,7 +78,7 @@ onMounted(() => {
 
 async function handleYamlSubmit() {
   if (!yamlContent.value.trim()) {
-    ElMessage.error('YAML 内容不能为空')
+    ElMessage.error(t('network.yamlContentRequired'))
     return
   }
   submitting.value = true
@@ -86,10 +86,10 @@ async function handleYamlSubmit() {
     const parsed = yaml.load(yamlContent.value) as any
     const ns = parsed?.metadata?.namespace || 'default'
     await createNetworkPolicy({ namespace: ns, yaml: yamlContent.value })
-    ElMessage.success('NetworkPolicy 创建成功')
+    ElMessage.success(t('network.networkPolicyCreated'))
     router.push('/network/networkpolicies')
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || t('common.createFailed'))
   } finally {
     submitting.value = false
   }

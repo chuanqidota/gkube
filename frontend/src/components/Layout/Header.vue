@@ -24,26 +24,7 @@
     </div>
     <div class="header-right">
       <!-- Cluster Selector -->
-      <el-select
-        v-model="clusterStore.currentCluster"
-        value-key="id"
-        :placeholder="t('common.selectCluster')"
-        :loading="clusterLoading"
-        size="small"
-        class="cluster-select"
-        clearable
-        @change="handleClusterChange"
-      >
-        <template #prefix>
-          <el-icon><Connection /></el-icon>
-        </template>
-        <el-option
-          v-for="c in clusterStore.clusterList"
-          :key="c.id"
-          :label="c.clusterName"
-          :value="c"
-        />
-      </el-select>
+      <ClusterSelector />
 
       <!-- Language Switcher -->
       <el-dropdown @command="handleLangChange">
@@ -99,19 +80,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { useClusterStore } from '@/stores/cluster'
 import { useTheme } from '@/styles/theme-switcher'
+import ClusterSelector from './ClusterSelector.vue'
 import {
   Fold,
   Switch,
   ArrowDown,
   User,
   SwitchButton,
-  Connection,
   Sunny,
   Moon,
   Avatar,
@@ -121,9 +101,7 @@ defineEmits(['toggleCollapse'])
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const clusterStore = useClusterStore()
 const { locale, t } = useI18n()
-const clusterLoading = ref(false)
 const { isDark, toggle } = useTheme()
 
 const breadcrumbs = computed(() => {
@@ -147,22 +125,9 @@ const breadcrumbs = computed(() => {
   return items
 })
 
-onMounted(async () => {
-  clusterLoading.value = true
-  try {
-    await clusterStore.fetchClusters()
-  } finally {
-    clusterLoading.value = false
-  }
-})
-
 function handleLangChange(lang: string) {
   locale.value = lang
   localStorage.setItem('gkube_locale', lang)
-}
-
-function handleClusterChange(val: any) {
-  clusterStore.setCurrentCluster(val || null)
 }
 
 async function handleCommand(command: string) {
@@ -213,15 +178,6 @@ async function handleCommand(command: string) {
   display: flex;
   align-items: center;
   gap: var(--gk-space-3);
-}
-
-.cluster-select {
-  min-width: 160px;
-  max-width: 240px;
-}
-
-.cluster-select :deep(.el-input__wrapper) {
-  border-radius: var(--gk-radius-md);
 }
 
 .header-action-btn {

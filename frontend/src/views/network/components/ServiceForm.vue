@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
+const { t } = useI18n()
 const router = useRouter()
 const submitting = ref(false)
 const namespaceLoading = ref(false)
@@ -127,7 +129,7 @@ function removeSelector(i: number) { form.selectors.splice(i, 1) }
 
 function addPort() { form.ports.push({ name: '', port: null, targetPort: null, protocol: 'TCP', nodePort: null }) }
 function removePort(i: number) {
-  if (form.ports.length <= 1) { ElMessage.warning('至少需要一个端口'); return }
+  if (form.ports.length <= 1) { ElMessage.warning(t('network.atLeastOnePort')); return }
   form.ports.splice(i, 1)
 }
 
@@ -272,23 +274,23 @@ async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
   for (let i = 0; i < form.ports.length; i++) {
-    if (form.ports[i].port == null) { ElMessage.error(`端口 ${i + 1}: 端口号不能为空`); return }
-    if (form.ports[i].targetPort == null) { ElMessage.error(`端口 ${i + 1}: 目标端口不能为空`); return }
+    if (form.ports[i].port == null) { ElMessage.error(t('network.portNumberRequired', { n: i + 1 })); return }
+    if (form.ports[i].targetPort == null) { ElMessage.error(t('network.targetPortRequired', { n: i + 1 })); return }
   }
 
   submitting.value = true
   try {
     if (props.isEdit) {
       await updateService({ namespace: form.namespace, name: form.name, yaml: generatedYaml.value })
-      ElMessage.success('Service 更新成功')
+      ElMessage.success(t('network.serviceUpdated'))
       emit('success')
     } else {
       await createService({ namespace: form.namespace, yaml: generatedYaml.value })
-      ElMessage.success('Service 创建成功')
+      ElMessage.success(t('network.serviceCreated'))
       router.push('/network/services')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
+    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
   } finally {
     submitting.value = false
   }

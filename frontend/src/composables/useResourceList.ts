@@ -284,7 +284,7 @@ export function useResourceList(options: ResourceListOptions) {
 
   async function handleDelete(row: any, force?: boolean) {
     if (force && options.forceDeleteResource) {
-      const msg = t('common.forceDeleteConfirm', { type: options.resourceName, name: row.name })
+      const msg = t('common.forceDeleteResourceConfirm', { type: options.resourceName, name: row.name })
       try {
         await ElMessageBox.confirm(msg, t('common.confirm'), { type: 'warning' })
       } catch {
@@ -293,7 +293,7 @@ export function useResourceList(options: ResourceListOptions) {
       loading.value = true
       try {
         await options.forceDeleteResource({ namespace: row.namespace, name: row.name })
-        ElMessage.success(t('common.forceDeleteSuccess', { type: options.resourceName }))
+        ElMessage.success(t('common.forceDeleteResourceSuccess', { type: options.resourceName }))
         const id = resourceKey(row)
         markPendingDelete([id])
         list.value = list.value.filter((item) => !isPendingDelete(resourceKey(item)))
@@ -302,7 +302,7 @@ export function useResourceList(options: ResourceListOptions) {
         selectedRows.value = selectedRows.value.filter((r) => resourceKey(r) !== id)
         scheduleCleanup([id])
       } catch (e: any) {
-        ElMessage.error(e?.message || t('common.forceDeleteFailed', { type: options.resourceName }))
+        ElMessage.error(e?.message || t('common.forceDeleteResourceFailed', { type: options.resourceName }))
       } finally {
         loading.value = false
       }

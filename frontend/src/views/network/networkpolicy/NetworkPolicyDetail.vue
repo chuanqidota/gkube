@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getNetworkPolicyDetail,
@@ -17,6 +18,7 @@ import NetworkPolicyForm from './components/NetworkPolicyForm.vue'
 import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
+const { t } = useI18n()
 const clusterStore = useClusterStore()
 
 const route = useRoute()
@@ -80,7 +82,7 @@ async function fetchDetail() {
     const res: any = await getNetworkPolicyDetail({ namespace, name })
     npRaw.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载详情失败')
+    ElMessage.error(e?.message || t('network.loadDetailFailed'))
   } finally {
     loading.value = false
   }
@@ -137,10 +139,10 @@ async function handlePodDelete(pod: any, force = false) {
     }
     try {
       await deletePod({ namespace, name: pod.metadata.name, force: true })
-      ElMessage.success('Pod 已强制删除')
+      ElMessage.success(t('common.forceDeleteSuccess'))
       fetchPods()
     } catch (e: any) {
-      if (e !== 'cancel') ElMessage.error(e?.message || '强制删除失败')
+      if (e !== 'cancel') ElMessage.error(e?.message || t('common.deleteFailed'))
     }
     return
   }
@@ -151,11 +153,11 @@ async function handlePodDelete(pod: any, force = false) {
       { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
     await deletePod({ namespace, name: pod.metadata.name })
-    ElMessage.success('Pod 已删除')
+    ElMessage.success(t('common.deleted'))
     fetchPods()
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('common.deleteFailed'))
     }
   }
 }
@@ -176,11 +178,11 @@ async function handleDelete() {
       { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
     await deleteNetworkPolicy({ namespace, name })
-    ElMessage.success('NetworkPolicy 已删除')
+    ElMessage.success(t('network.networkPolicyDeleted'))
     router.push('/network/networkpolicies')
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error(e?.message || '删除失败')
+      ElMessage.error(e?.message || t('common.deleteFailed'))
     }
   }
 }
