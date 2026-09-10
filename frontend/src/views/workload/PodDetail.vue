@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
-import { getPodDetail, getPodYaml, deletePod, getPodEvents, calcAge } from '@/api/resource'
+import { getPodDetail, getPodYaml, deletePod, getPodEvents } from '@/api/resource'
+import { formatAge } from '@/utils/helpers'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import DetailPageLayout from '@/components/DetailPageLayout.vue'
 import DetailPageHeader from '@/components/DetailPageHeader.vue'
@@ -77,7 +78,7 @@ function transformPodDetail(raw: any): any {
     restarts,
     qos_class: raw.status?.qosClass || '',
     priority: raw.spec?.priority ?? null,
-    age: calcAge(raw.metadata?.creationTimestamp),
+    age: formatAge(raw.metadata?.creationTimestamp),
     created_at: raw.metadata?.creationTimestamp || '',
     service_account: raw.spec?.serviceAccountName || '',
     labels: raw.metadata?.labels || {},

@@ -5,14 +5,3 @@ export * from './namespace'
 export * from './node'
 export * from './event'
 export * from './crd'
-
-import { formatAge } from '@/utils/helpers'
-
-/**
- * Calculate age string from a creation timestamp.
- * @deprecated 使用 formatAge from @/utils/helpers
- */
-export function calcAge(creationTimestamp: string): string {
-  if (!creationTimestamp) return ''
-  return formatAge(creationTimestamp, false)
-}

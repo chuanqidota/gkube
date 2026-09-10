@@ -168,8 +168,8 @@ async function handleTrigger(row: any) {
             <el-tag :type="row.suspend ? 'warning' : 'success'" size="small">{{ row.suspend ? '是' : '否' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="active" label="活跃" width="80" />
-        <el-table-column prop="nextScheduleTime" label="下次执行时间" width="170">
+        <el-table-column prop="active" :label="t('workload.active')" width="80" />
+        <el-table-column prop="nextScheduleTime" :label="t('workload.lastScheduleTime')" width="170">
           <template #default="{ row }">
             <span v-if="row.nextScheduleTime">{{ row.nextScheduleTime }}</span>
             <el-tag v-else-if="row.suspend" type="info" size="small">已暂停</el-tag>
@@ -177,7 +177,7 @@ async function handleTrigger(row: any) {
           </template>
         </el-table-column>
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="350" fixed="right">
+        <el-table-column :label="t('common.actions')" width="350" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
@@ -186,9 +186,9 @@ async function handleTrigger(row: any) {
               :type="row.suspend ? 'success' : 'warning'"
               :icon="row.suspend ? VideoPlay : VideoPause"
               @click="handleToggleSuspend(row)"
-            >{{ row.suspend ? '恢复' : '暂停' }}</el-button>
-            <el-button size="small" type="primary" @click="handleTrigger(row)">触发</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            >{{ row.suspend ? t('workload.hpaResumeSuccess').split(' ')[1] || 'Resume' : t('workload.suspend') }}</el-button>
+            <el-button size="small" type="primary" @click="handleTrigger(row)">{{ t('workload.triggerSuccess').split(' ')[0] || 'Trigger' }}</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -197,7 +197,7 @@ async function handleTrigger(row: any) {
       <!-- Load More Button -->
       <div v-if="hasMore" class="load-more">
         <el-button @click="fetchNextPage" :loading="loading" link type="primary">
-          加载更多...
+          {{ t('workload.loadMore') }}
         </el-button>
       </div>
     </el-card>

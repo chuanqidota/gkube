@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Delete } from '@element-plus/icons-vue'
-import { getReplicaSetList, getReplicaSetYaml, deleteReplicaSet, calcAge } from '@/api/resource'
+import { useI18n } from 'vue-i18n'
+import { getReplicaSetList, getReplicaSetYaml, deleteReplicaSet } from '@/api/resource'
+import { formatAge } from '@/utils/helpers'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
@@ -9,6 +11,7 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useClusterStore } from '@/stores/cluster'
 
 const clusterStore = useClusterStore()
+const { t } = useI18n()
 
 function transformReplicaSets(items: any[]) {
   if (!Array.isArray(items)) return []
@@ -23,7 +26,7 @@ function transformReplicaSets(items: any[]) {
       ready: rs.ready || 0,
       available: rs.available || 0,
       owner: owner ? `Deployment/${owner.name}` : '-',
-      age: calcAge(rs.creation_timestamp),
+      age: formatAge(rs.creation_timestamp),
     }
   })
 }
@@ -84,7 +87,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     >
       <template #actions>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})
         </el-button>
       </template>
       <template #extra>
@@ -109,30 +112,30 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="namespace" label="命名空间" width="140" />
-        <el-table-column prop="desired" label="期望" width="90" align="center" />
-        <el-table-column prop="current" label="当前" width="90" align="center" />
-        <el-table-column prop="ready" label="就绪" width="90" align="center" />
-        <el-table-column prop="available" label="可用" width="100" align="center" />
-        <el-table-column prop="owner" label="拥有者" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
+        <el-table-column prop="desired" :label="t('workload.desired')" width="90" align="center" />
+        <el-table-column prop="current" :label="t('workload.current')" width="90" align="center" />
+        <el-table-column prop="ready" :label="t('workload.ready')" width="90" align="center" />
+        <el-table-column prop="available" :label="t('workload.available')" width="100" align="center" />
+        <el-table-column prop="owner" :label="t('workload.selector')" min-width="160" show-overflow-tooltip />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column :label="t('common.actions')" width="140" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
             </div>
           </template>
         </el-table-column>
       </el-table>
       <div v-if="hasMore" class="load-more">
         <el-button @click="fetchNextPage" :loading="loading" link type="primary">
-          加载更多
+          {{ t('workload.loadMore') }}
         </el-button>
       </div>
     </el-card>

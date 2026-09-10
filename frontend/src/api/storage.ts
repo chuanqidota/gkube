@@ -1,5 +1,5 @@
 import request from './request'
-import { calcAge } from './core'
+import { formatAge } from '@/utils/helpers'
 import { createResourceApi } from './factory'
 
 // ============ 类型定义 ============
@@ -38,7 +38,7 @@ export function transformPvs(items: any[]): Pv[] {
       storage_class: storageClass,
       reclaim_policy: reclaimPolicy,
       volume_mode: volumeMode,
-      age: calcAge(pv.metadata?.creationTimestamp),
+      age: formatAge(pv.metadata?.creationTimestamp),
     }
   })
 }
@@ -53,7 +53,7 @@ export function transformPvcs(items: any[]) {
     capacity: pvc.status?.capacity?.storage || '-',
     storage_class: pvc.spec?.storageClassName || '-',
     access_modes: (pvc.spec?.accessModes || []).join(', '),
-    age: calcAge(pvc.metadata?.creationTimestamp),
+    age: formatAge(pvc.metadata?.creationTimestamp),
   }))
 }
 
@@ -69,7 +69,7 @@ export function transformStorageClasses(items: any[]) {
       reclaim_policy: sc.reclaimPolicy || '-',
       volume_binding_mode: sc.volumeBindingMode || '-',
       default: isDefault,
-      age: calcAge(sc.metadata?.creationTimestamp),
+      age: formatAge(sc.metadata?.creationTimestamp),
     }
   })
 }

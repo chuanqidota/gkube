@@ -4,7 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
-import { getStorageClassDetail, deleteStorageClass, getPvcListByStorageClass, calcAge, getStorageClassYaml, updateStorageClass } from '@/api/resource'
+import { getStorageClassDetail, deleteStorageClass, getPvcListByStorageClass, getStorageClassYaml, updateStorageClass } from '@/api/resource'
+import { formatAge } from '@/utils/helpers'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import StorageClassForm from '@/views/storage/components/StorageClassForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -80,7 +81,7 @@ async function fetchPvcs() {
       name: pvc.metadata?.name || '-',
       status: pvc.status?.phase || 'Unknown',
       capacity: pvc.spec?.resources?.requests?.storage || '-',
-      age: calcAge(pvc.metadata?.creationTimestamp),
+      age: formatAge(pvc.metadata?.creationTimestamp),
     }))
   } catch {
     pvcs.value = []

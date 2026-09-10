@@ -1,5 +1,5 @@
 import request from './request'
-import { calcAge } from './core'
+import { formatAge } from '@/utils/helpers'
 import { createResourceApi } from './factory'
 
 // ============ 类型定义 ============
@@ -44,7 +44,7 @@ export function transformServices(items: any[]): Service[] {
       cluster_ip: svc.spec?.clusterIP || '',
       external_ip: externalIps,
       ports,
-      age: calcAge(svc.metadata?.creationTimestamp),
+      age: formatAge(svc.metadata?.creationTimestamp),
     }
   })
 }
@@ -59,7 +59,7 @@ export function transformIngresses(items: any[]): Ingress[] {
       namespace: ing.metadata?.namespace || '',
       hosts,
       address,
-      age: calcAge(ing.metadata?.creationTimestamp),
+      age: formatAge(ing.metadata?.creationTimestamp),
     }
   })
 }
