@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import {
   getDeploymentList,
@@ -15,6 +13,7 @@ import {
   getDeploymentDetail,
 } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
+import { useListActions } from '@/composables/useListActions'
 import { useClusterStore } from '@/stores/cluster'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
@@ -66,89 +65,20 @@ const {
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
 
 // ---- Quick Actions ----
-
-// Scale dialog
-const scaleDialogVisible = ref(false)
-const scaleTarget = ref<{ namespace: string; name: string } | null>(null)
-const scaleReplicas = ref<number>(1)
-const scaleLoading = ref(false)
-
-function handleQuickScale(row: any) {
-  scaleTarget.value = { namespace: row.namespace, name: row.name }
-  scaleReplicas.value = row.replicas ?? row.ready_replicas ?? 1
-  scaleDialogVisible.value = true
-}
-
-async function handleScaleConfirm() {
-  if (!scaleTarget.value) return
-  scaleLoading.value = true
-  try {
-    await scaleDeployment({ ...scaleTarget.value, replicas: scaleReplicas.value })
-    ElMessage.success(t('workload.scaledToReplicas', { name: scaleTarget.value.name, n: scaleReplicas.value }))
-    scaleDialogVisible.value = false
-    fetchResources()
-  } catch (e: any) {
-    ElMessage.error(e?.message || t('common.scaleFailed'))
-  } finally {
-    scaleLoading.value = false
-  }
-}
-
-// Restart
-async function handleQuickRestart(row: any) {
-  try {
-    await ElMessageBox.confirm(t('workload.restartConfirm', { type: 'Deployment', name: row.name }), t('common.confirmAction'), { type: 'warning' })
-    await restartDeployment({ namespace: row.namespace, name: row.name })
-    ElMessage.success(t('workload.restartSuccessMsg', { name: row.name }))
-    fetchResources()
-  } catch (e: any) {
-    if (e !== 'cancel') ElMessage.error(e?.message || t('workload.restartFailedMsg'))
-  }
-}
-
-// Update image dialog
-const imageDialogVisible = ref(false)
-const imageTarget = ref<{ namespace: string; name: string } | null>(null)
-const imageForm = ref({ containerName: '', image: '' })
-const imageContainers = ref<{ name: string; image: string }[]>([])
-const imageLoading = ref(false)
-
-async function handleQuickUpdateImage(row: any) {
-  imageTarget.value = { namespace: row.namespace, name: row.name }
-  imageForm.value = { containerName: '', image: '' }
-  imageContainers.value = []
-  imageDialogVisible.value = true
-  // Fetch detail to get container list
-  try {
-    const res: any = await getDeploymentDetail({ namespace: row.namespace, name: row.name })
-    const containers = res.data?.spec?.template?.spec?.containers || []
-    imageContainers.value = containers.map((c: any) => ({ name: c.name, image: c.image || '' }))
-    if (imageContainers.value.length > 0) {
-      imageForm.value.containerName = imageContainers.value[0].name
-      imageForm.value.image = imageContainers.value[0].image
-    }
-  } catch (e: any) {
-    ElMessage.error(t('workload.fetchContainerFailed') + ': ' + (e?.message || 'unknown error'))
-  }
-}
-
-async function handleImageConfirm() {
-  if (!imageTarget.value || !imageForm.value.containerName || !imageForm.value.image) {
-    ElMessage.warning(t('workload.selectContainerAndImage'))
-    return
-  }
-  imageLoading.value = true
-  try {
-    await updateDeploymentImage({ ...imageTarget.value, ...imageForm.value })
-    ElMessage.success(t('workload.imageUpdateSuccess'))
-    imageDialogVisible.value = false
-    fetchResources()
-  } catch (e: any) {
-    ElMessage.error(e?.message || t('workload.imageUpdateFailed'))
-  } finally {
-    imageLoading.value = false
-  }
-}
+const {
+  scaleDialogVisible, scaleTarget, scaleReplicas, scaleLoading,
+  openScaleDialog, handleScaleConfirm,
+  handleRestart,
+  imageDialogVisible, imageTarget, imageForm, imageContainers, imageLoading,
+  openImageDialog, handleImageConfirm,
+} = useListActions({
+  kind: 'deployment',
+  scaleApi: scaleDeployment,
+  restartApi: restartDeployment,
+  updateImageApi: updateDeploymentImage,
+  detailApi: getDeploymentDetail,
+  onActionSuccess: fetchResources,
+})
 </script>
 
 <template>
@@ -210,9 +140,9 @@ async function handleImageConfirm() {
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-              <el-button size="small" type="primary" @click="handleQuickScale(row)">{{ t('workload.scale') }}</el-button>
-              <el-button size="small" type="warning" @click="handleQuickRestart(row)">{{ t('workload.restart') }}</el-button>
-              <el-button size="small" type="primary" @click="handleQuickUpdateImage(row)">{{ t('workload.updateImage') }}</el-button>
+              <el-button size="small" type="primary" @click="openScaleDialog(row)">{{ t('workload.scale') }}</el-button>
+              <el-button size="small" type="warning" @click="handleRestart(row)">{{ t('workload.restart') }}</el-button>
+              <el-button size="small" type="primary" @click="openImageDialog(row)">{{ t('workload.updateImage') }}</el-button>
               <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
             </div>
           </template>

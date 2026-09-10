@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import { getStorageClassDetail, deleteStorageClass, getPvcListByStorageClass, calcAge, getStorageClassYaml, updateStorageClass } from '@/api/resource'
@@ -9,6 +10,7 @@ import StorageClassForm from '@/views/storage/components/StorageClassForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useResizable } from '@/composables/useResizable'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
@@ -62,7 +64,7 @@ async function fetchDetail() {
     const res: any = await getStorageClassDetail({ name })
     storageClass.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载 StorageClass 详情失败')
+    ElMessage.error(e?.message || t('common.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -112,7 +114,7 @@ async function handleDelete() {
   try {
     await ElMessageBox.confirm(`确认删除 StorageClass "${name}"？`, '确认删除', { type: 'warning' })
     await deleteStorageClass({ name })
-    ElMessage.success('StorageClass 已删除')
+    ElMessage.success(t('storage.storageClassDeleted'))
     router.push('/storage/storageclasses')
   } catch {
     // cancelled

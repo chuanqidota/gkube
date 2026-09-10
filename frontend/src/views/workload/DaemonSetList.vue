@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import {
   getDaemonSetList,
   getDaemonSetYaml,
@@ -13,6 +12,7 @@ import {
   getDaemonSetDetail,
 } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
+import { useListActions } from '@/composables/useListActions'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
@@ -20,6 +20,7 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useClusterStore } from '@/stores/cluster'
 
 const clusterStore = useClusterStore()
+const { t } = useI18n()
 
 const {
   loading,
@@ -64,59 +65,17 @@ const {
 const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
 
 // ---- Quick Actions ----
-async function handleQuickRestart(row: any) {
-  try {
-    await ElMessageBox.confirm(`确定要重启 DaemonSet "${row.name}" 吗？`, '确认重启', { type: 'warning' })
-    await restartDaemonSet({ namespace: row.namespace, name: row.name })
-    ElMessage.success(`${row.name} 重启成功`)
-    fetchResources()
-  } catch (e: any) {
-    if (e !== 'cancel') ElMessage.error(e?.message || '重启失败')
-  }
-}
-
-// Update image dialog
-const imageDialogVisible = ref(false)
-const imageTarget = ref<{ namespace: string; name: string } | null>(null)
-const imageForm = ref({ containerName: '', image: '' })
-const imageContainers = ref<{ name: string; image: string }[]>([])
-const imageLoading = ref(false)
-
-async function handleQuickUpdateImage(row: any) {
-  imageTarget.value = { namespace: row.namespace, name: row.name }
-  imageForm.value = { containerName: '', image: '' }
-  imageContainers.value = []
-  imageDialogVisible.value = true
-  try {
-    const res: any = await getDaemonSetDetail({ namespace: row.namespace, name: row.name })
-    const containers = res.data?.spec?.template?.spec?.containers || []
-    imageContainers.value = containers.map((c: any) => ({ name: c.name, image: c.image || '' }))
-    if (imageContainers.value.length > 0) {
-      imageForm.value.containerName = imageContainers.value[0].name
-      imageForm.value.image = imageContainers.value[0].image
-    }
-  } catch (e: any) {
-    if (e !== 'cancel') ElMessage.error(e?.message || '获取容器列表失败')
-  }
-}
-
-async function handleImageConfirm() {
-  if (!imageTarget.value || !imageForm.value.containerName || !imageForm.value.image) {
-    ElMessage.warning('请填写容器名称和镜像')
-    return
-  }
-  imageLoading.value = true
-  try {
-    await updateDaemonSetImage({ ...imageTarget.value, ...imageForm.value })
-    ElMessage.success('镜像更新成功')
-    imageDialogVisible.value = false
-    fetchResources()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '镜像更新失败')
-  } finally {
-    imageLoading.value = false
-  }
-}
+const {
+  handleRestart,
+  imageDialogVisible, imageTarget, imageForm, imageContainers, imageLoading,
+  openImageDialog, handleImageConfirm,
+} = useListActions({
+  kind: 'daemonset',
+  restartApi: restartDaemonSet,
+  updateImageApi: updateDaemonSetImage,
+  detailApi: getDaemonSetDetail,
+  onActionSuccess: fetchResources,
+})
 </script>
 
 <template>
@@ -136,10 +95,10 @@ async function handleImageConfirm() {
     >
       <template #actions>
         <el-button type="success" @click="$router.push('/workloads/daemonsets/create')">
-          <el-icon><Plus /></el-icon> 创建
+          <el-icon><Plus /></el-icon> {{ t('common.create') }}
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})
         </el-button>
       </template>
       <template #extra>
@@ -164,31 +123,31 @@ async function handleImageConfirm() {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="namespace" label="命名空间" width="140" />
-        <el-table-column prop="desired" label="预期" width="90" />
-        <el-table-column prop="current" label="当前" width="90" />
-        <el-table-column prop="ready" label="就绪" width="90" />
-        <el-table-column prop="updateStrategy" label="更新策略" width="120" />
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
+        <el-table-column prop="desired" :label="t('workload.desired')" width="90" />
+        <el-table-column prop="current" :label="t('workload.current')" width="90" />
+        <el-table-column prop="ready" :label="t('workload.ready')" width="90" />
+        <el-table-column prop="updateStrategy" :label="t('workload.updateStrategy')" width="120" />
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="300" fixed="right">
+        <el-table-column :label="t('common.actions')" width="300" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
             <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="warning" @click="handleQuickRestart(row)">重启</el-button>
-            <el-button size="small" type="primary" @click="handleQuickUpdateImage(row)">更新镜像</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button size="small" type="warning" @click="handleRestart(row)">{{ t('workload.restart') }}</el-button>
+            <el-button size="small" type="primary" @click="openImageDialog(row)">{{ t('workload.updateImage') }}</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
             </div>
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty description="未找到 DaemonSet">
+          <el-empty :description="t('workload.daemonset')">
             <el-button type="success" @click="$router.push('/workloads/daemonsets/create')">
-              <el-icon><Plus /></el-icon> 创建
+              <el-icon><Plus /></el-icon> {{ t('common.create') }}
             </el-button>
           </el-empty>
         </template>
@@ -197,7 +156,7 @@ async function handleImageConfirm() {
       <!-- Load More Button -->
       <div v-if="hasMore" class="load-more">
         <el-button @click="fetchNextPage" :loading="loading" link type="primary">
-          加载更多...
+          {{ t('workload.loadMore') }}
         </el-button>
       </div>
     </el-card>
@@ -210,23 +169,23 @@ async function handleImageConfirm() {
       </div>
     </el-drawer>
     <!-- Update Image Dialog -->
-    <el-dialog v-model="imageDialogVisible" title="更新镜像" width="520px" destroy-on-close>
+    <el-dialog v-model="imageDialogVisible" :title="t('workload.updateImage')" width="520px" destroy-on-close>
       <div>
-        <p style="margin-bottom: var(--gk-space-4);">更新 <strong>{{ imageTarget?.name }}</strong> 的容器镜像</p>
+        <p style="margin-bottom: var(--gk-space-4);">{{ t('workload.updateImage') }} <strong>{{ imageTarget?.name }}</strong></p>
         <el-form label-width="80px">
-          <el-form-item label="容器">
+          <el-form-item :label="t('workload.containers')">
             <el-select v-model="imageForm.containerName" style="width: 100%;" @change="() => { const c = imageContainers.find((c: any) => c.name === imageForm.containerName); if (c) imageForm.image = c.image }">
               <el-option v-for="c in imageContainers" :key="c.name" :label="c.name" :value="c.name" />
             </el-select>
           </el-form-item>
-          <el-form-item label="镜像">
+          <el-form-item :label="t('workload.image')">
             <el-input v-model="imageForm.image" placeholder="例如: nginx:1.26" />
           </el-form-item>
         </el-form>
       </div>
       <template #footer>
-        <el-button @click="imageDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="imageLoading" @click="handleImageConfirm">确认更新</el-button>
+        <el-button @click="imageDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="imageLoading" @click="handleImageConfirm">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
   </div>

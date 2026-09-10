@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import { getSecretList, getSecretDetail, deleteSecret, getNamespaceList, extractNamespaceNames, transformSecrets, secretApi } from '@/api/resource'
@@ -12,6 +13,7 @@ import { useClusterStore } from '@/stores/cluster'
 import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const clusterStore = useClusterStore()
 const loading = ref(false)
@@ -57,7 +59,7 @@ async function fetchSecrets() {
     const items = res.data?.items || res.data || []
     secretList.value = transformSecrets(items)
   } catch (e) {
-    ElMessage.error('获取保密字典列表失败'); console.warn('Failed to fetch secrets:', e)
+    ElMessage.error(t('common.fetchFailed')); console.warn('Failed to fetch secrets:', e)
   } finally { loading.value = false }
 }
 
@@ -81,7 +83,7 @@ async function handleViewData(row: any) {
       const rawValue = String(value ?? '')
       return { key, rawValue, decodedValue: base64Decode(rawValue) }
     })
-  } catch (e: any) { ElMessage.error(e?.message || '加载数据失败'); dataDialogVisible.value = false }
+  } catch (e: any) { ElMessage.error(e?.message || t('config.loadDataFailed')); dataDialogVisible.value = false }
   finally { dataLoading.value = false }
 }
 
@@ -91,7 +93,7 @@ async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确定要删除命名空间 "${row.namespace}" 中的保密字典 "${row.name}" 吗？`, '确认', { type: 'warning' })
     await deleteSecret({ name: row.name, namespace: row.namespace })
-    ElMessage.success('删除成功'); fetchSecrets()
+    ElMessage.success(t('common.deleteSuccess')); fetchSecrets()
   } catch { /* cancelled */ }
 }
 
@@ -104,7 +106,7 @@ async function handleBatchDelete() {
     )
     const count = results.filter((r) => r.status === 'fulfilled').length
     const failed = results.length - count
-    ElMessage.success(`已成功删除 ${count} 个保密字典${failed ? `，${failed} 个失败` : ''}`); fetchSecrets()
+    ElMessage.success(t('config.batchDeleteResult', { count, type: t('config.secret'), failed: failed ? `，${failed} 个失败` : '' })); fetchSecrets()
   } catch { /* cancelled */ }
 }
 

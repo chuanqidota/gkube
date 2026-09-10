@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import request from '@/api/request'
@@ -9,6 +10,7 @@ import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
+const { t } = useI18n()
 const loading = ref(false)
 const authStore = useAuthStore()
 const userList = ref<any[]>([])
@@ -97,7 +99,7 @@ async function fetchUsers() {
     userList.value = res.data.items || []
     total.value = res.data.total || 0
   } catch (e: any) {
-    ElMessage.error(e?.message || '获取用户列表失败')
+    ElMessage.error(e?.message || t('user.loadUserListFailed'))
   } finally {
     loading.value = false
   }
@@ -149,15 +151,15 @@ async function handleSave() {
           ...(payload.email !== undefined ? { email: payload.email } : {}),
         })
       }
-      ElMessage.success('用户已更新')
+      ElMessage.success(t('user.userUpdated'))
     } else {
       await request.post('/users', payload)
-      ElMessage.success('用户已创建')
+      ElMessage.success(t('user.userCreated'))
     }
     dialogVisible.value = false
     fetchUsers()
   } catch (e: any) {
-    ElMessage.error(e?.message || '保存失败')
+    ElMessage.error(e?.message || t('common.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -171,7 +173,7 @@ async function handleDelete(row: any) {
   }
   try {
     await request.delete('/users', { data: { id: row.id } })
-    ElMessage.success('已删除')
+    ElMessage.success(t('common.deleted'))
     fetchUsers()
   } catch (e: any) {
     ElMessage.error(e?.message || '删除失败')
@@ -192,9 +194,9 @@ async function handleBatchDelete() {
     const successCount = results.filter((r) => r.status === 'fulfilled').length
     const failCount = results.filter((r) => r.status === 'rejected').length
     if (failCount > 0) {
-      ElMessage.warning(`已删除 ${successCount} 个，失败 ${failCount} 个`)
+      ElMessage.warning(t('user.batchDeleteResult', { success: successCount, fail: failCount }))
     } else {
-      ElMessage.success(`已删除 ${successCount} 个用户`)
+      ElMessage.success(t('user.batchDeleteSuccess', { count: successCount }))
     }
     fetchUsers()
   } catch {
@@ -218,10 +220,10 @@ async function handleResetPassword() {
       userId: resetTargetUser.value.id,
       newPassword: resetForm.newPassword,
     })
-    ElMessage.success('密码重置成功')
+    ElMessage.success(t('user.passwordResetSuccess'))
     resetDialogVisible.value = false
   } catch (e: any) {
-    ElMessage.error(e?.message || '重置密码失败')
+    ElMessage.error(e?.message || t('user.resetPasswordFailed'))
   } finally {
     resetSaving.value = false
   }

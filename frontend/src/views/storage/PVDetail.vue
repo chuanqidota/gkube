@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import { getPvDetail, deletePv, getPvYaml, updatePvYaml } from '@/api/resource'
@@ -9,6 +10,7 @@ import PVForm from '@/views/storage/components/PVForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useResizable } from '@/composables/useResizable'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
@@ -81,7 +83,7 @@ async function fetchDetail() {
     const res: any = await getPvDetail({ name })
     pv.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载PV详情失败')
+    ElMessage.error(e?.message || t('common.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -112,7 +114,7 @@ async function handleDelete() {
   try {
     await ElMessageBox.confirm(`删除持久卷 "${name}"?`, '确认', { type: 'warning' })
     await deletePv({ name })
-    ElMessage.success('删除成功')
+    ElMessage.success(t('common.deleteSuccess'))
     router.push('/storage/pvs')
   } catch {
     /* cancelled */

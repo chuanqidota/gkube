@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus, Upload } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
+const { t } = useI18n()
 const router = useRouter()
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
@@ -324,17 +326,17 @@ async function handleSubmit() {
 
   // Type-specific validation
   if (form.type === 'kubernetes.io/tls') {
-    if (!tlsData.value.cert.trim()) { ElMessage.error('请输入证书 (tls.crt)'); return }
-    if (!tlsData.value.key.trim()) { ElMessage.error('请输入私钥 (tls.key)'); return }
+    if (!tlsData.value.cert.trim()) { ElMessage.error(t('config.certRequired')); return }
+    if (!tlsData.value.key.trim()) { ElMessage.error(t('config.keyRequired')); return }
   } else if (form.type === 'kubernetes.io/dockerconfigjson') {
-    if (!dockerConfig.value.server.trim()) { ElMessage.error('请输入 Registry 地址'); return }
-    if (!dockerConfig.value.username.trim()) { ElMessage.error('请输入用户名'); return }
-    if (!dockerConfig.value.password.trim()) { ElMessage.error('请输入密码'); return }
+    if (!dockerConfig.value.server.trim()) { ElMessage.error(t('config.registryRequired')); return }
+    if (!dockerConfig.value.username.trim()) { ElMessage.error(t('config.usernameRequired')); return }
+    if (!dockerConfig.value.password.trim()) { ElMessage.error(t('config.passwordRequired')); return }
   } else if (form.type === 'kubernetes.io/basic-auth') {
-    if (!basicAuthData.value.username.trim()) { ElMessage.error('请输入用户名'); return }
-    if (!basicAuthData.value.password.trim()) { ElMessage.error('请输入密码'); return }
+    if (!basicAuthData.value.username.trim()) { ElMessage.error(t('config.usernameRequired')); return }
+    if (!basicAuthData.value.password.trim()) { ElMessage.error(t('config.passwordRequired')); return }
   } else if (form.type === 'kubernetes.io/ssh-auth') {
-    if (!sshAuthData.value.privateKey.trim()) { ElMessage.error('请输入 SSH 私钥'); return }
+    if (!sshAuthData.value.privateKey.trim()) { ElMessage.error(t('config.sshKeyRequired')); return }
   }
 
   submitting.value = true
@@ -342,15 +344,15 @@ async function handleSubmit() {
     const yamlStr = buildYamlStr()
     if (props.isEdit) {
       await updateSecret({ namespace: form.namespace, name: form.name, yaml: yamlStr })
-      ElMessage.success('Secret 更新成功')
+      ElMessage.success(t('config.secretUpdated'))
       emit('success')
     } else {
       await createSecret({ namespace: form.namespace, yaml: yamlStr })
-      ElMessage.success('Secret 创建成功')
+      ElMessage.success(t('config.secretCreated'))
       router.push('/config/secrets')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
+    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
   } finally {
     submitting.value = false
   }

@@ -109,10 +109,10 @@ async function handleDeleteRq(rqName: string) {
   try {
     await ElMessageBox.confirm(`确定要删除 ResourceQuota "${rqName}" 吗？`, '确认删除', { type: 'warning' })
     await deleteResourceQuota({ namespace: name, name: rqName })
-    ElMessage.success('ResourceQuota 已删除')
+    ElMessage.success(t('config.resourceQuotaDeleted'))
     fetchResourceQuotas()
   } catch (e: any) {
-    if (e !== 'cancel') ElMessage.error(e?.message || '删除失败')
+    if (e !== 'cancel') ElMessage.error(e?.message || t('common.deleteFailed'))
   }
 }
 
@@ -120,10 +120,10 @@ async function handleDeleteLr(lrName: string) {
   try {
     await ElMessageBox.confirm(`确定要删除 LimitRange "${lrName}" 吗？`, '确认删除', { type: 'warning' })
     await deleteLimitRange({ namespace: name, name: lrName })
-    ElMessage.success('LimitRange 已删除')
+    ElMessage.success(t('config.limitRangeDeleted'))
     fetchLimitRanges()
   } catch (e: any) {
-    if (e !== 'cancel') ElMessage.error(e?.message || '删除失败')
+    if (e !== 'cancel') ElMessage.error(e?.message || t('common.deleteFailed'))
   }
 }
 

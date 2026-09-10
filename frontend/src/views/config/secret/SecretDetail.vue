@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import { getSecretDetail, deleteSecret, secretApi } from '@/api/resource'
@@ -11,6 +12,7 @@ import SecretForm from '@/views/config/components/SecretForm.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useResizable } from '@/composables/useResizable'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const clusterStore = useClusterStore()
 
@@ -80,7 +82,7 @@ async function fetchDetail() {
     const res: any = await getSecretDetail({ namespace, name })
     secret.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载Secret详情失败')
+    ElMessage.error(e?.message || t('config.loadDetailFailed'))
   } finally {
     loading.value = false
   }
@@ -111,7 +113,7 @@ async function handleDelete() {
   try {
     await ElMessageBox.confirm(`删除保密字典 "${name}"?`, '确认', { type: 'warning' })
     await deleteSecret({ namespace, name })
-    ElMessage.success('删除成功')
+    ElMessage.success(t('common.deleteSuccess'))
     router.push('/config/secrets')
   } catch {
     /* cancelled */

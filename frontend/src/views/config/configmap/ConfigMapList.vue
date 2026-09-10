@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import { getConfigMapList, getConfigMapDetail, getConfigMapYaml, updateConfigMap, deleteConfigMap, getNamespaceList, extractNamespaceNames, transformConfigMaps } from '@/api/resource'
@@ -12,6 +13,7 @@ import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import ConfigDataViewer from '@/components/ConfigDataViewer.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const clusterStore = useClusterStore()
 const loading = ref(false)
@@ -78,7 +80,7 @@ async function handleViewData(row: any) {
       ...Object.entries(binaryData).map(([key, value]) => ({ key, value: String(value ?? '') })),
     ]
     dataEntries.value = merged
-  } catch (e: any) { ElMessage.error(e?.message || '加载数据失败'); dataDialogVisible.value = false }
+  } catch (e: any) { ElMessage.error(e?.message || t('config.loadDataFailed')); dataDialogVisible.value = false }
   finally { dataLoading.value = false }
 }
 
@@ -88,7 +90,7 @@ async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确定要删除命名空间 "${row.namespace}" 中的数据字典 "${row.name}" 吗？`, '确认', { type: 'warning' })
     await deleteConfigMap({ name: row.name, namespace: row.namespace })
-    ElMessage.success('删除成功'); fetchConfigMaps()
+    ElMessage.success(t('common.deleteSuccess')); fetchConfigMaps()
   } catch { /* cancelled */ }
 }
 
@@ -101,7 +103,7 @@ async function handleBatchDelete() {
     )
     const count = results.filter((r) => r.status === 'fulfilled').length
     const failed = results.length - count
-    ElMessage.success(`已成功删除 ${count} 个数据字典${failed ? `，${failed} 个失败` : ''}`); fetchConfigMaps()
+    ElMessage.success(t('config.batchDeleteResult', { count, type: t('config.configmap'), failed: failed ? `，${failed} 个失败` : '' })); fetchConfigMaps()
   } catch { /* cancelled */ }
 }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus, Delete, VideoPause, VideoPlay } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import {
   getCronJobList,
   getCronJobYaml,
@@ -19,6 +20,7 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useClusterStore } from '@/stores/cluster'
 
 const clusterStore = useClusterStore()
+const { t } = useI18n()
 
 const {
   loading,
@@ -65,11 +67,11 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 // 暂停 / 恢复 CronJob：使用专用 API 端点
 async function handleToggleSuspend(row: any) {
   const willSuspend = !row.suspend
-  const actionLabel = willSuspend ? '暂停' : '恢复'
+  const actionLabel = willSuspend ? t('workload.suspend') : t('workload.hpaResumeSuccess').split(' ')[1] || 'Resume'
   try {
     await ElMessageBox.confirm(
-      `确定要${actionLabel} CronJob "${row.name}" 吗？`,
-      `确认${actionLabel}`,
+      t('workload.suspendConfirm', { action: actionLabel, type: 'CronJob', name: row.name }),
+      t('common.confirmAction'),
       { type: 'warning' }
     )
   } catch {
@@ -81,10 +83,10 @@ async function handleToggleSuspend(row: any) {
     } else {
       await resumeCronJob({ namespace: row.namespace, name: row.name })
     }
-    ElMessage.success(`${row.name} 已${actionLabel}`)
+    ElMessage.success(t('workload.suspendSuccess', { name: row.name, action: actionLabel }))
     fetchResources()
   } catch (e: any) {
-    ElMessage.error(e?.message || `${actionLabel}失败`)
+    ElMessage.error(e?.message || t('workload.suspendFailed', { action: actionLabel }))
   }
 }
 
@@ -92,8 +94,8 @@ async function handleToggleSuspend(row: any) {
 async function handleTrigger(row: any) {
   try {
     await ElMessageBox.confirm(
-      `确定要手动触发 CronJob "${row.name}" 吗？`,
-      '确认触发',
+      t('workload.triggerConfirm', { name: row.name }),
+      t('common.confirmAction'),
       { type: 'info' }
     )
   } catch {
@@ -101,10 +103,10 @@ async function handleTrigger(row: any) {
   }
   try {
     await triggerCronJob({ namespace: row.namespace, name: row.name })
-    ElMessage.success(`${row.name} 已触发`)
+    ElMessage.success(t('workload.triggerSuccess', { name: row.name }))
     fetchResources()
   } catch (e: any) {
-    ElMessage.error(e?.message || '触发失败')
+    ElMessage.error(e?.message || t('workload.triggerFailed'))
   }
 }
 </script>
@@ -126,10 +128,10 @@ async function handleTrigger(row: any) {
     >
       <template #actions>
         <el-button type="success" @click="$router.push('/workloads/cronjobs/create')">
-          <el-icon><Plus /></el-icon> 创建
+          <el-icon><Plus /></el-icon> {{ t('common.create') }}
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})
         </el-button>
       </template>
       <template #extra>
@@ -154,14 +156,14 @@ async function handleTrigger(row: any) {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="namespace" label="命名空间" width="140" />
-        <el-table-column prop="schedule" label="调度表达式" width="160" />
-        <el-table-column label="暂停" width="90">
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
+        <el-table-column prop="schedule" :label="t('workload.schedule')" width="160" />
+        <el-table-column :label="t('workload.suspend')" width="90">
           <template #default="{ row }">
             <el-tag :type="row.suspend ? 'warning' : 'success'" size="small">{{ row.suspend ? '是' : '否' }}</el-tag>
           </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
@@ -17,6 +18,7 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
+const { t } = useI18n()
 const router = useRouter()
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
@@ -254,30 +256,30 @@ async function handleSubmit() {
   // Validate storage source
   if (form.storageType === 'nfs') {
     if (!form.nfsServer.trim()) {
-      ElMessage.error('请输入 NFS 服务器地址')
+      ElMessage.error(t('storage.nfsServerRequired'))
       return
     }
     if (!form.nfsPath.trim()) {
-      ElMessage.error('请输入 NFS 路径')
+      ElMessage.error(t('storage.nfsPathRequired'))
       return
     }
   } else if (form.storageType === 'hostPath') {
     if (!form.hostPath.trim()) {
-      ElMessage.error('请输入主机路径')
+      ElMessage.error(t('storage.hostPathRequired'))
       return
     }
   } else if (form.storageType === 'local') {
     if (!form.localPath.trim()) {
-      ElMessage.error('请输入本地路径')
+      ElMessage.error(t('storage.localPathRequired'))
       return
     }
   } else if (form.storageType === 'csi') {
     if (!form.csiDriver.trim()) {
-      ElMessage.error('请输入 CSI Driver 名称')
+      ElMessage.error(t('storage.csiDriverRequired'))
       return
     }
     if (!form.csiVolumeHandle.trim()) {
-      ElMessage.error('请输入 Volume Handle')
+      ElMessage.error(t('storage.volumeHandleRequired'))
       return
     }
   }
@@ -288,15 +290,15 @@ async function handleSubmit() {
     const yamlContent = yaml.dump(resource, { indent: 2, lineWidth: -1, noRefs: true })
     if (props.isEdit) {
       await updatePvYaml({ name: form.name, yaml: yamlContent })
-      ElMessage.success('持久卷更新成功')
+      ElMessage.success(t('storage.pvUpdated'))
       emit('success')
     } else {
       await createPv({ yaml: yamlContent })
-      ElMessage.success('持久卷创建成功')
+      ElMessage.success(t('storage.pvCreated'))
       router.push('/storage/pvs')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
+    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
   } finally {
     submitting.value = false
   }

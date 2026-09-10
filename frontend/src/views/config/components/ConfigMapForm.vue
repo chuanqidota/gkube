@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus, Upload } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
+const { t } = useI18n()
 const router = useRouter()
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
@@ -210,15 +212,15 @@ async function handleSubmit() {
     const yamlStr = buildYamlStr()
     if (props.isEdit) {
       await updateConfigMap({ namespace: form.namespace, name: form.name, yaml: yamlStr })
-      ElMessage.success('ConfigMap 更新成功')
+      ElMessage.success(t('config.configMapUpdated'))
       emit('success')
     } else {
       await createConfigMap({ namespace: form.namespace, yaml: yamlStr })
-      ElMessage.success('ConfigMap 创建成功')
+      ElMessage.success(t('config.configMapCreated'))
       router.push('/config/configmaps')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? '更新失败' : '创建失败'))
+    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
   } finally {
     submitting.value = false
   }

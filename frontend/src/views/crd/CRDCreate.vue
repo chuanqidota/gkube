@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { FullScreen } from '@element-plus/icons-vue'
 import { createCrd } from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const yamlEditorRef = ref()
 const submitting = ref(false)
@@ -39,16 +41,16 @@ spec:
 
 async function handleSubmit() {
   if (!yamlContent.value.trim()) {
-    ElMessage.warning('请输入 CRD YAML')
+    ElMessage.warning(t('crd.crdYamlRequired'))
     return
   }
   submitting.value = true
   try {
     await createCrd({ yaml: yamlContent.value })
-    ElMessage.success('CRD 创建成功')
+    ElMessage.success(t('crd.crdCreated'))
     router.push('/crd')
   } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || t('common.createFailed'))
   } finally {
     submitting.value = false
   }

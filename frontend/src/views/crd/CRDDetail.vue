@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, ArrowLeft } from '@element-plus/icons-vue'
 import { getCrdDetail, getCrdYaml, updateCrd, deleteCrd } from '@/api/resource'
@@ -11,6 +12,7 @@ import * as jsYaml from 'js-yaml'
 
 const { leftWidth, resizingH, onHResizeStart } = useResizable({ initialWidth: 320 })
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
@@ -61,7 +63,7 @@ async function fetchDetail() {
       activeVersion.value = storageVersion?.name || versions.value[0].name
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载 CRD 详情失败')
+    ElMessage.error(e?.message || t('crd.loadCrdFailed'))
   } finally {
     loading.value = false
   }
@@ -75,7 +77,7 @@ async function handleOpenYaml() {
     const res: any = await getCrdYaml({ name })
     yamlContent.value = res.data?.yaml || res.data || ''
   } catch (e: any) {
-    ElMessage.error(e?.message || '获取 YAML 失败')
+    ElMessage.error(e?.message || t('crd.getYamlFailed'))
     yamlDialogVisible.value = false
   } finally {
     yamlLoading.value = false
@@ -86,11 +88,11 @@ async function handleYamlSave() {
   yamlSaving.value = true
   try {
     await updateCrd({ yaml: yamlContent.value })
-    ElMessage.success('保存成功')
+    ElMessage.success(t('common.saveSuccess'))
     yamlDialogVisible.value = false
     fetchDetail()
   } catch (e: any) {
-    ElMessage.error(e?.message || '保存失败')
+    ElMessage.error(e?.message || t('common.saveFailed'))
   } finally {
     yamlSaving.value = false
   }
@@ -104,7 +106,7 @@ async function handleDelete() {
       { type: 'error' }
     )
     await deleteCrd({ name })
-    ElMessage.success('CRD 已删除')
+    ElMessage.success(t('crd.crdDeleted'))
     router.push('/crd')
   } catch {
     /* cancelled */
