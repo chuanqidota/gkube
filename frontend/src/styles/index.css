@@ -164,10 +164,10 @@
   background: transparent;
 }
 
-[data-theme="dark"] .app-main::-webkit-scrollbar-thumb {
+[data-theme='dark'] .app-main::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
 }
 
-[data-theme="dark"] .app-main::-webkit-scrollbar-thumb:hover {
+[data-theme='dark'] .app-main::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }

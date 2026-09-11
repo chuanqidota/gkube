@@ -31,7 +31,7 @@ defineEmits<{
   <div class="page-header">
     <div class="header-left">
       <div class="title-row">
-        <el-button :icon="ArrowLeft" link @click="$emit('back')" class="back-btn" />
+        <el-button :icon="ArrowLeft" link class="back-btn" @click="$emit('back')" />
         <h2 class="res-name">{{ title }}</h2>
         <el-tag v-if="statusTag" :type="statusTag.type" size="small" class="status-tag">
           {{ statusTag.text }}
@@ -56,8 +56,8 @@ defineEmits<{
           <span class="popover-title">刷新间隔</span>
           <el-radio-group
             :model-value="currentInterval"
-            @update:model-value="(v: number) => $emit('setIntervalOption', v)"
             size="small"
+            @update:model-value="(v: number) => $emit('setIntervalOption', v)"
           >
             <el-radio-button
               v-for="interval in availableIntervals"
@@ -67,16 +67,12 @@ defineEmits<{
               {{ interval }}s
             </el-radio-button>
           </el-radio-group>
-          <el-button
-            size="small"
-            :type="isRunning ? 'danger' : 'primary'"
-            @click="$emit('toggle')"
-          >
+          <el-button size="small" :type="isRunning ? 'danger' : 'primary'" @click="$emit('toggle')">
             {{ isRunning ? '停止' : '开始' }}
           </el-button>
         </div>
       </el-popover>
-      <el-button :icon="Refresh" @click="$emit('refresh')" :loading="loading" size="small" />
+      <el-button :icon="Refresh" :loading="loading" size="small" @click="$emit('refresh')" />
     </div>
   </div>
 </template>

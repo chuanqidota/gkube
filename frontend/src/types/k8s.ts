@@ -282,7 +282,10 @@ export interface K8sStatefulSet {
 export interface K8sDaemonSetSpec {
   selector: K8sLabelSelector
   template: K8sPodTemplateSpec
-  updateStrategy?: { type?: string; rollingUpdate?: { maxUnavailable?: number | string; maxSurge?: number | string } }
+  updateStrategy?: {
+    type?: string
+    rollingUpdate?: { maxUnavailable?: number | string; maxSurge?: number | string }
+  }
 }
 
 export interface K8sDaemonSetStatus {

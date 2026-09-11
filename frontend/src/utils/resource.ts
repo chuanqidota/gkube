@@ -3,7 +3,8 @@
  * 规则：可选 prefix/（DNS 子域名，≤253 字符）+ name（≤63 字符，字母数字开头结尾，中间可含 -_.）。
  * 与 K8s apimachinery IsQualifiedName 对齐。
  */
-const QUALIFIED_NAME_RE = /^(?:(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\/)?[A-Za-z0-9](?:[-A-Za-z0-9_.]*[A-Za-z0-9])?$/
+const QUALIFIED_NAME_RE =
+  /^(?:(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\/)?[A-Za-z0-9](?:[-A-Za-z0-9_.]*[A-Za-z0-9])?$/
 
 /**
  * 校验 K8s qualified name（label/taint key）。返回错误提示，合法时返回空字符串。
@@ -20,7 +21,8 @@ export function validateQualifiedName(key: string, maxLen = 63): string {
   } else if (key.length > maxLen) {
     return `Key 长度不能超过 ${maxLen}`
   }
-  if (!QUALIFIED_NAME_RE.test(key)) return 'Key 格式不合法（需字母数字开头结尾，仅含 -_.，可选 prefix/）'
+  if (!QUALIFIED_NAME_RE.test(key))
+    return 'Key 格式不合法（需字母数字开头结尾，仅含 -_.，可选 prefix/）'
   return ''
 }
 
@@ -41,7 +43,8 @@ export function validateLabelValue(value: string): string {
  */
 const VALID_TAINT_EFFECTS = ['NoSchedule', 'PreferNoSchedule', 'NoExecute']
 export function validateTaintEffect(effect: string): string {
-  if (!VALID_TAINT_EFFECTS.includes(effect)) return 'Effect 必须为 NoSchedule/PreferNoSchedule/NoExecute'
+  if (!VALID_TAINT_EFFECTS.includes(effect))
+    return 'Effect 必须为 NoSchedule/PreferNoSchedule/NoExecute'
   return ''
 }
 

@@ -36,15 +36,21 @@ async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
     namespaceList.value = extractNamespaceNames(res.data)
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 function buildYaml() {
   const hard: Record<string, string> = {}
-  form.value.limits.forEach(l => { if (l.value) hard[l.resource] = l.value })
+  form.value.limits.forEach((l) => {
+    if (l.value) hard[l.resource] = l.value
+  })
 
   const labels: Record<string, string> = {}
-  form.value.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+  form.value.labels.forEach((l) => {
+    if (l.key.trim()) labels[l.key.trim()] = l.value
+  })
 
   const metadata: Record<string, any> = { name: form.value.name, namespace: form.value.namespace }
   if (Object.keys(labels).length > 0) metadata.labels = labels
@@ -53,11 +59,13 @@ function buildYaml() {
   if (form.value.scopes.length > 0) spec.scopes = form.value.scopes
   if (form.value.scopeSelector) {
     spec.scopeSelector = {
-      matchExpressions: [{
-        scopeName: form.value.scopeSelector,
-        operator: 'In',
-        values: [''],
-      }],
+      matchExpressions: [
+        {
+          scopeName: form.value.scopeSelector,
+          operator: 'In',
+          values: [''],
+        },
+      ],
     }
   }
 
@@ -83,7 +91,9 @@ async function handleCreate() {
     router.push('/config/resourcequotas')
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to create ResourceQuota')
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(fetchNamespaces)
@@ -92,29 +102,45 @@ onMounted(fetchNamespaces)
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 style="margin: 0;">创建 ResourceQuota</h2>
+      <h2 style="margin: 0">创建 ResourceQuota</h2>
       <el-button @click="router.push('/config/resourcequotas')">Back to List</el-button>
     </div>
     <el-card shadow="never">
-      <el-form label-width="180px" style="max-width: 600px;">
-        <el-form-item label="Name" required><el-input v-model="form.name" placeholder="my-resource-quota" /></el-form-item>
+      <el-form label-width="180px" style="max-width: 600px">
+        <el-form-item label="Name" required
+          ><el-input v-model="form.name" placeholder="my-resource-quota"
+        /></el-form-item>
         <el-form-item label="Namespace" required>
-          <el-select v-model="form.namespace" placeholder="Select namespace" style="width: 100%;">
+          <el-select v-model="form.namespace" placeholder="Select namespace" style="width: 100%">
             <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
           </el-select>
         </el-form-item>
         <el-form-item label="标签">
-          <div style="width: 100%;">
-            <div v-for="(label, i) in form.labels" :key="i" style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px;">
-              <el-input v-model="label.key" placeholder="Key" style="flex: 1;" />
-              <el-input v-model="label.value" placeholder="Value" style="flex: 1;" />
-              <el-button type="danger" circle size="small" @click="form.labels.splice(i, 1)">X</el-button>
+          <div style="width: 100%">
+            <div
+              v-for="(label, i) in form.labels"
+              :key="i"
+              style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px"
+            >
+              <el-input v-model="label.key" placeholder="Key" style="flex: 1" />
+              <el-input v-model="label.value" placeholder="Value" style="flex: 1" />
+              <el-button type="danger" circle size="small" @click="form.labels.splice(i, 1)"
+                >X</el-button
+              >
             </div>
-            <el-button size="small" @click="form.labels.push({ key: '', value: '' })">+ 添加标签</el-button>
+            <el-button size="small" @click="form.labels.push({ key: '', value: '' })"
+              >+ 添加标签</el-button
+            >
           </div>
         </el-form-item>
         <el-form-item label="作用域 (Scopes)">
-          <el-select v-model="form.scopes" multiple clearable placeholder="选择作用域（可选）" style="width: 100%;">
+          <el-select
+            v-model="form.scopes"
+            multiple
+            clearable
+            placeholder="选择作用域（可选）"
+            style="width: 100%"
+          >
             <el-option label="Terminating" value="Terminating" />
             <el-option label="NotTerminating" value="NotTerminating" />
             <el-option label="BestEffort" value="BestEffort" />
@@ -125,14 +151,25 @@ onMounted(fetchNamespaces)
         </el-form-item>
         <el-divider>Resource Limits</el-divider>
         <el-form-item v-for="(limit, i) in form.limits" :key="i" :label="limit.resource">
-          <el-input v-model="limit.value" :placeholder="limit.resource === 'pods' || limit.resource === 'services' || limit.resource === 'persistentvolumeclaims' ? 'e.g. 10' : 'e.g. 4 or 8Gi'" />
+          <el-input
+            v-model="limit.value"
+            :placeholder="
+              limit.resource === 'pods' ||
+              limit.resource === 'services' ||
+              limit.resource === 'persistentvolumeclaims'
+                ? 'e.g. 10'
+                : 'e.g. 4 or 8Gi'
+            "
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleCreate">创建 ResourceQuota</el-button>
+          <el-button type="primary" :loading="loading" @click="handleCreate"
+            >创建 ResourceQuota</el-button
+          >
         </el-form-item>
       </el-form>
     </el-card>
-    <el-card shadow="never" style="margin-top: var(--gk-space-4);">
+    <el-card shadow="never" style="margin-top: var(--gk-space-4)">
       <template #header><span>YAML Preview</span></template>
       <YamlEditor :model-value="yamlContent" height="300px" read-only />
     </el-card>
@@ -140,6 +177,13 @@ onMounted(fetchNamespaces)
 </template>
 
 <style scoped>
-.page-container { padding: var(--gk-space-5); }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--gk-space-4); }
+.page-container {
+  padding: var(--gk-space-5);
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--gk-space-4);
+}
 </style>

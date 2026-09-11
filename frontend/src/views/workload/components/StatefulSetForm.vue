@@ -11,5 +11,10 @@ defineEmits<{ success: []; cancel: [] }>()
 </script>
 
 <template>
-  <WorkloadForm kind="StatefulSet" :is-edit="isEdit" :initial-data="initialData" :on-submit="onSubmit" />
+  <WorkloadForm
+    kind="StatefulSet"
+    :is-edit="isEdit"
+    :initial-data="initialData"
+    :on-submit="onSubmit"
+  />
 </template>

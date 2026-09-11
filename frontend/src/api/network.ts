@@ -36,7 +36,10 @@ export function transformServices(items: any[]): Service[] {
         return s
       })
       .join(', ')
-    const externalIps = svc.spec?.externalIPs?.join(', ') || svc.status?.loadBalancer?.ingress?.map((i: any) => i.ip || i.hostname).join(', ') || ''
+    const externalIps =
+      svc.spec?.externalIPs?.join(', ') ||
+      svc.status?.loadBalancer?.ingress?.map((i: any) => i.ip || i.hostname).join(', ') ||
+      ''
     return {
       name: svc.metadata?.name || '',
       namespace: svc.metadata?.namespace || '',
@@ -53,7 +56,8 @@ export function transformIngresses(items: any[]): Ingress[] {
   if (!Array.isArray(items)) return []
   return items.map((ing: any) => {
     const hosts = (ing.spec?.rules || []).map((r: any) => r.host || '*').join(', ')
-    const address = ing.status?.loadBalancer?.ingress?.map((i: any) => i.ip || i.hostname).join(', ') || ''
+    const address =
+      ing.status?.loadBalancer?.ingress?.map((i: any) => i.ip || i.hostname).join(', ') || ''
     return {
       name: ing.metadata?.name || '',
       namespace: ing.metadata?.namespace || '',
@@ -126,8 +130,13 @@ export const getNetworkPolicyEvents = networkPolicyApi.events
 
 // ============ 资源特有操作 ============
 
-export const getServicePods = (params: { namespace: string; name: string }) => request.get('/k8s/service/pods', { params })
-export const getServiceEndpoints = (params: { namespace: string; name: string }) => request.get('/k8s/service/endpoints', { params })
-export const getIngressClassList = (params: { clusterName?: string }) => request.get('/k8s/ingress/ingressclasses', { params })
-export const getIngressTLSCertStatus = (params: { namespace: string; name: string }) => request.get('/k8s/ingress/tls-status', { params })
-export const getNetworkPolicyPods = (params: { namespace: string; name: string }) => request.get('/k8s/networkpolicy/pods', { params })
+export const getServicePods = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/service/pods', { params })
+export const getServiceEndpoints = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/service/endpoints', { params })
+export const getIngressClassList = (params: { clusterName?: string }) =>
+  request.get('/k8s/ingress/ingressclasses', { params })
+export const getIngressTLSCertStatus = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/ingress/tls-status', { params })
+export const getNetworkPolicyPods = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/networkpolicy/pods', { params })

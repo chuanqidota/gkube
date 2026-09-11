@@ -126,7 +126,7 @@
    order alone decides the winner — and our file is imported
    AFTER the EP dark CSS in main.ts, so we win.
    ============================================================ */
-html[data-theme="dark"] {
+html[data-theme='dark'] {
   /* Primary */
   --el-color-primary: var(--gk-color-primary);
   --el-color-primary-light-3: var(--gk-color-primary-light);
@@ -233,7 +233,7 @@ html[data-theme="dark"] {
 }
 
 /* Component-level overrides (match html.dark .el-* specificity 0-2-1) */
-html[data-theme="dark"] .el-card {
+html[data-theme='dark'] .el-card {
   --el-card-bg-color: var(--gk-color-bg-card);
   --el-fill-color-blank: var(--gk-color-bg-card);
 }
@@ -270,13 +270,13 @@ html[data-theme="dark"] .el-card {
 }
 
 /* Default (untyped) button disabled — neutral grey */
-.el-button:not([class*="el-button--"]) {
+.el-button:not([class*='el-button--']) {
   --el-button-disabled-text-color: var(--gk-neutral-600);
   --el-button-disabled-bg-color: var(--gk-color-bg-card);
   --el-button-disabled-border-color: var(--gk-neutral-300);
 }
 
-html[data-theme="dark"] .el-empty {
+html[data-theme='dark'] .el-empty {
   --el-empty-fill-color-0: var(--gk-neutral-100);
   --el-empty-fill-color-1: var(--gk-neutral-200);
   --el-empty-fill-color-2: var(--gk-neutral-300);

@@ -60,14 +60,26 @@ const {
   autoRefreshInterval: 30000,
 })
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchResources)
 
 async function handleRerun(row: any) {
   try {
     await ElMessageBox.confirm(
       t('workload.rerunConfirm', { name: row.name }),
       t('common.confirmAction'),
-      { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
+      {
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning',
+      },
     )
     await rerunJob({ namespace: row.namespace, name: row.name })
     ElMessage.success(t('workload.rerunSuccess'))
@@ -82,8 +94,8 @@ async function handleRerun(row: any) {
 <template>
   <div class="page-container">
     <ResourceListToolbar
-      :search-value="searchName"
       v-model:namespace-value="selectedNamespace"
+      :search-value="searchName"
       :namespace-list="namespaceList"
       :total-count="totalCount"
       :selected-count="selectedRows.length"
@@ -118,13 +130,18 @@ async function handleRerun(row: any) {
 
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="filteredList"
         v-loading="loading"
+        :data="filteredList"
         stripe
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          prop="name"
+          :label="t('common.name')"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
@@ -147,11 +164,18 @@ async function handleRerun(row: any) {
         <el-table-column :label="t('common.actions')" width="260" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" type="success" :disabled="row.active > 0" @click="handleRerun(row)">
-              <el-icon><RefreshRight /></el-icon> {{ t('workload.rerunSuccess').split(' ')[0] }}
-            </el-button>
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
+              <el-button
+                size="small"
+                type="success"
+                :disabled="row.active > 0"
+                @click="handleRerun(row)"
+              >
+                <el-icon><RefreshRight /></el-icon> {{ t('workload.rerunSuccess').split(' ')[0] }}
+              </el-button>
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{
+                t('common.delete')
+              }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -159,17 +183,31 @@ async function handleRerun(row: any) {
 
       <!-- Load More Button -->
       <div v-if="hasMore" class="load-more">
-        <el-button @click="fetchNextPage" :loading="loading" link type="primary">
+        <el-button :loading="loading" link type="primary" @click="fetchNextPage">
           {{ t('workload.loadMore') }}
         </el-button>
       </div>
     </el-card>
 
     <!-- YAML Drawer -->
-    <el-drawer v-model="yamlDialogVisible" title="Job YAML" size="85%" direction="rtl" class="yaml-drawer"
-      :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px);">
-        <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
+    <el-drawer
+      v-model="yamlDialogVisible"
+      title="Job YAML"
+      size="85%"
+      direction="rtl"
+      class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px)">
+        <YamlEditor
+          v-model="yamlContent"
+          height="100%"
+          auto-format
+          show-save-buttons
+          :saving="yamlSaving"
+          @save="handleSaveYaml"
+          @cancel="handleCancelYaml"
+        />
       </div>
     </el-drawer>
   </div>

@@ -4,25 +4,6 @@ import { useI18n } from 'vue-i18n'
 import { Upload, Delete, Warning } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
-const { t } = useI18n()
-
-export interface FileImportEntry {
-  key: string
-  value: string
-  preEncoded: boolean  // true = value is already base64-encoded (binary file)
-}
-
-interface ImportFileItem {
-  id: number
-  file: File
-  key: string         // editable, defaults to cleaned filename
-  originalName: string
-  isBinary: boolean
-  size: number
-  status: 'pending' | 'reading' | 'done' | 'error'
-  errorMsg?: string
-}
-
 const props = defineProps<{
   modelValue: boolean
 }>()
@@ -31,6 +12,25 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   confirm: [entries: FileImportEntry[]]
 }>()
+
+const { t } = useI18n()
+
+export interface FileImportEntry {
+  key: string
+  value: string
+  preEncoded: boolean // true = value is already base64-encoded (binary file)
+}
+
+interface ImportFileItem {
+  id: number
+  file: File
+  key: string // editable, defaults to cleaned filename
+  originalName: string
+  isBinary: boolean
+  size: number
+  status: 'pending' | 'reading' | 'done' | 'error'
+  errorMsg?: string
+}
 
 const visible = computed({
   get: () => props.modelValue,
@@ -41,28 +41,58 @@ const fileList = ref<ImportFileItem[]>([])
 const reading = ref(false)
 const dragover = ref(false)
 const fileInputRef = ref<HTMLInputElement>()
-const binaryDataMap = new Map<number, string>()  // id → base64 content for binary files
+const binaryDataMap = new Map<number, string>() // id → base64 content for binary files
+
+function handleDialogClose() {
+  fileList.value = []
+  binaryDataMap.clear()
+}
 let nextId = 1
-let dragCounter = 0  // tracks nested dragenter/dragleave to prevent flicker
+let dragCounter = 0 // tracks nested dragenter/dragleave to prevent flicker
 
 // ---- Key name cleaning rules ----
 // K8s ConfigMap/Secret keys: alphanumeric, '-', '_', '.' (max 253 chars, no '/')
 function cleanKey(filename: string): string {
-  let key = filename
-    .replace(/\//g, '_')           // path separators → _
-    .replace(/^\.+/, '')           // leading dots removed
-    .replace(/\s+/g, '_')          // whitespace → _
-    .replace(/[^\w.\-]/g, '_')     // non-safe chars → _
-    .substring(0, 253)             // max length
+  const key = filename
+    .replace(/\//g, '_') // path separators → _
+    .replace(/^\.+/, '') // leading dots removed
+    .replace(/\s+/g, '_') // whitespace → _
+    .replace(/[^\w.-]/g, '_') // non-safe chars → _
+    .substring(0, 253) // max length
   return key || 'key'
 }
 
 // ---- Binary detection by extension ----
 const BINARY_EXTENSIONS = new Set([
-  'pem', 'crt', 'cer', 'key', 'p12', 'pfx', 'jks', 'keystore', 'der',
-  'png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'webp',
-  'bin', 'dat', 'exe', 'dll', 'so', 'dylib',
-  'zip', 'gz', 'tar', 'bz2', 'xz', '7z', 'rar',
+  'pem',
+  'crt',
+  'cer',
+  'key',
+  'p12',
+  'pfx',
+  'jks',
+  'keystore',
+  'der',
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'bmp',
+  'ico',
+  'webp',
+  'bin',
+  'dat',
+  'exe',
+  'dll',
+  'so',
+  'dylib',
+  'zip',
+  'gz',
+  'tar',
+  'bz2',
+  'xz',
+  '7z',
+  'rar',
 ])
 
 function isBinaryFile(filename: string): boolean {
@@ -72,7 +102,7 @@ function isBinaryFile(filename: string): boolean {
 
 // ---- Size estimation (account for base64 4/3 expansion on text values) ----
 const METADATA_OVERHEAD = 300
-const MAX_TOTAL_SIZE = 1048576 - METADATA_OVERHEAD  // 1 MiB minus metadata
+const MAX_TOTAL_SIZE = 1048576 - METADATA_OVERHEAD // 1 MiB minus metadata
 
 const estimatedTotalSize = computed(() => {
   let total = 0
@@ -80,8 +110,8 @@ const estimatedTotalSize = computed(() => {
     const keyBytes = new TextEncoder().encode(item.key).length
     // Binary: value is base64 (already expanded). Text: buildYamlStr will base64-encode → ×4/3
     const valueBytes = item.isBinary
-      ? Math.ceil(item.size * 4 / 3)  // readAsArrayBuffer → base64
-      : Math.ceil(item.size * 4 / 3)  // readAsText → base64 in buildYamlStr
+      ? Math.ceil((item.size * 4) / 3) // readAsArrayBuffer → base64
+      : Math.ceil((item.size * 4) / 3) // readAsText → base64 in buildYamlStr
     total += keyBytes + valueBytes
   }
   return total
@@ -90,7 +120,7 @@ const estimatedTotalSize = computed(() => {
 const sizeExceeded = computed(() => estimatedTotalSize.value > MAX_TOTAL_SIZE)
 
 const sizePercentage = computed(() =>
-  Math.min(100, Math.round((estimatedTotalSize.value / MAX_TOTAL_SIZE) * 100))
+  Math.min(100, Math.round((estimatedTotalSize.value / MAX_TOTAL_SIZE) * 100)),
 )
 
 function formatBytes(bytes: number): string {
@@ -107,9 +137,7 @@ function isValidKey(key: string): boolean {
   return /^[A-Za-z0-9._-]+$/.test(key)
 }
 
-const hasInvalidKeys = computed(() =>
-  fileList.value.some(item => !isValidKey(item.key))
-)
+const hasInvalidKeys = computed(() => fileList.value.some((item) => !isValidKey(item.key)))
 
 // ---- Duplicate key detection (within batch) ----
 function resolveDuplicates(items: ImportFileItem[]) {
@@ -146,7 +174,7 @@ function resolveDuplicates(items: ImportFileItem[]) {
 async function processFiles(files: File[]) {
   if (files.length === 0) return
 
-  const newItems: ImportFileItem[] = files.map(file => ({
+  const newItems: ImportFileItem[] = files.map((file) => ({
     id: nextId++,
     file,
     key: cleanKey(file.name),
@@ -214,7 +242,7 @@ function handleFileInputChange(event: Event) {
   if (input.files) {
     processFiles(Array.from(input.files))
   }
-  input.value = ''  // reset to allow re-selecting same file
+  input.value = '' // reset to allow re-selecting same file
 }
 
 function handleDragenter(event: DragEvent) {
@@ -243,7 +271,7 @@ function handleDrop(event: DragEvent) {
   for (const item of Array.from(items)) {
     // Use webkitGetAsEntry to filter out directories
     const entry = (item as any).webkitGetAsEntry?.()
-    if (entry && entry.isDirectory) continue  // skip directories
+    if (entry && entry.isDirectory) continue // skip directories
     const file = item.getAsFile()
     if (file) files.push(file)
   }
@@ -251,7 +279,7 @@ function handleDrop(event: DragEvent) {
 }
 
 function removeFile(id: number) {
-  fileList.value = fileList.value.filter(item => item.id !== id)
+  fileList.value = fileList.value.filter((item) => item.id !== id)
   binaryDataMap.delete(id)
 }
 
@@ -339,7 +367,7 @@ watch(visible, (v) => {
     :title="t('config.importFilesToData')"
     width="620px"
     :close-on-click-modal="false"
-    @close="fileList = []; binaryDataMap.clear()"
+    @close="handleDialogClose"
   >
     <!-- Drop zone -->
     <div
@@ -355,7 +383,7 @@ watch(visible, (v) => {
         ref="fileInputRef"
         type="file"
         multiple
-        style="display: none;"
+        style="display: none"
         @change="handleFileInputChange"
       />
       <el-icon :size="36" class="drop-icon"><Upload /></el-icon>
@@ -386,7 +414,12 @@ watch(visible, (v) => {
           :class="{ 'file-error': item.status === 'error' }"
         >
           <span class="col-name" :title="item.originalName">
-            <el-icon v-if="item.isBinary" :size="14" style="margin-right: 4px; color: var(--el-color-warning);"><Warning /></el-icon>
+            <el-icon
+              v-if="item.isBinary"
+              :size="14"
+              style="margin-right: 4px; color: var(--el-color-warning)"
+              ><Warning
+            /></el-icon>
             {{ item.originalName }}
           </span>
           <span class="col-key">
@@ -409,8 +442,15 @@ watch(visible, (v) => {
       <!-- Size estimation -->
       <div class="size-bar" :class="{ 'size-exceeded': sizeExceeded }">
         <div class="size-info">
-          <span>{{ t('config.estimatedSize', { current: formatBytes(estimatedTotalSize), max: formatBytes(MAX_TOTAL_SIZE) }) }}</span>
-          <span v-if="sizeExceeded" class="size-warning">⚠️ {{ t('config.sizeExceededWarning') }}</span>
+          <span>{{
+            t('config.estimatedSize', {
+              current: formatBytes(estimatedTotalSize),
+              max: formatBytes(MAX_TOTAL_SIZE),
+            })
+          }}</span>
+          <span v-if="sizeExceeded" class="size-warning"
+            >⚠️ {{ t('config.sizeExceededWarning') }}</span
+          >
         </div>
         <el-progress
           :percentage="sizePercentage"

@@ -19,7 +19,7 @@ function getAge(row: any): string {
 </script>
 
 <template>
-  <div class="events-table" v-loading="loading">
+  <div v-loading="loading" class="events-table">
     <el-table :data="events" style="width: 100%" size="small" height="100%">
       <el-table-column label="Type" width="80">
         <template #default="{ row }">
@@ -30,17 +30,21 @@ function getAge(row: any): string {
       </el-table-column>
       <el-table-column label="Reason" width="160">
         <template #default="{ row }">
-          <span style="font-size: 12px; font-weight: 500;">{{ row.reason || '-' }}</span>
+          <span style="font-size: 12px; font-weight: 500">{{ row.reason || '-' }}</span>
         </template>
       </el-table-column>
       <el-table-column label="Message" min-width="300" show-overflow-tooltip>
         <template #default="{ row }">
-          <span style="font-size: 12px; color: var(--el-text-color-secondary);">{{ row.message || '-' }}</span>
+          <span style="font-size: 12px; color: var(--el-text-color-secondary)">{{
+            row.message || '-'
+          }}</span>
         </template>
       </el-table-column>
       <el-table-column label="Age" width="100">
         <template #default="{ row }">
-          <span style="font-size: 12px; color: var(--el-text-color-placeholder);">{{ getAge(row) }}</span>
+          <span style="font-size: 12px; color: var(--el-text-color-placeholder)">{{
+            getAge(row)
+          }}</span>
         </template>
       </el-table-column>
     </el-table>

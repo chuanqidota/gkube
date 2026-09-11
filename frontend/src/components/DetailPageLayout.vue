@@ -17,11 +17,12 @@ const props = withDefaults(defineProps<Props>(), {
   minTopHeight: 150,
 })
 
-const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({
-  initialWidth: props.initialLeftWidth,
-  minWidth: props.minLeftWidth,
-  minTopHeight: props.minTopHeight,
-})
+const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } =
+  useResizable({
+    initialWidth: props.initialLeftWidth,
+    minWidth: props.minLeftWidth,
+    minTopHeight: props.minTopHeight,
+  })
 </script>
 
 <template>

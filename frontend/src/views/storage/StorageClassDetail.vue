@@ -4,7 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
-import { getStorageClassDetail, deleteStorageClass, getPvcListByStorageClass, getStorageClassYaml, updateStorageClass } from '@/api/resource'
+import {
+  getStorageClassDetail,
+  deleteStorageClass,
+  getPvcListByStorageClass,
+  getStorageClassYaml,
+  updateStorageClass,
+} from '@/api/resource'
 import { formatAge } from '@/utils/helpers'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import StorageClassForm from '@/views/storage/components/StorageClassForm.vue'
@@ -29,7 +35,8 @@ const editFullscreen = ref(false)
 // Right panel vertical resize
 const rightTopHeight = ref<number | null>(null)
 const resizingV = ref(false)
-let vStartY = 0, vStartH = 0
+let vStartY = 0,
+  vStartH = 0
 
 function onVResizeStart(e: MouseEvent) {
   e.preventDefault()
@@ -55,8 +62,10 @@ const name = route.params.name as string
 
 const isDefault = computed(() => {
   const annotations = storageClass.value?.metadata?.annotations || {}
-  return annotations['storageclass.kubernetes.io/is-default-class'] === 'true' ||
-         annotations['storageclass.beta.kubernetes.io/is-default-class'] === 'true'
+  return (
+    annotations['storageclass.kubernetes.io/is-default-class'] === 'true' ||
+    annotations['storageclass.beta.kubernetes.io/is-default-class'] === 'true'
+  )
 })
 
 async function fetchDetail() {
@@ -124,10 +133,21 @@ async function handleDelete() {
 
 const { leftWidth, resizingH, onHResizeStart } = useResizable({ initialWidth: 320 })
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-  fetchDetail()
-  fetchPvcs()
-}, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(
+  async () => {
+    fetchDetail()
+    fetchPvcs()
+  },
+  { autoStart: false },
+)
 
 onMounted(() => {
   fetchDetail()
@@ -136,15 +156,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
+  <div v-loading="loading" class="detail-page">
     <!-- ===== 顶部标题栏 ===== -->
     <div class="page-header">
       <div class="header-left">
         <h2 class="res-name">{{ name }}</h2>
         <div class="meta-line">
           <el-tag v-if="isDefault" type="success" effect="dark" size="small">默认</el-tag>
-          <span class="info-text" v-if="storageClass?.provisioner">{{ storageClass.provisioner }}</span>
+          <span v-if="storageClass?.provisioner" class="info-text">{{
+            storageClass.provisioner
+          }}</span>
         </div>
       </div>
       <div class="header-actions">
@@ -154,11 +175,7 @@ onMounted(() => {
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
+            <el-button :type="isRunning ? 'success' : 'default'" :icon="Timer" @click="toggle()" />
           </template>
           <div class="auto-refresh-popover">
             <div class="popover-title">
@@ -166,10 +183,10 @@ onMounted(() => {
             </div>
             <el-select
               :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
               :teleported="false"
               size="small"
-              style="width: 100%;"
+              style="width: 100%"
+              @update:model-value="setIntervalOption"
             >
               <el-option
                 v-for="sec in availableIntervals"
@@ -181,7 +198,7 @@ onMounted(() => {
           </div>
         </el-popover>
         <el-tooltip content="刷新" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+          <el-button :loading="loading" :icon="Refresh" @click="manualRefresh()" />
         </el-tooltip>
         <el-tooltip content="返回列表" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/storage/storageclasses')" />
@@ -191,7 +208,6 @@ onMounted(() => {
 
     <template v-if="storageClass">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
-
         <!-- 左侧：基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">基本信息</div>
@@ -215,7 +231,9 @@ onMounted(() => {
             <div class="info-row">
               <span class="info-label">允许卷扩展</span>
               <span class="info-value">
-                <el-tag v-if="storageClass.allowVolumeExpansion" type="success" size="small">是</el-tag>
+                <el-tag v-if="storageClass.allowVolumeExpansion" type="success" size="small"
+                  >是</el-tag
+                >
                 <span v-else>否</span>
               </span>
             </div>
@@ -232,11 +250,22 @@ onMounted(() => {
             </div>
 
             <!-- Labels -->
-            <template v-if="storageClass.metadata?.labels && Object.keys(storageClass.metadata.labels).length > 0">
+            <template
+              v-if="
+                storageClass.metadata?.labels &&
+                Object.keys(storageClass.metadata.labels).length > 0
+              "
+            >
               <div class="info-row">
                 <span class="info-label">标签</span>
                 <span class="info-value">
-                  <el-tag v-for="(val, key) in storageClass.metadata.labels" :key="key" size="small" class="label-tag">{{ key }}={{ val }}</el-tag>
+                  <el-tag
+                    v-for="(val, key) in storageClass.metadata.labels"
+                    :key="key"
+                    size="small"
+                    class="label-tag"
+                    >{{ key }}={{ val }}</el-tag
+                  >
                 </span>
               </div>
             </template>
@@ -246,13 +275,22 @@ onMounted(() => {
               <div class="info-row">
                 <span class="info-label">挂载选项</span>
                 <span class="info-value">
-                  <el-tag v-for="opt in storageClass.mountOptions" :key="opt" size="small" type="info" class="label-tag">{{ opt }}</el-tag>
+                  <el-tag
+                    v-for="opt in storageClass.mountOptions"
+                    :key="opt"
+                    size="small"
+                    type="info"
+                    class="label-tag"
+                    >{{ opt }}</el-tag
+                  >
                 </span>
               </div>
             </template>
 
             <!-- Parameters -->
-            <template v-if="storageClass.parameters && Object.keys(storageClass.parameters).length > 0">
+            <template
+              v-if="storageClass.parameters && Object.keys(storageClass.parameters).length > 0"
+            >
               <div class="info-row">
                 <span class="info-label">参数</span>
                 <span class="info-value">
@@ -270,14 +308,17 @@ onMounted(() => {
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
+          :style="{ left: leftWidth - 3 + 'px' }"
           @mousedown="onHResizeStart"
         />
 
         <!-- 右侧：关联 PVC + 注解 -->
         <div class="right-panel">
           <!-- 关联 PVC -->
-          <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
+          <div
+            class="right-section"
+            :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}"
+          >
             <div class="panel-title">
               关联 PVC
               <span class="count-badge">{{ pvcs.length }} 个</span>
@@ -287,12 +328,27 @@ onMounted(() => {
                 <el-table-column prop="namespace" label="命名空间" width="120" />
                 <el-table-column prop="name" label="名称" min-width="160" show-overflow-tooltip>
                   <template #default="{ row }">
-                    <el-button link type="primary" @click="$router.push(`/storage/pvcs/${row.namespace}/${row.name}`)">{{ row.name }}</el-button>
+                    <el-button
+                      link
+                      type="primary"
+                      @click="$router.push(`/storage/pvcs/${row.namespace}/${row.name}`)"
+                      >{{ row.name }}</el-button
+                    >
                   </template>
                 </el-table-column>
                 <el-table-column prop="status" label="状态" width="100">
                   <template #default="{ row }">
-                    <el-tag :type="row.status === 'Bound' ? 'success' : row.status === 'Pending' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag>
+                    <el-tag
+                      :type="
+                        row.status === 'Bound'
+                          ? 'success'
+                          : row.status === 'Pending'
+                            ? 'warning'
+                            : 'info'
+                      "
+                      size="small"
+                      >{{ row.status }}</el-tag
+                    >
                   </template>
                 </el-table-column>
                 <el-table-column prop="capacity" label="容量" width="100" />
@@ -303,17 +359,36 @@ onMounted(() => {
           </div>
 
           <!-- 垂直拖拽条（仅当注解存在时显示） -->
-          <template v-if="storageClass.metadata?.annotations && Object.keys(storageClass.metadata.annotations).length > 0">
-            <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
+          <template
+            v-if="
+              storageClass.metadata?.annotations &&
+              Object.keys(storageClass.metadata.annotations).length > 0
+            "
+          >
+            <div
+              class="resize-handle-v"
+              :class="{ active: resizingV }"
+              @mousedown="onVResizeStart"
+            />
           </template>
 
           <!-- 注解 -->
-          <div class="right-section" v-if="storageClass.metadata?.annotations && Object.keys(storageClass.metadata.annotations).length > 0">
+          <div
+            v-if="
+              storageClass.metadata?.annotations &&
+              Object.keys(storageClass.metadata.annotations).length > 0
+            "
+            class="right-section"
+          >
             <div class="panel-title">注解</div>
             <div class="info-body">
-              <div v-for="(val, key) in storageClass.metadata.annotations" :key="key" class="info-row">
-                <span class="info-label mono" style="min-width: 120px;">{{ key }}</span>
-                <span class="info-value mono" style="word-break: break-all;">{{ val }}</span>
+              <div
+                v-for="(val, key) in storageClass.metadata.annotations"
+                :key="key"
+                class="info-row"
+              >
+                <span class="info-label mono" style="min-width: 120px">{{ key }}</span>
+                <span class="info-value mono" style="word-break: break-all">{{ val }}</span>
               </div>
             </div>
           </div>
@@ -351,7 +426,7 @@ onMounted(() => {
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto">
         <StorageClassForm
           v-if="editDialogVisible && storageClass"
           :is-edit="true"

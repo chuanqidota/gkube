@@ -117,7 +117,9 @@ router.beforeEach(async (to, _from, next) => {
 })
 
 router.afterEach((to) => {
-  const title = to.meta.titleKey ? t(to.meta.titleKey as string) : (to.meta.title as string | undefined) || ''
+  const title = to.meta.titleKey
+    ? t(to.meta.titleKey as string)
+    : (to.meta.title as string | undefined) || ''
   document.title = title ? `${title} - GKube` : `GKube - ${t('common.appDescription')}`
 })
 

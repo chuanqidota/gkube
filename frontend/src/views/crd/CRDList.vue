@@ -26,7 +26,9 @@ const yamlTarget = ref<{ name: string } | null>(null)
 const filteredList = computed(() => {
   if (!searchName.value) return crdList.value
   const keyword = searchName.value.toLowerCase()
-  return crdList.value.filter((d) => d.name?.toLowerCase().includes(keyword) || d.kind?.toLowerCase().includes(keyword))
+  return crdList.value.filter(
+    (d) => d.name?.toLowerCase().includes(keyword) || d.kind?.toLowerCase().includes(keyword),
+  )
 })
 
 function onSearchInput(value: string) {
@@ -65,7 +67,9 @@ function handleBrowse(row: any) {
   const group = row.group
   const version = row.versions?.[0] || 'v1'
   const resource = row.plural
-  router.push(`/crd/resources?group=${group}&version=${version}&resource=${resource}&scope=${row.scope}&kind=${row.kind}`)
+  router.push(
+    `/crd/resources?group=${group}&version=${version}&resource=${resource}&scope=${row.scope}&kind=${row.kind}`,
+  )
 }
 
 async function handleDelete(row: any) {
@@ -73,12 +77,14 @@ async function handleDelete(row: any) {
     await ElMessageBox.confirm(
       `删除 CRD "${row.name}"？这将同时删除该类型的所有自定义资源！`,
       '确认删除',
-      { type: 'error' }
+      { type: 'error' },
     )
     await deleteCrd({ name: row.name })
     ElMessage.success(t('crd.crdDeleted'))
     fetchCrds()
-  } catch { /* cancelled */ }
+  } catch {
+    /* cancelled */
+  }
 }
 
 async function handleBatchDelete() {
@@ -87,10 +93,10 @@ async function handleBatchDelete() {
     await ElMessageBox.confirm(
       `删除选中的 ${selectedRows.value.length} 个 CRD？这将同时删除对应类型的所有自定义资源！`,
       '确认删除',
-      { type: 'error' }
+      { type: 'error' },
     )
     const results = await Promise.allSettled(
-      selectedRows.value.map((row) => deleteCrd({ name: row.name }))
+      selectedRows.value.map((row) => deleteCrd({ name: row.name })),
     )
     const successCount = results.filter((r) => r.status === 'fulfilled').length
     const failCount = results.filter((r) => r.status === 'rejected').length
@@ -100,10 +106,20 @@ async function handleBatchDelete() {
       ElMessage.success(t('crd.batchDeleteSuccess', { count: successCount }))
     }
     fetchCrds()
-  } catch { /* cancelled */ }
+  } catch {
+    /* cancelled */
+  }
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchCrds)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchCrds)
 
 onMounted(fetchCrds)
 </script>
@@ -146,8 +162,8 @@ onMounted(fetchCrds)
 
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="filteredList"
         v-loading="loading"
+        :data="filteredList"
         stripe
         @selection-change="handleSelectionChange"
       >
@@ -159,13 +175,21 @@ onMounted(fetchCrds)
         </el-table-column>
         <el-table-column prop="name" label="名称" min-width="280" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-button link type="primary" @click="router.push(`/crd/detail?name=${row.name}`)">{{ row.name }}</el-button>
+            <el-button link type="primary" @click="router.push(`/crd/detail?name=${row.name}`)">{{
+              row.name
+            }}</el-button>
           </template>
         </el-table-column>
         <el-table-column prop="group" label="API 组" min-width="180" show-overflow-tooltip />
         <el-table-column label="版本" width="140">
           <template #default="{ row }">
-            <el-tag v-for="v in (row.versions || [])" :key="v" size="small" style="margin-right: 4px;">{{ v }}</el-tag>
+            <el-tag
+              v-for="v in row.versions || []"
+              :key="v"
+              size="small"
+              style="margin-right: 4px"
+              >{{ v }}</el-tag
+            >
           </template>
         </el-table-column>
         <el-table-column prop="scope" label="作用域" width="120">
@@ -179,8 +203,8 @@ onMounted(fetchCrds)
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
         </el-table-column>

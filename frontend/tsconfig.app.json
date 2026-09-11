@@ -9,9 +9,9 @@
 
     "strict": true,
 
-    /* Linting */
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    /* Linting — handled by ESLint @typescript-eslint/no-unused-vars (supports _ prefix) */
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },

@@ -91,14 +91,21 @@ async function handleDelete() {
   }
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchDetail, { autoStart: false })
 
 onMounted(fetchDetail)
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
+  <div v-loading="loading" class="detail-page">
     <!-- ===== 顶部标题栏 ===== -->
     <div class="page-header">
       <div class="header-left">
@@ -115,11 +122,7 @@ onMounted(fetchDetail)
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
+            <el-button :type="isRunning ? 'success' : 'default'" :icon="Timer" @click="toggle()" />
           </template>
           <div class="auto-refresh-popover">
             <div class="popover-title">
@@ -127,10 +130,10 @@ onMounted(fetchDetail)
             </div>
             <el-select
               :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
               :teleported="false"
               size="small"
-              style="width: 100%;"
+              style="width: 100%"
+              @update:model-value="setIntervalOption"
             >
               <el-option
                 v-for="sec in availableIntervals"
@@ -142,7 +145,7 @@ onMounted(fetchDetail)
           </div>
         </el-popover>
         <el-tooltip content="刷新" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+          <el-button :loading="loading" :icon="Refresh" @click="manualRefresh()" />
         </el-tooltip>
         <el-tooltip content="返回列表" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/config/configmaps')" />
@@ -152,18 +155,21 @@ onMounted(fetchDetail)
 
     <template v-if="configMap">
       <div class="main-layout" :class="{ 'is-resizing': resizingH }">
-
         <!-- 左侧：基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">基本信息</div>
           <div class="info-body">
             <div class="info-row">
               <span class="info-label">名称</span>
-              <span class="info-value">{{ configMap.metadata?.name || configMap.name || '-' }}</span>
+              <span class="info-value">{{
+                configMap.metadata?.name || configMap.name || '-'
+              }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">命名空间</span>
-              <span class="info-value">{{ configMap.metadata?.namespace || configMap.namespace || '-' }}</span>
+              <span class="info-value">{{
+                configMap.metadata?.namespace || configMap.namespace || '-'
+              }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">UID</span>
@@ -175,20 +181,37 @@ onMounted(fetchDetail)
             </div>
 
             <!-- Labels -->
-            <template v-if="configMap.metadata?.labels && Object.keys(configMap.metadata.labels).length > 0">
+            <template
+              v-if="configMap.metadata?.labels && Object.keys(configMap.metadata.labels).length > 0"
+            >
               <div class="info-row">
                 <span class="info-label">标签</span>
                 <span class="info-value">
-                  <el-tag v-for="(val, key) in configMap.metadata.labels" :key="key" size="small" class="label-tag">{{ key }}={{ val }}</el-tag>
+                  <el-tag
+                    v-for="(val, key) in configMap.metadata.labels"
+                    :key="key"
+                    size="small"
+                    class="label-tag"
+                    >{{ key }}={{ val }}</el-tag
+                  >
                 </span>
               </div>
             </template>
 
             <!-- Annotations -->
-            <template v-if="configMap.metadata?.annotations && Object.keys(configMap.metadata.annotations).length > 0">
-              <div class="info-row" style="flex-direction: column;">
-                <span class="info-label" style="margin-bottom: 4px;">注解</span>
-                <div v-for="(val, key) in configMap.metadata.annotations" :key="key" class="annotation-row">
+            <template
+              v-if="
+                configMap.metadata?.annotations &&
+                Object.keys(configMap.metadata.annotations).length > 0
+              "
+            >
+              <div class="info-row" style="flex-direction: column">
+                <span class="info-label" style="margin-bottom: 4px">注解</span>
+                <div
+                  v-for="(val, key) in configMap.metadata.annotations"
+                  :key="key"
+                  class="annotation-row"
+                >
                   <span class="annotation-key mono">{{ key }}</span>
                   <span class="annotation-value mono">{{ val }}</span>
                 </div>
@@ -201,7 +224,7 @@ onMounted(fetchDetail)
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
+          :style="{ left: leftWidth - 3 + 'px' }"
           @mousedown="onHResizeStart"
         />
 
@@ -262,7 +285,7 @@ onMounted(fetchDetail)
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto">
         <ConfigMapForm
           v-if="editDialogVisible && configMap"
           :is-edit="true"

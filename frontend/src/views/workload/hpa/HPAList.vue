@@ -123,7 +123,15 @@ const displayList = computed(() => {
   return filteredList.value.filter((row: any) => getStatus(row) === statusFilter.value)
 })
 
-const { isRunning: arRunning, countdown: arCountdown, currentInterval: arInterval, availableIntervals: arIntervals, toggle: arToggle, refresh: arRefresh, setIntervalOption: arSetInterval } = useAutoRefresh(fetchResources, { interval: 30000 })
+const {
+  isRunning: arRunning,
+  countdown: arCountdown,
+  currentInterval: arInterval,
+  availableIntervals: arIntervals,
+  toggle: arToggle,
+  refresh: arRefresh,
+  setIntervalOption: arSetInterval,
+} = useAutoRefresh(fetchResources, { interval: 30000 })
 
 // Workload route mapping
 function getWorkloadRoute(row: any): string | null {
@@ -167,7 +175,11 @@ async function handlePause(row: any) {
     await ElMessageBox.confirm(
       t('workload.pauseConfirm', { n: row.current_replicas }),
       t('common.confirmAction'),
-      { type: 'warning', confirmButtonText: t('workload.suspend'), cancelButtonText: t('common.cancel') }
+      {
+        type: 'warning',
+        confirmButtonText: t('workload.suspend'),
+        cancelButtonText: t('common.cancel'),
+      },
     )
     await pauseHpa({ namespace: row.namespace, name: row.name })
     ElMessage.success(t('workload.hpaPauseSuccess'))
@@ -193,8 +205,8 @@ async function handleResume(row: any) {
 <template>
   <div class="page-container">
     <ResourceListToolbar
-      :search-value="searchName"
       v-model:namespace-value="selectedNamespace"
+      :search-value="searchName"
       :namespace-list="namespaceList"
       :total-count="totalCount"
       :selected-count="selectedRows.length"
@@ -206,12 +218,7 @@ async function handleResume(row: any) {
       @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
-        <el-select
-          v-model="statusFilter"
-          placeholder="所有状态"
-          clearable
-          style="width: 130px;"
-        >
+        <el-select v-model="statusFilter" placeholder="所有状态" clearable style="width: 130px">
           <el-option label="正常" value="active" />
           <el-option :label="t('workload.suspended')" value="paused" />
           <el-option label="未激活" value="inactive" />
@@ -240,13 +247,18 @@ async function handleResume(row: any) {
 
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="displayList"
         v-loading="loading"
+        :data="displayList"
         stripe
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          prop="name"
+          :label="t('common.name')"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
@@ -254,7 +266,9 @@ async function handleResume(row: any) {
         <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
         <el-table-column :label="t('common.status')" width="120">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row)" effect="dark" size="small">{{ getStatusText(row) }}</el-tag>
+            <el-tag :type="getStatusType(row)" effect="dark" size="small">{{
+              getStatusText(row)
+            }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="伸缩目标" min-width="180">
@@ -264,40 +278,43 @@ async function handleResume(row: any) {
               link
               type="primary"
               @click="$router.push(getWorkloadRoute(row)!)"
-            >{{ row.target_kind }}/{{ row.target }}</el-button>
+              >{{ row.target_kind }}/{{ row.target }}</el-button
+            >
             <span v-else>{{ row.target_kind }}/{{ row.target }}</span>
           </template>
         </el-table-column>
         <el-table-column label="指标" width="140">
           <template #default="{ row }">
             <span v-if="getCpuTarget(row)">
-              CPU {{ getCpuTarget(row) }}%<template v-if="getCpuCurrent(row)">/{{ getCpuCurrent(row) }}%</template>
+              CPU {{ getCpuTarget(row) }}%<template v-if="getCpuCurrent(row)"
+                >/{{ getCpuCurrent(row) }}%</template
+              >
             </span>
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
         <el-table-column label="副本数" width="180">
-          <template #default="{ row }">{{ row.current_replicas }} ({{ row.min_replicas }}-{{ row.max_replicas }})</template>
+          <template #default="{ row }"
+            >{{ row.current_replicas }} ({{ row.min_replicas }}-{{ row.max_replicas }})</template
+          >
         </el-table-column>
         <el-table-column prop="age" label="Age" width="120" />
         <el-table-column :label="t('common.actions')" width="320" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-button size="small" type="warning" @click="handleEdit(row)">{{ t('common.edit') }}</el-button>
-              <el-button
-                v-if="row.paused"
-                size="small"
-                type="success"
-                @click="handleResume(row)"
-              >{{ t('workload.resumeLabel') }}</el-button>
-              <el-button
-                v-else
-                size="small"
-                type="warning"
-                @click="handlePause(row)"
-              >{{ t('workload.suspendLabel') }}</el-button>
+              <el-button size="small" type="warning" @click="handleEdit(row)">{{
+                t('common.edit')
+              }}</el-button>
+              <el-button v-if="row.paused" size="small" type="success" @click="handleResume(row)">{{
+                t('workload.resumeLabel')
+              }}</el-button>
+              <el-button v-else size="small" type="warning" @click="handlePause(row)">{{
+                t('workload.suspendLabel')
+              }}</el-button>
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-              <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{
+                t('common.delete')
+              }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -310,17 +327,31 @@ async function handleResume(row: any) {
         </template>
       </el-table>
       <div v-if="hasMore" class="load-more">
-        <el-button @click="fetchNextPage" :loading="loading" link type="primary">
+        <el-button :loading="loading" link type="primary" @click="fetchNextPage">
           {{ t('workload.loadMore') }}
         </el-button>
       </div>
     </el-card>
 
     <!-- YAML Drawer -->
-    <el-drawer v-model="yamlDialogVisible" title="HPA YAML" size="85%" direction="rtl" class="yaml-drawer"
-      :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100dvh - 60px);">
-        <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
+    <el-drawer
+      v-model="yamlDialogVisible"
+      title="HPA YAML"
+      size="85%"
+      direction="rtl"
+      class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 60px)">
+        <YamlEditor
+          v-model="yamlContent"
+          height="100%"
+          auto-format
+          show-save-buttons
+          :saving="yamlSaving"
+          @save="handleSaveYaml"
+          @cancel="handleCancelYaml"
+        />
       </div>
     </el-drawer>
 
@@ -344,7 +375,7 @@ async function handleResume(row: any) {
           </el-button>
         </div>
       </template>
-      <div v-if="editDrawerVisible && editRow" style="height: 100%;">
+      <div v-if="editDrawerVisible && editRow" style="height: 100%">
         <HPAForm
           :is-edit="true"
           :initial-data="editRow"

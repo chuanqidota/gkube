@@ -3,7 +3,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { getResourceQuotaList, deleteResourceQuota, getNamespaceList, extractNamespaceNames, resourceQuotaApi } from '@/api/resource'
+import {
+  getResourceQuotaList,
+  deleteResourceQuota,
+  getNamespaceList,
+  extractNamespaceNames,
+  resourceQuotaApi,
+} from '@/api/resource'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
@@ -33,7 +39,9 @@ async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
     namespaceList.value = extractNamespaceNames(res.data)
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 async function fetchResourceQuotas() {
@@ -46,16 +54,24 @@ async function fetchResourceQuotas() {
     rqList.value = res.data || []
   } catch {
     // Silently handle — resource may not exist in cluster
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+  }
 }
 
-function handleNamespaceChange() { fetchResourceQuotas() }
+function handleNamespaceChange() {
+  fetchResourceQuotas()
+}
 function onLabelConditionsChange(conditions: LabelCondition[]) {
   labelConditions.value = conditions
   fetchResourceQuotas()
 }
-function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
-function handleDetail(row: any) { router.push(`/config/resourcequotas/${row.namespace}/${row.name}`) }
+function handleSelectionChange(rows: any[]) {
+  selectedRows.value = rows
+}
+function handleDetail(row: any) {
+  router.push(`/config/resourcequotas/${row.namespace}/${row.name}`)
+}
 
 function handleViewYaml(row: any) {
   yamlTarget.value = { namespace: row.namespace, name: row.name }
@@ -64,41 +80,71 @@ function handleViewYaml(row: any) {
 
 async function handleDelete(row: any) {
   try {
-    await ElMessageBox.confirm(`Delete ResourceQuota "${row.name}" in namespace "${row.namespace}"?`, 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(
+      `Delete ResourceQuota "${row.name}" in namespace "${row.namespace}"?`,
+      'Confirm',
+      { type: 'warning' },
+    )
     await deleteResourceQuota({ namespace: row.namespace, name: row.name })
-    ElMessage.success('Deleted'); fetchResourceQuotas()
-  } catch { /* cancelled */ }
+    ElMessage.success('Deleted')
+    fetchResourceQuotas()
+  } catch {
+    /* cancelled */
+  }
 }
 
 async function handleBatchDelete() {
   if (!selectedRows.value.length) return
   try {
-    await ElMessageBox.confirm(`Delete ${selectedRows.value.length} selected ResourceQuota(s)?`, 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(
+      `Delete ${selectedRows.value.length} selected ResourceQuota(s)?`,
+      'Confirm',
+      { type: 'warning' },
+    )
     let count = 0
     for (const row of selectedRows.value) {
-      try { await deleteResourceQuota({ namespace: row.namespace, name: row.name }); count++ } catch { /* continue */ }
+      try {
+        await deleteResourceQuota({ namespace: row.namespace, name: row.name })
+        count++
+      } catch {
+        /* continue */
+      }
     }
-    ElMessage.success(`Deleted ${count} ResourceQuota(s)`); fetchResourceQuotas()
-  } catch { /* cancelled */ }
+    ElMessage.success(`Deleted ${count} ResourceQuota(s)`)
+    fetchResourceQuotas()
+  } catch {
+    /* cancelled */
+  }
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh, setIntervalOption } = useAutoRefresh(fetchResourceQuotas)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchResourceQuotas)
 
-onMounted(() => { fetchNamespaces(); fetchResourceQuotas() })
+onMounted(() => {
+  fetchNamespaces()
+  fetchResourceQuotas()
+})
 </script>
 
 <template>
   <div class="page-container">
     <ResourceListToolbar
-      :search-value="searchName"
       v-model:namespace-value="selectedNamespace"
+      :search-value="searchName"
       :namespace-list="namespaceList"
       :show-total-count="false"
       :selected-count="selectedRows.length"
       :cluster-name="clusterStore.clusterName"
       resource-type="resourcequota"
       :label-conditions="labelConditions"
-      @search-input="(val: string) => searchName = val"
+      @search-input="(val: string) => (searchName = val)"
       @namespace-change="handleNamespaceChange"
       @label-selector-change="onLabelConditionsChange"
     >
@@ -124,20 +170,33 @@ onMounted(() => { fetchNamespaces(); fetchResourceQuotas() })
       </template>
     </ResourceListToolbar>
     <el-card shadow="never" class="table-card">
-      <el-table :data="filteredList" v-loading="loading" stripe @selection-change="handleSelectionChange">
+      <el-table
+        v-loading="loading"
+        :data="filteredList"
+        stripe
+        @selection-change="handleSelectionChange"
+      >
         <el-table-column type="selection" width="45" />
         <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
+          <template #default="{ row }"
+            ><el-button link type="primary" @click="handleDetail(row)">{{
+              row.name
+            }}</el-button></template
+          >
         </el-table-column>
         <el-table-column prop="namespace" label="Namespace" width="140" />
         <el-table-column label="Hard Limits" min-width="250">
           <template #default="{ row }">
-            <div v-for="(v, k) in (row.hard || {})" :key="k" style="font-size: 12px;">{{ k }}: {{ v }}</div>
+            <div v-for="(v, k) in row.hard || {}" :key="k" style="font-size: 12px">
+              {{ k }}: {{ v }}
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="Used" min-width="250">
           <template #default="{ row }">
-            <div v-for="(v, k) in (row.used || {})" :key="k" style="font-size: 12px;">{{ k }}: {{ v }}</div>
+            <div v-for="(v, k) in row.used || {}" :key="k" style="font-size: 12px">
+              {{ k }}: {{ v }}
+            </div>
           </template>
         </el-table-column>
         <el-table-column prop="age" label="Age" width="180" />
@@ -164,8 +223,12 @@ onMounted(() => { fetchNamespaces(); fetchResourceQuotas() })
 </template>
 
 <style scoped>
-.page-container { padding: var(--gk-space-5); }
-.table-card { border-radius: var(--gk-radius-md); }
+.page-container {
+  padding: var(--gk-space-5);
+}
+.table-card {
+  border-radius: var(--gk-radius-md);
+}
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;

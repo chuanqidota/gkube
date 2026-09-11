@@ -15,15 +15,18 @@ import HealthCheckForm from './HealthCheckForm.vue'
 import SecurityContextForm from './form/SecurityContextForm.vue'
 import SchedulingForm from './form/SchedulingForm.vue'
 
-const props = withDefaults(defineProps<{
-  isEdit?: boolean
-  initialData?: any
-  onSubmit?: (yaml: string) => Promise<void>
-}>(), {
-  isEdit: false,
-  initialData: undefined,
-  onSubmit: undefined,
-})
+const props = withDefaults(
+  defineProps<{
+    isEdit?: boolean
+    initialData?: any
+    onSubmit?: (yaml: string) => Promise<void>
+  }>(),
+  {
+    isEdit: false,
+    initialData: undefined,
+    onSubmit: undefined,
+  },
+)
 
 const emit = defineEmits<{ success: []; cancel: [] }>()
 
@@ -34,14 +37,27 @@ const namespaces = ref<string[]>([])
 const { t } = useI18n()
 
 const form = reactive<JobFormData>({
-  name: '', namespace: 'default',
+  name: '',
+  namespace: 'default',
   labels: [{ key: 'app', value: '' }],
-  completions: 1, parallelism: 1, backoffLimit: 6, activeDeadlineSeconds: null,
-  ttlSecondsAfterFinished: null, completionMode: 'NonIndexed', restartPolicy: 'Never',
-  containers: [createEmptyContainer()], initContainers: [], volumes: [],
-  nodeSelector: [], tolerations: [], annotations: [],
-  serviceAccountName: '', terminationGracePeriodSeconds: null, imagePullSecrets: [],
-  podAffinityRules: [], podAntiAffinityRules: [],
+  completions: 1,
+  parallelism: 1,
+  backoffLimit: 6,
+  activeDeadlineSeconds: null,
+  ttlSecondsAfterFinished: null,
+  completionMode: 'NonIndexed',
+  restartPolicy: 'Never',
+  containers: [createEmptyContainer()],
+  initContainers: [],
+  volumes: [],
+  nodeSelector: [],
+  tolerations: [],
+  annotations: [],
+  serviceAccountName: '',
+  terminationGracePeriodSeconds: null,
+  imagePullSecrets: [],
+  podAffinityRules: [],
+  podAntiAffinityRules: [],
   topologySpreadConstraints: [],
 })
 
@@ -49,7 +65,11 @@ const formRef = ref<FormInstance>()
 const formRules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符', trigger: 'blur' },
+    {
+      pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/,
+      message: '仅支持小写字母、数字和连字符',
+      trigger: 'blur',
+    },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
 }
@@ -59,8 +79,11 @@ async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
     namespaces.value = extractNamespaceNames(res.data)
-  } catch { namespaces.value = ['default'] }
-  finally { namespaceLoading.value = false }
+  } catch {
+    namespaces.value = ['default']
+  } finally {
+    namespaceLoading.value = false
+  }
 }
 
 onMounted(() => {
@@ -68,23 +91,62 @@ onMounted(() => {
   if (props.isEdit && props.initialData) parseInitialData(props.initialData)
 })
 
-watch(() => props.initialData, (newData) => {
-  if (newData) parseInitialData(newData)
-})
+watch(
+  () => props.initialData,
+  (newData) => {
+    if (newData) parseInitialData(newData)
+  },
+)
 
 // ============ Parse helpers ============
 
 function parseEnvVar(e: any) {
   if (e.valueFrom?.configMapKeyRef) {
-    return { name: e.name, value: '', type: 'configMapKeyRef' as const, configMapName: e.valueFrom.configMapKeyRef.name || '', configMapKey: e.valueFrom.configMapKeyRef.key || '', secretName: '', secretKey: '', fieldPath: '' }
+    return {
+      name: e.name,
+      value: '',
+      type: 'configMapKeyRef' as const,
+      configMapName: e.valueFrom.configMapKeyRef.name || '',
+      configMapKey: e.valueFrom.configMapKeyRef.key || '',
+      secretName: '',
+      secretKey: '',
+      fieldPath: '',
+    }
   }
   if (e.valueFrom?.secretKeyRef) {
-    return { name: e.name, value: '', type: 'secretKeyRef' as const, configMapName: '', configMapKey: '', secretName: e.valueFrom.secretKeyRef.name || '', secretKey: e.valueFrom.secretKeyRef.key || '', fieldPath: '' }
+    return {
+      name: e.name,
+      value: '',
+      type: 'secretKeyRef' as const,
+      configMapName: '',
+      configMapKey: '',
+      secretName: e.valueFrom.secretKeyRef.name || '',
+      secretKey: e.valueFrom.secretKeyRef.key || '',
+      fieldPath: '',
+    }
   }
   if (e.valueFrom?.fieldRef) {
-    return { name: e.name, value: '', type: 'fieldRef' as const, configMapName: '', configMapKey: '', secretName: '', secretKey: '', fieldPath: e.valueFrom.fieldRef.fieldPath || '' }
+    return {
+      name: e.name,
+      value: '',
+      type: 'fieldRef' as const,
+      configMapName: '',
+      configMapKey: '',
+      secretName: '',
+      secretKey: '',
+      fieldPath: e.valueFrom.fieldRef.fieldPath || '',
+    }
   }
-  return { name: e.name, value: e.value || '', type: 'plain' as const, configMapName: '', configMapKey: '', secretName: '', secretKey: '', fieldPath: '' }
+  return {
+    name: e.name,
+    value: e.value || '',
+    type: 'plain' as const,
+    configMapName: '',
+    configMapKey: '',
+    secretName: '',
+    secretKey: '',
+    fieldPath: '',
+  }
 }
 
 function parseContainer(c: any) {
@@ -92,19 +154,34 @@ function parseContainer(c: any) {
     name: c.name || '',
     image: c.image || '',
     imagePullPolicy: c.imagePullPolicy || 'IfNotPresent',
-    ports: (c.ports || []).map((p: any) => ({ name: p.name || '', containerPort: p.containerPort || null, protocol: p.protocol || 'TCP' })),
+    ports: (c.ports || []).map((p: any) => ({
+      name: p.name || '',
+      containerPort: p.containerPort || null,
+      protocol: p.protocol || 'TCP',
+    })),
     env: (c.env || []).map(parseEnvVar),
     resources: {
-      requests: { cpu: c.resources?.requests?.cpu || '', memory: c.resources?.requests?.memory || '' },
+      requests: {
+        cpu: c.resources?.requests?.cpu || '',
+        memory: c.resources?.requests?.memory || '',
+      },
       limits: { cpu: c.resources?.limits?.cpu || '', memory: c.resources?.limits?.memory || '' },
     },
-    volumeMounts: (c.volumeMounts || []).map((m: any) => ({ name: m.name || '', mountPath: m.mountPath || '', subPath: m.subPath || '', readOnly: m.readOnly || false })),
+    volumeMounts: (c.volumeMounts || []).map((m: any) => ({
+      name: m.name || '',
+      mountPath: m.mountPath || '',
+      subPath: m.subPath || '',
+      readOnly: m.readOnly || false,
+    })),
     livenessProbe: parseProbe(c.livenessProbe),
     readinessProbe: parseProbe(c.readinessProbe),
     startupProbe: parseProbe(c.startupProbe),
     command: c.command?.join('\n') || '',
     args: c.args?.join('\n') || '',
-    lifecycle: { preStop: parseLifecycleHandler(c.lifecycle?.preStop), postStart: parseLifecycleHandler(c.lifecycle?.postStart) },
+    lifecycle: {
+      preStop: parseLifecycleHandler(c.lifecycle?.preStop),
+      postStart: parseLifecycleHandler(c.lifecycle?.postStart),
+    },
     securityContext: {
       runAsUser: c.securityContext?.runAsUser ?? null,
       runAsNonRoot: c.securityContext?.runAsNonRoot || false,
@@ -158,7 +235,10 @@ function parseInitialData(data: any) {
   if (form.labels.length === 0) form.labels.push({ key: 'app', value: '' })
 
   const annotations = template.metadata?.annotations || {}
-  form.annotations = Object.entries(annotations).map(([key, value]) => ({ key, value: value as string }))
+  form.annotations = Object.entries(annotations).map(([key, value]) => ({
+    key,
+    value: value as string,
+  }))
 
   const containers = podSpec.containers || []
   form.containers = containers.map(parseContainer)
@@ -170,7 +250,17 @@ function parseInitialData(data: any) {
   const volumes = podSpec.volumes || []
   form.volumes = volumes.map((v: any) => ({
     name: v.name || '',
-    type: v.emptyDir ? 'emptyDir' : v.hostPath ? 'hostPath' : v.configMap ? 'configMap' : v.secret ? 'secret' : v.persistentVolumeClaim ? 'pvc' : 'emptyDir',
+    type: v.emptyDir
+      ? 'emptyDir'
+      : v.hostPath
+        ? 'hostPath'
+        : v.configMap
+          ? 'configMap'
+          : v.secret
+            ? 'secret'
+            : v.persistentVolumeClaim
+              ? 'pvc'
+              : 'emptyDir',
     hostPath: v.hostPath?.path || '',
     hostPathType: v.hostPath?.type || 'DirectoryOrCreate',
     configMapName: v.configMap?.name || '',
@@ -179,12 +269,18 @@ function parseInitialData(data: any) {
   }))
 
   const nodeSelector = podSpec.nodeSelector || {}
-  form.nodeSelector = Object.entries(nodeSelector).map(([key, value]) => ({ key, value: value as string }))
+  form.nodeSelector = Object.entries(nodeSelector).map(([key, value]) => ({
+    key,
+    value: value as string,
+  }))
 
   const tolerations = podSpec.tolerations || []
   form.tolerations = tolerations.map((t: any) => ({
-    key: t.key || '', operator: t.operator || 'Equal', value: t.value || '',
-    effect: t.effect || 'NoSchedule', tolerationSeconds: t.tolerationSeconds || null,
+    key: t.key || '',
+    operator: t.operator || 'Equal',
+    value: t.value || '',
+    effect: t.effect || 'NoSchedule',
+    tolerationSeconds: t.tolerationSeconds || null,
   }))
 
   form.serviceAccountName = podSpec.serviceAccountName || ''
@@ -213,17 +309,32 @@ function parseInitialData(data: any) {
       labelValue: r.labelSelector?.matchExpressions?.[0]?.values?.[0] || '',
     }))
   }
-  form.podAffinityRules = parseAffinityRules(affinity.podAffinity?.preferredDuringSchedulingIgnoredDuringExecution || [])
+  form.podAffinityRules = parseAffinityRules(
+    affinity.podAffinity?.preferredDuringSchedulingIgnoredDuringExecution || [],
+  )
   if (affinity.podAffinity?.requiredDuringSchedulingIgnoredDuringExecution) {
-    form.podAffinityRules.push(...affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution.map((r: any) => ({ ...parseAffinityRules([r])[0], weight: 0 })))
+    form.podAffinityRules.push(
+      ...affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution.map((r: any) => ({
+        ...parseAffinityRules([r])[0],
+        weight: 0,
+      })),
+    )
   }
-  form.podAntiAffinityRules = parseAffinityRules(affinity.podAntiAffinity?.preferredDuringSchedulingIgnoredDuringExecution || [])
+  form.podAntiAffinityRules = parseAffinityRules(
+    affinity.podAntiAffinity?.preferredDuringSchedulingIgnoredDuringExecution || [],
+  )
   if (affinity.podAntiAffinity?.requiredDuringSchedulingIgnoredDuringExecution) {
-    form.podAntiAffinityRules.push(...affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution.map((r: any) => ({ ...parseAffinityRules([r])[0], weight: 0 })))
+    form.podAntiAffinityRules.push(
+      ...affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution.map((r: any) => ({
+        ...parseAffinityRules([r])[0],
+        weight: 0,
+      })),
+    )
   }
 
   form.topologySpreadConstraints = (podSpec.topologySpreadConstraints || []).map((t: any) => ({
-    maxSkew: t.maxSkew || 1, topologyKey: t.topologyKey || '',
+    maxSkew: t.maxSkew || 1,
+    topologyKey: t.topologyKey || '',
     whenUnsatisfiable: t.whenUnsatisfiable || 'DoNotSchedule',
     labelKey: t.labelSelector?.matchExpressions?.[0]?.key || '',
     labelValue: t.labelSelector?.matchExpressions?.[0]?.values?.[0] || '',
@@ -234,35 +345,89 @@ function parseInitialData(data: any) {
 
 function buildProbe(probe: any): any {
   if (!probe) return undefined
-  const p: any = { initialDelaySeconds: probe.initialDelaySeconds, periodSeconds: probe.periodSeconds, timeoutSeconds: probe.timeoutSeconds, failureThreshold: probe.failureThreshold }
-  if (probe.type === 'httpGet') { p.httpGet = { path: probe.httpGetPath, port: probe.httpGetPort } }
-  else if (probe.type === 'tcpSocket') { p.tcpSocket = { port: probe.tcpSocketPort } }
-  else if (probe.type === 'exec') { p.exec = { command: probe.execCommand.split('\n').map((s: string) => s.trim()).filter(Boolean) } }
+  const p: any = {
+    initialDelaySeconds: probe.initialDelaySeconds,
+    periodSeconds: probe.periodSeconds,
+    timeoutSeconds: probe.timeoutSeconds,
+    failureThreshold: probe.failureThreshold,
+  }
+  if (probe.type === 'httpGet') {
+    p.httpGet = { path: probe.httpGetPath, port: probe.httpGetPort }
+  } else if (probe.type === 'tcpSocket') {
+    p.tcpSocket = { port: probe.tcpSocketPort }
+  } else if (probe.type === 'exec') {
+    p.exec = {
+      command: probe.execCommand
+        .split('\n')
+        .map((s: string) => s.trim())
+        .filter(Boolean),
+    }
+  }
   return p
 }
 
 function buildLifecycleHandler(handler: any): any {
   if (!handler) return undefined
-  if (handler.type === 'exec') return { exec: { command: handler.execCommand.split('\n').map((s: string) => s.trim()).filter(Boolean) } }
-  if (handler.type === 'httpGet') return { httpGet: { path: handler.httpGetPath, port: handler.httpGetPort } }
+  if (handler.type === 'exec')
+    return {
+      exec: {
+        command: handler.execCommand
+          .split('\n')
+          .map((s: string) => s.trim())
+          .filter(Boolean),
+      },
+    }
+  if (handler.type === 'httpGet')
+    return { httpGet: { path: handler.httpGetPath, port: handler.httpGetPort } }
   if (handler.type === 'tcpSocket') return { tcpSocket: { port: handler.tcpSocketPort } }
   return undefined
 }
 
 function buildContainer(c: any): Record<string, any> {
-  const container: Record<string, any> = { name: c.name, image: c.image, imagePullPolicy: c.imagePullPolicy }
-  if (c.command) container.command = c.command.split('\n').map((s: string) => s.trim()).filter(Boolean)
-  if (c.args) container.args = c.args.split('\n').map((s: string) => s.trim()).filter(Boolean)
-  const ports = c.ports.filter((p: any) => p.containerPort).map((p: any) => { const port: any = { containerPort: p.containerPort, protocol: p.protocol }; if (p.name) port.name = p.name; return port })
+  const container: Record<string, any> = {
+    name: c.name,
+    image: c.image,
+    imagePullPolicy: c.imagePullPolicy,
+  }
+  if (c.command)
+    container.command = c.command
+      .split('\n')
+      .map((s: string) => s.trim())
+      .filter(Boolean)
+  if (c.args)
+    container.args = c.args
+      .split('\n')
+      .map((s: string) => s.trim())
+      .filter(Boolean)
+  const ports = c.ports
+    .filter((p: any) => p.containerPort)
+    .map((p: any) => {
+      const port: any = { containerPort: p.containerPort, protocol: p.protocol }
+      if (p.name) port.name = p.name
+      return port
+    })
   if (ports.length > 0) container.ports = ports
-  const env = c.env.filter((e: any) => e.name.trim()).map((e: any) => {
-    if (e.type === 'configMapKeyRef' && e.configMapName && e.configMapKey) return { name: e.name, valueFrom: { configMapKeyRef: { name: e.configMapName, key: e.configMapKey } } }
-    if (e.type === 'secretKeyRef' && e.secretName && e.secretKey) return { name: e.name, valueFrom: { secretKeyRef: { name: e.secretName, key: e.secretKey } } }
-    if (e.type === 'fieldRef' && e.fieldPath) return { name: e.name, valueFrom: { fieldRef: { fieldPath: e.fieldPath } } }
-    return { name: e.name, value: e.value }
-  })
+  const env = c.env
+    .filter((e: any) => e.name.trim())
+    .map((e: any) => {
+      if (e.type === 'configMapKeyRef' && e.configMapName && e.configMapKey)
+        return {
+          name: e.name,
+          valueFrom: { configMapKeyRef: { name: e.configMapName, key: e.configMapKey } },
+        }
+      if (e.type === 'secretKeyRef' && e.secretName && e.secretKey)
+        return {
+          name: e.name,
+          valueFrom: { secretKeyRef: { name: e.secretName, key: e.secretKey } },
+        }
+      if (e.type === 'fieldRef' && e.fieldPath)
+        return { name: e.name, valueFrom: { fieldRef: { fieldPath: e.fieldPath } } }
+      return { name: e.name, value: e.value }
+    })
   if (env.length > 0) container.env = env
-  const resources: any = {}; const requests: any = {}; const limits: any = {}
+  const resources: any = {}
+  const requests: any = {}
+  const limits: any = {}
   if (c.resources.requests.cpu) requests.cpu = c.resources.requests.cpu
   if (c.resources.requests.memory) requests.memory = c.resources.requests.memory
   if (c.resources.limits.cpu) limits.cpu = c.resources.limits.cpu
@@ -270,7 +435,14 @@ function buildContainer(c: any): Record<string, any> {
   if (Object.keys(requests).length > 0) resources.requests = requests
   if (Object.keys(limits).length > 0) resources.limits = limits
   if (Object.keys(resources).length > 0) container.resources = resources
-  const mounts = c.volumeMounts.filter((m: any) => m.name && m.mountPath).map((m: any) => { const vm: any = { name: m.name, mountPath: m.mountPath }; if (m.subPath) vm.subPath = m.subPath; if (m.readOnly) vm.readOnly = true; return vm })
+  const mounts = c.volumeMounts
+    .filter((m: any) => m.name && m.mountPath)
+    .map((m: any) => {
+      const vm: any = { name: m.name, mountPath: m.mountPath }
+      if (m.subPath) vm.subPath = m.subPath
+      if (m.readOnly) vm.readOnly = true
+      return vm
+    })
   if (mounts.length > 0) container.volumeMounts = mounts
   const liveness = buildProbe(c.livenessProbe)
   if (liveness) container.livenessProbe = liveness
@@ -305,15 +477,21 @@ function buildAffinity(rules: any[]): any {
     result.preferredDuringSchedulingIgnoredDuringExecution = preferred.map((r: any) => ({
       weight: r.weight,
       podAffinityTerm: {
-        labelSelector: { matchExpressions: [{ key: r.labelKey, operator: 'In', values: [r.labelValue] }] },
+        labelSelector: {
+          matchExpressions: [{ key: r.labelKey, operator: 'In', values: [r.labelValue] }],
+        },
         topologyKey: r.topologyKey,
-        ...(r.namespaces ? { namespaces: r.namespaces.split(',').map((s: string) => s.trim()) } : {}),
+        ...(r.namespaces
+          ? { namespaces: r.namespaces.split(',').map((s: string) => s.trim()) }
+          : {}),
       },
     }))
   }
   if (required.length > 0) {
     result.requiredDuringSchedulingIgnoredDuringExecution = required.map((r: any) => ({
-      labelSelector: { matchExpressions: [{ key: r.labelKey, operator: 'In', values: [r.labelValue] }] },
+      labelSelector: {
+        matchExpressions: [{ key: r.labelKey, operator: 'In', values: [r.labelValue] }],
+      },
       topologyKey: r.topologyKey,
       ...(r.namespaces ? { namespaces: r.namespaces.split(',').map((s: string) => s.trim()) } : {}),
     }))
@@ -323,35 +501,46 @@ function buildAffinity(rules: any[]): any {
 
 function buildK8sResource(): Record<string, any> {
   const labels: Record<string, string> = {}
-  form.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+  form.labels.forEach((l) => {
+    if (l.key.trim()) labels[l.key.trim()] = l.value
+  })
 
   const containers = form.containers.map(buildContainer)
   const initContainers = form.initContainers.map(buildContainer)
 
-  const volumes = form.volumes.filter(v => v.name).map(v => {
-    const vol: any = { name: v.name }
-    if (v.type === 'emptyDir') vol.emptyDir = {}
-    else if (v.type === 'hostPath') vol.hostPath = { path: v.hostPath, type: v.hostPathType || 'DirectoryOrCreate' }
-    else if (v.type === 'configMap') vol.configMap = { name: v.configMapName || v.name }
-    else if (v.type === 'secret') vol.secret = { secretName: v.secretName || v.name }
-    else if (v.type === 'pvc') vol.persistentVolumeClaim = { claimName: v.pvcName || v.name }
-    return vol
-  })
+  const volumes = form.volumes
+    .filter((v) => v.name)
+    .map((v) => {
+      const vol: any = { name: v.name }
+      if (v.type === 'emptyDir') vol.emptyDir = {}
+      else if (v.type === 'hostPath')
+        vol.hostPath = { path: v.hostPath, type: v.hostPathType || 'DirectoryOrCreate' }
+      else if (v.type === 'configMap') vol.configMap = { name: v.configMapName || v.name }
+      else if (v.type === 'secret') vol.secret = { secretName: v.secretName || v.name }
+      else if (v.type === 'pvc') vol.persistentVolumeClaim = { claimName: v.pvcName || v.name }
+      return vol
+    })
 
   const nodeSelector: Record<string, string> = {}
-  form.nodeSelector.forEach(ns => { if (ns.key.trim()) nodeSelector[ns.key.trim()] = ns.value })
-
-  const annotations: Record<string, string> = {}
-  form.annotations.forEach(a => { if (a.key.trim()) annotations[a.key.trim()] = a.value })
-
-  const tolerations = form.tolerations.filter(t => t.key).map(t => {
-    const tol: any = { key: t.key, operator: t.operator, effect: t.effect }
-    if (t.value) tol.value = t.value
-    if (t.tolerationSeconds) tol.tolerationSeconds = t.tolerationSeconds
-    return tol
+  form.nodeSelector.forEach((ns) => {
+    if (ns.key.trim()) nodeSelector[ns.key.trim()] = ns.value
   })
 
-  const imagePullSecrets = form.imagePullSecrets.filter(s => s).map(s => ({ name: s }))
+  const annotations: Record<string, string> = {}
+  form.annotations.forEach((a) => {
+    if (a.key.trim()) annotations[a.key.trim()] = a.value
+  })
+
+  const tolerations = form.tolerations
+    .filter((t) => t.key)
+    .map((t) => {
+      const tol: any = { key: t.key, operator: t.operator, effect: t.effect }
+      if (t.value) tol.value = t.value
+      if (t.tolerationSeconds) tol.tolerationSeconds = t.tolerationSeconds
+      return tol
+    })
+
+  const imagePullSecrets = form.imagePullSecrets.filter((s) => s).map((s) => ({ name: s }))
 
   const podSpec: any = { containers, restartPolicy: form.restartPolicy || 'Never' }
   if (initContainers.length > 0) podSpec.initContainers = initContainers
@@ -359,7 +548,8 @@ function buildK8sResource(): Record<string, any> {
   if (Object.keys(nodeSelector).length > 0) podSpec.nodeSelector = nodeSelector
   if (tolerations.length > 0) podSpec.tolerations = tolerations
   if (form.serviceAccountName) podSpec.serviceAccountName = form.serviceAccountName
-  if (form.terminationGracePeriodSeconds) podSpec.terminationGracePeriodSeconds = form.terminationGracePeriodSeconds
+  if (form.terminationGracePeriodSeconds)
+    podSpec.terminationGracePeriodSeconds = form.terminationGracePeriodSeconds
   if (imagePullSecrets.length > 0) podSpec.imagePullSecrets = imagePullSecrets
 
   const affinity: any = {}
@@ -371,10 +561,16 @@ function buildK8sResource(): Record<string, any> {
 
   if (form.topologySpreadConstraints.length > 0) {
     podSpec.topologySpreadConstraints = form.topologySpreadConstraints
-      .filter(t => t.topologyKey)
-      .map(t => ({
-        maxSkew: t.maxSkew, topologyKey: t.topologyKey, whenUnsatisfiable: t.whenUnsatisfiable,
-        labelSelector: { matchExpressions: [{ key: t.labelKey || 'app', operator: 'In', values: [t.labelValue || ''] }] },
+      .filter((t) => t.topologyKey)
+      .map((t) => ({
+        maxSkew: t.maxSkew,
+        topologyKey: t.topologyKey,
+        whenUnsatisfiable: t.whenUnsatisfiable,
+        labelSelector: {
+          matchExpressions: [
+            { key: t.labelKey || 'app', operator: 'In', values: [t.labelValue || ''] },
+          ],
+        },
       }))
   }
 
@@ -388,17 +584,25 @@ function buildK8sResource(): Record<string, any> {
     spec: { template: podTemplate },
   }
 
-  if (form.completions !== null && form.completions !== undefined) resource.spec.completions = form.completions
-  if (form.parallelism !== null && form.parallelism !== undefined) resource.spec.parallelism = form.parallelism
-  if (form.backoffLimit !== null && form.backoffLimit !== undefined) resource.spec.backoffLimit = form.backoffLimit
-  if (form.activeDeadlineSeconds !== null && form.activeDeadlineSeconds !== undefined) resource.spec.activeDeadlineSeconds = form.activeDeadlineSeconds
-  if (form.ttlSecondsAfterFinished !== null && form.ttlSecondsAfterFinished !== undefined) resource.spec.ttlSecondsAfterFinished = form.ttlSecondsAfterFinished
-  if (form.completionMode && form.completionMode !== 'NonIndexed') resource.spec.completionMode = form.completionMode
+  if (form.completions !== null && form.completions !== undefined)
+    resource.spec.completions = form.completions
+  if (form.parallelism !== null && form.parallelism !== undefined)
+    resource.spec.parallelism = form.parallelism
+  if (form.backoffLimit !== null && form.backoffLimit !== undefined)
+    resource.spec.backoffLimit = form.backoffLimit
+  if (form.activeDeadlineSeconds !== null && form.activeDeadlineSeconds !== undefined)
+    resource.spec.activeDeadlineSeconds = form.activeDeadlineSeconds
+  if (form.ttlSecondsAfterFinished !== null && form.ttlSecondsAfterFinished !== undefined)
+    resource.spec.ttlSecondsAfterFinished = form.ttlSecondsAfterFinished
+  if (form.completionMode && form.completionMode !== 'NonIndexed')
+    resource.spec.completionMode = form.completionMode
 
   return resource
 }
 
-const generatedYaml = computed(() => yaml.dump(buildK8sResource(), { indent: 2, lineWidth: -1, noRefs: true }))
+const generatedYaml = computed(() =>
+  yaml.dump(buildK8sResource(), { indent: 2, lineWidth: -1, noRefs: true }),
+)
 
 function parseCpuToMillicores(cpu: string): number | null {
   if (!cpu) return null
@@ -411,7 +615,16 @@ function parseCpuToMillicores(cpu: string): number | null {
 function parseMemoryToBytes(mem: string): number | null {
   if (!mem) return null
   mem = mem.trim()
-  const units: Record<string, number> = { 'Ki': 1024, 'Mi': 1024**2, 'Gi': 1024**3, 'Ti': 1024**4, 'K': 1000, 'M': 1000**2, 'G': 1000**3, 'T': 1000**4 }
+  const units: Record<string, number> = {
+    Ki: 1024,
+    Mi: 1024 ** 2,
+    Gi: 1024 ** 3,
+    Ti: 1024 ** 4,
+    K: 1000,
+    M: 1000 ** 2,
+    G: 1000 ** 3,
+    T: 1000 ** 4,
+  }
   for (const [suffix, multiplier] of Object.entries(units)) {
     if (mem.endsWith(suffix)) {
       const val = parseFloat(mem.slice(0, -suffix.length))
@@ -426,21 +639,29 @@ async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
   for (let i = 0; i < form.containers.length; i++) {
-    if (!form.containers[i].name) { ElMessage.error(t('workload.containerNameRequired', { n: i + 1 })); return }
-    if (!form.containers[i].image) { ElMessage.error(t('workload.containerImageRequired', { n: i + 1 })); return }
+    if (!form.containers[i].name) {
+      ElMessage.error(t('workload.containerNameRequired', { n: i + 1 }))
+      return
+    }
+    if (!form.containers[i].image) {
+      ElMessage.error(t('workload.containerImageRequired', { n: i + 1 }))
+      return
+    }
     const c = form.containers[i]
     if (c.resources.requests.cpu && c.resources.limits.cpu) {
       const reqCpu = parseCpuToMillicores(c.resources.requests.cpu)
       const limCpu = parseCpuToMillicores(c.resources.limits.cpu)
       if (reqCpu !== null && limCpu !== null && reqCpu > limCpu) {
-        ElMessage.error(t('workload.cpuRequestsExceedLimits', { n: i + 1 })); return
+        ElMessage.error(t('workload.cpuRequestsExceedLimits', { n: i + 1 }))
+        return
       }
     }
     if (c.resources.requests.memory && c.resources.limits.memory) {
       const reqMem = parseMemoryToBytes(c.resources.requests.memory)
       const limMem = parseMemoryToBytes(c.resources.limits.memory)
       if (reqMem !== null && limMem !== null && reqMem > limMem) {
-        ElMessage.error(t('workload.memoryRequestsExceedLimits', { n: i + 1 })); return
+        ElMessage.error(t('workload.memoryRequestsExceedLimits', { n: i + 1 }))
+        return
       }
     }
   }
@@ -458,8 +679,13 @@ async function handleSubmit() {
       ElMessage.success(t('common.createSuccess'))
       router.push('/workloads/jobs')
     }
-  } catch (e: any) { ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed'))) }
-  finally { submitting.value = false }
+  } catch (e: any) {
+    ElMessage.error(
+      e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')),
+    )
+  } finally {
+    submitting.value = false
+  }
 }
 
 function handleCancel() {
@@ -467,8 +693,12 @@ function handleCancel() {
   else router.push('/workloads/jobs')
 }
 
-function addImagePullSecret() { form.imagePullSecrets.push('') }
-function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
+function addImagePullSecret() {
+  form.imagePullSecrets.push('')
+}
+function removeImagePullSecret(i: number) {
+  form.imagePullSecrets.splice(i, 1)
+}
 </script>
 
 <template>
@@ -485,7 +715,13 @@ function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
               <el-input v-model="form.name" placeholder="my-job" />
             </el-form-item>
             <el-form-item :label="t('common.namespace_label')" prop="namespace">
-              <el-select v-model="form.namespace" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+              <el-select
+                v-model="form.namespace"
+                filterable
+                placeholder="选择命名空间"
+                style="width: 100%"
+                :loading="namespaceLoading"
+              >
                 <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
               </el-select>
             </el-form-item>
@@ -514,28 +750,38 @@ function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
         <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="完成数 (Completions)">
-              <el-input-number v-model="form.completions" :min="1" style="width: 100%;" />
+              <el-input-number v-model="form.completions" :min="1" style="width: 100%" />
             </el-form-item>
             <el-form-item label="并行度 (Parallelism)">
-              <el-input-number v-model="form.parallelism" :min="1" style="width: 100%;" />
+              <el-input-number v-model="form.parallelism" :min="1" style="width: 100%" />
             </el-form-item>
             <el-form-item label="重试次数 (Backoff Limit)">
-              <el-input-number v-model="form.backoffLimit" :min="0" style="width: 100%;" />
+              <el-input-number v-model="form.backoffLimit" :min="0" style="width: 100%" />
             </el-form-item>
             <el-form-item label="超时时间(秒)">
-              <el-input-number v-model="form.activeDeadlineSeconds" :min="1" placeholder="无限制" style="width: 100%;" />
+              <el-input-number
+                v-model="form.activeDeadlineSeconds"
+                :min="1"
+                placeholder="无限制"
+                style="width: 100%"
+              />
             </el-form-item>
             <el-form-item label="完成后 TTL(秒)">
-              <el-input-number v-model="form.ttlSecondsAfterFinished" :min="0" placeholder="不自动清理" style="width: 100%;" />
+              <el-input-number
+                v-model="form.ttlSecondsAfterFinished"
+                :min="0"
+                placeholder="不自动清理"
+                style="width: 100%"
+              />
             </el-form-item>
             <el-form-item label="完成模式">
-              <el-select v-model="form.completionMode" style="width: 100%;">
+              <el-select v-model="form.completionMode" style="width: 100%">
                 <el-option label="NonIndexed (默认)" value="NonIndexed" />
                 <el-option label="Indexed (索引模式)" value="Indexed" />
               </el-select>
             </el-form-item>
             <el-form-item label="重启策略 (Restart Policy)">
-              <el-select v-model="form.restartPolicy" style="width: 100%;">
+              <el-select v-model="form.restartPolicy" style="width: 100%">
                 <el-option label="Never - 不重启，创建新 Pod" value="Never" />
                 <el-option label="OnFailure - 容器内重启" value="OnFailure" />
               </el-select>
@@ -551,7 +797,7 @@ function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
           <div class="section-title">容器配置</div>
         </div>
         <div class="section-content">
-          <ContainerConfigForm :containers="form.containers" :min-containers="1" />
+          <ContainerConfigForm v-model:containers="form.containers" :min-containers="1" />
         </div>
       </div>
 
@@ -561,7 +807,11 @@ function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
           <div class="section-title">初始化容器</div>
         </div>
         <div class="section-content">
-          <ContainerConfigForm :containers="form.initContainers" title="初始化容器" :min-containers="0" />
+          <ContainerConfigForm
+            v-model:containers="form.initContainers"
+            title="初始化容器"
+            :min-containers="0"
+          />
         </div>
       </div>
 
@@ -571,7 +821,7 @@ function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
           <div class="section-title">存储配置</div>
         </div>
         <div class="section-content">
-          <StorageConfigForm :volumes="form.volumes" :containers="form.containers" />
+          <StorageConfigForm v-model:volumes="form.volumes" :containers="form.containers" />
         </div>
       </div>
 
@@ -619,19 +869,24 @@ function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
         <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="优雅终止时间(秒)">
-              <el-input-number v-model="form.terminationGracePeriodSeconds" :min="0" :max="300" style="width: 100%;" />
+              <el-input-number
+                v-model="form.terminationGracePeriodSeconds"
+                :min="0"
+                :max="300"
+                style="width: 100%"
+              />
             </el-form-item>
           </div>
 
           <el-form-item label="镜像拉取密钥">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(_s, i) in form.imagePullSecrets" :key="i" class="kv-row">
                 <el-input v-model="form.imagePullSecrets[i]" placeholder="Secret 名称" />
                 <el-button type="danger" text circle @click="removeImagePullSecret(i)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addImagePullSecret" size="small">
+              <el-button text type="primary" size="small" @click="addImagePullSecret">
                 <el-icon><Plus /></el-icon> 添加密钥
               </el-button>
             </div>
@@ -645,7 +900,9 @@ function removeImagePullSecret(i: number) { form.imagePullSecrets.splice(i, 1) }
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">{{ t('common.cancel') }}</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.create') }}</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{
+              t('common.create')
+            }}</el-button>
           </div>
         </div>
       </div>

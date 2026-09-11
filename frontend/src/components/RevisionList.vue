@@ -25,10 +25,8 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="revision-list" v-loading="loading">
-    <div v-if="revisions.length === 0 && !loading" class="empty-state">
-      暂无修订历史
-    </div>
+  <div v-loading="loading" class="revision-list">
+    <div v-if="revisions.length === 0 && !loading" class="empty-state">暂无修订历史</div>
     <div v-else class="rs-list">
       <div
         v-for="rs in revisions"

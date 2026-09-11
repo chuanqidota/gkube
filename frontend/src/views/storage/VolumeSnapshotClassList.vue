@@ -3,7 +3,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { getVolumeSnapshotClassList, deleteVolumeSnapshotClass, getVolumeSnapshotClassYaml, updateVolumeSnapshotClass } from '@/api/resource'
+import {
+  getVolumeSnapshotClassList,
+  deleteVolumeSnapshotClass,
+  getVolumeSnapshotClassYaml,
+  updateVolumeSnapshotClass,
+} from '@/api/resource'
 import { useI18n } from 'vue-i18n'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -29,7 +34,9 @@ const filteredList = computed(() => {
   return classList.value.filter((d) => d.name?.toLowerCase().includes(keyword))
 })
 
-function onSearchInput(val: string) { searchName.value = val }
+function onSearchInput(val: string) {
+  searchName.value = val
+}
 
 function onLabelConditionsChange(conditions: LabelCondition[]) {
   labelConditions.value = conditions
@@ -45,29 +52,37 @@ async function fetchClasses() {
     classList.value = res.data || []
   } catch {
     // Silently handle — resource may not exist in cluster
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+  }
 }
 
-function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
+function handleSelectionChange(rows: any[]) {
+  selectedRows.value = rows
+}
 
 function handleViewYaml(row: any) {
   yamlTarget.value = { name: row.name }
   yamlDialogVisible.value = true
 }
 
-function handleDetail(row: any) { router.push(`/storage/volumesnapshotclasses/${row.name}`) }
+function handleDetail(row: any) {
+  router.push(`/storage/volumesnapshotclasses/${row.name}`)
+}
 
 async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(
       t('storage.deleteSnapshotClassConfirm', { name: row.name }),
       t('common.confirm'),
-      { type: 'warning' }
+      { type: 'warning' },
     )
     await deleteVolumeSnapshotClass({ name: row.name })
     ElMessage.success(t('common.delete') + ' ' + t('common.success'))
     fetchClasses()
-  } catch { /* cancelled */ }
+  } catch {
+    /* cancelled */
+  }
 }
 
 async function handleBatchDelete() {
@@ -76,18 +91,33 @@ async function handleBatchDelete() {
     await ElMessageBox.confirm(
       t('storage.deleteSnapshotClassBatchConfirm', { count: selectedRows.value.length }),
       t('common.confirm'),
-      { type: 'warning' }
+      { type: 'warning' },
     )
     let count = 0
     for (const row of selectedRows.value) {
-      try { await deleteVolumeSnapshotClass({ name: row.name }); count++ } catch { /* continue */ }
+      try {
+        await deleteVolumeSnapshotClass({ name: row.name })
+        count++
+      } catch {
+        /* continue */
+      }
     }
     ElMessage.success(t('common.delete') + ` ${count} ` + t('storage.volumeSnapshotClass'))
     fetchClasses()
-  } catch { /* cancelled */ }
+  } catch {
+    /* cancelled */
+  }
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchClasses)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchClasses)
 
 onMounted(fetchClasses)
 </script>
@@ -106,8 +136,14 @@ onMounted(fetchClasses)
       @label-selector-change="onLabelConditionsChange"
     >
       <template #actions>
-        <el-button type="success" @click="router.push('/storage/volumesnapshotclasses/create')"><el-icon><Plus /></el-icon> {{ t('common.create') }}</el-button>
-        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"><el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})</el-button>
+        <el-button type="success" @click="router.push('/storage/volumesnapshotclasses/create')"
+          ><el-icon><Plus /></el-icon> {{ t('common.create') }}</el-button
+        >
+        <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete"
+          ><el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{
+            selectedRows.length
+          }})</el-button
+        >
       </template>
       <template #extra>
         <AutoRefreshToolbar
@@ -123,18 +159,39 @@ onMounted(fetchClasses)
       </template>
     </ResourceListToolbar>
     <el-card shadow="never" class="table-card">
-      <el-table :data="filteredList" v-loading="loading" stripe @selection-change="handleSelectionChange">
+      <el-table
+        v-loading="loading"
+        :data="filteredList"
+        stripe
+        @selection-change="handleSelectionChange"
+      >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
+        <el-table-column
+          prop="name"
+          :label="t('common.name')"
+          min-width="200"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }"
+            ><el-button link type="primary" @click="handleDetail(row)">{{
+              row.name
+            }}</el-button></template
+          >
         </el-table-column>
-        <el-table-column prop="driver" :label="t('storage.driver')" min-width="250" show-overflow-tooltip />
+        <el-table-column
+          prop="driver"
+          :label="t('storage.driver')"
+          min-width="250"
+          show-overflow-tooltip
+        />
         <el-table-column prop="deletionPolicy" :label="t('storage.deletionPolicy')" width="160" />
         <el-table-column prop="age" :label="t('common.age')" width="120" />
         <el-table-column :label="t('common.actions')" width="180" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewYaml(row)">{{ t('common.yaml') }}</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">{{
+              t('common.delete')
+            }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -151,6 +208,10 @@ onMounted(fetchClasses)
 </template>
 
 <style scoped>
-.page-container { padding: var(--gk-space-5); }
-.table-card { border-radius: var(--gk-radius-md); }
+.page-container {
+  padding: var(--gk-space-5);
+}
+.table-card {
+  border-radius: var(--gk-radius-md);
+}
 </style>

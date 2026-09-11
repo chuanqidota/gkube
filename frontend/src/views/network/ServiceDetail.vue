@@ -46,7 +46,13 @@ const endpoints = ref<any[]>([])
 const endpointsLoading = ref(false)
 
 // Edit dialog
-const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess: onEditSuccess, handleEditCancel } = useEditDrawer(async () => {
+const {
+  editDialogVisible,
+  editFullscreen,
+  handleEdit,
+  handleEditSuccess: onEditSuccess,
+  handleEditCancel,
+} = useEditDrawer(async () => {
   fetchDetail()
   fetchPods()
   fetchEndpoints()
@@ -81,7 +87,10 @@ const service = computed(() => {
   let externalIP = ''
   const lbIngress = status.loadBalancer?.ingress
   if (lbIngress && lbIngress.length > 0) {
-    externalIP = lbIngress.map((i: any) => i.ip || i.hostname || '').filter(Boolean).join(', ')
+    externalIP = lbIngress
+      .map((i: any) => i.ip || i.hostname || '')
+      .filter(Boolean)
+      .join(', ')
   }
 
   return {
@@ -154,7 +163,7 @@ async function fetchEvents() {
   try {
     const res: any = await getServiceEvents({ namespace, name })
     events.value = res.data || []
-  } catch (e) {
+  } catch (_e) {
     events.value = []
   } finally {
     eventsLoading.value = false
@@ -166,7 +175,7 @@ async function fetchPods() {
   try {
     const res: any = await getServicePods({ namespace, name })
     pods.value = res.data?.items || res.data || []
-  } catch (e) {
+  } catch (_e) {
     pods.value = []
   } finally {
     podsLoading.value = false
@@ -178,7 +187,7 @@ async function fetchEndpoints() {
   try {
     const res: any = await getServiceEndpoints({ namespace, name })
     endpoints.value = res.data || []
-  } catch (e) {
+  } catch (_e) {
     endpoints.value = []
   } finally {
     endpointsLoading.value = false
@@ -186,17 +195,28 @@ async function fetchEndpoints() {
 }
 
 function getClusterName(): string {
-  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.cluster_name || clusterStore.currentCluster?.name || ''
+  return (
+    clusterStore.currentCluster?.clusterName ||
+    clusterStore.currentCluster?.cluster_name ||
+    clusterStore.currentCluster?.name ||
+    ''
+  )
 }
 
 function handlePodLogs(pod: any) {
   const cluster = getClusterName()
-  window.open(`/fullscreen/logs?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(
+    `/fullscreen/logs?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`,
+    '_blank',
+  )
 }
 
 function handlePodExec(pod: any) {
   const cluster = getClusterName()
-  window.open(`/fullscreen/terminal?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(
+    `/fullscreen/terminal?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`,
+    '_blank',
+  )
 }
 
 async function handlePodDelete(pod: any, force = false) {
@@ -205,7 +225,7 @@ async function handlePodDelete(pod: any, force = false) {
       await ElMessageBox.confirm(
         `强制删除 Pod "${pod.metadata?.name}" 将跳过优雅终止，控制器管理的 Pod 会被立即重建。确定继续？`,
         '确认强制删除',
-        { type: 'warning', confirmButtonText: '强制删除', cancelButtonText: '取消' }
+        { type: 'warning', confirmButtonText: '强制删除', cancelButtonText: '取消' },
       )
     } catch {
       return
@@ -220,11 +240,11 @@ async function handlePodDelete(pod: any, force = false) {
     return
   }
   try {
-    await ElMessageBox.confirm(
-      `确定要删除 Pod "${pod.metadata?.name}" 吗？`,
-      '确认删除',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
-    )
+    await ElMessageBox.confirm(`确定要删除 Pod "${pod.metadata?.name}" 吗？`, '确认删除', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
     await deletePod({ namespace, name: pod.metadata.name })
     ElMessage.success(t('common.deleted'))
     fetchPods()
@@ -245,11 +265,11 @@ function handleYamlSaved() {
 
 async function handleDelete() {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除 Service "${name}" 吗？此操作不可恢复。`,
-      '确认删除',
-      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
-    )
+    await ElMessageBox.confirm(`确定要删除 Service "${name}" 吗？此操作不可恢复。`, '确认删除', {
+      type: 'error',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
     await deleteService({ namespace, name })
     ElMessage.success(t('network.serviceDeleted'))
     router.push('/network/services')
@@ -266,12 +286,23 @@ function handleEditSuccess() {
   fetchEndpoints()
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-  fetchDetail()
-  fetchPods()
-  fetchEvents()
-  fetchEndpoints()
-}, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(
+  async () => {
+    fetchDetail()
+    fetchPods()
+    fetchEvents()
+    fetchEndpoints()
+  },
+  { autoStart: false },
+)
 
 onMounted(() => {
   fetchDetail()
@@ -299,7 +330,7 @@ onMounted(() => {
       @back="router.push('/network/services')"
     >
       <template #meta>
-        <span class="replicas-info" v-if="service?.clusterIP">
+        <span v-if="service?.clusterIP" class="replicas-info">
           Cluster IP: {{ service.clusterIP }}
         </span>
       </template>
@@ -329,25 +360,42 @@ onMounted(() => {
           <el-descriptions-item label="名称">{{ service.name }}</el-descriptions-item>
           <el-descriptions-item label="命名空间">{{ service.namespace }}</el-descriptions-item>
           <el-descriptions-item label="类型">{{ service.type || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="Cluster IP">{{ service.clusterIP || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="External IP">{{ service.externalIP || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="Session Affinity">{{ service.sessionAffinity || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Cluster IP">{{
+            service.clusterIP || '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item label="External IP">{{
+            service.externalIP || '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item label="Session Affinity">{{
+            service.sessionAffinity || '-'
+          }}</el-descriptions-item>
         </el-descriptions>
 
         <!-- Port mapping table -->
-        <div v-if="service.portList && service.portList.length > 0" style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">端口映射</h4>
+        <div
+          v-if="service.portList && service.portList.length > 0"
+          style="margin-top: var(--gk-space-4)"
+        >
+          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">端口映射</h4>
           <el-table :data="service.portList" size="small" border stripe>
             <el-table-column prop="name" label="名称" width="80">
               <template #default="{ row }">{{ row.name || '-' }}</template>
             </el-table-column>
             <el-table-column prop="port" label="Port" width="70" align="center" />
             <el-table-column label="→" width="30" align="center">
-              <template #default><span style="color: var(--gk-color-text-placeholder);">→</span></template>
+              <template #default
+                ><span style="color: var(--gk-color-text-placeholder)">→</span></template
+              >
             </el-table-column>
             <el-table-column prop="targetPort" label="TargetPort" width="90" align="center" />
             <el-table-column prop="protocol" label="协议" width="70" align="center" />
-            <el-table-column v-if="showNodePort" prop="nodePort" label="NodePort" width="90" align="center">
+            <el-table-column
+              v-if="showNodePort"
+              prop="nodePort"
+              label="NodePort"
+              width="90"
+              align="center"
+            >
               <template #default="{ row }">
                 <el-tag v-if="row.nodePort" size="small" type="warning">{{ row.nodePort }}</el-tag>
                 <span v-else>-</span>
@@ -357,14 +405,20 @@ onMounted(() => {
         </div>
 
         <!-- Selector -->
-        <div v-if="service.selector && Object.keys(service.selector).length > 0" style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Selector</h4>
+        <div
+          v-if="service.selector && Object.keys(service.selector).length > 0"
+          style="margin-top: var(--gk-space-4)"
+        >
+          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">Selector</h4>
           <LabelsBlock :labels="service.selector" />
         </div>
 
         <!-- Labels -->
-        <div v-if="service.labels && Object.keys(service.labels).length > 0" style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Labels</h4>
+        <div
+          v-if="service.labels && Object.keys(service.labels).length > 0"
+          style="margin-top: var(--gk-space-4)"
+        >
+          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">Labels</h4>
           <LabelsBlock :labels="service.labels" />
         </div>
       </div>
@@ -446,7 +500,7 @@ onMounted(() => {
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto">
         <ServiceForm
           v-if="editDialogVisible && serviceRaw"
           :is-edit="true"

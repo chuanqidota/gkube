@@ -1,0 +1,14 @@
+{
+  "name": "gkube",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "gkube 是一个 Kubernetes 多集群管理 Web 平台。",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1"
+  }
+}

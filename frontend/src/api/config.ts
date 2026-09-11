@@ -9,7 +9,9 @@ export function transformConfigMaps(items: any[]) {
     name: cm.metadata?.name || '',
     namespace: cm.metadata?.namespace || '',
     labels: cm.metadata?.labels || {},
-    data_keys_count: (cm.data ? Object.keys(cm.data).length : 0) + (cm.binaryData ? Object.keys(cm.binaryData).length : 0),
+    data_keys_count:
+      (cm.data ? Object.keys(cm.data).length : 0) +
+      (cm.binaryData ? Object.keys(cm.binaryData).length : 0),
     age: formatAge(cm.metadata?.creationTimestamp, false),
   }))
 }

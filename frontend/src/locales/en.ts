@@ -166,13 +166,15 @@ export default {
     loginExpired: 'Login expired',
     forceDeleteSuccess: 'Force deleted',
     confirmForceDelete: 'Confirm Force Delete',
-    forceDeleteHint: 'Force delete will skip graceful termination. Pods managed by controllers will be recreated immediately. Continue?',
+    forceDeleteHint:
+      'Force delete will skip graceful termination. Pods managed by controllers will be recreated immediately. Continue?',
     // Delete confirmations
     deleteResourceConfirm: 'Are you sure to delete {type} "{name}"?',
     deleteResourceConfirmNs: 'Are you sure to delete {type} "{name}" (namespace: {ns})?',
     batchDeleteConfirm: 'Are you sure to delete the selected {count} {type}?',
     batchDeletePartialFailed: 'Deleted {success}, failed {failed}',
-    forceDeleteResourceConfirm: 'Are you sure to force delete {type} "{name}"? This will skip graceful termination. Pods managed by controllers will be recreated immediately.',
+    forceDeleteResourceConfirm:
+      'Are you sure to force delete {type} "{name}"? This will skip graceful termination. Pods managed by controllers will be recreated immediately.',
     forceDeleteResourceSuccess: '{type} force deleted',
     forceDeleteResourceFailed: 'Failed to force delete {type}',
     // Clone
@@ -322,12 +324,14 @@ export default {
     owner: 'Owner',
     targetReplicas: 'Target Replicas',
     scaledTo: 'Scaled to {count} replicas',
-    restartDeploymentConfirm: 'Are you sure to restart Deployment "{name}"? This will trigger a rolling update.',
+    restartDeploymentConfirm:
+      'Are you sure to restart Deployment "{name}"? This will trigger a rolling update.',
     restartSuccess: 'Deployment restarted',
     rollbackDeployments: 'Rollback Deployment',
     currentRevision: 'Current Revision',
     targetRevision: 'Target Revision',
-    rollbackHint: 'This will rollback the Deployment by restoring the ReplicaSet Pods template for this revision.',
+    rollbackHint:
+      'This will rollback the Deployment by restoring the ReplicaSet Pods template for this revision.',
     rollbackSuccess: 'Deployment rolled back to revision {revision}',
     validRevisionRequired: 'Please enter a valid revision number',
     scaledSuccess: 'Deployment scaled to {count} replicas',
@@ -379,15 +383,18 @@ export default {
     updateImage: 'Update Image',
     currentImage: 'Current Image',
     scaledToReplicas: 'Scaled {name} to {n} replicas',
-    restartConfirm: 'Are you sure to restart {kind} "{name}"? This will trigger a rolling update of all Pods.',
+    restartConfirm:
+      'Are you sure to restart {kind} "{name}"? This will trigger a rolling update of all Pods.',
     restartConfirmTitle: 'Restart Confirmation',
     restartSuccessMsg: '{name} restarted successfully',
     restartFailedMsg: 'Failed to restart',
     deletePod: 'Delete Pod',
     deletePodConfirm: 'Are you sure to delete Pod "{name}"?',
     forceDeletePod: 'Force Delete Pod',
-    forceDeletePodConfirm: 'Are you sure to force delete Pod "{name}"? This will skip graceful termination.',
-    rerunConfirm: 'Are you sure to rerun Job "{name}"? A new Job with the same configuration will be created.',
+    forceDeletePodConfirm:
+      'Are you sure to force delete Pod "{name}"? This will skip graceful termination.',
+    rerunConfirm:
+      'Are you sure to rerun Job "{name}"? A new Job with the same configuration will be created.',
     rerunSuccess: 'Job rerun successfully',
     rerunFailed: 'Failed to rerun',
     suspendConfirm: 'Are you sure to {action} {type} "{name}"?',
@@ -400,7 +407,8 @@ export default {
     triggerConfirm: 'Are you sure to manually trigger CronJob "{name}"?',
     triggerSuccess: '{name} triggered successfully',
     triggerFailed: 'Failed to trigger',
-    pauseConfirm: 'After pausing, HPA will stop auto-scaling and replicas will be fixed at current value ({n}). Are you sure?',
+    pauseConfirm:
+      'After pausing, HPA will stop auto-scaling and replicas will be fixed at current value ({n}). Are you sure?',
     pauseFailed: 'Failed to pause',
     resumeFailed: 'Failed to resume',
     fetchContainerFailed: 'Failed to fetch container info',
@@ -476,7 +484,8 @@ export default {
     from: 'From',
     to: 'To',
     deleteIngressConfirm: 'Are you sure to delete Ingress "{name}" in namespace "{namespace}"?',
-    deleteNetworkPolicyConfirm: 'Are you sure to delete Network Policy "{name}" in namespace "{namespace}"?',
+    deleteNetworkPolicyConfirm:
+      'Are you sure to delete Network Policy "{name}" in namespace "{namespace}"?',
     serviceDeleted: 'Service deleted',
     ingressDeleted: 'Ingress deleted',
     networkPolicyDeleted: 'NetworkPolicy deleted',
@@ -580,10 +589,12 @@ export default {
     driver: 'Driver',
     createSnapshotYamlHint: 'Edit YAML below to configure the VolumeSnapshot',
     createSnapshotClassYamlHint: 'Edit YAML below to configure the VolumeSnapshotClass',
-    deleteSnapshotConfirm: 'Are you sure to delete VolumeSnapshot "{name}" in namespace "{namespace}"?',
+    deleteSnapshotConfirm:
+      'Are you sure to delete VolumeSnapshot "{name}" in namespace "{namespace}"?',
     deleteSnapshotClassConfirm: 'Are you sure to delete VolumeSnapshotClass "{name}"?',
     deleteSnapshotBatchConfirm: 'Are you sure to delete {count} selected VolumeSnapshot(s)?',
-    deleteSnapshotClassBatchConfirm: 'Are you sure to delete {count} selected VolumeSnapshotClass(es)?',
+    deleteSnapshotClassBatchConfirm:
+      'Are you sure to delete {count} selected VolumeSnapshotClass(es)?',
     editYaml: 'Edit YAML',
     saveYaml: 'Save YAML',
     yamlEditHint: 'Modify the YAML and click save',
@@ -627,7 +638,8 @@ export default {
     decoded: 'Decoded (Base64)',
     raw: 'Raw (Base64)',
     deleteSecretConfirm: 'Are you sure to delete Secret "{name}" in namespace "{namespace}"?',
-    secretViewConfirm: 'You are about to view sensitive data from this Secret. Please ensure the current environment is secure.',
+    secretViewConfirm:
+      'You are about to view sensitive data from this Secret. Please ensure the current environment is secure.',
     secretViewData: 'View Sensitive Data',
     secretViewConfirmBtn: 'Confirm View',
     resourceQuotaTitle: 'Resource Quota Details',
@@ -648,7 +660,8 @@ export default {
     default: 'Default',
     defaultRequest: 'Default Request',
     maxLimitRequestRatio: 'Max Limit/Request Ratio',
-    deleteLimitRangeConfirm: 'Are you sure to delete Limit Range "{name}" in namespace "{namespace}"?',
+    deleteLimitRangeConfirm:
+      'Are you sure to delete Limit Range "{name}" in namespace "{namespace}"?',
     // ConfigDataViewer
     searchKey: 'Search keys',
     noMatchingKey: 'No matching keys',
@@ -739,7 +752,8 @@ export default {
     addTaint: 'Add Taint',
     addLabel: 'Add Label',
     taintUpdated: 'Taint updated',
-    labelSaveWarning: 'Labels not in the list will be removed on save. System labels (kubernetes.io/ prefix, etc.) are not affected.',
+    labelSaveWarning:
+      'Labels not in the list will be removed on save. System labels (kubernetes.io/ prefix, etc.) are not affected.',
     labelKeyPlaceholder: 'Key (e.g. app)',
     labelValuePlaceholder: 'Value (optional)',
     labelKeyError: 'Label {key}: {error}',
@@ -748,7 +762,8 @@ export default {
     taintKeyError: 'Taint {key}: {error}',
     taintDuplicate: 'Duplicate taint: {key} ({effect}) already exists',
     drainPod: 'Drain Pods',
-    drainWarning: 'Drain will cordon the node first, then submit eviction requests. Pods take time to terminate, please refresh later to check actual status.',
+    drainWarning:
+      'Drain will cordon the node first, then submit eviction requests. Pods take time to terminate, please refresh later to check actual status.',
     ignoreDaemonSets: 'Ignore DaemonSet',
     ignoreDaemonSetsHint: 'Skip DaemonSet-managed Pods',
     deleteLocalData: 'Delete Local Data',
@@ -758,13 +773,17 @@ export default {
     forceDrain: 'Force Drain',
     forceDrainHint: 'Evict standalone Pods not managed by controllers (same as kubectl --force)',
     confirmDrain: 'Confirm Drain',
-    drainConfirmMsg: 'Are you sure to drain all Pods on node "{name}"? This will cordon the node first then submit eviction requests.',
+    drainConfirmMsg:
+      'Are you sure to drain all Pods on node "{name}"? This will cordon the node first then submit eviction requests.',
     drainSubmitted: '{count} eviction request(s) submitted',
     drainSkipped: '{count} skipped',
     drainFailed: '{count} failed',
-    drainResultSubmitted: 'Drain submitted: {parts}. Pods are terminating, please refresh later to check actual status.',
-    drainCordonedHint: 'Node is cordoned. To restore scheduling after Pods terminate, please uncordon manually.',
-    drainCordonedPartialFailHint: 'Node is cordoned and some evictions failed. To restore scheduling, please handle failed Pods first then uncordon manually.',
+    drainResultSubmitted:
+      'Drain submitted: {parts}. Pods are terminating, please refresh later to check actual status.',
+    drainCordonedHint:
+      'Node is cordoned. To restore scheduling after Pods terminate, please uncordon manually.',
+    drainCordonedPartialFailHint:
+      'Node is cordoned and some evictions failed. To restore scheduling, please handle failed Pods first then uncordon manually.',
     // Detail template
     basicInfo: 'Basic Info',
     labels: 'Labels',
@@ -799,10 +818,13 @@ export default {
     cordonConfirm: 'Are you sure to {action} node "{name}"?',
     cordonSuccess: 'Node {action}',
     cordonFailed: 'Failed to {action}',
-    deleteOfflineConfirm: 'This operation cleans up residual records of offline nodes. If the node is still online (kubelet running), it will re-register after deletion. Are you sure to delete node "{name}"?',
-    deleteOnlineWarning: 'Node "{name}" is currently online (Ready). After deletion, kubelet will re-register the node, making the deletion ineffective. If you really need to delete it, please stop kubelet on the node first. Continue anyway?',
+    deleteOfflineConfirm:
+      'This operation cleans up residual records of offline nodes. If the node is still online (kubelet running), it will re-register after deletion. Are you sure to delete node "{name}"?',
+    deleteOnlineWarning:
+      'Node "{name}" is currently online (Ready). After deletion, kubelet will re-register the node, making the deletion ineffective. If you really need to delete it, please stop kubelet on the node first. Continue anyway?',
     // List template
-    nodeOnlineDeleteWarning: 'Node is online, it will re-register after deletion (stop kubelet first)',
+    nodeOnlineDeleteWarning:
+      'Node is online, it will re-register after deletion (stop kubelet first)',
     alreadyCordoned: 'Cordoned',
     loadNodeListFailed: 'Failed to load node list',
     loadNodeDetailFailed: 'Failed to load node detail',
@@ -817,7 +839,8 @@ export default {
     createNamespace: 'Create Namespace',
     createNamePlaceholder: 'Enter namespace name',
     namespaceCreated: 'Namespace created',
-    deleteConfirm: 'Are you sure to delete namespace "{name}"? This will delete all resources in this namespace!',
+    deleteConfirm:
+      'Are you sure to delete namespace "{name}"? This will delete all resources in this namespace!',
     deleteSuccess: 'Namespace deleted',
     fetchFailed: 'Failed to fetch namespace list',
     noLabels: 'No Labels',
@@ -950,7 +973,8 @@ export default {
     reportingComponent: 'Reporting Component',
     reportingInstance: 'Reporting Instance',
     action: 'Action',
-    multiClusterHint: 'Viewing all clusters — pagination is unavailable. Select a specific cluster in the header to enable pagination.',
+    multiClusterHint:
+      'Viewing all clusters — pagination is unavailable. Select a specific cluster in the header to enable pagination.',
   },
   terminal: {
     title: 'Web Terminal',
@@ -1051,7 +1075,8 @@ export default {
     loadCrdFailed: 'Failed to load CRD details',
     getYamlFailed: 'Failed to get YAML',
     yamlConfig: 'YAML Configuration',
-    deleteCrdConfirm: 'Delete CRD "{name}"? This will also delete all custom resources of this type!',
+    deleteCrdConfirm:
+      'Delete CRD "{name}"? This will also delete all custom resources of this type!',
     confirmDelete: 'Confirm Delete',
     yamlEdit: 'Edit YAML',
     // Detail template
@@ -1209,8 +1234,10 @@ export default {
     deleteConfirm: 'Delete permission binding for {name}?',
     updateSuccess: 'Updated successfully',
     createSuccess: 'Created successfully',
-    adminRoleWarning: 'Includes {count} admin-level role(s). The user will lose management permissions for the corresponding cluster. Please confirm.',
-    bindingExists: 'This user already has a binding in this scope. Please edit the existing binding.',
+    adminRoleWarning:
+      'Includes {count} admin-level role(s). The user will lose management permissions for the corresponding cluster. Please confirm.',
+    bindingExists:
+      'This user already has a binding in this scope. Please edit the existing binding.',
     superAdmin: 'Platform Admin',
     clusterAdmin: 'Cluster Admin',
     clusterEditor: 'Cluster Editor',
@@ -1222,7 +1249,8 @@ export default {
     memberCount: 'Members',
     editMember: 'Edit Member: {name}',
     removeMember: 'Remove from Cluster',
-    removeMemberConfirm: 'Remove {name} from this cluster? All their permissions in this cluster will be deleted.',
+    removeMemberConfirm:
+      'Remove {name} from this cluster? All their permissions in this cluster will be deleted.',
     removeMemberSuccess: 'Removed from cluster',
     removeBinding: 'Remove',
     removeRoleConfirm: 'Remove the "{role}" permission of {name}?',
@@ -1242,7 +1270,8 @@ export default {
     roleDescLabel: 'Description',
     resourceGroup: 'Resource Group',
     permissionMatrix: 'Permission Matrix',
-    roleCacheWarning: 'Server-side permission cache is invalidated immediately; logged-in users may need to refresh or re-login to see the change.',
+    roleCacheWarning:
+      'Server-side permission cache is invalidated immediately; logged-in users may need to refresh or re-login to see the change.',
     deleteRoleConfirm: 'Delete role "{name}"?',
     roleFormRequired: 'Role name and identifier are required',
     myPermissions: 'My Permissions',
@@ -1251,7 +1280,8 @@ export default {
     roleDesc: {
       superAdmin: 'Platform admin, bypasses all permission checks.',
       clusterAdmin: 'Full cluster permissions including node management and resource deletion.',
-      clusterEditor: 'Read-write in cluster, no delete, no node management. Terminal and logs allowed.',
+      clusterEditor:
+        'Read-write in cluster, no delete, no node management. Terminal and logs allowed.',
       clusterViewer: 'Read-only in cluster. Terminal and logs allowed.',
       nsAdmin: 'Full permissions within the namespace.',
       nsEditor: 'Read-write in namespace, no delete. Terminal and logs allowed.',

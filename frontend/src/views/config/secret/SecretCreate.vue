@@ -66,7 +66,14 @@ function handleMaximize() {
 <template>
   <div class="secret-create">
     <div class="mode-switcher">
-      <el-segmented v-model="mode" :options="[{ label: t('common.formCreate'), value: 'form' }, { label: t('common.yamlCreate'), value: 'yaml' }]" size="small" />
+      <el-segmented
+        v-model="mode"
+        :options="[
+          { label: t('common.formCreate'), value: 'form' },
+          { label: t('common.yamlCreate'), value: 'yaml' },
+        ]"
+        size="small"
+      />
     </div>
 
     <SecretForm v-if="mode === 'form'" />
@@ -86,14 +93,27 @@ function handleMaximize() {
           </div>
           <div class="yaml-card-actions">
             <el-button size="small" @click="handleCancel">取消</el-button>
-            <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit">创建</el-button>
+            <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit"
+              >创建</el-button
+            >
           </div>
         </div>
         <div class="yaml-card-body">
-          <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="calc(100dvh - 180px)" :read-only="false" editable auto-format :show-toolbar="false" title="YAML 配置">
+          <YamlEditor
+            ref="yamlEditorRef"
+            v-model="yamlContent"
+            height="calc(100dvh - 180px)"
+            :read-only="false"
+            editable
+            auto-format
+            :show-toolbar="false"
+            title="YAML 配置"
+          >
             <template #fullscreen-actions>
               <el-button size="small" @click="handleCancel">取消</el-button>
-              <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit">创建</el-button>
+              <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit"
+                >创建</el-button
+              >
             </template>
           </YamlEditor>
         </div>
@@ -103,9 +123,19 @@ function handleMaximize() {
 </template>
 
 <style scoped>
-.secret-create { max-width: 1100px; margin: 0 auto; padding: var(--gk-space-5) 0; }
-.mode-switcher { display: flex; justify-content: center; margin-bottom: var(--gk-space-3); }
-.yaml-mode { padding: 0 16px; }
+.secret-create {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--gk-space-5) 0;
+}
+.mode-switcher {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--gk-space-3);
+}
+.yaml-mode {
+  padding: 0 16px;
+}
 
 .yaml-card {
   border: 1px solid var(--el-border-color-light);

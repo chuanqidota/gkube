@@ -6,7 +6,12 @@ import { ElMessage } from 'element-plus'
 import { Delete, Plus, Upload } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import { createConfigMap, updateConfigMap, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import {
+  createConfigMap,
+  updateConfigMap,
+  getNamespaceList,
+  extractNamespaceNames,
+} from '@/api/resource'
 import FileImportDialog from '@/components/FileImportDialog.vue'
 import type { FileImportEntry } from '@/components/FileImportDialog.vue'
 
@@ -32,7 +37,7 @@ const namespaces = ref<string[]>([])
 interface DataEntry {
   key: string
   value: string
-  preEncoded?: boolean  // true if value is already base64 (binary file import)
+  preEncoded?: boolean // true if value is already base64 (binary file import)
 }
 
 interface FormData {
@@ -93,7 +98,11 @@ if (props.isEdit && props.initialData) {
 const rules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/, message: '仅支持小写字母、数字、点号、下划线和连字符', trigger: 'blur' },
+    {
+      pattern: /^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/,
+      message: '仅支持小写字母、数字、点号、下划线和连字符',
+      trigger: 'blur',
+    },
     { max: 253, message: '最多253个字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
@@ -149,7 +158,11 @@ function openImportDialog(target: 'data' | 'binaryData') {
 function handleFileImport(entries: FileImportEntry[]) {
   const target = importTarget.value === 'binaryData' ? form.binaryData : form.data
   // Remove trailing empty rows
-  while (target.length > 0 && !target[target.length - 1].key.trim() && !target[target.length - 1].value) {
+  while (
+    target.length > 0 &&
+    !target[target.length - 1].key.trim() &&
+    !target[target.length - 1].value
+  ) {
     target.pop()
   }
   // Append imported entries
@@ -178,7 +191,8 @@ function buildYamlStr(): string {
 
   const binaryData: Record<string, string> = {}
   form.binaryData.forEach((entry) => {
-    if (entry.key.trim()) binaryData[entry.key.trim()] = entry.preEncoded ? entry.value : base64Encode(entry.value)
+    if (entry.key.trim())
+      binaryData[entry.key.trim()] = entry.preEncoded ? entry.value : base64Encode(entry.value)
   })
 
   const labels: Record<string, string> = {}
@@ -220,7 +234,9 @@ async function handleSubmit() {
       router.push('/config/configmaps')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
+    ElMessage.error(
+      e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')),
+    )
   } finally {
     submitting.value = false
   }
@@ -249,7 +265,14 @@ function handleCancel() {
               <el-input v-model="form.name" :disabled="isEdit" placeholder="my-config" />
             </el-form-item>
             <el-form-item label="命名空间" prop="namespace">
-              <el-select v-model="form.namespace" :disabled="isEdit" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+              <el-select
+                v-model="form.namespace"
+                :disabled="isEdit"
+                filterable
+                placeholder="选择命名空间"
+                style="width: 100%"
+                :loading="namespaceLoading"
+              >
                 <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
               </el-select>
             </el-form-item>
@@ -264,15 +287,21 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="标签">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
                 <el-input v-model="label.key" placeholder="Key" />
                 <el-input v-model="label.value" placeholder="Value" />
-                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="removeLabel(i)">
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.labels.length <= 1"
+                  @click="removeLabel(i)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addLabel" size="small">
+              <el-button text type="primary" size="small" @click="addLabel">
                 <el-icon><Plus /></el-icon> 添加标签
               </el-button>
             </div>
@@ -287,44 +316,75 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="不可变">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <el-switch v-model="form.immutable" :disabled="isEdit" />
-              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">设置后不可修改，只能删除重建</div>
+              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px">
+                设置后不可修改，只能删除重建
+              </div>
             </div>
           </el-form-item>
           <el-form-item label="数据项">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(entry, i) in form.data" :key="i" class="data-row">
-                <el-input v-model="entry.key" placeholder="Key" style="width: 220px;" />
-                <el-input v-model="entry.value" type="textarea" :rows="2" placeholder="Value" style="flex: 1;" />
-                <el-button type="danger" text circle :disabled="form.data.length <= 1" @click="removeEntry(i)">
+                <el-input v-model="entry.key" placeholder="Key" style="width: 220px" />
+                <el-input
+                  v-model="entry.value"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="Value"
+                  style="flex: 1"
+                />
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.data.length <= 1"
+                  @click="removeEntry(i)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
               <div class="data-actions">
-                <el-button text type="primary" @click="addEntry" size="small">
+                <el-button text type="primary" size="small" @click="addEntry">
                   <el-icon><Plus /></el-icon> 添加数据项
                 </el-button>
-                <el-button text type="primary" @click="openImportDialog('data')" size="small">
+                <el-button text type="primary" size="small" @click="openImportDialog('data')">
                   <el-icon><Upload /></el-icon> 导入文件
                 </el-button>
               </div>
             </div>
           </el-form-item>
           <el-form-item label="二进制数据">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(entry, i) in form.binaryData" :key="i" class="data-row">
-                <el-input v-model="entry.key" placeholder="Key" style="width: 220px;" />
-                <el-input v-model="entry.value" type="textarea" :rows="2" placeholder="Base64 编码值" style="flex: 1;" />
-                <el-button type="danger" text circle :disabled="form.binaryData.length <= 1" @click="form.binaryData.splice(i, 1)">
+                <el-input v-model="entry.key" placeholder="Key" style="width: 220px" />
+                <el-input
+                  v-model="entry.value"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="Base64 编码值"
+                  style="flex: 1"
+                />
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.binaryData.length <= 1"
+                  @click="form.binaryData.splice(i, 1)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
               <div class="data-actions">
-                <el-button text type="primary" @click="form.binaryData.push({ key: '', value: '' })" size="small">
+                <el-button
+                  text
+                  type="primary"
+                  size="small"
+                  @click="form.binaryData.push({ key: '', value: '' })"
+                >
                   <el-icon><Plus /></el-icon> 添加二进制数据项
                 </el-button>
-                <el-button text type="primary" @click="openImportDialog('binaryData')" size="small">
+                <el-button text type="primary" size="small" @click="openImportDialog('binaryData')">
                   <el-icon><Upload /></el-icon> 导入文件
                 </el-button>
               </div>
@@ -339,7 +399,9 @@ function handleCancel() {
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{
+              isEdit ? '更新' : '创建'
+            }}</el-button>
           </div>
         </div>
       </div>

@@ -58,7 +58,9 @@ const drawerSize = computed(() => {
 })
 
 onMounted(() => {
-  mobileHandler = (e: MediaQueryListEvent) => { isMobile.value = e.matches }
+  mobileHandler = (e: MediaQueryListEvent) => {
+    isMobile.value = e.matches
+  }
   window.matchMedia('(max-width: 768px)').addEventListener('change', mobileHandler)
 })
 onUnmounted(() => {
@@ -72,19 +74,24 @@ const isAdmin = computed(() => authStore.user?.isAdmin || authStore.user?.isSupe
 const filteredMembers = computed(() => {
   if (!searchQuery.value.trim()) return members.value
   const query = searchQuery.value.trim().toLowerCase()
-  return members.value.filter(m =>
-    (m.username || '').toLowerCase().includes(query) ||
-    (m.displayName || '').toLowerCase().includes(query) ||
-    m.bindings.some(b =>
-      (b.roleDisplayName || '').toLowerCase().includes(query) ||
-      (b.namespace || '').toLowerCase().includes(query)
-    )
+  return members.value.filter(
+    (m) =>
+      (m.username || '').toLowerCase().includes(query) ||
+      (m.displayName || '').toLowerCase().includes(query) ||
+      m.bindings.some(
+        (b) =>
+          (b.roleDisplayName || '').toLowerCase().includes(query) ||
+          (b.namespace || '').toLowerCase().includes(query),
+      ),
   )
 })
 
-watch(() => props.visible, (val) => {
-  if (val && props.clusterId) fetchData()
-})
+watch(
+  () => props.visible,
+  (val) => {
+    if (val && props.clusterId) fetchData()
+  },
+)
 
 async function fetchData() {
   expandedMembers.value = new Set()
@@ -97,7 +104,7 @@ async function fetchData() {
     const mData: any = membersRes?.data ?? membersRes
     members.value = (mData?.items || []) as Member[]
     const rData: any = rolesRes?.data ?? rolesRes
-    roles.value = Array.isArray(rData) ? rData : (rData?.items || [])
+    roles.value = Array.isArray(rData) ? rData : rData?.items || []
   } catch (e: any) {
     ElMessage.error(e?.message || t('rbac.loadFailed'))
   } finally {
@@ -140,16 +147,17 @@ function isExpanded(userId: number) {
 
 // 按组删除：删除该成员在指定角色下的全部绑定
 async function handleRemoveRole(m: Member, b: MemberBinding) {
-  const label = b.scopeType === 'cluster'
-    ? b.roleDisplayName
-    : `${b.roleDisplayName} (${b.namespace})`
+  const label =
+    b.scopeType === 'cluster' ? b.roleDisplayName : `${b.roleDisplayName} (${b.namespace})`
   try {
     await ElMessageBox.confirm(
       t('rbac.removeRoleConfirm', { name: escapeHtml(m.username), role: escapeHtml(label) }),
       t('common.confirm'),
-      { type: 'warning', dangerouslyUseHTMLString: true }
+      { type: 'warning', dangerouslyUseHTMLString: true },
     )
-  } catch { return }
+  } catch {
+    return
+  }
   try {
     await deleteBinding(b.bindingId)
     ElMessage.success(t('rbac.removeRoleSuccess'))
@@ -166,9 +174,11 @@ async function handleRemoveMember(m: Member) {
     await ElMessageBox.confirm(
       t('rbac.removeMemberConfirm', { name: escapeHtml(m.username) }),
       t('common.confirm'),
-      { type: 'warning', dangerouslyUseHTMLString: true }
+      { type: 'warning', dangerouslyUseHTMLString: true },
     )
-  } catch { return }
+  } catch {
+    return
+  }
   try {
     await removeClusterMember(m.userId, props.clusterId)
     ElMessage.success(t('rbac.removeMemberSuccess'))
@@ -189,28 +199,36 @@ function roleTagType(roleName: string): string {
 
 function escapeHtml(str: string): string {
   const map: Record<string, string> = {
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
   }
-  return str.replace(/[&<>"']/g, c => map[c])
+  return str.replace(/[&<>"']/g, (c) => map[c])
 }
 </script>
 
 <template>
   <el-drawer
     :model-value="visible"
-    @update:model-value="emit('update:visible', $event)"
     :title="t('rbac.clusterMembers', { cluster: clusterName })"
     :size="drawerSize"
     destroy-on-close
+    @update:model-value="emit('update:visible', $event)"
   >
     <template #header>
       <div class="drawer-header">
         <div class="header-title">
-          <el-icon :size="20" style="color: var(--gk-color-primary); margin-right: 8px;"><User /></el-icon>
+          <el-icon :size="20" style="color: var(--gk-color-primary); margin-right: 8px"
+            ><User
+          /></el-icon>
           <span>{{ t('rbac.clusterMembers', { cluster: clusterName }) }}</span>
         </div>
         <div class="header-stats">
-          <el-tag size="small" type="info">{{ t('rbac.totalMembers', { count: members.length }) }}</el-tag>
+          <el-tag size="small" type="info">{{
+            t('rbac.totalMembers', { count: members.length })
+          }}</el-tag>
         </div>
       </div>
     </template>
@@ -221,7 +239,7 @@ function escapeHtml(str: string): string {
           v-model="searchQuery"
           :placeholder="t('rbac.searchMembers')"
           clearable
-          style="width: 220px;"
+          style="width: 220px"
           size="default"
         />
         <el-button v-if="isAdmin" type="primary" @click="handleAdd">
@@ -230,14 +248,12 @@ function escapeHtml(str: string): string {
       </div>
 
       <div v-loading="loading" class="member-cards">
-        <el-empty v-if="!loading && filteredMembers.length === 0" :description="t('rbac.noMembers')" />
+        <el-empty
+          v-if="!loading && filteredMembers.length === 0"
+          :description="t('rbac.noMembers')"
+        />
 
-        <el-card
-          v-for="m in filteredMembers"
-          :key="m.userId"
-          shadow="never"
-          class="member-card"
-        >
+        <el-card v-for="m in filteredMembers" :key="m.userId" shadow="never" class="member-card">
           <div class="member-head">
             <div class="member-info">
               <el-avatar :size="36" class="member-avatar">
@@ -274,7 +290,9 @@ function escapeHtml(str: string): string {
             <!-- 展开态 -->
             <template v-if="isExpanded(m.userId)">
               <div v-for="b in m.bindings" :key="b.bindingId" class="binding-row">
-                <el-tag :type="roleTagType(b.roleName)" size="small">{{ b.roleDisplayName }}</el-tag>
+                <el-tag :type="roleTagType(b.roleName)" size="small">{{
+                  b.roleDisplayName
+                }}</el-tag>
                 <el-tag v-if="b.scopeType === 'cluster'" size="small" type="info">
                   {{ t('rbac.clusterScope') }}
                 </el-tag>
@@ -320,23 +338,91 @@ function escapeHtml(str: string): string {
 </template>
 
 <style scoped>
-.drawer-header { display: flex; flex-direction: column; gap: 8px; }
-.header-title { display: flex; align-items: center; font-size: 16px; font-weight: 600; }
-.header-stats { display: flex; gap: 8px; flex-wrap: wrap; }
-.drawer-body { display: flex; flex-direction: column; gap: 16px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-.member-cards { display: flex; flex-direction: column; gap: 12px; min-height: 120px; }
-.member-card { border: 1px solid var(--gk-color-border); }
-.member-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-.member-info { display: flex; align-items: center; gap: 12px; }
-.member-avatar { background: var(--gk-color-primary); color: #fff; flex-shrink: 0; }
-.member-names { display: flex; flex-direction: column; }
-.username { font-weight: 600; }
-.display-name { font-size: 12px; color: var(--gk-color-text-secondary); }
-.member-actions { display: flex; gap: 8px; }
-.member-bindings { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-.binding-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.no-role { color: var(--gk-color-text-disabled); font-size: 12px; }
+.drawer-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.header-title {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 600;
+}
+.header-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.member-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 120px;
+}
+.member-card {
+  border: 1px solid var(--gk-color-border);
+}
+.member-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.member-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.member-avatar {
+  background: var(--gk-color-primary);
+  color: #fff;
+  flex-shrink: 0;
+}
+.member-names {
+  display: flex;
+  flex-direction: column;
+}
+.username {
+  font-weight: 600;
+}
+.display-name {
+  font-size: 12px;
+  color: var(--gk-color-text-secondary);
+}
+.member-actions {
+  display: flex;
+  gap: 8px;
+}
+.member-bindings {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.binding-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.no-role {
+  color: var(--gk-color-text-disabled);
+  font-size: 12px;
+}
 .binding-fold-bar {
   display: flex;
   align-items: center;
@@ -347,10 +433,16 @@ function escapeHtml(str: string): string {
   padding: 2px 0;
   user-select: none;
 }
-.binding-fold-bar:hover { opacity: 0.8; }
+.binding-fold-bar:hover {
+  opacity: 0.8;
+}
 .super-admin-badge {
   background: linear-gradient(135deg, #f56c6c 0%, #e6a23c 100%);
-  color: white; padding: 2px 8px; border-radius: 4px;
-  font-size: 12px; font-weight: 600; align-self: flex-start;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  align-self: flex-start;
 }
 </style>

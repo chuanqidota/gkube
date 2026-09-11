@@ -9,7 +9,7 @@ interface Props {
   loading?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const _props = withDefaults(defineProps<Props>(), {
   availableIntervals: () => [5, 10, 15, 30, 60],
   loading: false,
 })
@@ -45,10 +45,10 @@ function handleIntervalChange(seconds: number) {
                避免点击选项时被 popover 的 click-outside 判定为外部而关闭 -->
           <el-select
             :model-value="currentInterval / 1000"
-            @update:model-value="handleIntervalChange"
             :teleported="false"
             size="small"
-            style="width: 100%;"
+            style="width: 100%"
+            @update:model-value="handleIntervalChange"
           >
             <el-option
               v-for="sec in availableIntervals"
@@ -63,7 +63,7 @@ function handleIntervalChange(seconds: number) {
     <!-- 手动刷新按钮（图标 + tooltip） -->
     <div class="toolbar-last">
       <el-tooltip content="刷新" placement="top">
-        <el-button @click="emit('refresh')" :loading="loading" :icon="Refresh" />
+        <el-button :loading="loading" :icon="Refresh" @click="emit('refresh')" />
       </el-tooltip>
     </div>
   </div>

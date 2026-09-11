@@ -90,22 +90,32 @@ async function handleDelete() {
   }
 }
 
-const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 320 })
+const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } =
+  useResizable({ initialWidth: 320 })
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchDetail, { autoStart: false })
 
 onMounted(fetchDetail)
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
+  <div v-loading="loading" class="detail-page">
     <!-- ===== 顶部标题栏 ===== -->
     <div class="page-header">
       <div class="header-left">
         <h2 class="res-name">{{ name }}</h2>
         <div class="meta-line">
-          <el-tag v-if="pvcStatus !== '-'" :type="statusTagType" effect="dark" size="small">{{ pvcStatus }}</el-tag>
+          <el-tag v-if="pvcStatus !== '-'" :type="statusTagType" effect="dark" size="small">{{
+            pvcStatus
+          }}</el-tag>
           <span class="ns-tag">ns/{{ namespace }}</span>
         </div>
       </div>
@@ -116,11 +126,7 @@ onMounted(fetchDetail)
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
+            <el-button :type="isRunning ? 'success' : 'default'" :icon="Timer" @click="toggle()" />
           </template>
           <div class="auto-refresh-popover">
             <div class="popover-title">
@@ -128,10 +134,10 @@ onMounted(fetchDetail)
             </div>
             <el-select
               :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
               :teleported="false"
               size="small"
-              style="width: 100%;"
+              style="width: 100%"
+              @update:model-value="setIntervalOption"
             >
               <el-option
                 v-for="sec in availableIntervals"
@@ -143,7 +149,7 @@ onMounted(fetchDetail)
           </div>
         </el-popover>
         <el-tooltip content="刷新" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+          <el-button :loading="loading" :icon="Refresh" @click="manualRefresh()" />
         </el-tooltip>
         <el-tooltip content="返回列表" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/storage/pvcs')" />
@@ -153,7 +159,6 @@ onMounted(fetchDetail)
 
     <template v-if="pvc">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
-
         <!-- 左侧：基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">基本信息</div>
@@ -182,7 +187,13 @@ onMounted(fetchDetail)
               <div class="info-row">
                 <span class="info-label">标签</span>
                 <span class="info-value">
-                  <el-tag v-for="(val, key) in pvc.metadata.labels" :key="key" size="small" class="label-tag">{{ key }}={{ val }}</el-tag>
+                  <el-tag
+                    v-for="(val, key) in pvc.metadata.labels"
+                    :key="key"
+                    size="small"
+                    class="label-tag"
+                    >{{ key }}={{ val }}</el-tag
+                  >
                 </span>
               </div>
             </template>
@@ -193,15 +204,18 @@ onMounted(fetchDetail)
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
+          :style="{ left: leftWidth - 3 + 'px' }"
           @mousedown="onHResizeStart"
         />
 
         <!-- 右侧：存储配置 + Conditions + 注解 -->
         <div class="right-panel">
-
           <!-- 存储配置 -->
-          <div class="right-section" style="flex: none;" :style="rightTopHeight ? { height: rightTopHeight + 'px' } : {}">
+          <div
+            class="right-section"
+            style="flex: none"
+            :style="rightTopHeight ? { height: rightTopHeight + 'px' } : {}"
+          >
             <div class="panel-title">存储配置</div>
             <div class="info-body">
               <div class="info-row">
@@ -214,7 +228,9 @@ onMounted(fetchDetail)
               </div>
               <div class="info-row">
                 <span class="info-label">访问模式</span>
-                <span class="info-value">{{ (pvc.spec?.accessModes || []).join(', ') || '-' }}</span>
+                <span class="info-value">{{
+                  (pvc.spec?.accessModes || []).join(', ') || '-'
+                }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">存储类</span>
@@ -241,26 +257,35 @@ onMounted(fetchDetail)
           <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
 
           <!-- Conditions -->
-          <div class="right-section" v-if="conditions.length > 0" style="flex: none;">
+          <div v-if="conditions.length > 0" class="right-section" style="flex: none">
             <div class="panel-title">Conditions</div>
             <div class="info-body">
               <div v-for="(cond, i) in conditions" :key="i" class="info-row">
-                <span class="info-label" style="min-width: 100px;">{{ cond.type }}</span>
+                <span class="info-label" style="min-width: 100px">{{ cond.type }}</span>
                 <span class="info-value">
-                  <el-tag :type="cond.status === 'True' ? 'success' : 'info'" size="small">{{ cond.status }}</el-tag>
-                  <span v-if="cond.message" style="margin-left: 4px; color: var(--gk-color-text-secondary); font-size: 12px;">{{ cond.message }}</span>
+                  <el-tag :type="cond.status === 'True' ? 'success' : 'info'" size="small">{{
+                    cond.status
+                  }}</el-tag>
+                  <span
+                    v-if="cond.message"
+                    style="margin-left: 4px; color: var(--gk-color-text-secondary); font-size: 12px"
+                    >{{ cond.message }}</span
+                  >
                 </span>
               </div>
             </div>
           </div>
 
           <!-- 注解 -->
-          <div class="right-section" v-if="pvc.metadata?.annotations && Object.keys(pvc.metadata.annotations).length > 0">
+          <div
+            v-if="pvc.metadata?.annotations && Object.keys(pvc.metadata.annotations).length > 0"
+            class="right-section"
+          >
             <div class="panel-title">注解</div>
             <div class="info-body">
               <div v-for="(val, key) in pvc.metadata.annotations" :key="key" class="info-row">
-                <span class="info-label mono" style="min-width: 120px;">{{ key }}</span>
-                <span class="info-value mono" style="word-break: break-all;">{{ val }}</span>
+                <span class="info-label mono" style="min-width: 120px">{{ key }}</span>
+                <span class="info-value mono" style="word-break: break-all">{{ val }}</span>
               </div>
             </div>
           </div>
@@ -299,7 +324,7 @@ onMounted(fetchDetail)
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto">
         <PVCForm
           v-if="editDialogVisible && pvc"
           :is-edit="true"

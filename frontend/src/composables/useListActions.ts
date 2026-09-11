@@ -6,7 +6,12 @@ interface ListActionsOptions {
   kind: 'deployment' | 'statefulset' | 'daemonset'
   scaleApi?: (params: { namespace: string; name: string; replicas: number }) => Promise<any>
   restartApi: (params: { namespace: string; name: string }) => Promise<any>
-  updateImageApi: (params: { namespace: string; name: string; containerName: string; image: string }) => Promise<any>
+  updateImageApi: (params: {
+    namespace: string
+    name: string
+    containerName: string
+    image: string
+  }) => Promise<any>
   detailApi: (params: { namespace: string; name: string }) => Promise<any>
   onActionSuccess?: () => void
 }
@@ -35,7 +40,9 @@ export function useListActions(options: ListActionsOptions) {
     scaleLoading.value = true
     try {
       await scaleApi({ ...scaleTarget.value, replicas: scaleReplicas.value })
-      ElMessage.success(t('workload.scaledToReplicas', { name: scaleTarget.value.name, n: scaleReplicas.value }))
+      ElMessage.success(
+        t('workload.scaledToReplicas', { name: scaleTarget.value.name, n: scaleReplicas.value }),
+      )
       scaleDialogVisible.value = false
       onActionSuccess?.()
     } catch (e: any) {
@@ -47,12 +54,20 @@ export function useListActions(options: ListActionsOptions) {
 
   // Restart
   async function handleRestart(row: any) {
-    const kindLabel = { deployment: 'Deployment', statefulset: 'StatefulSet', daemonset: 'DaemonSet' }[kind]
+    const kindLabel = {
+      deployment: 'Deployment',
+      statefulset: 'StatefulSet',
+      daemonset: 'DaemonSet',
+    }[kind]
     try {
       await ElMessageBox.confirm(
         t('workload.restartConfirm', { kind: kindLabel, name: row.name }),
         t('workload.restartConfirmTitle'),
-        { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+        {
+          type: 'warning',
+          confirmButtonText: t('common.confirm'),
+          cancelButtonText: t('common.cancel'),
+        },
       )
       await restartApi({ namespace: row.namespace, name: row.name })
       ElMessage.success(t('workload.restartSuccessMsg', { name: row.name }))
@@ -76,7 +91,8 @@ export function useListActions(options: ListActionsOptions) {
     imageDialogVisible.value = true
     try {
       const res: any = await detailApi({ namespace: row.namespace, name: row.name })
-      const containers = res?.data?.spec?.template?.spec?.containers || res?.spec?.template?.spec?.containers || []
+      const containers =
+        res?.data?.spec?.template?.spec?.containers || res?.spec?.template?.spec?.containers || []
       imageContainers.value = containers.map((c: any) => ({ name: c.name, image: c.image || '' }))
       if (imageContainers.value.length > 0) {
         imageForm.value.containerName = imageContainers.value[0].name

@@ -137,7 +137,11 @@ async function handleDelete() {
     await ElMessageBox.confirm(
       t('workload.confirmDeleteHpa', { name }),
       t('common.confirmDelete'),
-      { type: 'error', confirmButtonText: t('common.delete'), cancelButtonText: t('common.cancel') }
+      {
+        type: 'error',
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
+      },
     )
     await deleteHpa({ namespace: ns, name })
     ElMessage.success(t('workload.hpaDeleteSuccess'))
@@ -157,7 +161,11 @@ async function handlePause() {
     await ElMessageBox.confirm(
       t('workload.pauseConfirm', { n: current ?? '-' }),
       t('common.confirmAction'),
-      { type: 'warning', confirmButtonText: t('workload.suspend'), cancelButtonText: t('common.cancel') }
+      {
+        type: 'warning',
+        confirmButtonText: t('workload.suspend'),
+        cancelButtonText: t('common.cancel'),
+      },
     )
     await pauseHpa({ namespace: ns, name })
     ElMessage.success(t('workload.hpaPauseSuccess'))
@@ -192,10 +200,14 @@ async function handleResume() {
       </div>
       <div class="header-actions">
         <el-button size="small" type="info" @click="emit('edit')">{{ t('common.edit') }}</el-button>
-        <el-button v-if="isPaused" size="small" type="success" @click="handleResume">恢复</el-button>
+        <el-button v-if="isPaused" size="small" type="success" @click="handleResume"
+          >恢复</el-button
+        >
         <el-button v-else size="small" type="warning" @click="handlePause">暂停</el-button>
         <el-button size="small" @click="emit('yaml')">YAML</el-button>
-        <el-button size="small" type="danger" @click="handleDelete">{{ t('common.delete') }}</el-button>
+        <el-button size="small" type="danger" @click="handleDelete">{{
+          t('common.delete')
+        }}</el-button>
       </div>
     </div>
 
@@ -211,14 +223,18 @@ async function handleResume() {
     </div>
 
     <!-- Metrics Progress Bars -->
-    <div class="section" v-if="metricInfos.length">
+    <div v-if="metricInfos.length" class="section">
       <div class="section-title">指标目标</div>
       <div v-for="(m, idx) in metricInfos" :key="idx" class="metric-item">
         <div class="metric-header">
           <span class="metric-name">{{ m.displayName }}</span>
           <span class="metric-values">
-            目标: {{ m.targetValue }}<template v-if="m.targetType === 'Utilization'">%</template>
-            &nbsp;当前: <template v-if="m.currentValue !== null">{{ m.currentValue }}<template v-if="m.targetType === 'Utilization'">%</template></template><template v-else>-</template>
+            目标: {{ m.targetValue
+            }}<template v-if="m.targetType === 'Utilization'">%</template> &nbsp;当前:
+            <template v-if="m.currentValue !== null"
+              >{{ m.currentValue
+              }}<template v-if="m.targetType === 'Utilization'">%</template></template
+            ><template v-else>-</template>
           </span>
         </div>
         <el-progress
@@ -227,41 +243,53 @@ async function handleResume() {
           :stroke-width="16"
           :show-text="false"
         />
-        <div class="metric-status" v-if="m.currentValue !== null">
-          <el-tag :type="m.color === '#f56c6c' ? 'danger' : m.color === '#e6a23c' ? 'warning' : 'success'" size="small" effect="plain">{{ m.statusLabel }}</el-tag>
+        <div v-if="m.currentValue !== null" class="metric-status">
+          <el-tag
+            :type="m.color === '#f56c6c' ? 'danger' : m.color === '#e6a23c' ? 'warning' : 'success'"
+            size="small"
+            effect="plain"
+            >{{ m.statusLabel }}</el-tag
+          >
         </div>
       </div>
     </div>
 
     <!-- Behavior -->
-    <div class="section" v-if="hpa?.spec?.behavior">
+    <div v-if="hpa?.spec?.behavior" class="section">
       <div class="section-title">扩缩容行为</div>
       <div class="behavior-list">
-        <div class="behavior-row" v-if="hpa.spec.behavior.scaleUp">
+        <div v-if="hpa.spec.behavior.scaleUp" class="behavior-row">
           <span class="behavior-label">扩容</span>
           <span class="behavior-value">
             稳定窗口 {{ hpa.spec.behavior.scaleUp.stabilizationWindowSeconds ?? 0 }}s
-            <template v-if="(hpa.spec.behavior.scaleUp.stabilizationWindowSeconds ?? 0) === 0">(立即)</template>
+            <template v-if="(hpa.spec.behavior.scaleUp.stabilizationWindowSeconds ?? 0) === 0"
+              >(立即)</template
+            >
             · 策略 {{ hpa.spec.behavior.scaleUp.selectPolicy || '-' }}
           </span>
         </div>
-        <div class="behavior-row" v-if="hpa.spec.behavior.scaleDown">
+        <div v-if="hpa.spec.behavior.scaleDown" class="behavior-row">
           <span class="behavior-label">缩容</span>
           <span class="behavior-value">
-            稳定窗口 {{ hpa.spec.behavior.scaleDown.stabilizationWindowSeconds ?? 300 }}s
-            ({{ Math.round((hpa.spec.behavior.scaleDown.stabilizationWindowSeconds ?? 300) / 60) }}分钟)
-            · 策略 {{ hpa.spec.behavior.scaleDown.selectPolicy || '-' }}
+            稳定窗口 {{ hpa.spec.behavior.scaleDown.stabilizationWindowSeconds ?? 300 }}s ({{
+              Math.round((hpa.spec.behavior.scaleDown.stabilizationWindowSeconds ?? 300) / 60)
+            }}分钟) · 策略 {{ hpa.spec.behavior.scaleDown.selectPolicy || '-' }}
           </span>
         </div>
       </div>
     </div>
 
     <!-- Conditions -->
-    <div class="section" v-if="hpa?.status?.conditions?.length">
+    <div v-if="hpa?.status?.conditions?.length" class="section">
       <div class="section-title">状态条件</div>
       <div class="conditions-list">
         <div v-for="(c, idx) in hpa.status.conditions" :key="idx" class="condition-item">
-          <el-tag :type="c.status === 'True' ? 'success' : 'danger'" size="small" effect="dark" class="condition-status" />
+          <el-tag
+            :type="c.status === 'True' ? 'success' : 'danger'"
+            size="small"
+            effect="dark"
+            class="condition-status"
+          />
           <span class="condition-type">{{ c.type }}</span>
           <span class="condition-reason">{{ c.reason }}</span>
         </div>
@@ -269,9 +297,7 @@ async function handleResume() {
     </div>
 
     <!-- Last Scale Time -->
-    <div class="last-scale" v-if="lastScaleTime">
-      Last Scale: {{ lastScaleTime }}
-    </div>
+    <div v-if="lastScaleTime" class="last-scale">Last Scale: {{ lastScaleTime }}</div>
   </div>
 </template>
 

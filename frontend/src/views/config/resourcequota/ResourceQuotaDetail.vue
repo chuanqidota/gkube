@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Delete, Edit } from '@element-plus/icons-vue'
-import { getResourceQuotaDetail, getResourceQuotaYaml, updateResourceQuota, deleteResourceQuota } from '@/api/resource'
+import {
+  getResourceQuotaDetail,
+  getResourceQuotaYaml,
+  updateResourceQuota,
+  deleteResourceQuota,
+} from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
-import * as echarts from 'echarts'
+import { echarts } from '@/utils/echarts'
+
+let chartInstance: echarts.ECharts | null = null
+let resizeHandler: (() => void) | null = null
+let chartTimer: ReturnType<typeof setTimeout> | null = null
 
 const route = useRoute()
 const router = useRouter()
@@ -29,7 +38,8 @@ async function fetchDetail() {
   try {
     const res: any = await getResourceQuotaDetail({ namespace, name })
     quota.value = res.data
-    setTimeout(updateChart, 100)
+    if (chartTimer) clearTimeout(chartTimer)
+    chartTimer = setTimeout(updateChart, 100)
   } catch (e: any) {
     ElMessage.error(e?.message || 'Failed to load ResourceQuota')
   } finally {
@@ -54,50 +64,59 @@ function handleTabChange(tab: string) {
     fetchYaml()
   }
   if (tab === 'info') {
-    setTimeout(updateChart, 100)
+    if (chartTimer) clearTimeout(chartTimer)
+    chartTimer = setTimeout(updateChart, 100)
   }
 }
 
-function updateChart() {
-  if (!chartRef.value || !quota.value) return
+function initChart() {
+  if (!chartRef.value) return
+  chartInstance = echarts.init(chartRef.value)
+  resizeHandler = () => chartInstance?.resize()
+  window.addEventListener('resize', resizeHandler)
+}
 
-  const chart = echarts.init(chartRef.value)
+function updateChart() {
+  if (!chartInstance) initChart()
+  if (!chartInstance || !quota.value) return
+
   const hard = quota.value.spec?.hard || {}
   const used = quota.value.status?.used || {}
 
   const categories = Object.keys(hard)
   if (categories.length === 0) return
 
-  const hardValues = categories.map(k => parseResourceValue(hard[k]))
-  const usedValues = categories.map(k => parseResourceValue(used[k] || '0'))
+  const hardValues = categories.map((k) => parseResourceValue(hard[k]))
+  const usedValues = categories.map((k) => parseResourceValue(used[k] || '0'))
 
-  chart.setOption({
-    title: { text: 'Resource Quota Usage', left: 'center' },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    legend: { data: ['Limit', 'Used'], bottom: 0 },
-    xAxis: {
-      type: 'category',
-      data: categories.map(formatCategory),
-      axisLabel: { rotate: 45, fontSize: 10 }
-    },
-    yAxis: { type: 'value' },
-    series: [
-      {
-        name: 'Limit',
-        type: 'bar',
-        data: hardValues,
-        itemStyle: { color: '#409eff' }
+  chartInstance.setOption(
+    {
+      title: { text: 'Resource Quota Usage', left: 'center' },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: { data: ['Limit', 'Used'], bottom: 0 },
+      xAxis: {
+        type: 'category',
+        data: categories.map(formatCategory),
+        axisLabel: { rotate: 45, fontSize: 10 },
       },
-      {
-        name: 'Used',
-        type: 'bar',
-        data: usedValues,
-        itemStyle: { color: '#67c23a' }
-      }
-    ]
-  })
-
-  window.addEventListener('resize', () => chart.resize())
+      yAxis: { type: 'value' },
+      series: [
+        {
+          name: 'Limit',
+          type: 'bar',
+          data: hardValues,
+          itemStyle: { color: '#409eff' },
+        },
+        {
+          name: 'Used',
+          type: 'bar',
+          data: usedValues,
+          itemStyle: { color: '#67c23a' },
+        },
+      ],
+    },
+    true,
+  )
 }
 
 function parseResourceValue(val: string): number {
@@ -116,13 +135,13 @@ function formatCategory(cat: string): string {
     'requests.memory': 'Memory Requests',
     'limits.cpu': 'CPU Limits',
     'limits.memory': 'Memory Limits',
-    'pods': 'Pods',
-    'services': 'Services',
-    'secrets': 'Secrets',
-    'configmaps': 'ConfigMaps',
-    'persistentvolumeclaims': 'PVCs',
-    'resourcequotas': 'ResourceQuotas',
-    'replicationcontrollers': 'RCs',
+    pods: 'Pods',
+    services: 'Services',
+    secrets: 'Secrets',
+    configmaps: 'ConfigMaps',
+    persistentvolumeclaims: 'PVCs',
+    resourcequotas: 'ResourceQuotas',
+    replicationcontrollers: 'RCs',
   }
   return map[cat] || cat
 }
@@ -145,14 +164,17 @@ function handleEdit() {
   editing.value = true
   if (!yamlContent.value) {
     yamlLoading.value = true
-    getResourceQuotaYaml({ namespace, name }).then((res: any) => {
-      editYaml.value = res.data?.yaml || res.data || ''
-      yamlContent.value = editYaml.value
-    }).catch((e: any) => {
-      ElMessage.error(e?.message || 'Failed to load YAML')
-    }).finally(() => {
-      yamlLoading.value = false
-    })
+    getResourceQuotaYaml({ namespace, name })
+      .then((res: any) => {
+        editYaml.value = res.data?.yaml || res.data || ''
+        yamlContent.value = editYaml.value
+      })
+      .catch((e: any) => {
+        ElMessage.error(e?.message || 'Failed to load YAML')
+      })
+      .finally(() => {
+        yamlLoading.value = false
+      })
   }
 }
 
@@ -177,11 +199,17 @@ async function handleSave() {
 
 async function handleDelete() {
   try {
-    await ElMessageBox.confirm(`Delete ResourceQuota "${name}" in namespace "${namespace}"?`, 'Confirm', { type: 'warning' })
+    await ElMessageBox.confirm(
+      `Delete ResourceQuota "${name}" in namespace "${namespace}"?`,
+      'Confirm',
+      { type: 'warning' },
+    )
     await deleteResourceQuota({ namespace, name })
     ElMessage.success('ResourceQuota deleted')
     router.push('/config/resourcequotas')
-  } catch { /* cancelled */ }
+  } catch {
+    /* cancelled */
+  }
 }
 
 function handleRefresh() {
@@ -189,16 +217,39 @@ function handleRefresh() {
   if (yamlContent.value) fetchYaml()
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchDetail, { autoStart: false })
 
 onMounted(fetchDetail)
+
+onBeforeUnmount(() => {
+  if (chartTimer) {
+    clearTimeout(chartTimer)
+    chartTimer = null
+  }
+  if (resizeHandler) {
+    window.removeEventListener('resize', resizeHandler)
+    resizeHandler = null
+  }
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+})
 </script>
 
 <template>
-  <div class="page-container" v-loading="loading">
+  <div v-loading="loading" class="page-container">
     <div class="page-header">
-      <h2 style="margin: 0;">ResourceQuota: {{ name }}</h2>
-      <div style="display: flex; gap: 8px;">
+      <h2 style="margin: 0">ResourceQuota: {{ name }}</h2>
+      <div style="display: flex; gap: 8px">
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -209,9 +260,15 @@ onMounted(fetchDetail)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button @click="handleRefresh"><el-icon><Refresh /></el-icon> Refresh</el-button>
-        <el-button type="primary" @click="handleEdit"><el-icon><Edit /></el-icon> Edit</el-button>
-        <el-button type="danger" @click="handleDelete"><el-icon><Delete /></el-icon> 删除</el-button>
+        <el-button @click="handleRefresh"
+          ><el-icon><Refresh /></el-icon> Refresh</el-button
+        >
+        <el-button type="primary" @click="handleEdit"
+          ><el-icon><Edit /></el-icon> Edit</el-button
+        >
+        <el-button type="danger" @click="handleDelete"
+          ><el-icon><Delete /></el-icon> 删除</el-button
+        >
         <el-button @click="router.push('/config/resourcequotas')">Back to List</el-button>
       </div>
     </div>
@@ -222,47 +279,55 @@ onMounted(fetchDetail)
           <el-row :gutter="16">
             <el-col :span="12">
               <el-card shadow="never">
-                <template #header><h4 style="margin: 0;">Basic Info</h4></template>
+                <template #header><h4 style="margin: 0">Basic Info</h4></template>
                 <el-descriptions :column="1" border>
-                  <el-descriptions-item label="Name">{{ quota.name || quota.metadata?.name }}</el-descriptions-item>
-                  <el-descriptions-item label="Namespace">{{ quota.namespace || quota.metadata?.namespace }}</el-descriptions-item>
+                  <el-descriptions-item label="Name">{{
+                    quota.name || quota.metadata?.name
+                  }}</el-descriptions-item>
+                  <el-descriptions-item label="Namespace">{{
+                    quota.namespace || quota.metadata?.namespace
+                  }}</el-descriptions-item>
                   <el-descriptions-item label="Age">{{ quota.age || '-' }}</el-descriptions-item>
-                  <el-descriptions-item label="UID">{{ quota.metadata?.uid || '-' }}</el-descriptions-item>
+                  <el-descriptions-item label="UID">{{
+                    quota.metadata?.uid || '-'
+                  }}</el-descriptions-item>
                 </el-descriptions>
               </el-card>
 
               <!-- Labels -->
-              <el-card shadow="never" style="margin-top: var(--gk-space-4);">
-                <template #header><h4 style="margin: 0;">Labels</h4></template>
+              <el-card shadow="never" style="margin-top: var(--gk-space-4)">
+                <template #header><h4 style="margin: 0">Labels</h4></template>
                 <div v-if="quota.labels && Object.keys(quota.labels).length > 0">
-                  <el-tag v-for="(val, key) in quota.labels" :key="key" style="margin: 4px;">
+                  <el-tag v-for="(val, key) in quota.labels" :key="key" style="margin: 4px">
                     {{ key }}={{ val }}
                   </el-tag>
                 </div>
-                <span v-else style="color: var(--gk-color-text-secondary);">No labels</span>
+                <span v-else style="color: var(--gk-color-text-secondary)">No labels</span>
               </el-card>
 
               <!-- Annotations -->
-              <el-card shadow="never" style="margin-top: var(--gk-space-4);">
-                <template #header><h4 style="margin: 0;">Annotations</h4></template>
+              <el-card shadow="never" style="margin-top: var(--gk-space-4)">
+                <template #header><h4 style="margin: 0">Annotations</h4></template>
                 <div v-if="quota.annotations && Object.keys(quota.annotations).length > 0">
                   <div v-for="(val, key) in quota.annotations" :key="key" class="annotation-item">
                     <span class="annotation-key">{{ key }}</span>
                     <span class="annotation-value">{{ val }}</span>
                   </div>
                 </div>
-                <span v-else style="color: var(--gk-color-text-secondary);">No annotations</span>
+                <span v-else style="color: var(--gk-color-text-secondary)">No annotations</span>
               </el-card>
             </el-col>
 
             <el-col :span="12">
               <el-card shadow="never">
-                <template #header><h4 style="margin: 0;">Usage</h4></template>
+                <template #header><h4 style="margin: 0">Usage</h4></template>
                 <div v-if="quota.spec?.hard">
                   <div v-for="(val, key) in quota.spec.hard" :key="key" class="quota-item">
                     <div class="quota-header">
                       <span class="quota-name">{{ formatCategory(String(key)) }}</span>
-                      <span class="quota-value">{{ quota.status?.used?.[key] || '0' }} / {{ val }}</span>
+                      <span class="quota-value"
+                        >{{ quota.status?.used?.[key] || '0' }} / {{ val }}</span
+                      >
                     </div>
                     <el-progress
                       :percentage="usagePercent(val, quota.status?.used?.[key] || '0')"
@@ -271,28 +336,30 @@ onMounted(fetchDetail)
                     />
                   </div>
                 </div>
-                <span v-else style="color: var(--gk-color-text-secondary);">No quota info</span>
+                <span v-else style="color: var(--gk-color-text-secondary)">No quota info</span>
               </el-card>
             </el-col>
           </el-row>
 
-          <el-card shadow="never" style="margin-top: var(--gk-space-4);">
-            <div ref="chartRef" style="height: 400px;"></div>
+          <el-card shadow="never" style="margin-top: var(--gk-space-4)">
+            <div ref="chartRef" style="height: 400px"></div>
           </el-card>
         </el-tab-pane>
 
         <el-tab-pane label="YAML" name="yaml">
           <el-card shadow="never">
             <div v-if="editing">
-              <div style="margin-bottom: 12px; display: flex; gap: 8px;">
+              <div style="margin-bottom: 12px; display: flex; gap: 8px">
                 <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
                 <el-button @click="handleCancelEdit">取消</el-button>
               </div>
               <YamlEditor v-model="editYaml" height="600px" />
             </div>
             <div v-else v-loading="yamlLoading">
-              <div style="margin-bottom: 12px;">
-                <el-button type="primary" @click="handleEdit"><el-icon><Edit /></el-icon> Edit YAML</el-button>
+              <div style="margin-bottom: 12px">
+                <el-button type="primary" @click="handleEdit"
+                  ><el-icon><Edit /></el-icon> Edit YAML</el-button
+                >
               </div>
               <YamlEditor v-model="yamlContent" height="600px" read-only />
             </div>
@@ -304,13 +371,44 @@ onMounted(fetchDetail)
 </template>
 
 <style scoped>
-.page-container { padding: var(--gk-space-5); }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.quota-item { margin-bottom: 16px; }
-.quota-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
-.quota-name { font-weight: 500; }
-.quota-value { color: var(--gk-color-text-secondary); }
-.annotation-item { display: flex; gap: 12px; margin-bottom: 8px; padding: 4px 0; border-bottom: 1px solid var(--gk-color-border-light); }
-.annotation-key { font-weight: 500; min-width: 200px; word-break: break-all; }
-.annotation-value { color: var(--gk-color-text-secondary); word-break: break-all; flex: 1; }
+.page-container {
+  padding: var(--gk-space-5);
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.quota-item {
+  margin-bottom: 16px;
+}
+.quota-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.quota-name {
+  font-weight: 500;
+}
+.quota-value {
+  color: var(--gk-color-text-secondary);
+}
+.annotation-item {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--gk-color-border-light);
+}
+.annotation-key {
+  font-weight: 500;
+  min-width: 200px;
+  word-break: break-all;
+}
+.annotation-value {
+  color: var(--gk-color-text-secondary);
+  word-break: break-all;
+  flex: 1;
+}
 </style>

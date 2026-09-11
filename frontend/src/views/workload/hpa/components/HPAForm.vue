@@ -7,25 +7,28 @@ import { Delete, Plus } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import { createHpa, updateHpa, getNamespaceList, extractNamespaceNames } from '@/api/resource'
 
-const props = withDefaults(defineProps<{
-  isEdit?: boolean
-  initialData?: any
-  prefillNamespace?: string
-  prefillTargetName?: string
-  prefillTargetKind?: string
-  hideNamespace?: boolean
-  hideTarget?: boolean
-  autoName?: boolean
-}>(), {
-  isEdit: false,
-  initialData: undefined,
-  prefillNamespace: '',
-  prefillTargetName: '',
-  prefillTargetKind: 'Deployment',
-  hideNamespace: false,
-  hideTarget: false,
-  autoName: false,
-})
+const props = withDefaults(
+  defineProps<{
+    isEdit?: boolean
+    initialData?: any
+    prefillNamespace?: string
+    prefillTargetName?: string
+    prefillTargetKind?: string
+    hideNamespace?: boolean
+    hideTarget?: boolean
+    autoName?: boolean
+  }>(),
+  {
+    isEdit: false,
+    initialData: undefined,
+    prefillNamespace: '',
+    prefillTargetName: '',
+    prefillTargetKind: 'Deployment',
+    hideNamespace: false,
+    hideTarget: false,
+    autoName: false,
+  },
+)
 
 const emit = defineEmits<{
   success: []
@@ -38,8 +41,15 @@ const { t } = useI18n()
 const loading = ref(false)
 const namespaceList = ref<string[]>([])
 
-interface Label { key: string; value: string }
-interface ScalingPolicy { type: string; value: number; periodSeconds: number }
+interface Label {
+  key: string
+  value: string
+}
+interface ScalingPolicy {
+  type: string
+  value: number
+  periodSeconds: number
+}
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value || {}))
@@ -54,18 +64,30 @@ function isManagedMetric(metric: any): boolean {
   if (metric.type === 'Resource') {
     const name = metric.resource?.name
     const target = metric.resource?.target || {}
-    if ((name === 'cpu' || name === 'memory') && target.type === 'Utilization' && target.averageUtilization !== undefined) {
+    if (
+      (name === 'cpu' || name === 'memory') &&
+      target.type === 'Utilization' &&
+      target.averageUtilization !== undefined
+    ) {
       return true
     }
     return target.type === 'Utilization' && isNumericQuantity(target.averageUtilization)
   }
   if (metric.type === 'Pods') {
     const target = metric.pods?.target || {}
-    return !metric.pods?.metric?.selector && ['AverageValue', 'Value'].includes(target.type) && isNumericQuantity(target.averageValue ?? target.value)
+    return (
+      !metric.pods?.metric?.selector &&
+      ['AverageValue', 'Value'].includes(target.type) &&
+      isNumericQuantity(target.averageValue ?? target.value)
+    )
   }
   if (metric.type === 'External') {
     const target = metric.external?.target || {}
-    return !metric.external?.metric?.selector && ['AverageValue', 'Value'].includes(target.type) && isNumericQuantity(target.averageValue ?? target.value)
+    return (
+      !metric.external?.metric?.selector &&
+      ['AverageValue', 'Value'].includes(target.type) &&
+      isNumericQuantity(target.averageValue ?? target.value)
+    )
   }
   return false
 }
@@ -99,8 +121,12 @@ const isPaused = computed(() => {
   return props.isEdit && props.initialData?.metadata?.annotations?.['gkube.io/paused'] === 'true'
 })
 
-const pausedOrigMin = computed(() => props.initialData?.metadata?.annotations?.['gkube.io/paused-min-replicas'] ?? '-')
-const pausedOrigMax = computed(() => props.initialData?.metadata?.annotations?.['gkube.io/paused-max-replicas'] ?? '-')
+const pausedOrigMin = computed(
+  () => props.initialData?.metadata?.annotations?.['gkube.io/paused-min-replicas'] ?? '-',
+)
+const pausedOrigMax = computed(
+  () => props.initialData?.metadata?.annotations?.['gkube.io/paused-max-replicas'] ?? '-',
+)
 
 function parseInitialData(data: any) {
   form.value.name = data.metadata?.name || ''
@@ -121,7 +147,11 @@ function parseInitialData(data: any) {
       form.value.customMetrics.push({
         type: m.type || 'Resource',
         name: m.pods?.metric?.name || m.external?.metric?.name || '',
-        target: target?.averageValue ? Number(target.averageValue) : (target?.value ? Number(target.value) : 0),
+        target: target?.averageValue
+          ? Number(target.averageValue)
+          : target?.value
+            ? Number(target.value)
+            : 0,
         targetType: target?.type || 'AverageValue',
       })
     }
@@ -140,14 +170,19 @@ function parseInitialData(data: any) {
       form.value.scaleUpStabilizationSeconds = behavior.scaleUp.stabilizationWindowSeconds ?? 0
       form.value.scaleUpSelectPolicy = behavior.scaleUp.selectPolicy || 'Max'
       form.value.scaleUpPolicies = (behavior.scaleUp.policies || []).map((p: any) => ({
-        type: p.type || 'Percent', value: p.value ?? 0, periodSeconds: p.periodSeconds ?? 60,
+        type: p.type || 'Percent',
+        value: p.value ?? 0,
+        periodSeconds: p.periodSeconds ?? 60,
       }))
     }
     if (behavior.scaleDown) {
-      form.value.scaleDownStabilizationSeconds = behavior.scaleDown.stabilizationWindowSeconds ?? 300
+      form.value.scaleDownStabilizationSeconds =
+        behavior.scaleDown.stabilizationWindowSeconds ?? 300
       form.value.scaleDownSelectPolicy = behavior.scaleDown.selectPolicy || 'Min'
       form.value.scaleDownPolicies = (behavior.scaleDown.policies || []).map((p: any) => ({
-        type: p.type || 'Percent', value: p.value ?? 0, periodSeconds: p.periodSeconds ?? 60,
+        type: p.type || 'Percent',
+        value: p.value ?? 0,
+        periodSeconds: p.periodSeconds ?? 60,
       }))
     }
   }
@@ -164,7 +199,12 @@ const rules = {
 const formRef = ref()
 
 function addCustomMetric() {
-  form.value.customMetrics.push({ type: 'Resource', name: 'cpu', target: 80, targetType: 'Utilization' })
+  form.value.customMetrics.push({
+    type: 'Resource',
+    name: 'cpu',
+    target: 80,
+    targetType: 'Utilization',
+  })
 }
 
 function removeCustomMetric(index: number) {
@@ -174,7 +214,9 @@ function removeCustomMetric(index: number) {
 function buildYaml(): string {
   // Labels
   const labels: Record<string, string> = {}
-  form.value.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+  form.value.labels.forEach((l) => {
+    if (l.key.trim()) labels[l.key.trim()] = l.value
+  })
 
   const metrics: any[] = []
 
@@ -243,12 +285,14 @@ function buildYaml(): string {
   const preservedMetrics = unsupportedInitialMetrics()
   metrics.push(...preservedMetrics)
 
-  const hpa: any = props.isEdit ? clone(props.initialData) : {
-    apiVersion: 'autoscaling/v2',
-    kind: 'HorizontalPodAutoscaler',
-    metadata: {},
-    spec: {},
-  }
+  const hpa: any = props.isEdit
+    ? clone(props.initialData)
+    : {
+        apiVersion: 'autoscaling/v2',
+        kind: 'HorizontalPodAutoscaler',
+        metadata: {},
+        spec: {},
+      }
   delete hpa.status
   hpa.apiVersion = hpa.apiVersion || 'autoscaling/v2'
   hpa.kind = hpa.kind || 'HorizontalPodAutoscaler'
@@ -279,14 +323,22 @@ function buildYaml(): string {
       behavior.scaleUp = {
         stabilizationWindowSeconds: form.value.scaleUpStabilizationSeconds,
         selectPolicy: form.value.scaleUpSelectPolicy,
-        policies: form.value.scaleUpPolicies.map(p => ({ type: p.type, value: p.value, periodSeconds: p.periodSeconds })),
+        policies: form.value.scaleUpPolicies.map((p) => ({
+          type: p.type,
+          value: p.value,
+          periodSeconds: p.periodSeconds,
+        })),
       }
     }
     if (form.value.scaleDownPolicies.length > 0 || form.value.scaleDownStabilizationSeconds > 0) {
       behavior.scaleDown = {
         stabilizationWindowSeconds: form.value.scaleDownStabilizationSeconds,
         selectPolicy: form.value.scaleDownSelectPolicy,
-        policies: form.value.scaleDownPolicies.map(p => ({ type: p.type, value: p.value, periodSeconds: p.periodSeconds })),
+        policies: form.value.scaleDownPolicies.map((p) => ({
+          type: p.type,
+          value: p.value,
+          periodSeconds: p.periodSeconds,
+        })),
       }
     }
     if (Object.keys(behavior).length > 0) hpa.spec.behavior = behavior
@@ -307,7 +359,11 @@ async function handleSubmit() {
   loading.value = true
   try {
     // Validate at least one metric is configured
-    if (form.value.cpuUtilization <= 0 && form.value.memoryUtilization <= 0 && form.value.customMetrics.length === 0) {
+    if (
+      form.value.cpuUtilization <= 0 &&
+      form.value.memoryUtilization <= 0 &&
+      form.value.customMetrics.length === 0
+    ) {
       ElMessage.warning(t('workload.hpaMetricRequired'))
       loading.value = false
       return
@@ -329,7 +385,9 @@ async function handleSubmit() {
       router.push('/autoscaling/hpa')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
+    ElMessage.error(
+      e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')),
+    )
   } finally {
     loading.value = false
   }
@@ -347,7 +405,9 @@ async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
     namespaceList.value = extractNamespaceNames(res.data)
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 onMounted(() => {
@@ -381,7 +441,7 @@ onMounted(() => {
       type="warning"
       show-icon
       :closable="false"
-      style="margin-bottom: var(--gk-space-4);"
+      style="margin-bottom: var(--gk-space-4)"
     />
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
       <!-- Section 1: Basic Info -->
@@ -392,11 +452,20 @@ onMounted(() => {
         <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="名称" prop="name">
-              <el-input v-model="form.name" :placeholder="autoName ? '自动生成' : '请输入HPA名称'" />
+              <el-input
+                v-model="form.name"
+                :placeholder="autoName ? '自动生成' : '请输入HPA名称'"
+              />
               <div v-if="autoName" class="form-tip">自动生成，可手动修改</div>
             </el-form-item>
             <el-form-item label="命名空间" prop="namespace">
-              <el-select v-model="form.namespace" filterable placeholder="请选择命名空间" :disabled="hideNamespace" style="width: 100%;">
+              <el-select
+                v-model="form.namespace"
+                filterable
+                placeholder="请选择命名空间"
+                :disabled="hideNamespace"
+                style="width: 100%"
+              >
                 <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
               </el-select>
             </el-form-item>
@@ -411,15 +480,26 @@ onMounted(() => {
         </div>
         <div class="section-content">
           <el-form-item label="标签">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
                 <el-input v-model="label.key" placeholder="Key" />
                 <el-input v-model="label.value" placeholder="Value" />
-                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="form.labels.splice(i, 1)">
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.labels.length <= 1"
+                  @click="form.labels.splice(i, 1)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="form.labels.push({ key: '', value: '' })" size="small">
+              <el-button
+                text
+                type="primary"
+                size="small"
+                @click="form.labels.push({ key: '', value: '' })"
+              >
                 <el-icon><Plus /></el-icon> 添加标签
               </el-button>
             </div>
@@ -435,14 +515,18 @@ onMounted(() => {
         <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="目标类型" prop="targetKind">
-              <el-select v-model="form.targetKind" :disabled="hideTarget" style="width: 100%;">
+              <el-select v-model="form.targetKind" :disabled="hideTarget" style="width: 100%">
                 <el-option label="Deployment" value="Deployment" />
                 <el-option label="StatefulSet" value="StatefulSet" />
                 <el-option label="ReplicaSet" value="ReplicaSet" />
               </el-select>
             </el-form-item>
             <el-form-item label="目标名称" prop="targetName">
-              <el-input v-model="form.targetName" :disabled="hideTarget" placeholder="请输入目标工作负载名称" />
+              <el-input
+                v-model="form.targetName"
+                :disabled="hideTarget"
+                placeholder="请输入目标工作负载名称"
+              />
             </el-form-item>
           </div>
         </div>
@@ -456,10 +540,20 @@ onMounted(() => {
         <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="最小副本数" prop="minReplicas">
-              <el-input-number v-model="form.minReplicas" :min="1" :max="form.maxReplicas" style="width: 100%;" />
+              <el-input-number
+                v-model="form.minReplicas"
+                :min="1"
+                :max="form.maxReplicas"
+                style="width: 100%"
+              />
             </el-form-item>
             <el-form-item label="最大副本数" prop="maxReplicas">
-              <el-input-number v-model="form.maxReplicas" :min="form.minReplicas" :max="1000" style="width: 100%;" />
+              <el-input-number
+                v-model="form.maxReplicas"
+                :min="form.minReplicas"
+                :max="1000"
+                style="width: 100%"
+              />
             </el-form-item>
           </div>
         </div>
@@ -473,37 +567,62 @@ onMounted(() => {
         <div class="section-content">
           <div class="fields-grid">
             <el-form-item label="CPU 目标 (%)">
-              <el-input-number v-model="form.cpuUtilization" :min="0" :max="100" :step="5" style="width: 100%;" />
+              <el-input-number
+                v-model="form.cpuUtilization"
+                :min="0"
+                :max="100"
+                :step="5"
+                style="width: 100%"
+              />
               <div class="form-tip">设为 0 表示不使用 CPU 指标</div>
             </el-form-item>
             <el-form-item label="内存目标 (%)">
-              <el-input-number v-model="form.memoryUtilization" :min="0" :max="100" :step="5" style="width: 100%;" />
+              <el-input-number
+                v-model="form.memoryUtilization"
+                :min="0"
+                :max="100"
+                :step="5"
+                style="width: 100%"
+              />
               <div class="form-tip">设为 0 表示不使用内存指标</div>
             </el-form-item>
           </div>
           <el-form-item label="自定义指标">
-            <div style="width: 100%;">
-              <div v-for="(metric, index) in form.customMetrics" :key="index" class="custom-metric-row">
-                <el-select v-model="metric.type" style="width: 120px;">
+            <div style="width: 100%">
+              <div
+                v-for="(metric, index) in form.customMetrics"
+                :key="index"
+                class="custom-metric-row"
+              >
+                <el-select v-model="metric.type" style="width: 120px">
                   <el-option label="Resource" value="Resource" />
                   <el-option label="Pods" value="Pods" />
                   <el-option label="External" value="External" />
                 </el-select>
-                <el-input v-model="metric.name" placeholder="指标名称" style="flex: 1;" />
-                <el-select v-if="metric.type === 'Resource'" v-model="metric.targetType" style="width: 130px;">
+                <el-input v-model="metric.name" placeholder="指标名称" style="flex: 1" />
+                <el-select
+                  v-if="metric.type === 'Resource'"
+                  v-model="metric.targetType"
+                  style="width: 130px"
+                >
                   <el-option label="Utilization(%)" value="Utilization" />
                   <el-option label="AverageValue" value="AverageValue" />
                 </el-select>
-                <el-select v-else v-model="metric.targetType" style="width: 130px;">
+                <el-select v-else v-model="metric.targetType" style="width: 130px">
                   <el-option label="AverageValue" value="AverageValue" />
                   <el-option label="Value" value="Value" />
                 </el-select>
-                <el-input-number v-model="metric.target" :min="0" :max="100000" style="width: 140px;" />
+                <el-input-number
+                  v-model="metric.target"
+                  :min="0"
+                  :max="100000"
+                  style="width: 140px"
+                />
                 <el-button type="danger" text circle @click="removeCustomMetric(index)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addCustomMetric" size="small">
+              <el-button text type="primary" size="small" @click="addCustomMetric">
                 <el-icon><Plus /></el-icon> 添加自定义指标
               </el-button>
             </div>
@@ -525,10 +644,15 @@ onMounted(() => {
             <el-divider content-position="left">扩容 (Scale Up)</el-divider>
             <div class="fields-grid">
               <el-form-item label="稳定窗口(秒)">
-                <el-input-number v-model="form.scaleUpStabilizationSeconds" :min="0" :max="3600" style="width: 100%;" />
+                <el-input-number
+                  v-model="form.scaleUpStabilizationSeconds"
+                  :min="0"
+                  :max="3600"
+                  style="width: 100%"
+                />
               </el-form-item>
               <el-form-item label="选择策略">
-                <el-select v-model="form.scaleUpSelectPolicy" style="width: 100%;">
+                <el-select v-model="form.scaleUpSelectPolicy" style="width: 100%">
                   <el-option label="Max (最大值)" value="Max" />
                   <el-option label="Min (最小值)" value="Min" />
                   <el-option label="Disabled (禁用)" value="Disabled" />
@@ -536,19 +660,29 @@ onMounted(() => {
               </el-form-item>
             </div>
             <el-form-item label="扩容策略">
-              <div style="width: 100%;">
+              <div style="width: 100%">
                 <div v-for="(p, i) in form.scaleUpPolicies" :key="i" class="kv-row">
-                  <el-select v-model="p.type" style="width: 120px;">
+                  <el-select v-model="p.type" style="width: 120px">
                     <el-option label="Pods" value="Pods" />
                     <el-option label="Percent" value="Percent" />
                   </el-select>
-                  <el-input-number v-model="p.value" :min="1" style="flex: 1;" />
-                  <el-input-number v-model="p.periodSeconds" :min="1" placeholder="周期(秒)" style="width: 140px;" />
+                  <el-input-number v-model="p.value" :min="1" style="flex: 1" />
+                  <el-input-number
+                    v-model="p.periodSeconds"
+                    :min="1"
+                    placeholder="周期(秒)"
+                    style="width: 140px"
+                  />
                   <el-button type="danger" text circle @click="form.scaleUpPolicies.splice(i, 1)">
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
-                <el-button text type="primary" @click="form.scaleUpPolicies.push({ type: 'Pods', value: 4, periodSeconds: 60 })" size="small">
+                <el-button
+                  text
+                  type="primary"
+                  size="small"
+                  @click="form.scaleUpPolicies.push({ type: 'Pods', value: 4, periodSeconds: 60 })"
+                >
                   <el-icon><Plus /></el-icon> 添加策略
                 </el-button>
               </div>
@@ -557,10 +691,15 @@ onMounted(() => {
             <el-divider content-position="left">缩容 (Scale Down)</el-divider>
             <div class="fields-grid">
               <el-form-item label="稳定窗口(秒)">
-                <el-input-number v-model="form.scaleDownStabilizationSeconds" :min="0" :max="3600" style="width: 100%;" />
+                <el-input-number
+                  v-model="form.scaleDownStabilizationSeconds"
+                  :min="0"
+                  :max="3600"
+                  style="width: 100%"
+                />
               </el-form-item>
               <el-form-item label="选择策略">
-                <el-select v-model="form.scaleDownSelectPolicy" style="width: 100%;">
+                <el-select v-model="form.scaleDownSelectPolicy" style="width: 100%">
                   <el-option label="Min (最小值)" value="Min" />
                   <el-option label="Max (最大值)" value="Max" />
                   <el-option label="Disabled (禁用)" value="Disabled" />
@@ -568,19 +707,31 @@ onMounted(() => {
               </el-form-item>
             </div>
             <el-form-item label="缩容策略">
-              <div style="width: 100%;">
+              <div style="width: 100%">
                 <div v-for="(p, i) in form.scaleDownPolicies" :key="i" class="kv-row">
-                  <el-select v-model="p.type" style="width: 120px;">
+                  <el-select v-model="p.type" style="width: 120px">
                     <el-option label="Pods" value="Pods" />
                     <el-option label="Percent" value="Percent" />
                   </el-select>
-                  <el-input-number v-model="p.value" :min="1" style="flex: 1;" />
-                  <el-input-number v-model="p.periodSeconds" :min="1" placeholder="周期(秒)" style="width: 140px;" />
+                  <el-input-number v-model="p.value" :min="1" style="flex: 1" />
+                  <el-input-number
+                    v-model="p.periodSeconds"
+                    :min="1"
+                    placeholder="周期(秒)"
+                    style="width: 140px"
+                  />
                   <el-button type="danger" text circle @click="form.scaleDownPolicies.splice(i, 1)">
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
-                <el-button text type="primary" @click="form.scaleDownPolicies.push({ type: 'Percent', value: 100, periodSeconds: 60 })" size="small">
+                <el-button
+                  text
+                  type="primary"
+                  size="small"
+                  @click="
+                    form.scaleDownPolicies.push({ type: 'Percent', value: 100, periodSeconds: 60 })
+                  "
+                >
                   <el-icon><Plus /></el-icon> 添加策略
                 </el-button>
               </div>
@@ -595,7 +746,9 @@ onMounted(() => {
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="loading" @click="handleSubmit">{{ isEdit ? '更新' : (autoName ? '创建 HPA' : '创建') }}</el-button>
+            <el-button type="primary" :loading="loading" @click="handleSubmit">{{
+              isEdit ? '更新' : autoName ? '创建 HPA' : '创建'
+            }}</el-button>
           </div>
         </div>
       </div>

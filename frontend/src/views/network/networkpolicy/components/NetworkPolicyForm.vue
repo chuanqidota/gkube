@@ -6,15 +6,23 @@ import { ElMessage } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import { getNamespaceList, createNetworkPolicy, updateNetworkPolicyYaml, extractNamespaceNames } from '@/api/resource'
+import {
+  getNamespaceList,
+  createNetworkPolicy,
+  updateNetworkPolicyYaml,
+  extractNamespaceNames,
+} from '@/api/resource'
 
-const props = withDefaults(defineProps<{
-  isEdit?: boolean
-  initialData?: any
-}>(), {
-  isEdit: false,
-  initialData: undefined,
-})
+const props = withDefaults(
+  defineProps<{
+    isEdit?: boolean
+    initialData?: any
+  }>(),
+  {
+    isEdit: false,
+    initialData: undefined,
+  },
+)
 
 const emit = defineEmits<{
   success: []
@@ -46,7 +54,10 @@ const hasMatchExpressions = computed(() => {
 
 // ---- Data Model ----
 
-interface Label { key: string; value: string }
+interface Label {
+  key: string
+  value: string
+}
 
 interface MatchExpression {
   key: string
@@ -79,14 +90,28 @@ const form = reactive({
   labels: [{ key: '', value: '' }] as Label[],
   policyTypes: ['Ingress', 'Egress'] as string[],
   podSelectorLabels: [{ key: 'app', value: '' }] as Label[],
-  ingressRules: [{
-    fromTo: [{ type: 'podSelector', labels: [{ key: 'app', value: '' }], matchExpressions: [], cidr: '', except: [] }],
-    ports: [{ protocol: 'TCP', port: 80, endPort: null }],
-  }] as RuleItem[],
-  egressRules: [{
-    fromTo: [{ type: 'ipBlock', labels: [], matchExpressions: [], cidr: '0.0.0.0/0', except: [] }],
-    ports: [{ protocol: 'TCP', port: 443, endPort: null }],
-  }] as RuleItem[],
+  ingressRules: [
+    {
+      fromTo: [
+        {
+          type: 'podSelector',
+          labels: [{ key: 'app', value: '' }],
+          matchExpressions: [],
+          cidr: '',
+          except: [],
+        },
+      ],
+      ports: [{ protocol: 'TCP', port: 80, endPort: null }],
+    },
+  ] as RuleItem[],
+  egressRules: [
+    {
+      fromTo: [
+        { type: 'ipBlock', labels: [], matchExpressions: [], cidr: '0.0.0.0/0', except: [] },
+      ],
+      ports: [{ protocol: 'TCP', port: 443, endPort: null }],
+    },
+  ] as RuleItem[],
 })
 
 // ---- Validation ----
@@ -96,7 +121,11 @@ const formRef = ref<FormInstance>()
 const formRules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符，以字母开头', trigger: 'blur' },
+    {
+      pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/,
+      message: '仅支持小写字母、数字和连字符，以字母开头',
+      trigger: 'blur',
+    },
     { max: 253, message: '最长 253 个字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
@@ -106,7 +135,8 @@ const formRules: FormRules = {
 const cidrPattern = /^((\d{1,3}\.){3}\d{1,3}|([0-9a-fA-F:]+))\/\d{1,3}$/
 
 // K8s label key validation: optional DNS prefix + "/" + name (letters, digits, -, _, .)
-const labelKeyPattern = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\/)?[a-z0-9A-Z]([a-z0-9A-Z._-]*[a-z0-9A-Z])?$/
+const labelKeyPattern =
+  /^([a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\/)?[a-z0-9A-Z]([a-z0-9A-Z._-]*[a-z0-9A-Z])?$/
 
 // ---- Namespace Fetch ----
 
@@ -131,21 +161,41 @@ onMounted(() => {
 
 // ---- Pod Selector Management ----
 
-function addPodSelectorLabel() { form.podSelectorLabels.push({ key: '', value: '' }) }
-function removePodSelectorLabel(i: number) { form.podSelectorLabels.splice(i, 1) }
+function addPodSelectorLabel() {
+  form.podSelectorLabels.push({ key: '', value: '' })
+}
+function removePodSelectorLabel(i: number) {
+  form.podSelectorLabels.splice(i, 1)
+}
 
 // ---- Ingress Rule Management ----
 
 function addIngressRule() {
   form.ingressRules.push({
-    fromTo: [{ type: 'podSelector', labels: [{ key: '', value: '' }], matchExpressions: [], cidr: '', except: [] }],
+    fromTo: [
+      {
+        type: 'podSelector',
+        labels: [{ key: '', value: '' }],
+        matchExpressions: [],
+        cidr: '',
+        except: [],
+      },
+    ],
     ports: [{ protocol: 'TCP', port: null, endPort: null }],
   })
 }
-function removeIngressRule(i: number) { form.ingressRules.splice(i, 1) }
+function removeIngressRule(i: number) {
+  form.ingressRules.splice(i, 1)
+}
 
 function addIngressFrom(ruleIdx: number) {
-  form.ingressRules[ruleIdx].fromTo.push({ type: 'podSelector', labels: [{ key: '', value: '' }], matchExpressions: [], cidr: '', except: [] })
+  form.ingressRules[ruleIdx].fromTo.push({
+    type: 'podSelector',
+    labels: [{ key: '', value: '' }],
+    matchExpressions: [],
+    cidr: '',
+    except: [],
+  })
 }
 function removeIngressFrom(ruleIdx: number, fromIdx: number) {
   form.ingressRules[ruleIdx].fromTo.splice(fromIdx, 1)
@@ -166,10 +216,18 @@ function addEgressRule() {
     ports: [{ protocol: 'TCP', port: null, endPort: null }],
   })
 }
-function removeEgressRule(i: number) { form.egressRules.splice(i, 1) }
+function removeEgressRule(i: number) {
+  form.egressRules.splice(i, 1)
+}
 
 function addEgressTo(ruleIdx: number) {
-  form.egressRules[ruleIdx].fromTo.push({ type: 'podSelector', labels: [{ key: '', value: '' }], matchExpressions: [], cidr: '', except: [] })
+  form.egressRules[ruleIdx].fromTo.push({
+    type: 'podSelector',
+    labels: [{ key: '', value: '' }],
+    matchExpressions: [],
+    cidr: '',
+    except: [],
+  })
 }
 function removeEgressTo(ruleIdx: number, toIdx: number) {
   form.egressRules[ruleIdx].fromTo.splice(toIdx, 1)
@@ -211,29 +269,34 @@ function removeExcept(rule: RuleItem, fromIdx: number, exceptIdx: number) {
 
 function buildFromTo(entries: FromToEntry[]): Record<string, any>[] {
   return entries
-    .filter(e => {
+    .filter((e) => {
       if (e.type === 'allowAll') return true
       if (e.type === 'ipBlock') return !!e.cidr.trim()
-      return e.labels.some(l => l.key.trim()) || e.matchExpressions.some(m => m.key.trim())
+      return e.labels.some((l) => l.key.trim()) || e.matchExpressions.some((m) => m.key.trim())
     })
-    .map(e => {
+    .map((e) => {
       if (e.type === 'allowAll') return {}
       if (e.type === 'ipBlock') {
         const ipBlock: Record<string, any> = { cidr: e.cidr.trim() }
-        const validExcept = e.except.filter(x => x.trim())
+        const validExcept = e.except.filter((x) => x.trim())
         if (validExcept.length > 0) ipBlock.except = validExcept
         return { ipBlock }
       }
       const selector: Record<string, any> = {}
       const labels: Record<string, string> = {}
-      e.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+      e.labels.forEach((l) => {
+        if (l.key.trim()) labels[l.key.trim()] = l.value
+      })
       if (Object.keys(labels).length > 0) selector.matchLabels = labels
       const expressions = e.matchExpressions
-        .filter(m => m.key.trim())
-        .map(m => {
+        .filter((m) => m.key.trim())
+        .map((m) => {
           const expr: Record<string, any> = { key: m.key.trim(), operator: m.operator }
           if (m.operator === 'In' || m.operator === 'NotIn') {
-            expr.values = m.values.split(',').map(s => s.trim()).filter(Boolean)
+            expr.values = m.values
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
           }
           return expr
         })
@@ -244,10 +307,10 @@ function buildFromTo(entries: FromToEntry[]): Record<string, any>[] {
 
 function buildPorts(entries: PortEntry[]): Record<string, any>[] {
   return entries
-    .filter(p => p.port != null && p.port > 0)
-    .map(p => {
+    .filter((p) => p.port !== null && p.port > 0)
+    .map((p) => {
       const port: Record<string, any> = { protocol: p.protocol, port: p.port }
-      if (p.endPort != null && p.endPort > 0) port.endPort = p.endPort
+      if (p.endPort !== null && p.endPort > 0) port.endPort = p.endPort
       return port
     })
 }
@@ -255,11 +318,15 @@ function buildPorts(entries: PortEntry[]): Record<string, any>[] {
 function buildNetworkPolicy(): Record<string, any> {
   // Pod Selector
   const matchLabels: Record<string, string> = {}
-  form.podSelectorLabels.forEach(l => { if (l.key.trim()) matchLabels[l.key.trim()] = l.value })
+  form.podSelectorLabels.forEach((l) => {
+    if (l.key.trim()) matchLabels[l.key.trim()] = l.value
+  })
 
   // Labels
   const labels: Record<string, string> = {}
-  form.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+  form.labels.forEach((l) => {
+    if (l.key.trim()) labels[l.key.trim()] = l.value
+  })
 
   const metadata: Record<string, any> = { name: form.name, namespace: form.namespace }
   if (Object.keys(labels).length > 0) metadata.labels = labels
@@ -277,7 +344,7 @@ function buildNetworkPolicy(): Record<string, any> {
   // Ingress
   if (form.policyTypes.includes('Ingress') && form.ingressRules.length > 0) {
     const ingress = form.ingressRules
-      .map(rule => {
+      .map((rule) => {
         const item: Record<string, any> = {}
         const from = buildFromTo(rule.fromTo)
         if (from.length > 0) item.from = from
@@ -285,14 +352,14 @@ function buildNetworkPolicy(): Record<string, any> {
         if (ports.length > 0) item.ports = ports
         return item
       })
-      .filter(r => Object.keys(r).length > 0)
+      .filter((r) => Object.keys(r).length > 0)
     if (ingress.length > 0) resource.spec.ingress = ingress
   }
 
   // Egress
   if (form.policyTypes.includes('Egress') && form.egressRules.length > 0) {
     const egress = form.egressRules
-      .map(rule => {
+      .map((rule) => {
         const item: Record<string, any> = {}
         const to = buildFromTo(rule.fromTo)
         if (to.length > 0) item.to = to
@@ -300,7 +367,7 @@ function buildNetworkPolicy(): Record<string, any> {
         if (ports.length > 0) item.ports = ports
         return item
       })
-      .filter(r => Object.keys(r).length > 0)
+      .filter((r) => Object.keys(r).length > 0)
     if (egress.length > 0) resource.spec.egress = egress
   }
 
@@ -331,41 +398,131 @@ function parseInitialData(data: any) {
 
   // Labels
   const labels = meta.labels || {}
-  form.labels = Object.keys(labels).length > 0
-    ? Object.entries(labels).map(([k, v]) => ({ key: k, value: v as string }))
-    : [{ key: '', value: '' }]
+  form.labels =
+    Object.keys(labels).length > 0
+      ? Object.entries(labels).map(([k, v]) => ({ key: k, value: v as string }))
+      : [{ key: '', value: '' }]
 
   // Pod Selector
   const matchLabels = spec.podSelector?.matchLabels || {}
-  form.podSelectorLabels = Object.keys(matchLabels).length > 0
-    ? Object.entries(matchLabels).map(([k, v]) => ({ key: k, value: v as string }))
-    : [{ key: 'app', value: '' }]
+  form.podSelectorLabels =
+    Object.keys(matchLabels).length > 0
+      ? Object.entries(matchLabels).map(([k, v]) => ({ key: k, value: v as string }))
+      : [{ key: 'app', value: '' }]
 
   // Ingress rules
   const ingress = spec.ingress || []
-  form.ingressRules = ingress.length > 0
-    ? ingress.map((rule: any) => ({
-        fromTo: (rule.from || []).map((f: any) => {
-          if (f.ipBlock) return { type: 'ipBlock' as const, labels: [], matchExpressions: [], cidr: f.ipBlock.cidr || '', except: f.ipBlock.except || [] }
-          if (f.namespaceSelector) return { type: 'namespaceSelector' as const, labels: Object.entries(f.namespaceSelector.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), matchExpressions: parseMatchExpressions(f.namespaceSelector.matchExpressions), cidr: '', except: [] }
-          return { type: 'podSelector' as const, labels: Object.entries(f.podSelector?.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), matchExpressions: parseMatchExpressions(f.podSelector?.matchExpressions), cidr: '', except: [] }
-        }),
-        ports: (rule.ports || []).map((p: any) => ({ protocol: p.protocol || 'TCP', port: p.port ?? null, endPort: p.endPort ?? null })),
-      }))
-    : [{ fromTo: [{ type: 'podSelector' as const, labels: [{ key: 'app', value: '' }], matchExpressions: [], cidr: '', except: [] }], ports: [{ protocol: 'TCP', port: 80, endPort: null }] }]
+  form.ingressRules =
+    ingress.length > 0
+      ? ingress.map((rule: any) => ({
+          fromTo: (rule.from || []).map((f: any) => {
+            if (f.ipBlock)
+              return {
+                type: 'ipBlock' as const,
+                labels: [],
+                matchExpressions: [],
+                cidr: f.ipBlock.cidr || '',
+                except: f.ipBlock.except || [],
+              }
+            if (f.namespaceSelector)
+              return {
+                type: 'namespaceSelector' as const,
+                labels: Object.entries(f.namespaceSelector.matchLabels || {}).map(([k, v]) => ({
+                  key: k,
+                  value: v as string,
+                })),
+                matchExpressions: parseMatchExpressions(f.namespaceSelector.matchExpressions),
+                cidr: '',
+                except: [],
+              }
+            return {
+              type: 'podSelector' as const,
+              labels: Object.entries(f.podSelector?.matchLabels || {}).map(([k, v]) => ({
+                key: k,
+                value: v as string,
+              })),
+              matchExpressions: parseMatchExpressions(f.podSelector?.matchExpressions),
+              cidr: '',
+              except: [],
+            }
+          }),
+          ports: (rule.ports || []).map((p: any) => ({
+            protocol: p.protocol || 'TCP',
+            port: p.port ?? null,
+            endPort: p.endPort ?? null,
+          })),
+        }))
+      : [
+          {
+            fromTo: [
+              {
+                type: 'podSelector' as const,
+                labels: [{ key: 'app', value: '' }],
+                matchExpressions: [],
+                cidr: '',
+                except: [],
+              },
+            ],
+            ports: [{ protocol: 'TCP', port: 80, endPort: null }],
+          },
+        ]
 
   // Egress rules
   const egress = spec.egress || []
-  form.egressRules = egress.length > 0
-    ? egress.map((rule: any) => ({
-        fromTo: (rule.to || []).map((t: any) => {
-          if (t.ipBlock) return { type: 'ipBlock' as const, labels: [], matchExpressions: [], cidr: t.ipBlock.cidr || '', except: t.ipBlock.except || [] }
-          if (t.namespaceSelector) return { type: 'namespaceSelector' as const, labels: Object.entries(t.namespaceSelector.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), matchExpressions: parseMatchExpressions(t.namespaceSelector.matchExpressions), cidr: '', except: [] }
-          return { type: 'podSelector' as const, labels: Object.entries(t.podSelector?.matchLabels || {}).map(([k, v]) => ({ key: k, value: v as string })), matchExpressions: parseMatchExpressions(t.podSelector?.matchExpressions), cidr: '', except: [] }
-        }),
-        ports: (rule.ports || []).map((p: any) => ({ protocol: p.protocol || 'TCP', port: p.port ?? null, endPort: p.endPort ?? null })),
-      }))
-    : [{ fromTo: [{ type: 'ipBlock' as const, labels: [], matchExpressions: [], cidr: '0.0.0.0/0', except: [] }], ports: [{ protocol: 'TCP', port: 443, endPort: null }] }]
+  form.egressRules =
+    egress.length > 0
+      ? egress.map((rule: any) => ({
+          fromTo: (rule.to || []).map((t: any) => {
+            if (t.ipBlock)
+              return {
+                type: 'ipBlock' as const,
+                labels: [],
+                matchExpressions: [],
+                cidr: t.ipBlock.cidr || '',
+                except: t.ipBlock.except || [],
+              }
+            if (t.namespaceSelector)
+              return {
+                type: 'namespaceSelector' as const,
+                labels: Object.entries(t.namespaceSelector.matchLabels || {}).map(([k, v]) => ({
+                  key: k,
+                  value: v as string,
+                })),
+                matchExpressions: parseMatchExpressions(t.namespaceSelector.matchExpressions),
+                cidr: '',
+                except: [],
+              }
+            return {
+              type: 'podSelector' as const,
+              labels: Object.entries(t.podSelector?.matchLabels || {}).map(([k, v]) => ({
+                key: k,
+                value: v as string,
+              })),
+              matchExpressions: parseMatchExpressions(t.podSelector?.matchExpressions),
+              cidr: '',
+              except: [],
+            }
+          }),
+          ports: (rule.ports || []).map((p: any) => ({
+            protocol: p.protocol || 'TCP',
+            port: p.port ?? null,
+            endPort: p.endPort ?? null,
+          })),
+        }))
+      : [
+          {
+            fromTo: [
+              {
+                type: 'ipBlock' as const,
+                labels: [],
+                matchExpressions: [],
+                cidr: '0.0.0.0/0',
+                except: [],
+              },
+            ],
+            ports: [{ protocol: 'TCP', port: 443, endPort: null }],
+          },
+        ]
 }
 
 // ---- Submit ----
@@ -396,7 +553,7 @@ async function handleSubmit() {
   for (const rules of [form.ingressRules, form.egressRules]) {
     for (const rule of rules) {
       for (const port of rule.ports) {
-        if (port.endPort != null && port.port != null && port.endPort <= port.port) {
+        if (port.endPort !== null && port.port !== null && port.endPort <= port.port) {
           ElMessage.error(t('network.endPortInvalid', { range: `${port.port}-${port.endPort}` }))
           return
         }
@@ -408,8 +565,8 @@ async function handleSubmit() {
   const allLabels = [
     ...form.labels,
     ...form.podSelectorLabels,
-    ...form.ingressRules.flatMap(r => r.fromTo.flatMap(e => e.labels)),
-    ...form.egressRules.flatMap(r => r.fromTo.flatMap(e => e.labels)),
+    ...form.ingressRules.flatMap((r) => r.fromTo.flatMap((e) => e.labels)),
+    ...form.egressRules.flatMap((r) => r.fromTo.flatMap((e) => e.labels)),
   ]
   for (const label of allLabels) {
     if (label.key.trim() && !labelKeyPattern.test(label.key.trim())) {
@@ -420,7 +577,7 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    let resource = buildNetworkPolicy()
+    const resource = buildNetworkPolicy()
 
     // In edit mode, merge with original spec to preserve fields the form can't edit
     // (e.g. matchExpressions, which are only editable via YAML)
@@ -444,7 +601,8 @@ async function handleSubmit() {
           rule.from.forEach((entry: any, fi: number) => {
             const orig = origSpec.ingress[ri].from[fi]
             if (entry.podSelector) mergeSelector(entry.podSelector, orig?.podSelector)
-            if (entry.namespaceSelector) mergeSelector(entry.namespaceSelector, orig?.namespaceSelector)
+            if (entry.namespaceSelector)
+              mergeSelector(entry.namespaceSelector, orig?.namespaceSelector)
           })
         })
       }
@@ -455,7 +613,8 @@ async function handleSubmit() {
           rule.to.forEach((entry: any, ti: number) => {
             const orig = origSpec.egress[ri].to[ti]
             if (entry.podSelector) mergeSelector(entry.podSelector, orig?.podSelector)
-            if (entry.namespaceSelector) mergeSelector(entry.namespaceSelector, orig?.namespaceSelector)
+            if (entry.namespaceSelector)
+              mergeSelector(entry.namespaceSelector, orig?.namespaceSelector)
           })
         })
       }
@@ -463,7 +622,11 @@ async function handleSubmit() {
 
     const yamlContent = yaml.dump(resource, { indent: 2, lineWidth: -1, noRefs: true })
     if (props.isEdit) {
-      await updateNetworkPolicyYaml({ namespace: form.namespace, name: form.name, yaml: yamlContent })
+      await updateNetworkPolicyYaml({
+        namespace: form.namespace,
+        name: form.name,
+        yaml: yamlContent,
+      })
       ElMessage.success(t('network.networkPolicyUpdated'))
       emit('success')
     } else {
@@ -472,7 +635,9 @@ async function handleSubmit() {
       router.push('/network/networkpolicies')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
+    ElMessage.error(
+      e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')),
+    )
   } finally {
     submitting.value = false
   }
@@ -490,17 +655,17 @@ function handleCancel() {
 <template>
   <div class="np-form">
     <el-form ref="formRef" :model="form" :rules="formRules" label-position="top">
-
       <!-- Warning for matchExpressions in edit mode -->
       <el-alert
         v-if="hasMatchExpressions"
         type="warning"
         :closable="false"
         show-icon
-        style="margin-bottom: 24px;"
+        style="margin-bottom: 24px"
       >
         <template #title>
-          此 NetworkPolicy 包含 matchExpressions 表达式，表单仅展示 matchLabels 部分。matchExpressions 已保留，如需编辑请使用 YAML 模式。
+          此 NetworkPolicy 包含 matchExpressions 表达式，表单仅展示 matchLabels
+          部分。matchExpressions 已保留，如需编辑请使用 YAML 模式。
         </template>
       </el-alert>
 
@@ -515,7 +680,14 @@ function handleCancel() {
               <el-input v-model="form.name" placeholder="my-network-policy" :disabled="isEdit" />
             </el-form-item>
             <el-form-item label="命名空间" prop="namespace">
-              <el-select v-model="form.namespace" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading" :disabled="isEdit">
+              <el-select
+                v-model="form.namespace"
+                filterable
+                placeholder="选择命名空间"
+                style="width: 100%"
+                :loading="namespaceLoading"
+                :disabled="isEdit"
+              >
                 <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
               </el-select>
             </el-form-item>
@@ -530,7 +702,7 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="标签">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
                 <el-input v-model="label.key" placeholder="Key" />
                 <el-input v-model="label.value" placeholder="Value" />
@@ -538,7 +710,12 @@ function handleCancel() {
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="form.labels.push({ key: '', value: '' })" size="small">
+              <el-button
+                text
+                type="primary"
+                size="small"
+                @click="form.labels.push({ key: '', value: '' })"
+              >
                 <el-icon><Plus /></el-icon> 添加标签
               </el-button>
             </div>
@@ -568,15 +745,21 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="Pod Selector">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(label, i) in form.podSelectorLabels" :key="i" class="kv-row">
                 <el-input v-model="label.key" placeholder="Key" />
                 <el-input v-model="label.value" placeholder="Value" />
-                <el-button type="danger" text circle :disabled="form.podSelectorLabels.length <= 1" @click="removePodSelectorLabel(i)">
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.podSelectorLabels.length <= 1"
+                  @click="removePodSelectorLabel(i)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addPodSelectorLabel" size="small">
+              <el-button text type="primary" size="small" @click="addPodSelectorLabel">
                 <el-icon><Plus /></el-icon> 添加标签
               </el-button>
             </div>
@@ -603,46 +786,77 @@ function handleCancel() {
               <div class="rule-subtitle">From 条目</div>
               <div v-for="(entry, fi) in rule.fromTo" :key="fi" class="fromto-entry">
                 <div class="fromto-header">
-                  <el-select v-model="entry.type" style="width: 180px;" size="small">
+                  <el-select v-model="entry.type" style="width: 180px" size="small">
                     <el-option label="Pod Selector" value="podSelector" />
                     <el-option label="Namespace Selector" value="namespaceSelector" />
                     <el-option label="IP Block" value="ipBlock" />
                     <el-option label="允许所有流量" value="allowAll" />
                   </el-select>
-                  <el-button type="danger" text circle size="small" @click="removeIngressFrom(ri, fi)">
+                  <el-button
+                    type="danger"
+                    text
+                    circle
+                    size="small"
+                    @click="removeIngressFrom(ri, fi)"
+                  >
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
 
                 <!-- allowAll hint -->
                 <div v-if="entry.type === 'allowAll'" class="fromto-body">
-                  <span style="font-size: 12px; color: var(--el-text-color-secondary);">匹配所有流量（K8s 中空对象 {} 表示允许所有）</span>
+                  <span style="font-size: 12px; color: var(--el-text-color-secondary)"
+                    >匹配所有流量（K8s 中空对象 {} 表示允许所有）</span
+                  >
                 </div>
 
                 <!-- podSelector / namespaceSelector labels -->
-                <div v-else-if="entry.type === 'podSelector' || entry.type === 'namespaceSelector'" class="fromto-body">
-                  <div class="rule-subtitle" style="margin-bottom: 4px;">matchLabels</div>
+                <div
+                  v-else-if="entry.type === 'podSelector' || entry.type === 'namespaceSelector'"
+                  class="fromto-body"
+                >
+                  <div class="rule-subtitle" style="margin-bottom: 4px">matchLabels</div>
                   <div v-for="(label, li) in entry.labels" :key="li" class="kv-row">
                     <el-input v-model="label.key" placeholder="Key" size="small" />
                     <el-input v-model="label.value" placeholder="Value" size="small" />
-                    <el-button type="danger" text circle size="small" @click="removeFromToLabel(rule, fi, li)">
+                    <el-button
+                      type="danger"
+                      text
+                      circle
+                      size="small"
+                      @click="removeFromToLabel(rule, fi, li)"
+                    >
                       <el-icon><Delete /></el-icon>
                     </el-button>
                   </div>
                   <el-button text type="primary" size="small" @click="addFromToLabel(rule, fi)">
                     <el-icon><Plus /></el-icon> 添加标签
                   </el-button>
-                  <div class="rule-subtitle" style="margin-top: 8px; margin-bottom: 4px;">matchExpressions</div>
+                  <div class="rule-subtitle" style="margin-top: 8px; margin-bottom: 4px">
+                    matchExpressions
+                  </div>
                   <div v-for="(expr, ei) in entry.matchExpressions" :key="ei" class="kv-row">
-                    <el-input v-model="expr.key" placeholder="Key" size="small" style="flex: 1;" />
-                    <el-select v-model="expr.operator" style="width: 130px;" size="small">
+                    <el-input v-model="expr.key" placeholder="Key" size="small" style="flex: 1" />
+                    <el-select v-model="expr.operator" style="width: 130px" size="small">
                       <el-option label="In" value="In" />
                       <el-option label="NotIn" value="NotIn" />
                       <el-option label="Exists" value="Exists" />
                       <el-option label="DoesNotExist" value="DoesNotExist" />
                     </el-select>
-                    <el-input v-if="expr.operator === 'In' || expr.operator === 'NotIn'" v-model="expr.values" placeholder="值(逗号分隔)" size="small" style="flex: 1;" />
-                    <el-button type="danger" text circle size="small" @click="removeMatchExpression(rule, fi, ei)">
+                    <el-input
+                      v-if="expr.operator === 'In' || expr.operator === 'NotIn'"
+                      v-model="expr.values"
+                      placeholder="值(逗号分隔)"
+                      size="small"
+                      style="flex: 1"
+                    />
+                    <el-button
+                      type="danger"
+                      text
+                      circle
+                      size="small"
+                      @click="removeMatchExpression(rule, fi, ei)"
+                    >
                       <el-icon><Delete /></el-icon>
                     </el-button>
                   </div>
@@ -658,16 +872,28 @@ function handleCancel() {
                       <el-input v-model="entry.cidr" placeholder="10.0.0.0/8" size="small" />
                     </el-form-item>
                   </div>
-                  <div v-if="entry.except.length > 0" style="margin-top: 8px;">
-                    <div class="rule-subtitle" style="margin-bottom: 4px;">Except</div>
+                  <div v-if="entry.except.length > 0" style="margin-top: 8px">
+                    <div class="rule-subtitle" style="margin-bottom: 4px">Except</div>
                     <div v-for="(_ex, ei) in entry.except" :key="ei" class="kv-row">
                       <el-input v-model="entry.except[ei]" placeholder="10.0.1.0/24" size="small" />
-                      <el-button type="danger" text circle size="small" @click="removeExcept(rule, fi, ei)">
+                      <el-button
+                        type="danger"
+                        text
+                        circle
+                        size="small"
+                        @click="removeExcept(rule, fi, ei)"
+                      >
                         <el-icon><Delete /></el-icon>
                       </el-button>
                     </div>
                   </div>
-                  <el-button text type="primary" size="small" @click="addExcept(rule, fi)" style="margin-top: 4px;">
+                  <el-button
+                    text
+                    type="primary"
+                    size="small"
+                    style="margin-top: 4px"
+                    @click="addExcept(rule, fi)"
+                  >
                     <el-icon><Plus /></el-icon> 添加 Except
                   </el-button>
                 </div>
@@ -681,14 +907,34 @@ function handleCancel() {
             <div class="rule-subsection">
               <div class="rule-subtitle">Ports</div>
               <div v-for="(port, pi) in rule.ports" :key="pi" class="port-row">
-                <el-select v-model="port.protocol" style="width: 100px;" size="small">
+                <el-select v-model="port.protocol" style="width: 100px" size="small">
                   <el-option label="TCP" value="TCP" />
                   <el-option label="UDP" value="UDP" />
                   <el-option label="SCTP" value="SCTP" />
                 </el-select>
-                <el-input-number v-model="port.port" :min="1" :max="65535" placeholder="Port" style="flex: 1;" size="small" />
-                <el-input-number v-model="port.endPort" :min="1" :max="65535" placeholder="End Port" style="flex: 1;" size="small" />
-                <el-button type="danger" text circle size="small" @click="removeIngressPort(ri, pi)">
+                <el-input-number
+                  v-model="port.port"
+                  :min="1"
+                  :max="65535"
+                  placeholder="Port"
+                  style="flex: 1"
+                  size="small"
+                />
+                <el-input-number
+                  v-model="port.endPort"
+                  :min="1"
+                  :max="65535"
+                  placeholder="End Port"
+                  style="flex: 1"
+                  size="small"
+                />
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  size="small"
+                  @click="removeIngressPort(ri, pi)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
@@ -722,7 +968,7 @@ function handleCancel() {
               <div class="rule-subtitle">To 条目</div>
               <div v-for="(entry, ti) in rule.fromTo" :key="ti" class="fromto-entry">
                 <div class="fromto-header">
-                  <el-select v-model="entry.type" style="width: 180px;" size="small">
+                  <el-select v-model="entry.type" style="width: 180px" size="small">
                     <el-option label="Pod Selector" value="podSelector" />
                     <el-option label="Namespace Selector" value="namespaceSelector" />
                     <el-option label="IP Block" value="ipBlock" />
@@ -735,32 +981,57 @@ function handleCancel() {
 
                 <!-- allowAll hint -->
                 <div v-if="entry.type === 'allowAll'" class="fromto-body">
-                  <span style="font-size: 12px; color: var(--el-text-color-secondary);">匹配所有流量（K8s 中空对象 {} 表示允许所有）</span>
+                  <span style="font-size: 12px; color: var(--el-text-color-secondary)"
+                    >匹配所有流量（K8s 中空对象 {} 表示允许所有）</span
+                  >
                 </div>
 
-                <div v-else-if="entry.type === 'podSelector' || entry.type === 'namespaceSelector'" class="fromto-body">
-                  <div class="rule-subtitle" style="margin-bottom: 4px;">matchLabels</div>
+                <div
+                  v-else-if="entry.type === 'podSelector' || entry.type === 'namespaceSelector'"
+                  class="fromto-body"
+                >
+                  <div class="rule-subtitle" style="margin-bottom: 4px">matchLabels</div>
                   <div v-for="(label, li) in entry.labels" :key="li" class="kv-row">
                     <el-input v-model="label.key" placeholder="Key" size="small" />
                     <el-input v-model="label.value" placeholder="Value" size="small" />
-                    <el-button type="danger" text circle size="small" @click="removeFromToLabel(rule, ti, li)">
+                    <el-button
+                      type="danger"
+                      text
+                      circle
+                      size="small"
+                      @click="removeFromToLabel(rule, ti, li)"
+                    >
                       <el-icon><Delete /></el-icon>
                     </el-button>
                   </div>
                   <el-button text type="primary" size="small" @click="addFromToLabel(rule, ti)">
                     <el-icon><Plus /></el-icon> 添加标签
                   </el-button>
-                  <div class="rule-subtitle" style="margin-top: 8px; margin-bottom: 4px;">matchExpressions</div>
+                  <div class="rule-subtitle" style="margin-top: 8px; margin-bottom: 4px">
+                    matchExpressions
+                  </div>
                   <div v-for="(expr, ei) in entry.matchExpressions" :key="ei" class="kv-row">
-                    <el-input v-model="expr.key" placeholder="Key" size="small" style="flex: 1;" />
-                    <el-select v-model="expr.operator" style="width: 130px;" size="small">
+                    <el-input v-model="expr.key" placeholder="Key" size="small" style="flex: 1" />
+                    <el-select v-model="expr.operator" style="width: 130px" size="small">
                       <el-option label="In" value="In" />
                       <el-option label="NotIn" value="NotIn" />
                       <el-option label="Exists" value="Exists" />
                       <el-option label="DoesNotExist" value="DoesNotExist" />
                     </el-select>
-                    <el-input v-if="expr.operator === 'In' || expr.operator === 'NotIn'" v-model="expr.values" placeholder="值(逗号分隔)" size="small" style="flex: 1;" />
-                    <el-button type="danger" text circle size="small" @click="removeMatchExpression(rule, ti, ei)">
+                    <el-input
+                      v-if="expr.operator === 'In' || expr.operator === 'NotIn'"
+                      v-model="expr.values"
+                      placeholder="值(逗号分隔)"
+                      size="small"
+                      style="flex: 1"
+                    />
+                    <el-button
+                      type="danger"
+                      text
+                      circle
+                      size="small"
+                      @click="removeMatchExpression(rule, ti, ei)"
+                    >
                       <el-icon><Delete /></el-icon>
                     </el-button>
                   </div>
@@ -775,16 +1046,28 @@ function handleCancel() {
                       <el-input v-model="entry.cidr" placeholder="10.0.0.0/8" size="small" />
                     </el-form-item>
                   </div>
-                  <div v-if="entry.except.length > 0" style="margin-top: 8px;">
-                    <div class="rule-subtitle" style="margin-bottom: 4px;">Except</div>
+                  <div v-if="entry.except.length > 0" style="margin-top: 8px">
+                    <div class="rule-subtitle" style="margin-bottom: 4px">Except</div>
                     <div v-for="(_ex, ei) in entry.except" :key="ei" class="kv-row">
                       <el-input v-model="entry.except[ei]" placeholder="10.0.1.0/24" size="small" />
-                      <el-button type="danger" text circle size="small" @click="removeExcept(rule, ti, ei)">
+                      <el-button
+                        type="danger"
+                        text
+                        circle
+                        size="small"
+                        @click="removeExcept(rule, ti, ei)"
+                      >
                         <el-icon><Delete /></el-icon>
                       </el-button>
                     </div>
                   </div>
-                  <el-button text type="primary" size="small" @click="addExcept(rule, ti)" style="margin-top: 4px;">
+                  <el-button
+                    text
+                    type="primary"
+                    size="small"
+                    style="margin-top: 4px"
+                    @click="addExcept(rule, ti)"
+                  >
                     <el-icon><Plus /></el-icon> 添加 Except
                   </el-button>
                 </div>
@@ -798,13 +1081,27 @@ function handleCancel() {
             <div class="rule-subsection">
               <div class="rule-subtitle">Ports</div>
               <div v-for="(port, pi) in rule.ports" :key="pi" class="port-row">
-                <el-select v-model="port.protocol" style="width: 100px;" size="small">
+                <el-select v-model="port.protocol" style="width: 100px" size="small">
                   <el-option label="TCP" value="TCP" />
                   <el-option label="UDP" value="UDP" />
                   <el-option label="SCTP" value="SCTP" />
                 </el-select>
-                <el-input-number v-model="port.port" :min="1" :max="65535" placeholder="Port" style="flex: 1;" size="small" />
-                <el-input-number v-model="port.endPort" :min="1" :max="65535" placeholder="End Port" style="flex: 1;" size="small" />
+                <el-input-number
+                  v-model="port.port"
+                  :min="1"
+                  :max="65535"
+                  placeholder="Port"
+                  style="flex: 1"
+                  size="small"
+                />
+                <el-input-number
+                  v-model="port.endPort"
+                  :min="1"
+                  :max="65535"
+                  placeholder="End Port"
+                  style="flex: 1"
+                  size="small"
+                />
                 <el-button type="danger" text circle size="small" @click="removeEgressPort(ri, pi)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
@@ -826,7 +1123,9 @@ function handleCancel() {
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{
+              isEdit ? '更新' : '创建'
+            }}</el-button>
           </div>
         </div>
       </div>
@@ -973,5 +1272,4 @@ function handleCancel() {
   align-items: center;
   margin-bottom: 8px;
 }
-
 </style>

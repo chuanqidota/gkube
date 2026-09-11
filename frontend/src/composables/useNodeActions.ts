@@ -14,12 +14,17 @@ export function useNodeActions(onChanged: () => void) {
   async function handleCordon(name: string, unschedulable: boolean) {
     const actionLabel = unschedulable ? t('node.uncordon') : t('node.cordon')
     try {
-      await ElMessageBox.confirm(t('node.cordonConfirm', { action: actionLabel, name }), t('common.confirm'), { type: 'warning' })
+      await ElMessageBox.confirm(
+        t('node.cordonConfirm', { action: actionLabel, name }),
+        t('common.confirm'),
+        { type: 'warning' },
+      )
       await cordonNode({ name, cordon: !unschedulable })
       ElMessage.success(t('node.cordonSuccess', { action: actionLabel }))
       onChanged()
     } catch (e: any) {
-      if (e !== 'cancel') ElMessage.error(e?.message || t('node.cordonFailed', { action: actionLabel }))
+      if (e !== 'cancel')
+        ElMessage.error(e?.message || t('node.cordonFailed', { action: actionLabel }))
     }
   }
 
@@ -35,14 +40,15 @@ export function useNodeActions(onChanged: () => void) {
     const baseMsg = t('node.deleteOfflineConfirm', { name })
     const onlineMsg = t('node.deleteOnlineWarning', { name })
     try {
-      await ElMessageBox.confirm(
-        ready ? onlineMsg : baseMsg,
-        t('common.confirmDelete'),
-        { type: 'error', confirmButtonText: t('common.delete'), cancelButtonText: t('common.cancel') },
-      )
+      await ElMessageBox.confirm(ready ? onlineMsg : baseMsg, t('common.confirmDelete'), {
+        type: 'error',
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
+      })
       await deleteNode({ name })
       ElMessage.success(t('common.deleteSuccess', { type: 'Node' }))
-      after ? after() : onChanged()
+      if (after) after()
+      else onChanged()
     } catch (e: any) {
       if (e !== 'cancel') ElMessage.error(e?.message || t('common.deleteFailed', { type: 'Node' }))
     }

@@ -4,7 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
-import { getCustomResourceList, getCustomResourceYaml, deleteCustomResource, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import {
+  getCustomResourceList,
+  getCustomResourceYaml,
+  deleteCustomResource,
+  getNamespaceList,
+  extractNamespaceNames,
+} from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
@@ -37,7 +43,9 @@ async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
     namespaceList.value = extractNamespaceNames(res.data)
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 async function fetchResources() {
@@ -49,20 +57,30 @@ async function fetchResources() {
     resourceList.value = res.data || []
   } catch {
     // Silently handle — resource may not exist in cluster
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+  }
 }
 
-function handleNamespaceChange() { fetchResources() }
+function handleNamespaceChange() {
+  fetchResources()
+}
 
 async function handleViewYaml(row: any) {
-  yamlDialogVisible.value = true; yamlLoading.value = true; yamlContent.value = ''
+  yamlDialogVisible.value = true
+  yamlLoading.value = true
+  yamlContent.value = ''
   try {
     const params: any = { group, version, resource, name: row.name }
     if (row.namespace) params.namespace = row.namespace
     const res: any = await getCustomResourceYaml(params)
     yamlContent.value = res.data?.yaml || res.data || ''
-  } catch (e: any) { ElMessage.error(e?.message || 'Failed to load YAML'); yamlDialogVisible.value = false }
-  finally { yamlLoading.value = false }
+  } catch (e: any) {
+    ElMessage.error(e?.message || 'Failed to load YAML')
+    yamlDialogVisible.value = false
+  } finally {
+    yamlLoading.value = false
+  }
 }
 
 async function handleDelete(row: any) {
@@ -71,12 +89,17 @@ async function handleDelete(row: any) {
     const params: any = { group, version, resource, name: row.name }
     if (row.namespace) params.namespace = row.namespace
     await deleteCustomResource(params)
-    ElMessage.success('Deleted'); fetchResources()
-  } catch { /* cancelled */ }
+    ElMessage.success('Deleted')
+    fetchResources()
+  } catch {
+    /* cancelled */
+  }
 }
 
 function handleCreate() {
-  router.push(`/crd/resources/create?group=${group}&version=${version}&resource=${resource}&scope=${scope}&kind=${kind.value}`)
+  router.push(
+    `/crd/resources/create?group=${group}&version=${version}&resource=${resource}&scope=${scope}&kind=${kind.value}`,
+  )
 }
 
 function handleViewDetail(row: any) {
@@ -85,16 +108,32 @@ function handleViewDetail(row: any) {
   router.push(url)
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchResources)
 
-onMounted(() => { fetchNamespaces(); fetchResources() })
+onMounted(() => {
+  fetchNamespaces()
+  fetchResources()
+})
 </script>
 
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 style="margin: 0;">{{ resource }} <span style="color: var(--gk-color-text-secondary); font-size: 14px;">({{ group }}/{{ version }})</span></h2>
-      <div style="display: flex; gap: 8px;">
+      <h2 style="margin: 0">
+        {{ resource }}
+        <span style="color: var(--gk-color-text-secondary); font-size: 14px"
+          >({{ group }}/{{ version }})</span
+        >
+      </h2>
+      <div style="display: flex; gap: 8px">
         <el-button type="success" @click="handleCreate">
           <el-icon><Plus /></el-icon> 创建
         </el-button>
@@ -103,10 +142,19 @@ onMounted(() => { fetchNamespaces(); fetchResources() })
     </div>
     <el-card shadow="never" class="filter-card">
       <div class="filter-bar">
-        <el-input v-model="searchName" placeholder="Search by name" style="width: 220px;" clearable>
-          <template #prefix><el-icon><Search /></el-icon></template>
+        <el-input v-model="searchName" placeholder="Search by name" style="width: 220px" clearable>
+          <template #prefix
+            ><el-icon><Search /></el-icon
+          ></template>
         </el-input>
-        <el-select v-if="scope === 'Namespaced'" v-model="selectedNamespace" placeholder="All Namespaces" clearable style="width: 180px;" @change="handleNamespaceChange">
+        <el-select
+          v-if="scope === 'Namespaced'"
+          v-model="selectedNamespace"
+          placeholder="All Namespaces"
+          clearable
+          style="width: 180px"
+          @change="handleNamespaceChange"
+        >
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
         <AutoRefreshToolbar
@@ -122,36 +170,65 @@ onMounted(() => { fetchNamespaces(); fetchResources() })
       </div>
     </el-card>
     <el-card shadow="never" class="table-card">
-      <el-table :data="filteredList" v-loading="loading" stripe>
+      <el-table v-loading="loading" :data="filteredList" stripe>
         <el-table-column prop="name" label="Name" min-width="250" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link type="primary" @click="handleViewDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column v-if="scope === 'Namespaced'" prop="namespace" label="Namespace" width="140" />
+        <el-table-column
+          v-if="scope === 'Namespaced'"
+          prop="namespace"
+          label="Namespace"
+          width="140"
+        />
         <el-table-column prop="age" label="Age" width="180" />
         <el-table-column label="Actions" width="160" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
-    <el-dialog v-model="yamlDialogVisible" title="Custom Resource YAML" width="70%" top="5vh" destroy-on-close>
-      <div v-loading="yamlLoading"><YamlEditor v-model="yamlContent" height="500px" read-only auto-format /></div>
+    <el-dialog
+      v-model="yamlDialogVisible"
+      title="Custom Resource YAML"
+      width="70%"
+      top="5vh"
+      destroy-on-close
+    >
+      <div v-loading="yamlLoading">
+        <YamlEditor v-model="yamlContent" height="500px" read-only auto-format />
+      </div>
     </el-dialog>
   </div>
 </template>
 
 <style scoped>
-.page-container { padding: var(--gk-space-5); }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.filter-card { margin-bottom: 16px; }
-.filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.table-card { border-radius: var(--gk-radius-md); }
+.page-container {
+  padding: var(--gk-space-5);
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.filter-card {
+  margin-bottom: 16px;
+}
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.table-card {
+  border-radius: var(--gk-radius-md);
+}
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;

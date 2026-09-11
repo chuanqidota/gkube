@@ -5,6 +5,11 @@ import { useI18n } from 'vue-i18n'
 import { useAutoRefresh } from './useAutoRefresh'
 import { useClusterNameRef } from './useClusterName'
 
+export interface DetailError {
+  type: 'not-found' | 'network' | 'forbidden' | 'unknown'
+  message: string
+}
+
 export interface DetailPageOptions {
   /** 资源显示名，如 'Deployment' */
   resourceName: string
@@ -36,6 +41,7 @@ export function useDetailPage(options: DetailPageOptions) {
 
   const loading = ref(false)
   const detail: Ref<any> = ref(null)
+  const error: Ref<DetailError | null> = ref(null)
   const events = ref<any[]>([])
   const eventsLoading = ref(false)
   const yamlDialogVisible = ref(false)
@@ -48,11 +54,21 @@ export function useDetailPage(options: DetailPageOptions) {
 
   async function fetchDetail() {
     loading.value = true
+    error.value = null
     try {
       const res: any = await options.fetchDetail(options.buildParams())
       detail.value = res?.data ?? res
     } catch (e: any) {
-      ElMessage.error(e?.message || t('common.fetchFailed', { type: options.resourceName }))
+      const status = e?.response?.status
+      if (status === 404) {
+        error.value = { type: 'not-found', message: '该资源不存在或已被删除' }
+      } else if (status === 403) {
+        error.value = { type: 'forbidden', message: '没有权限访问该资源' }
+      } else if (!e?.response) {
+        error.value = { type: 'network', message: '网络错误，请检查连接后重试' }
+      } else {
+        error.value = { type: 'unknown', message: e?.message || '加载失败' }
+      }
     } finally {
       loading.value = false
     }
@@ -74,11 +90,18 @@ export function useDetailPage(options: DetailPageOptions) {
   // ---- 删除 ----
 
   async function handleDelete(force = false) {
-    const msg = options.deleteConfirm?.(detail.value, name)
-      || t('common.deleteResourceConfirm', { type: options.resourceName, name })
+    const msg =
+      options.deleteConfirm?.(detail.value, name) ||
+      t('common.deleteResourceConfirm', { type: options.resourceName, name })
     try {
-      await ElMessageBox.confirm(msg, t('common.confirmDelete'), { type: 'error', confirmButtonText: t('common.confirmDelete'), cancelButtonText: t('common.cancel') })
-    } catch { return }
+      await ElMessageBox.confirm(msg, t('common.confirmDelete'), {
+        type: 'error',
+        confirmButtonText: t('common.confirmDelete'),
+        cancelButtonText: t('common.cancel'),
+      })
+    } catch {
+      return
+    }
 
     deleteLoading.value = true
     try {
@@ -105,12 +128,22 @@ export function useDetailPage(options: DetailPageOptions) {
 
   // ---- 自动刷新 ----
 
-  const { isRunning, countdown, currentInterval, availableIntervals,
-    toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-    await fetchDetail()
-    if (options.onRefresh) await options.onRefresh()
-    await fetchEvents()
-  }, { autoStart: options.autoStart ?? false })
+  const {
+    isRunning,
+    countdown,
+    currentInterval,
+    availableIntervals,
+    toggle,
+    refresh: manualRefresh,
+    setIntervalOption,
+  } = useAutoRefresh(
+    async () => {
+      await fetchDetail()
+      if (options.onRefresh) await options.onRefresh()
+      await fetchEvents()
+    },
+    { autoStart: options.autoStart ?? false },
+  )
 
   // ---- 初始化 ----
 
@@ -122,16 +155,31 @@ export function useDetailPage(options: DetailPageOptions) {
 
   return {
     // 路由参数
-    namespace, name,
+    namespace,
+    name,
     // 状态
-    loading, detail, events, eventsLoading, yamlDialogVisible, deleteLoading,
+    loading,
+    detail,
+    error,
+    events,
+    eventsLoading,
+    yamlDialogVisible,
+    deleteLoading,
     // 集群
     clusterName,
     // 自动刷新
-    isRunning, countdown, currentInterval, availableIntervals,
-    toggle, manualRefresh, setIntervalOption,
+    isRunning,
+    countdown,
+    currentInterval,
+    availableIntervals,
+    toggle,
+    manualRefresh,
+    setIntervalOption,
     // 操作
-    fetchDetail, fetchEvents, handleDelete, handleOpenYaml,
+    fetchDetail,
+    fetchEvents,
+    handleDelete,
+    handleOpenYaml,
     // 路由
     router,
   }

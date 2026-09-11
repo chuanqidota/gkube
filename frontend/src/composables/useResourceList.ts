@@ -77,7 +77,14 @@ export function useResourceList(options: ResourceListOptions) {
   let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
   function onSearchInput(value: string) {
     searchName.value = value
-    if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer)
+      searchDebounceTimer = null
+    }
+    if (!value) {
+      debouncedSearch.value = ''
+      return
+    }
     searchDebounceTimer = setTimeout(() => {
       debouncedSearch.value = value
     }, 200)
@@ -99,13 +106,17 @@ export function useResourceList(options: ResourceListOptions) {
 
   function markPendingDelete(ids: string[]) {
     const updated = { ...pendingDeleteIds.value }
-    ids.forEach((id) => { updated[id] = true })
+    ids.forEach((id) => {
+      updated[id] = true
+    })
     pendingDeleteIds.value = updated
   }
 
   function clearPendingDelete(ids: string[]) {
     const updated = { ...pendingDeleteIds.value }
-    ids.forEach((id) => { delete updated[id] })
+    ids.forEach((id) => {
+      delete updated[id]
+    })
     pendingDeleteIds.value = updated
   }
 
@@ -159,7 +170,8 @@ export function useResourceList(options: ResourceListOptions) {
       }
     } catch (e) {
       // Resource type may legitimately not exist in the cluster; log rather than swallow silently
-      ElMessage.error(t('common.fetchFailed')); console.error(`[useResourceList] Failed to fetch ${options.resourceName} list:`, e)
+      ElMessage.error(t('common.fetchFailed'))
+      console.error(`[useResourceList] Failed to fetch ${options.resourceName} list:`, e)
     } finally {
       loading.value = false
     }
@@ -218,7 +230,8 @@ export function useResourceList(options: ResourceListOptions) {
       try {
         const res = await options.getYaml({ namespace: row.namespace, name: row.name })
         const raw = res?.data ?? res
-        yamlContent.value = typeof raw === 'object' && raw?.yaml ? raw.yaml : (typeof raw === 'string' ? raw : '')
+        yamlContent.value =
+          typeof raw === 'object' && raw?.yaml ? raw.yaml : typeof raw === 'string' ? raw : ''
       } catch (e: any) {
         yamlContent.value = ''
         yamlDialogVisible.value = false
@@ -238,7 +251,8 @@ export function useResourceList(options: ResourceListOptions) {
         name: yamlTarget.value.name,
       })
       const raw = res?.data ?? res
-      yamlContent.value = typeof raw === 'object' && raw?.yaml ? raw.yaml : (typeof raw === 'string' ? raw : '')
+      yamlContent.value =
+        typeof raw === 'object' && raw?.yaml ? raw.yaml : typeof raw === 'string' ? raw : ''
     } catch (e: any) {
       ElMessage.error(e?.message || t('common.yamlLoadFailed'))
     } finally {
@@ -286,7 +300,10 @@ export function useResourceList(options: ResourceListOptions) {
 
   async function handleDelete(row: any, force?: boolean) {
     if (force && options.forceDeleteResource) {
-      const msg = t('common.forceDeleteResourceConfirm', { type: options.resourceName, name: row.name })
+      const msg = t('common.forceDeleteResourceConfirm', {
+        type: options.resourceName,
+        name: row.name,
+      })
       try {
         await ElMessageBox.confirm(msg, t('common.confirm'), { type: 'warning' })
       } catch {
@@ -304,7 +321,9 @@ export function useResourceList(options: ResourceListOptions) {
         selectedRows.value = selectedRows.value.filter((r) => resourceKey(r) !== id)
         scheduleCleanup([id])
       } catch (e: any) {
-        ElMessage.error(e?.message || t('common.forceDeleteResourceFailed', { type: options.resourceName }))
+        ElMessage.error(
+          e?.message || t('common.forceDeleteResourceFailed', { type: options.resourceName }),
+        )
       } finally {
         loading.value = false
       }
@@ -313,7 +332,11 @@ export function useResourceList(options: ResourceListOptions) {
     const msg = options.deleteConfirm
       ? options.deleteConfirm(row)
       : row.namespace
-        ? t('common.deleteResourceConfirmNs', { type: options.resourceName, name: row.name, ns: row.namespace })
+        ? t('common.deleteResourceConfirmNs', {
+            type: options.resourceName,
+            name: row.name,
+            ns: row.namespace,
+          })
         : t('common.deleteResourceConfirm', { type: options.resourceName, name: row.name })
     try {
       await ElMessageBox.confirm(msg, t('common.confirm'), { type: 'warning' })
@@ -346,20 +369,24 @@ export function useResourceList(options: ResourceListOptions) {
       await ElMessageBox.confirm(
         t('common.batchDeleteConfirm', { count: rowsToDelete.length, type: options.resourceName }),
         t('common.confirm'),
-        { type: 'warning' }
+        { type: 'warning' },
       )
       loading.value = true
       const results = await Promise.allSettled(
         rowsToDelete.map((row) =>
-          options.deleteResource({ namespace: row.namespace, name: row.name })
-        )
+          options.deleteResource({ namespace: row.namespace, name: row.name }),
+        ),
       )
       const successCount = results.filter((r) => r.status === 'fulfilled').length
       const failCount = results.filter((r) => r.status === 'rejected').length
       if (failCount > 0) {
-        ElMessage.warning(t('common.batchDeletePartialFailed', { success: successCount, failed: failCount }))
+        ElMessage.warning(
+          t('common.batchDeletePartialFailed', { success: successCount, failed: failCount }),
+        )
       } else {
-        ElMessage.success(t('common.batchDeleteSuccess', { count: successCount, type: options.resourceName }))
+        ElMessage.success(
+          t('common.batchDeleteSuccess', { count: successCount, type: options.resourceName }),
+        )
       }
       // Collect successfully deleted IDs
       const deletedIds: string[] = []
@@ -378,11 +405,9 @@ export function useResourceList(options: ResourceListOptions) {
       const failedKeys = new Set(
         results
           .map((r, i) => (r.status === 'rejected' ? resourceKey(rowsToDelete[i]) : null))
-          .filter(Boolean) as string[]
+          .filter(Boolean) as string[],
       )
-      selectedRows.value = selectedRows.value.filter(
-        (row) => failedKeys.has(resourceKey(row))
-      )
+      selectedRows.value = selectedRows.value.filter((row) => failedKeys.has(resourceKey(row)))
     } catch {
       // cancelled
     } finally {
@@ -394,7 +419,12 @@ export function useResourceList(options: ResourceListOptions) {
   function handleKeyboard(e: KeyboardEvent) {
     if (e.key === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.getAttribute('contenteditable') === 'true') return
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.getAttribute('contenteditable') === 'true'
+      )
+        return
       e.preventDefault()
       fetchResources()
     }
@@ -410,15 +440,19 @@ export function useResourceList(options: ResourceListOptions) {
 
   // URL sync: watch labelConditions and sync to query param `ls`
   // 使用 encodeURIComponent/decodeURIComponent 替代 btoa/atob 以支持 Unicode
-  watch(labelConditions, (val) => {
-    const query = { ...router.currentRoute.value.query }
-    if (val.length > 0) {
-      query.ls = encodeURIComponent(JSON.stringify(val))
-    } else {
-      delete query.ls
-    }
-    router.replace({ query })
-  }, { deep: true })
+  watch(
+    labelConditions,
+    (val) => {
+      const query = { ...router.currentRoute.value.query }
+      if (val.length > 0) {
+        query.ls = encodeURIComponent(JSON.stringify(val))
+      } else {
+        delete query.ls
+      }
+      router.replace({ query })
+    },
+    { deep: true },
+  )
 
   onMounted(() => {
     fetchNamespaces()
@@ -430,11 +464,15 @@ export function useResourceList(options: ResourceListOptions) {
         const parsed = JSON.parse(decodeURIComponent(ls))
         if (Array.isArray(parsed) && parsed.length > 0) {
           // Validate each condition has required fields
-          const validConditions = parsed.filter((c: any) =>
-            c && typeof c.key === 'string' && c.key &&
-            ['=', '!=', 'in', 'notin'].includes(c.operator) &&
-            Array.isArray(c.values) && c.values.length > 0 &&
-            c.values.every((v: any) => typeof v === 'string')
+          const validConditions = parsed.filter(
+            (c: any) =>
+              c &&
+              typeof c.key === 'string' &&
+              c.key &&
+              ['=', '!=', 'in', 'notin'].includes(c.operator) &&
+              Array.isArray(c.values) &&
+              c.values.length > 0 &&
+              c.values.every((v: any) => typeof v === 'string'),
           )
           if (validConditions.length > 0) {
             labelConditions.value = validConditions

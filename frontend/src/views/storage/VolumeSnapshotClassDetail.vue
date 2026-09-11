@@ -2,7 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getVolumeSnapshotClassDetail, getVolumeSnapshotClassYaml, updateVolumeSnapshotClass } from '@/api/resource'
+import {
+  getVolumeSnapshotClassDetail,
+  getVolumeSnapshotClassYaml,
+  updateVolumeSnapshotClass,
+} from '@/api/resource'
 import { useI18n } from 'vue-i18n'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
@@ -61,16 +65,31 @@ async function handleSaveYaml(content: string) {
   }
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchDetail, { autoStart: false })
 
 onMounted(fetchDetail)
 </script>
 
 <template>
   <div v-loading="loading">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h2 style="margin: 0;">{{ t('storage.volumeSnapshotClassTitle', { name }) }}</h2>
-      <div style="display: flex; gap: 8px;">
+    <div
+      style="
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      "
+    >
+      <h2 style="margin: 0">{{ t('storage.volumeSnapshotClassTitle', { name }) }}</h2>
+      <div style="display: flex; gap: 8px">
         <AutoRefreshToolbar
           :is-running="isRunning"
           :countdown="countdown"
@@ -81,50 +100,81 @@ onMounted(fetchDetail)
           @toggle="toggle()"
           @interval-change="setIntervalOption"
         />
-        <el-button @click="router.push('/storage/volumesnapshotclasses')">{{ t('common.back') }}</el-button>
+        <el-button @click="router.push('/storage/volumesnapshotclasses')">{{
+          t('common.back')
+        }}</el-button>
       </div>
     </div>
 
     <template v-if="snapshotClass">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <el-tab-pane :label="t('common.detail')" name="info">
-          <el-descriptions :column="2" border style="margin-top: 8px;">
-            <el-descriptions-item :label="t('common.name')">{{ snapshotClass.metadata?.name || name }}</el-descriptions-item>
-            <el-descriptions-item :label="t('storage.driver')">{{ snapshotClass.driver || '-' }}</el-descriptions-item>
-            <el-descriptions-item :label="t('storage.deletionPolicy')">{{ snapshotClass.deletionPolicy || '-' }}</el-descriptions-item>
-            <el-descriptions-item :label="t('common.age')">{{ snapshotClass.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
+          <el-descriptions :column="2" border style="margin-top: 8px">
+            <el-descriptions-item :label="t('common.name')">{{
+              snapshotClass.metadata?.name || name
+            }}</el-descriptions-item>
+            <el-descriptions-item :label="t('storage.driver')">{{
+              snapshotClass.driver || '-'
+            }}</el-descriptions-item>
+            <el-descriptions-item :label="t('storage.deletionPolicy')">{{
+              snapshotClass.deletionPolicy || '-'
+            }}</el-descriptions-item>
+            <el-descriptions-item :label="t('common.age')">{{
+              snapshotClass.metadata?.creationTimestamp || '-'
+            }}</el-descriptions-item>
           </el-descriptions>
 
           <!-- Parameters -->
-          <div v-if="snapshotClass.parameters && Object.keys(snapshotClass.parameters).length > 0" style="margin-top: var(--gk-space-4);">
+          <div
+            v-if="snapshotClass.parameters && Object.keys(snapshotClass.parameters).length > 0"
+            style="margin-top: var(--gk-space-4)"
+          >
             <h4>{{ t('storage.parameters') }}</h4>
             <el-tag
               v-for="(val, key) in snapshotClass.parameters"
               :key="key"
-              style="margin-right: 8px; margin-bottom: 8px;"
+              style="margin-right: 8px; margin-bottom: 8px"
             >
               {{ key }}={{ val }}
             </el-tag>
           </div>
 
           <!-- Labels -->
-          <div v-if="snapshotClass.metadata?.labels && Object.keys(snapshotClass.metadata.labels).length > 0" style="margin-top: var(--gk-space-4);">
+          <div
+            v-if="
+              snapshotClass.metadata?.labels &&
+              Object.keys(snapshotClass.metadata.labels).length > 0
+            "
+            style="margin-top: var(--gk-space-4)"
+          >
             <h4>Labels</h4>
             <el-tag
               v-for="(val, key) in snapshotClass.metadata.labels"
               :key="key"
-              style="margin-right: 8px; margin-bottom: 8px;"
+              style="margin-right: 8px; margin-bottom: 8px"
             >
               {{ key }}={{ val }}
             </el-tag>
           </div>
 
           <!-- Annotations -->
-          <div v-if="snapshotClass.metadata?.annotations && Object.keys(snapshotClass.metadata.annotations).length > 0" style="margin-top: var(--gk-space-4);">
+          <div
+            v-if="
+              snapshotClass.metadata?.annotations &&
+              Object.keys(snapshotClass.metadata.annotations).length > 0
+            "
+            style="margin-top: var(--gk-space-4)"
+          >
             <h4>Annotations</h4>
-            <div v-for="(val, key) in snapshotClass.metadata.annotations" :key="key" style="margin-bottom: 4px;">
+            <div
+              v-for="(val, key) in snapshotClass.metadata.annotations"
+              :key="key"
+              style="margin-bottom: 4px"
+            >
               <el-text size="small" type="info">{{ key }}:</el-text>
-              <el-text size="small" style="margin-left: 4px; word-break: break-all;">{{ val }}</el-text>
+              <el-text size="small" style="margin-left: 4px; word-break: break-all">{{
+                val
+              }}</el-text>
             </div>
           </div>
         </el-tab-pane>

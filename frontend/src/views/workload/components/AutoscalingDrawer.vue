@@ -67,16 +67,19 @@ async function fetchHpaData() {
   }
 }
 
-watch(() => props.visible, (val) => {
-  if (val) {
-    showCreateForm.value = false
-    showEditForm.value = false
-    editHpaDetail.value = null
-    yamlDialogVisible.value = false
-    yamlContent.value = ''
-    fetchHpaData()
-  }
-})
+watch(
+  () => props.visible,
+  (val) => {
+    if (val) {
+      showCreateForm.value = false
+      showEditForm.value = false
+      editHpaDetail.value = null
+      yamlDialogVisible.value = false
+      yamlContent.value = ''
+      fetchHpaData()
+    }
+  },
+)
 
 function handleCreate() {
   showCreateForm.value = true
@@ -158,12 +161,12 @@ function handleCancelYaml() {
 <template>
   <el-drawer
     :model-value="visible"
-    @update:model-value="emit('update:visible', $event)"
     :title="t('workload.hpa')"
     :size="fullscreen ? '100%' : '85%'"
     direction="rtl"
     destroy-on-close
     :body-style="{ padding: '0', height: '100%', overflow: 'auto' }"
+    @update:model-value="emit('update:visible', $event)"
   >
     <template #header>
       <div class="drawer-header">
@@ -233,7 +236,7 @@ function handleCancelYaml() {
       class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }"
     >
-      <div v-loading="yamlLoading" style="height: calc(100dvh - 60px);">
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 60px)">
         <YamlEditor
           v-model="yamlContent"
           height="100%"

@@ -4,7 +4,16 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { getConfigMapList, getConfigMapDetail, getConfigMapYaml, updateConfigMap, deleteConfigMap, getNamespaceList, extractNamespaceNames, transformConfigMaps } from '@/api/resource'
+import {
+  getConfigMapList,
+  getConfigMapDetail,
+  getConfigMapYaml,
+  updateConfigMap,
+  deleteConfigMap,
+  getNamespaceList,
+  extractNamespaceNames,
+  transformConfigMaps,
+} from '@/api/resource'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
 import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
@@ -40,7 +49,9 @@ async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
     namespaceList.value = extractNamespaceNames(res.data)
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 async function fetchConfigMaps() {
@@ -54,15 +65,21 @@ async function fetchConfigMaps() {
     configMapList.value = transformConfigMaps(items)
   } catch {
     // Silently handle — resource may not exist in cluster
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+  }
 }
 
-function handleNamespaceChange() { fetchConfigMaps() }
+function handleNamespaceChange() {
+  fetchConfigMaps()
+}
 function onLabelConditionsChange(conditions: LabelCondition[]) {
   labelConditions.value = conditions
   fetchConfigMaps()
 }
-function handleSelectionChange(rows: any[]) { selectedRows.value = rows }
+function handleSelectionChange(rows: any[]) {
+  selectedRows.value = rows
+}
 
 function handleViewYaml(row: any) {
   yamlTarget.value = { namespace: row.namespace, name: row.name }
@@ -70,7 +87,10 @@ function handleViewYaml(row: any) {
 }
 
 async function handleViewData(row: any) {
-  dataLoading.value = true; dataDialogVisible.value = true; dataDialogTitle.value = `数据字典: ${row.name}`; dataEntries.value = []
+  dataLoading.value = true
+  dataDialogVisible.value = true
+  dataDialogTitle.value = `数据字典: ${row.name}`
+  dataEntries.value = []
   try {
     const res: any = await getConfigMapDetail({ name: row.name, namespace: row.namespace })
     const data = res.data?.data || {}
@@ -80,50 +100,89 @@ async function handleViewData(row: any) {
       ...Object.entries(binaryData).map(([key, value]) => ({ key, value: String(value ?? '') })),
     ]
     dataEntries.value = merged
-  } catch (e: any) { ElMessage.error(e?.message || t('config.loadDataFailed')); dataDialogVisible.value = false }
-  finally { dataLoading.value = false }
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('config.loadDataFailed'))
+    dataDialogVisible.value = false
+  } finally {
+    dataLoading.value = false
+  }
 }
 
-function handleDetail(row: any) { router.push(`/config/configmaps/${row.namespace}/${row.name}`) }
+function handleDetail(row: any) {
+  router.push(`/config/configmaps/${row.namespace}/${row.name}`)
+}
 
 async function handleDelete(row: any) {
   try {
-    await ElMessageBox.confirm(`确定要删除命名空间 "${row.namespace}" 中的数据字典 "${row.name}" 吗？`, '确认', { type: 'warning' })
+    await ElMessageBox.confirm(
+      `确定要删除命名空间 "${row.namespace}" 中的数据字典 "${row.name}" 吗？`,
+      '确认',
+      { type: 'warning' },
+    )
     await deleteConfigMap({ name: row.name, namespace: row.namespace })
-    ElMessage.success(t('common.deleteSuccess')); fetchConfigMaps()
-  } catch { /* cancelled */ }
+    ElMessage.success(t('common.deleteSuccess'))
+    fetchConfigMaps()
+  } catch {
+    /* cancelled */
+  }
 }
 
 async function handleBatchDelete() {
   if (!selectedRows.value.length) return
   try {
-    await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 个数据字典吗？`, '确认', { type: 'warning' })
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedRows.value.length} 个数据字典吗？`,
+      '确认',
+      { type: 'warning' },
+    )
     const results = await Promise.allSettled(
-      selectedRows.value.map((row: any) => deleteConfigMap({ name: row.name, namespace: row.namespace }))
+      selectedRows.value.map((row: any) =>
+        deleteConfigMap({ name: row.name, namespace: row.namespace }),
+      ),
     )
     const count = results.filter((r) => r.status === 'fulfilled').length
     const failed = results.length - count
-    ElMessage.success(t('config.batchDeleteResult', { count, type: t('config.configmap'), failed: failed ? `，${failed} 个失败` : '' })); fetchConfigMaps()
-  } catch { /* cancelled */ }
+    ElMessage.success(
+      t('config.batchDeleteResult', {
+        count,
+        type: t('config.configmap'),
+        failed: failed ? `，${failed} 个失败` : '',
+      }),
+    )
+    fetchConfigMaps()
+  } catch {
+    /* cancelled */
+  }
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh, setIntervalOption } = useAutoRefresh(fetchConfigMaps)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchConfigMaps)
 
-onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
+onMounted(() => {
+  fetchNamespaces()
+  fetchConfigMaps()
+})
 </script>
 
 <template>
   <div class="page-container">
     <ResourceListToolbar
-      :search-value="searchName"
       v-model:namespace-value="selectedNamespace"
+      :search-value="searchName"
       :namespace-list="namespaceList"
       :show-total-count="false"
       :selected-count="selectedRows.length"
       :cluster-name="clusterStore.clusterName"
       resource-type="configmap"
       :label-conditions="labelConditions"
-      @search-input="(val: string) => searchName = val"
+      @search-input="(val: string) => (searchName = val)"
       @namespace-change="handleNamespaceChange"
       @label-selector-change="onLabelConditionsChange"
     >
@@ -149,19 +208,39 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
       </template>
     </ResourceListToolbar>
     <el-card shadow="never" class="table-card">
-      <el-table :data="filteredList" v-loading="loading" stripe @selection-change="handleSelectionChange">
+      <el-table
+        v-loading="loading"
+        :data="filteredList"
+        stripe
+        @selection-change="handleSelectionChange"
+      >
         <el-table-column type="selection" width="45" />
         <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
+          <template #default="{ row }"
+            ><el-button link type="primary" @click="handleDetail(row)">{{
+              row.name
+            }}</el-button></template
+          >
         </el-table-column>
         <el-table-column prop="namespace" label="命名空间" width="140" />
         <el-table-column label="标签" min-width="180" show-overflow-tooltip>
           <template #default="{ row }">
             <template v-if="row.labels && Object.keys(row.labels).length">
-              <el-tag v-for="(val, key, idx) in row.labels" :key="key" size="small" class="label-tag" v-show="idx < 3">
+              <el-tag
+                v-for="(val, key, idx) in row.labels"
+                v-show="idx < 3"
+                :key="key"
+                size="small"
+                class="label-tag"
+              >
                 {{ key }}={{ val }}
               </el-tag>
-              <el-tag v-if="Object.keys(row.labels).length > 3" size="small" type="info" effect="plain">
+              <el-tag
+                v-if="Object.keys(row.labels).length > 3"
+                size="small"
+                type="info"
+                effect="plain"
+              >
                 +{{ Object.keys(row.labels).length - 3 }}
               </el-tag>
             </template>
@@ -169,15 +248,19 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
           </template>
         </el-table-column>
         <el-table-column label="数据键数量" width="120">
-          <template #default="{ row }"><el-tag size="small">{{ row.data_keys_count }}</el-tag></template>
+          <template #default="{ row }"
+            ><el-tag size="small">{{ row.data_keys_count }}</el-tag></template
+          >
         </el-table-column>
         <el-table-column prop="age" label="创建时间" width="120" />
         <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="primary" @click="handleViewData(row)">查看数据</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" type="primary" @click="handleViewData(row)"
+                >查看数据</el-button
+              >
+              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
         </el-table-column>
@@ -201,7 +284,7 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
       :body-style="{ padding: '0', height: '100%' }"
       :destroy-on-close="true"
     >
-      <div v-loading="dataLoading" style="height: calc(100dvh - 52px);">
+      <div v-loading="dataLoading" style="height: calc(100dvh - 52px)">
         <ConfigDataViewer :entries="dataEntries" :loading="dataLoading" />
       </div>
     </el-drawer>
@@ -209,8 +292,12 @@ onMounted(() => { fetchNamespaces(); fetchConfigMaps() })
 </template>
 
 <style scoped>
-.page-container { padding: var(--gk-space-5); }
-.table-card { border-radius: var(--gk-radius-md); }
+.page-container {
+  padding: var(--gk-space-5);
+}
+.table-card {
+  border-radius: var(--gk-radius-md);
+}
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;

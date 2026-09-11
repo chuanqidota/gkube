@@ -68,7 +68,10 @@ export function useResizable(options: ResizableOptions = {}) {
     const startH = rightPanel.getBoundingClientRect().height
     const onMove = (ev: MouseEvent) => {
       const delta = ev.clientY - startY
-      rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, minTopHeight), startH - minBottomHeight)
+      rightTopHeight.value = Math.min(
+        Math.max(startH * 0.3 + delta, minTopHeight),
+        startH - minBottomHeight,
+      )
     }
     const onUp = () => {
       resizingV.value = false

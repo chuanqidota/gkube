@@ -72,7 +72,8 @@ export function transformPods(items: any[]): Pod[] {
   if (!Array.isArray(items)) return []
   return items.map((pod: any) => {
     const restarts = (pod.status?.containerStatuses || []).reduce(
-      (sum: number, cs: any) => sum + (cs.restartCount || 0), 0
+      (sum: number, cs: any) => sum + (cs.restartCount || 0),
+      0,
     )
     return {
       name: pod.metadata?.name || '',
@@ -304,46 +305,89 @@ export const getHpaEvents = hpaApi.events
 // ============ 资源特有操作 ============
 
 // Pod
-export const getPodLogs = (params: { namespace: string; name: string; container?: string; tailLines?: number }) =>
-  request.get('/k8s/pod/logs', { params })
+export const getPodLogs = (params: {
+  namespace: string
+  name: string
+  container?: string
+  tailLines?: number
+}) => request.get('/k8s/pod/logs', { params })
 
 // Deployment
-export const scaleDeployment = (data: { namespace: string; name: string; replicas: number }) => request.put('/k8s/deployment/scale', data)
-export const restartDeployment = (data: { namespace: string; name: string }) => request.post('/k8s/deployment/restart', data)
-export const rollbackDeployment = (data: { namespace: string; name: string; revision: number }) => request.post('/k8s/deployment/rollback', data)
-export const updateDeploymentImage = (data: { namespace: string; name: string; containerName: string; image: string }) => request.put('/k8s/deployment/update-image', data)
-export const getDeploymentReplicaSets = (params: { namespace: string; name: string }) => request.get('/k8s/deployment/replicasets', { params })
-export const getDeploymentPodList = (params: { namespace: string; name: string }) => request.get('/k8s/deployment/pods', { params })
+export const scaleDeployment = (data: { namespace: string; name: string; replicas: number }) =>
+  request.put('/k8s/deployment/scale', data)
+export const restartDeployment = (data: { namespace: string; name: string }) =>
+  request.post('/k8s/deployment/restart', data)
+export const rollbackDeployment = (data: { namespace: string; name: string; revision: number }) =>
+  request.post('/k8s/deployment/rollback', data)
+export const updateDeploymentImage = (data: {
+  namespace: string
+  name: string
+  containerName: string
+  image: string
+}) => request.put('/k8s/deployment/update-image', data)
+export const getDeploymentReplicaSets = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/deployment/replicasets', { params })
+export const getDeploymentPodList = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/deployment/pods', { params })
 
 // StatefulSet
-export const scaleStatefulSet = (data: { namespace: string; name: string; replicas: number }) => request.put('/k8s/statefulset/scale', data)
-export const restartStatefulSet = (data: { namespace: string; name: string }) => request.post('/k8s/statefulset/restart', data)
-export const rollbackStatefulSet = (data: { namespace: string; name: string; revision: number }) => request.post('/k8s/statefulset/rollback', data)
-export const updateStatefulSetImage = (data: { namespace: string; name: string; containerName: string; image: string }) => request.put('/k8s/statefulset/update-image', data)
-export const getStatefulSetRollbacks = (params: { namespace: string; name: string }) => request.get('/k8s/statefulset/rollbacks', { params })
-export const getStatefulSetPVCs = (params: { namespace: string; name: string }) => request.get('/k8s/statefulset/pvcs', { params })
-export const getStatefulSetPods = (params: { namespace: string; name: string }) => request.get('/k8s/statefulset/pods', { params })
+export const scaleStatefulSet = (data: { namespace: string; name: string; replicas: number }) =>
+  request.put('/k8s/statefulset/scale', data)
+export const restartStatefulSet = (data: { namespace: string; name: string }) =>
+  request.post('/k8s/statefulset/restart', data)
+export const rollbackStatefulSet = (data: { namespace: string; name: string; revision: number }) =>
+  request.post('/k8s/statefulset/rollback', data)
+export const updateStatefulSetImage = (data: {
+  namespace: string
+  name: string
+  containerName: string
+  image: string
+}) => request.put('/k8s/statefulset/update-image', data)
+export const getStatefulSetRollbacks = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/statefulset/rollbacks', { params })
+export const getStatefulSetPVCs = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/statefulset/pvcs', { params })
+export const getStatefulSetPods = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/statefulset/pods', { params })
 
 // DaemonSet
-export const getDaemonSetPods = (params: { namespace: string; name: string }) => request.get('/k8s/daemonset/pods', { params })
-export const restartDaemonSet = (data: { namespace: string; name: string }) => request.post('/k8s/daemonset/restart', data)
-export const updateDaemonSetImage = (data: { namespace: string; name: string; containerName: string; image: string }) => request.put('/k8s/daemonset/update-image', data)
-export const rollbackDaemonSet = (data: { namespace: string; name: string; revision: number }) => request.post('/k8s/daemonset/rollback', data)
-export const getDaemonSetRollbacks = (params: { namespace: string; name: string }) => request.get('/k8s/daemonset/rollbacks', { params })
+export const getDaemonSetPods = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/daemonset/pods', { params })
+export const restartDaemonSet = (data: { namespace: string; name: string }) =>
+  request.post('/k8s/daemonset/restart', data)
+export const updateDaemonSetImage = (data: {
+  namespace: string
+  name: string
+  containerName: string
+  image: string
+}) => request.put('/k8s/daemonset/update-image', data)
+export const rollbackDaemonSet = (data: { namespace: string; name: string; revision: number }) =>
+  request.post('/k8s/daemonset/rollback', data)
+export const getDaemonSetRollbacks = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/daemonset/rollbacks', { params })
 
 // Job
-export const getJobPods = (params: { namespace: string; name: string }) => request.get('/k8s/job/pods', { params })
-export const rerunJob = (params: { namespace: string; name: string }) => request.post('/k8s/job/rerun', undefined, { params })
+export const getJobPods = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/job/pods', { params })
+export const rerunJob = (params: { namespace: string; name: string }) =>
+  request.post('/k8s/job/rerun', undefined, { params })
 
 // CronJob
-export const getCronJobExecutionHistory = (params: { namespace: string; name: string }) => request.get('/k8s/cronjob/jobs', { params })
-export const suspendCronJob = (params: { namespace: string; name: string }) => request.put('/k8s/cronjob/suspend', undefined, { params })
-export const resumeCronJob = (params: { namespace: string; name: string }) => request.put('/k8s/cronjob/resume', undefined, { params })
-export const triggerCronJob = (params: { namespace: string; name: string }) => request.post('/k8s/cronjob/trigger', undefined, { params })
+export const getCronJobExecutionHistory = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/cronjob/jobs', { params })
+export const suspendCronJob = (params: { namespace: string; name: string }) =>
+  request.put('/k8s/cronjob/suspend', undefined, { params })
+export const resumeCronJob = (params: { namespace: string; name: string }) =>
+  request.put('/k8s/cronjob/resume', undefined, { params })
+export const triggerCronJob = (params: { namespace: string; name: string }) =>
+  request.post('/k8s/cronjob/trigger', undefined, { params })
 
 // ReplicaSet
-export const getReplicaSetPodList = (params: { namespace: string; name: string }) => request.get('/k8s/replicaset/pods', { params })
+export const getReplicaSetPodList = (params: { namespace: string; name: string }) =>
+  request.get('/k8s/replicaset/pods', { params })
 
 // HPA
-export const pauseHpa = (params: { namespace: string; name: string }) => request.post('/k8s/hpa/pause', null, { params })
-export const resumeHpa = (params: { namespace: string; name: string }) => request.post('/k8s/hpa/resume', null, { params })
+export const pauseHpa = (params: { namespace: string; name: string }) =>
+  request.post('/k8s/hpa/pause', null, { params })
+export const resumeHpa = (params: { namespace: string; name: string }) =>
+  request.post('/k8s/hpa/resume', null, { params })

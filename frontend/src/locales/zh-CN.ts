@@ -172,7 +172,8 @@ export default {
     deleteResourceConfirmNs: '确定要删除 {type} "{name}"（命名空间: {ns}）吗？',
     batchDeleteConfirm: '确定要删除选中的 {count} 个 {type} 吗？',
     batchDeletePartialFailed: '成功删除 {success} 个，失败 {failed} 个',
-    forceDeleteResourceConfirm: '确定要强制删除 {type} "{name}" 吗？将跳过优雅终止，控制器管理的 Pod 会被立即重建。',
+    forceDeleteResourceConfirm:
+      '确定要强制删除 {type} "{name}" 吗？将跳过优雅终止，控制器管理的 Pod 会被立即重建。',
     forceDeleteResourceSuccess: '{type} 已强制删除',
     forceDeleteResourceFailed: '强制删除 {type} 失败',
     // 克隆
@@ -760,7 +761,8 @@ export default {
     addTaint: '添加污点',
     addLabel: '添加标签',
     taintUpdated: '污点已更新',
-    labelSaveWarning: '保存时，未包含在列表中的用户标签将被删除。系统标签（kubernetes.io/ 前缀等）不受影响。',
+    labelSaveWarning:
+      '保存时，未包含在列表中的用户标签将被删除。系统标签（kubernetes.io/ 前缀等）不受影响。',
     labelKeyPlaceholder: 'Key（如 app）',
     labelValuePlaceholder: 'Value（可空）',
     labelKeyError: '标签 {key}：{error}',
@@ -769,7 +771,8 @@ export default {
     taintKeyError: '污点 {key}：{error}',
     taintDuplicate: '污点重复：{key} ({effect}) 已存在',
     drainPod: '驱逐 Pod',
-    drainWarning: '驱逐操作会先封锁节点，然后提交驱逐请求。Pod 进入终止需要时间，请稍后刷新查看实际状态。',
+    drainWarning:
+      '驱逐操作会先封锁节点，然后提交驱逐请求。Pod 进入终止需要时间，请稍后刷新查看实际状态。',
     ignoreDaemonSets: '忽略 DaemonSet',
     ignoreDaemonSetsHint: '跳过 DaemonSet 管理的 Pod',
     deleteLocalData: '删除本地数据',
@@ -785,7 +788,8 @@ export default {
     drainFailed: '{count} 个提交失败',
     drainResultSubmitted: '驱逐请求已提交：{parts}。Pod 正在终止中，请稍后刷新查看实际状态。',
     drainCordonedHint: '节点已封锁，Pod 终止后如需恢复调度请手动解除封锁。',
-    drainCordonedPartialFailHint: '节点已封锁且部分驱逐失败，如需恢复调度请先处理失败 Pod 再手动解除封锁。',
+    drainCordonedPartialFailHint:
+      '节点已封锁且部分驱逐失败，如需恢复调度请先处理失败 Pod 再手动解除封锁。',
     // Detail template
     basicInfo: '基本信息',
     labels: '标签',
@@ -820,8 +824,10 @@ export default {
     cordonConfirm: '确定{action}节点 "{name}" 吗？',
     cordonSuccess: '节点已{action}',
     cordonFailed: '{action}失败',
-    deleteOfflineConfirm: '此操作用于清理已下线节点的残留记录。若节点仍在线（kubelet 运行中），删除后会自动重新注册。确定要删除节点 "{name}" 吗？',
-    deleteOnlineWarning: '节点 "{name}" 当前在线（Ready）。删除后 kubelet 会重新注册该节点，删除将无效。如确需删除，请先停止节点上的 kubelet。仍要继续吗？',
+    deleteOfflineConfirm:
+      '此操作用于清理已下线节点的残留记录。若节点仍在线（kubelet 运行中），删除后会自动重新注册。确定要删除节点 "{name}" 吗？',
+    deleteOnlineWarning:
+      '节点 "{name}" 当前在线（Ready）。删除后 kubelet 会重新注册该节点，删除将无效。如确需删除，请先停止节点上的 kubelet。仍要继续吗？',
     // List template
     nodeOnlineDeleteWarning: '节点在线，删除后会重新注册（需先停止 kubelet）',
     alreadyCordoned: '已封锁',
@@ -1234,7 +1240,8 @@ export default {
     deleteConfirm: '确认删除 {name} 的权限绑定？',
     updateSuccess: '更新成功',
     createSuccess: '创建成功',
-    adminRoleWarning: '其中包含 {count} 个管理员级别角色。删除后该用户将失去对应集群的管理权限。请确认操作。',
+    adminRoleWarning:
+      '其中包含 {count} 个管理员级别角色。删除后该用户将失去对应集群的管理权限。请确认操作。',
     bindingExists: '该用户在此作用域已有绑定，请编辑现有绑定',
     superAdmin: '平台管理员',
     clusterAdmin: '集群管理员',
@@ -1267,7 +1274,8 @@ export default {
     roleDescLabel: '描述',
     resourceGroup: '资源组',
     permissionMatrix: '权限矩阵',
-    roleCacheWarning: '保存后立即失效服务端权限缓存；当前已登录用户的会话界面可能需要刷新或重新登录后才能看到变化。',
+    roleCacheWarning:
+      '保存后立即失效服务端权限缓存；当前已登录用户的会话界面可能需要刷新或重新登录后才能看到变化。',
     deleteRoleConfirm: '确定删除角色「{name}」？',
     roleFormRequired: '请填写角色名称与标识',
     myPermissions: '我的权限',

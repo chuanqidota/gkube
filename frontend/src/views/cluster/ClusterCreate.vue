@@ -62,7 +62,7 @@ async function handleTestConnection() {
         version: info.clusterVersion,
         nodeCount: info.nodeCount,
         responseTimeMs: info.responseTimeMs,
-      })
+      }),
     )
   } catch (e: any) {
     ElMessage.error(e?.message || t('cluster.testFailed'))
@@ -105,7 +105,7 @@ async function handleSubmit() {
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
-          <h3 style="margin: 0;">{{ t('cluster.addCluster') }}</h3>
+          <h3 style="margin: 0">{{ t('cluster.addCluster') }}</h3>
           <el-button @click="router.push('/clusters')">{{ t('common.back') }}</el-button>
         </div>
       </template>
@@ -115,7 +115,7 @@ async function handleSubmit() {
         :model="form"
         :rules="rules"
         label-width="120px"
-        style="max-width: 700px;"
+        style="max-width: 700px"
       >
         <el-form-item :label="t('cluster.name')" prop="clusterName">
           <el-input v-model="form.clusterName" :placeholder="t('cluster.clusterNamePlaceholder')" />
@@ -127,16 +127,17 @@ async function handleSubmit() {
         </el-form-item>
 
         <el-form-item :label="t('cluster.description')" prop="description">
-          <el-input v-model="form.description" type="textarea" :rows="3" :placeholder="t('cluster.descriptionPlaceholder')" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="3"
+            :placeholder="t('cluster.descriptionPlaceholder')"
+          />
         </el-form-item>
 
         <el-form-item label="KubeConfig" prop="kubeConfig">
-          <div style="width: 100%; display: flex; align-items: flex-start; gap: var(--gk-space-3);">
-            <el-upload
-              :auto-upload="false"
-              :show-file-list="false"
-              :on-change="handleFileUpload"
-            >
+          <div style="width: 100%; display: flex; align-items: flex-start; gap: var(--gk-space-3)">
+            <el-upload :auto-upload="false" :show-file-list="false" :on-change="handleFileUpload">
               <el-button type="primary" plain>{{ t('cluster.uploadKubeConfig') }}</el-button>
             </el-upload>
             <el-button
@@ -145,35 +146,48 @@ async function handleSubmit() {
               :loading="testing"
               :disabled="!form.kubeConfig.trim()"
               @click="handleTestConnection"
-            >{{ t('cluster.testConnection') }}</el-button>
+              >{{ t('cluster.testConnection') }}</el-button
+            >
           </div>
           <el-input
             v-model="form.kubeConfig"
             type="textarea"
             :rows="12"
             :placeholder="t('cluster.kubeConfigPlaceholder')"
-            style="margin-top: 8px;"
+            style="margin-top: 8px"
           />
           <div class="form-tip">{{ t('cluster.kubeConfigTip') }}</div>
         </el-form-item>
 
         <el-form-item :label="t('cluster.labels')">
-          <div style="width: 100%;">
+          <div style="width: 100%">
             <div
               v-for="(label, index) in form.labels"
               :key="index"
-              style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px;"
+              style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px"
             >
-              <el-input v-model="label.key" :placeholder="t('cluster.keyPlaceholder')" style="flex: 1;" />
-              <el-input v-model="label.value" :placeholder="t('cluster.valuePlaceholder')" style="flex: 1;" />
+              <el-input
+                v-model="label.key"
+                :placeholder="t('cluster.keyPlaceholder')"
+                style="flex: 1"
+              />
+              <el-input
+                v-model="label.value"
+                :placeholder="t('cluster.valuePlaceholder')"
+                style="flex: 1"
+              />
               <el-button type="danger" circle @click="removeLabel(index)">-</el-button>
             </div>
-            <el-button @click="addLabel" type="primary" plain>{{ t('cluster.addLabel') }}</el-button>
+            <el-button type="primary" plain @click="addLabel">{{
+              t('cluster.addLabel')
+            }}</el-button>
           </div>
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleSubmit">{{ t('cluster.createCluster') }}</el-button>
+          <el-button type="primary" :loading="loading" @click="handleSubmit">{{
+            t('cluster.createCluster')
+          }}</el-button>
           <el-button @click="router.push('/clusters')">{{ t('common.cancel') }}</el-button>
         </el-form-item>
       </el-form>
@@ -182,7 +196,17 @@ async function handleSubmit() {
 </template>
 
 <style scoped>
-.page-container { padding: var(--gk-space-5); }
-.card-header { display: flex; justify-content: space-between; align-items: center; }
-.form-tip { font-size: 12px; color: var(--gk-color-text-secondary); margin-top: 4px; }
+.page-container {
+  padding: var(--gk-space-5);
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.form-tip {
+  font-size: 12px;
+  color: var(--gk-color-text-secondary);
+  margin-top: 4px;
+}
 </style>

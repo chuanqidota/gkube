@@ -62,17 +62,27 @@ const {
   autoRefreshInterval: 30000,
 })
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchResources)
 
 // 暂停 / 恢复 CronJob：使用专用 API 端点
 async function handleToggleSuspend(row: any) {
   const willSuspend = !row.suspend
-  const actionLabel = willSuspend ? t('workload.suspend') : t('workload.hpaResumeSuccess').split(' ')[1] || 'Resume'
+  const actionLabel = willSuspend
+    ? t('workload.suspend')
+    : t('workload.hpaResumeSuccess').split(' ')[1] || 'Resume'
   try {
     await ElMessageBox.confirm(
       t('workload.suspendConfirm', { action: actionLabel, type: 'CronJob', name: row.name }),
       t('common.confirmAction'),
-      { type: 'warning' }
+      { type: 'warning' },
     )
   } catch {
     return // 取消
@@ -96,7 +106,7 @@ async function handleTrigger(row: any) {
     await ElMessageBox.confirm(
       t('workload.triggerConfirm', { name: row.name }),
       t('common.confirmAction'),
-      { type: 'info' }
+      { type: 'info' },
     )
   } catch {
     return
@@ -114,8 +124,8 @@ async function handleTrigger(row: any) {
 <template>
   <div class="page-container">
     <ResourceListToolbar
-      :search-value="searchName"
       v-model:namespace-value="selectedNamespace"
+      :search-value="searchName"
       :namespace-list="namespaceList"
       :total-count="totalCount"
       :selected-count="selectedRows.length"
@@ -150,13 +160,18 @@ async function handleTrigger(row: any) {
 
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="filteredList"
         v-loading="loading"
+        :data="filteredList"
         stripe
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          prop="name"
+          :label="t('common.name')"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
@@ -165,14 +180,22 @@ async function handleTrigger(row: any) {
         <el-table-column prop="schedule" :label="t('workload.schedule')" width="160" />
         <el-table-column :label="t('workload.suspend')" width="90">
           <template #default="{ row }">
-            <el-tag :type="row.suspend ? 'warning' : 'success'" size="small">{{ row.suspend ? '是' : '否' }}</el-tag>
+            <el-tag :type="row.suspend ? 'warning' : 'success'" size="small">{{
+              row.suspend ? '是' : '否'
+            }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="active" :label="t('workload.active')" width="80" />
-        <el-table-column prop="nextScheduleTime" :label="t('workload.lastScheduleTime')" width="170">
+        <el-table-column
+          prop="nextScheduleTime"
+          :label="t('workload.lastScheduleTime')"
+          width="170"
+        >
           <template #default="{ row }">
             <span v-if="row.nextScheduleTime">{{ row.nextScheduleTime }}</span>
-            <el-tag v-else-if="row.suspend" type="info" size="small">{{ t('workload.suspended') }}</el-tag>
+            <el-tag v-else-if="row.suspend" type="info" size="small">{{
+              t('workload.suspended')
+            }}</el-tag>
             <span v-else>-</span>
           </template>
         </el-table-column>
@@ -180,15 +203,24 @@ async function handleTrigger(row: any) {
         <el-table-column :label="t('common.actions')" width="350" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button
-              size="small"
-              :type="row.suspend ? 'success' : 'warning'"
-              :icon="row.suspend ? VideoPlay : VideoPause"
-              @click="handleToggleSuspend(row)"
-            >{{ row.suspend ? t('workload.hpaResumeSuccess').split(' ')[1] || 'Resume' : t('workload.suspend') }}</el-button>
-            <el-button size="small" type="primary" @click="handleTrigger(row)">{{ t('workload.triggerSuccess').split(' ')[0] || 'Trigger' }}</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button
+                size="small"
+                :type="row.suspend ? 'success' : 'warning'"
+                :icon="row.suspend ? VideoPlay : VideoPause"
+                @click="handleToggleSuspend(row)"
+                >{{
+                  row.suspend
+                    ? t('workload.hpaResumeSuccess').split(' ')[1] || 'Resume'
+                    : t('workload.suspend')
+                }}</el-button
+              >
+              <el-button size="small" type="primary" @click="handleTrigger(row)">{{
+                t('workload.triggerSuccess').split(' ')[0] || 'Trigger'
+              }}</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{
+                t('common.delete')
+              }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -196,17 +228,31 @@ async function handleTrigger(row: any) {
 
       <!-- Load More Button -->
       <div v-if="hasMore" class="load-more">
-        <el-button @click="fetchNextPage" :loading="loading" link type="primary">
+        <el-button :loading="loading" link type="primary" @click="fetchNextPage">
           {{ t('workload.loadMore') }}
         </el-button>
       </div>
     </el-card>
 
     <!-- YAML Drawer -->
-    <el-drawer v-model="yamlDialogVisible" title="CronJob YAML" size="85%" direction="rtl" class="yaml-drawer"
-      :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px);">
-        <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
+    <el-drawer
+      v-model="yamlDialogVisible"
+      title="CronJob YAML"
+      size="85%"
+      direction="rtl"
+      class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px)">
+        <YamlEditor
+          v-model="yamlContent"
+          height="100%"
+          auto-format
+          show-save-buttons
+          :saving="yamlSaving"
+          @save="handleSaveYaml"
+          @cancel="handleCancelYaml"
+        />
       </div>
     </el-drawer>
   </div>

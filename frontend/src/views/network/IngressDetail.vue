@@ -3,7 +3,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getIngressDetail, deleteIngress, getIngressEvents, getIngressTLSCertStatus, ingressApi } from '@/api/resource'
+import {
+  getIngressDetail,
+  deleteIngress,
+  getIngressEvents,
+  getIngressTLSCertStatus,
+  ingressApi,
+} from '@/api/resource'
 import { FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import DetailPageLayout from '@/components/DetailPageLayout.vue'
@@ -30,9 +36,10 @@ const tlsCerts = ref<any[]>([])
 const tlsCertsLoading = ref(false)
 
 // Edit dialog
-const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess, handleEditCancel } = useEditDrawer(async () => {
-  fetchDetail()
-})
+const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess, handleEditCancel } =
+  useEditDrawer(async () => {
+    fetchDetail()
+  })
 
 const namespace = route.params.namespace as string
 const name = route.params.name as string
@@ -63,7 +70,10 @@ const ingress = computed(() => {
   const defaultBackend = spec.defaultBackend
     ? {
         serviceName: spec.defaultBackend.service?.name || '',
-        servicePort: spec.defaultBackend.service?.port?.number || spec.defaultBackend.service?.port?.name || '',
+        servicePort:
+          spec.defaultBackend.service?.port?.number ||
+          spec.defaultBackend.service?.port?.name ||
+          '',
       }
     : null
 
@@ -113,7 +123,7 @@ async function fetchEvents() {
   try {
     const res: any = await getIngressEvents({ namespace, name })
     events.value = res.data || []
-  } catch (e) {
+  } catch (_e) {
     events.value = []
   } finally {
     eventsLoading.value = false
@@ -125,7 +135,7 @@ async function fetchTLSCerts() {
   try {
     const res: any = await getIngressTLSCertStatus({ namespace, name })
     tlsCerts.value = res.data || []
-  } catch (e) {
+  } catch (_e) {
     tlsCerts.value = []
   } finally {
     tlsCertsLoading.value = false
@@ -142,11 +152,11 @@ function handleYamlSaved() {
 
 async function handleDelete() {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除 Ingress "${name}" 吗？此操作不可恢复。`,
-      '确认删除',
-      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
-    )
+    await ElMessageBox.confirm(`确定要删除 Ingress "${name}" 吗？此操作不可恢复。`, '确认删除', {
+      type: 'error',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
     await deleteIngress({ namespace, name })
     ElMessage.success(t('network.ingressDeleted'))
     router.push('/network/ingresses')
@@ -159,21 +169,31 @@ async function handleDelete() {
 
 function certStatusType(status: string) {
   switch (status) {
-    case 'valid': return 'success'
-    case 'expiring': return 'warning'
-    case 'expired': return 'danger'
-    case 'error': return 'danger'
-    default: return 'info'
+    case 'valid':
+      return 'success'
+    case 'expiring':
+      return 'warning'
+    case 'expired':
+      return 'danger'
+    case 'error':
+      return 'danger'
+    default:
+      return 'info'
   }
 }
 
 function certStatusText(status: string) {
   switch (status) {
-    case 'valid': return '有效'
-    case 'expiring': return '即将过期'
-    case 'expired': return '已过期'
-    case 'error': return '异常'
-    default: return '未知'
+    case 'valid':
+      return '有效'
+    case 'expiring':
+      return '即将过期'
+    case 'expired':
+      return '已过期'
+    case 'error':
+      return '异常'
+    default:
+      return '未知'
   }
 }
 
@@ -190,10 +210,21 @@ const tlsCertMap = computed(() => {
   return map
 })
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-  fetchDetail()
-  fetchEvents()
-}, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(
+  async () => {
+    fetchDetail()
+    fetchEvents()
+  },
+  { autoStart: false },
+)
 
 onMounted(() => {
   fetchDetail()
@@ -219,7 +250,7 @@ onMounted(() => {
       @back="router.push('/network/ingresses')"
     >
       <template #meta>
-        <span class="replicas-info" v-if="ingress?.rules?.length">
+        <span v-if="ingress?.rules?.length" class="replicas-info">
           {{ ingress.rules.length }} 条规则
         </span>
       </template>
@@ -237,7 +268,9 @@ onMounted(() => {
         <el-descriptions :column="1" border size="small">
           <el-descriptions-item label="名称">{{ ingress.name }}</el-descriptions-item>
           <el-descriptions-item label="命名空间">{{ ingress.namespace }}</el-descriptions-item>
-          <el-descriptions-item label="Ingress Class">{{ ingress.ingressClassName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Ingress Class">{{
+            ingress.ingressClassName || '-'
+          }}</el-descriptions-item>
           <el-descriptions-item label="地址">
             <span v-if="ingress.address">{{ ingress.address }}</span>
             <span v-else class="text-muted">-</span>
@@ -245,8 +278,11 @@ onMounted(() => {
         </el-descriptions>
 
         <!-- Labels -->
-        <div v-if="ingress.labels && Object.keys(ingress.labels).length > 0" style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Labels</h4>
+        <div
+          v-if="ingress.labels && Object.keys(ingress.labels).length > 0"
+          style="margin-top: var(--gk-space-4)"
+        >
+          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">Labels</h4>
           <LabelsBlock :labels="ingress.labels" />
         </div>
       </div>
@@ -267,8 +303,13 @@ onMounted(() => {
                   link
                   type="primary"
                   size="small"
-                  @click="router.push(`/network/services/${namespace}/${ingress.defaultBackend.serviceName}`)"
-                >{{ ingress.defaultBackend.serviceName }}</el-button>
+                  @click="
+                    router.push(
+                      `/network/services/${namespace}/${ingress.defaultBackend.serviceName}`,
+                    )
+                  "
+                  >{{ ingress.defaultBackend.serviceName }}</el-button
+                >
                 <span v-else>-</span>
                 :{{ ingress.defaultBackend.servicePort || '-' }}
               </template>
@@ -288,16 +329,21 @@ onMounted(() => {
               <el-table-column label="Paths" min-width="300">
                 <template #default="{ row }">
                   <div v-if="row.paths && row.paths.length > 0">
-                    <div v-for="(p, idx) in row.paths" :key="idx" style="margin-bottom: 4px;">
-                      <el-tag size="small" type="info">{{ p.pathType || 'ImplementationSpecific' }}</el-tag>
+                    <div v-for="(p, idx) in row.paths" :key="idx" style="margin-bottom: 4px">
+                      <el-tag size="small" type="info">{{
+                        p.pathType || 'ImplementationSpecific'
+                      }}</el-tag>
                       {{ p.path || '/' }} ->
                       <el-button
                         v-if="p.backend?.serviceName"
                         link
                         type="primary"
                         size="small"
-                        @click="router.push(`/network/services/${namespace}/${p.backend.serviceName}`)"
-                      >{{ p.backend.serviceName }}</el-button>
+                        @click="
+                          router.push(`/network/services/${namespace}/${p.backend.serviceName}`)
+                        "
+                        >{{ p.backend.serviceName }}</el-button
+                      >
                       <span v-else>-</span>:{{ p.backend?.servicePort || '-' }}
                     </div>
                   </div>
@@ -314,11 +360,17 @@ onMounted(() => {
             TLS
             <span class="count-badge">{{ ingress.tls.length }} 条</span>
           </div>
-          <div class="rules-body" v-loading="tlsCertsLoading">
+          <div v-loading="tlsCertsLoading" class="rules-body">
             <el-table :data="ingress.tls" border stripe size="small">
               <el-table-column label="Hosts" min-width="180">
                 <template #default="{ row }">
-                  <el-tag v-for="h in (row.hosts || [])" :key="h" size="small" style="margin-right: 4px;">{{ h }}</el-tag>
+                  <el-tag
+                    v-for="h in row.hosts || []"
+                    :key="h"
+                    size="small"
+                    style="margin-right: 4px"
+                    >{{ h }}</el-tag
+                  >
                 </template>
               </el-table-column>
               <el-table-column prop="secretName" label="Secret Name" min-width="160" />
@@ -341,7 +393,9 @@ onMounted(() => {
                 <template #default="{ row }">
                   <template v-if="tlsCertMap[row.secretName]?.notAfter">
                     <div>{{ formatDate(tlsCertMap[row.secretName].notAfter) }}</div>
-                    <div class="cert-issuer">签发: {{ tlsCertMap[row.secretName].issuer || '-' }}</div>
+                    <div class="cert-issuer">
+                      签发: {{ tlsCertMap[row.secretName].issuer || '-' }}
+                    </div>
                   </template>
                   <span v-else class="text-muted">-</span>
                 </template>
@@ -392,7 +446,7 @@ onMounted(() => {
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto">
         <IngressForm
           v-if="editDialogVisible && ingressRaw"
           :is-edit="true"

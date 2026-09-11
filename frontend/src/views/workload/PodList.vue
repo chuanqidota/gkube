@@ -48,22 +48,44 @@ const {
   pageSize: 50,
 })
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchResources)
 
 function handleViewLogs(row: any) {
-  window.open(buildFullscreenUrl('logs', { namespace: row.namespace, pod: row.name, cluster: clusterStore.clusterName || undefined }), '_blank')
+  window.open(
+    buildFullscreenUrl('logs', {
+      namespace: row.namespace,
+      pod: row.name,
+      cluster: clusterStore.clusterName || undefined,
+    }),
+    '_blank',
+  )
 }
 
 function handleExec(row: any) {
-  window.open(buildFullscreenUrl('terminal', { namespace: row.namespace, pod: row.name, cluster: clusterStore.clusterName || undefined }), '_blank')
+  window.open(
+    buildFullscreenUrl('terminal', {
+      namespace: row.namespace,
+      pod: row.name,
+      cluster: clusterStore.clusterName || undefined,
+    }),
+    '_blank',
+  )
 }
 </script>
 
 <template>
   <div class="page-container">
     <ResourceListToolbar
-      :search-value="searchName"
       v-model:namespace-value="selectedNamespace"
+      :search-value="searchName"
       :namespace-list="namespaceList"
       :total-count="totalCount"
       :selected-count="selectedRows.length"
@@ -96,13 +118,18 @@ function handleExec(row: any) {
 
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="filteredList"
         v-loading="loading"
+        :data="filteredList"
         stripe
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          prop="name"
+          :label="t('common.name')"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
@@ -121,16 +148,25 @@ function handleExec(row: any) {
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-              <el-button size="small" type="primary" @click="handleViewLogs(row)">{{ t('log.title') }}</el-button>
-              <el-button size="small" type="success" @click="handleExec(row)">{{ t('terminal.title') }}</el-button>
-              <el-dropdown @command="(cmd: string) => handleDelete(row, cmd === 'force')" trigger="click">
+              <el-button size="small" type="primary" @click="handleViewLogs(row)">{{
+                t('log.title')
+              }}</el-button>
+              <el-button size="small" type="success" @click="handleExec(row)">{{
+                t('terminal.title')
+              }}</el-button>
+              <el-dropdown
+                trigger="click"
+                @command="(cmd: string) => handleDelete(row, cmd === 'force')"
+              >
                 <el-button size="small" type="danger">
                   {{ t('common.delete') }} <el-icon><ArrowDown /></el-icon>
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item command="normal">{{ t('common.delete') }}</el-dropdown-item>
-                    <el-dropdown-item command="force" divided>{{ t('common.forceDelete') }}</el-dropdown-item>
+                    <el-dropdown-item command="force" divided>{{
+                      t('common.forceDelete')
+                    }}</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -141,16 +177,22 @@ function handleExec(row: any) {
 
       <!-- Load More Button -->
       <div v-if="hasMore" class="load-more">
-        <el-button @click="fetchNextPage" :loading="loading" link type="primary">
+        <el-button :loading="loading" link type="primary" @click="fetchNextPage">
           Load More...
         </el-button>
       </div>
     </el-card>
 
     <!-- YAML Drawer -->
-    <el-drawer v-model="yamlDialogVisible" title="Pod YAML" size="85%" direction="rtl" class="yaml-drawer"
-      :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: 100%;">
+    <el-drawer
+      v-model="yamlDialogVisible"
+      title="Pod YAML"
+      size="85%"
+      direction="rtl"
+      class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <div v-loading="yamlLoading" style="height: 100%">
         <YamlEditor v-model="yamlContent" height="calc(100dvh - 56px)" read-only auto-format />
       </div>
     </el-drawer>

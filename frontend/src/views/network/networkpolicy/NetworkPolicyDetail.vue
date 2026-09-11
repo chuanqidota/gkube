@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -54,9 +54,12 @@ const np = computed(() => {
 
   const podSelector = spec.podSelector?.matchLabels || {}
   const podExpressions = spec.podSelector?.matchExpressions || []
-  let podSelectorStr = Object.keys(podSelector).length > 0
-    ? Object.entries(podSelector).map(([k, v]) => `${k}=${v}`).join(', ')
-    : ''
+  let podSelectorStr =
+    Object.keys(podSelector).length > 0
+      ? Object.entries(podSelector)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(', ')
+      : ''
   for (const expr of podExpressions) {
     const vals = (expr.values || []).join(', ')
     if (podSelectorStr) podSelectorStr += ', '
@@ -93,7 +96,7 @@ async function fetchEvents() {
   try {
     const res: any = await getNetworkPolicyEvents({ namespace, name })
     events.value = res.data || []
-  } catch (e) {
+  } catch (_e) {
     events.value = []
   } finally {
     eventsLoading.value = false
@@ -105,7 +108,7 @@ async function fetchPods() {
   try {
     const res: any = await getNetworkPolicyPods({ namespace, name })
     pods.value = res.data?.items || res.data || []
-  } catch (e) {
+  } catch (_e) {
     pods.value = []
   } finally {
     podsLoading.value = false
@@ -113,17 +116,28 @@ async function fetchPods() {
 }
 
 function getClusterName(): string {
-  return clusterStore.currentCluster?.clusterName || clusterStore.currentCluster?.cluster_name || clusterStore.currentCluster?.name || ''
+  return (
+    clusterStore.currentCluster?.clusterName ||
+    clusterStore.currentCluster?.cluster_name ||
+    clusterStore.currentCluster?.name ||
+    ''
+  )
 }
 
 function handlePodLogs(pod: any) {
   const cluster = getClusterName()
-  window.open(`/fullscreen/logs?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(
+    `/fullscreen/logs?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`,
+    '_blank',
+  )
 }
 
 function handlePodExec(pod: any) {
   const cluster = getClusterName()
-  window.open(`/fullscreen/terminal?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`, '_blank')
+  window.open(
+    `/fullscreen/terminal?namespace=${pod.metadata?.namespace || namespace}&pod=${pod.metadata?.name}${cluster ? '&cluster=' + cluster : ''}`,
+    '_blank',
+  )
 }
 
 async function handlePodDelete(pod: any, force = false) {
@@ -132,7 +146,7 @@ async function handlePodDelete(pod: any, force = false) {
       await ElMessageBox.confirm(
         `强制删除 Pod "${pod.metadata?.name}" 将跳过优雅终止，控制器管理的 Pod 会被立即重建。确定继续？`,
         '确认强制删除',
-        { type: 'warning', confirmButtonText: '强制删除', cancelButtonText: '取消' }
+        { type: 'warning', confirmButtonText: '强制删除', cancelButtonText: '取消' },
       )
     } catch {
       return
@@ -147,11 +161,11 @@ async function handlePodDelete(pod: any, force = false) {
     return
   }
   try {
-    await ElMessageBox.confirm(
-      `确定要删除 Pod "${pod.metadata?.name}" 吗？`,
-      '确认删除',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
-    )
+    await ElMessageBox.confirm(`确定要删除 Pod "${pod.metadata?.name}" 吗？`, '确认删除', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
     await deletePod({ namespace, name: pod.metadata.name })
     ElMessage.success(t('common.deleted'))
     fetchPods()
@@ -175,7 +189,7 @@ async function handleDelete() {
     await ElMessageBox.confirm(
       `确定要删除 NetworkPolicy "${name}" 吗？此操作不可恢复。`,
       '确认删除',
-      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
+      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' },
     )
     await deleteNetworkPolicy({ namespace, name })
     ElMessage.success(t('network.networkPolicyDeleted'))
@@ -204,12 +218,13 @@ function handleEditCancel() {
 // ---- Resize: left-right ----
 const leftWidth = ref(300)
 const resizingH = ref(false)
-let startX = 0, startW = 0
+let activeHMove: ((ev: MouseEvent) => void) | null = null
+let activeHUp: (() => void) | null = null
 function onHResizeStart(e: MouseEvent) {
   e.preventDefault()
   resizingH.value = true
-  startX = e.clientX
-  startW = leftWidth.value
+  const startX = e.clientX
+  const startW = leftWidth.value
   const onMove = (ev: MouseEvent) => {
     leftWidth.value = Math.min(Math.max(startW + ev.clientX - startX, 220), 500)
   }
@@ -217,7 +232,11 @@ function onHResizeStart(e: MouseEvent) {
     resizingH.value = false
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup', onUp)
+    activeHMove = null
+    activeHUp = null
   }
+  activeHMove = onMove
+  activeHUp = onUp
   document.addEventListener('mousemove', onMove)
   document.addEventListener('mouseup', onUp)
 }
@@ -225,14 +244,15 @@ function onHResizeStart(e: MouseEvent) {
 // ---- Resize: top-bottom (Pods / Events) ----
 const rightTopHeight = ref<number | null>(null)
 const resizingV = ref(false)
-let startY = 0, startH = 0
+let activeVMove: ((ev: MouseEvent) => void) | null = null
+let activeVUp: (() => void) | null = null
 function onVResizeStart(e: MouseEvent) {
   e.preventDefault()
   const rightPanel = (e.target as HTMLElement).closest('.right-panel')
   if (!rightPanel) return
   resizingV.value = true
-  startY = e.clientY
-  startH = rightPanel.getBoundingClientRect().height
+  const startY = e.clientY
+  const startH = rightPanel.getBoundingClientRect().height
   const onMove = (ev: MouseEvent) => {
     const delta = ev.clientY - startY
     rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
@@ -241,49 +261,78 @@ function onVResizeStart(e: MouseEvent) {
     resizingV.value = false
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup', onUp)
+    activeVMove = null
+    activeVUp = null
   }
+  activeVMove = onMove
+  activeVUp = onUp
   document.addEventListener('mousemove', onMove)
   document.addEventListener('mouseup', onUp)
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-  fetchDetail()
-  fetchPods()
-  fetchEvents()
-}, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(
+  async () => {
+    fetchDetail()
+    fetchPods()
+    fetchEvents()
+  },
+  { autoStart: false },
+)
 
 onMounted(() => {
   fetchDetail()
   fetchPods()
   fetchEvents()
 })
+
+onBeforeUnmount(() => {
+  if (activeHMove) document.removeEventListener('mousemove', activeHMove)
+  if (activeHUp) document.removeEventListener('mouseup', activeHUp)
+  if (activeVMove) document.removeEventListener('mousemove', activeVMove)
+  if (activeVUp) document.removeEventListener('mouseup', activeVUp)
+})
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
+  <div v-loading="loading" class="detail-page">
     <!-- 顶部标题栏 -->
     <div class="page-header">
       <div class="header-left">
         <h2 class="res-name">{{ name }}</h2>
         <div class="meta-line">
-          <el-tag v-for="pt in (np?.policyTypes || [])" :key="pt" :type="pt === 'Ingress' ? 'success' : 'warning'" effect="dark" size="small">{{ pt }}</el-tag>
+          <el-tag
+            v-for="pt in np?.policyTypes || []"
+            :key="pt"
+            :type="pt === 'Ingress' ? 'success' : 'warning'"
+            effect="dark"
+            size="small"
+            >{{ pt }}</el-tag
+          >
           <span class="ns-tag">ns/{{ namespace }}</span>
         </div>
       </div>
       <div class="header-actions">
         <el-button type="info" @click="handleEdit">编辑</el-button>
-        <el-button @click="$router.push(`/network/networkpolicies/create?clone=${name}&namespace=${namespace}`)">克隆</el-button>
+        <el-button
+          @click="
+            $router.push(`/network/networkpolicies/create?clone=${name}&namespace=${namespace}`)
+          "
+          >克隆</el-button
+        >
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" @click="handleDelete">删除</el-button>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
+            <el-button :type="isRunning ? 'success' : 'default'" :icon="Timer" @click="toggle()" />
           </template>
           <div class="auto-refresh-popover">
             <div class="popover-title">
@@ -291,10 +340,10 @@ onMounted(() => {
             </div>
             <el-select
               :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
               :teleported="false"
               size="small"
-              style="width: 100%;"
+              style="width: 100%"
+              @update:model-value="setIntervalOption"
             >
               <el-option
                 v-for="sec in availableIntervals"
@@ -306,7 +355,7 @@ onMounted(() => {
           </div>
         </el-popover>
         <el-tooltip content="刷新" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+          <el-button :loading="loading" :icon="Refresh" @click="manualRefresh()" />
         </el-tooltip>
         <el-tooltip content="返回列表" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/network/networkpolicies')" />
@@ -316,7 +365,6 @@ onMounted(() => {
 
     <template v-if="np">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
-
         <!-- 左侧：基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">基本信息</div>
@@ -324,19 +372,30 @@ onMounted(() => {
             <el-descriptions :column="1" border size="small">
               <el-descriptions-item label="名称">{{ np.name }}</el-descriptions-item>
               <el-descriptions-item label="命名空间">{{ np.namespace }}</el-descriptions-item>
-              <el-descriptions-item label="Pod Selector">{{ np.podSelectorStr }}</el-descriptions-item>
+              <el-descriptions-item label="Pod Selector">{{
+                np.podSelectorStr
+              }}</el-descriptions-item>
               <el-descriptions-item label="策略类型">
-                <el-tag v-for="pt in np.policyTypes" :key="pt" size="small" style="margin-right: 4px;">{{ pt }}</el-tag>
+                <el-tag
+                  v-for="pt in np.policyTypes"
+                  :key="pt"
+                  size="small"
+                  style="margin-right: 4px"
+                  >{{ pt }}</el-tag
+                >
               </el-descriptions-item>
             </el-descriptions>
 
             <!-- Labels -->
-            <div v-if="np.labels && Object.keys(np.labels).length > 0" style="margin-top: var(--gk-space-4);">
-              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Labels</h4>
+            <div
+              v-if="np.labels && Object.keys(np.labels).length > 0"
+              style="margin-top: var(--gk-space-4)"
+            >
+              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">Labels</h4>
               <el-tag
                 v-for="(val, key) in np.labels"
                 :key="key"
-                style="margin-right: 8px; margin-bottom: 8px;"
+                style="margin-right: 8px; margin-bottom: 8px"
                 size="small"
               >
                 {{ key }}={{ val }}
@@ -344,115 +403,286 @@ onMounted(() => {
             </div>
 
             <!-- Semantic tags: Deny All / Allow All -->
-            <div style="margin-top: var(--gk-space-4);" v-if="np.policyTypes.includes('Ingress') || np.policyTypes.includes('Egress')">
-              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">策略语义</h4>
-              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                <el-tag v-if="np.policyTypes.includes('Ingress') && np.ingress.length === 0" type="danger" effect="dark" size="default">
+            <div
+              v-if="np.policyTypes.includes('Ingress') || np.policyTypes.includes('Egress')"
+              style="margin-top: var(--gk-space-4)"
+            >
+              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">策略语义</h4>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px">
+                <el-tag
+                  v-if="np.policyTypes.includes('Ingress') && np.ingress.length === 0"
+                  type="danger"
+                  effect="dark"
+                  size="default"
+                >
                   🔴 Deny All Ingress
                 </el-tag>
-                <el-tag v-else-if="np.policyTypes.includes('Ingress') && np.ingress.length > 0" type="success" effect="dark" size="default">
+                <el-tag
+                  v-else-if="np.policyTypes.includes('Ingress') && np.ingress.length > 0"
+                  type="success"
+                  effect="dark"
+                  size="default"
+                >
                   🟢 Ingress 规则已配置
                 </el-tag>
-                <el-tag v-if="np.policyTypes.includes('Egress') && np.egress.length === 0" type="danger" effect="dark" size="default">
+                <el-tag
+                  v-if="np.policyTypes.includes('Egress') && np.egress.length === 0"
+                  type="danger"
+                  effect="dark"
+                  size="default"
+                >
                   🔴 Deny All Egress
                 </el-tag>
-                <el-tag v-else-if="np.policyTypes.includes('Egress') && np.egress.length > 0" type="success" effect="dark" size="default">
+                <el-tag
+                  v-else-if="np.policyTypes.includes('Egress') && np.egress.length > 0"
+                  type="success"
+                  effect="dark"
+                  size="default"
+                >
                   🟢 Egress 规则已配置
                 </el-tag>
               </div>
             </div>
 
             <!-- Ingress Rules -->
-            <div v-if="np.ingress && np.ingress.length > 0" style="margin-top: var(--gk-space-4);">
-              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Ingress 规则</h4>
+            <div v-if="np.ingress && np.ingress.length > 0" style="margin-top: var(--gk-space-4)">
+              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">Ingress 规则</h4>
               <el-collapse v-model="ingressCollapse">
                 <el-collapse-item v-for="(rule, i) in np.ingress" :key="i" :name="Number(i)">
                   <template #title>
-                    <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
-                      <span style="font-size: var(--gk-font-size-sm); font-weight: 500;">规则 {{ Number(i) + 1 }}</span>
-                      <el-tag v-if="!rule.from || rule.from.length === 0" type="success" size="small" effect="plain">Allow All</el-tag>
-                      <el-tag v-else-if="rule.ports && rule.ports.length > 0" size="small" effect="plain" type="info">
+                    <div style="display: flex; align-items: center; gap: 8px; width: 100%">
+                      <span style="font-size: var(--gk-font-size-sm); font-weight: 500"
+                        >规则 {{ Number(i) + 1 }}</span
+                      >
+                      <el-tag
+                        v-if="!rule.from || rule.from.length === 0"
+                        type="success"
+                        size="small"
+                        effect="plain"
+                        >Allow All</el-tag
+                      >
+                      <el-tag
+                        v-else-if="rule.ports && rule.ports.length > 0"
+                        size="small"
+                        effect="plain"
+                        type="info"
+                      >
                         {{ rule.ports.map((p: any) => p.protocol + '/' + p.port).join(', ') }}
                       </el-tag>
                     </div>
                   </template>
                   <div class="rule-summary">
                     <div v-if="rule.from && rule.from.length > 0">
-                      <div v-for="(from, j) in rule.from" :key="j" style="margin-bottom: 4px;">
+                      <div v-for="(from, j) in rule.from" :key="j" style="margin-bottom: 4px">
                         <template v-if="from.podSelector">
-                          <el-tag type="info" size="small" style="margin-right: 4px;">
-                            Pod: {{ Object.entries(from.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
-                            <template v-if="from.podSelector.matchExpressions && from.podSelector.matchExpressions.length > 0">
-                              , {{ from.podSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                          <el-tag type="info" size="small" style="margin-right: 4px">
+                            Pod:
+                            {{
+                              Object.entries(from.podSelector.matchLabels || {})
+                                .map(([k, v]) => k + '=' + v)
+                                .join(', ')
+                            }}
+                            <template
+                              v-if="
+                                from.podSelector.matchExpressions &&
+                                from.podSelector.matchExpressions.length > 0
+                              "
+                            >
+                              ,
+                              {{
+                                from.podSelector.matchExpressions
+                                  .map(
+                                    (e: any) =>
+                                      `${e.key} ${e.operator} (${(e.values || []).join(',')})`,
+                                  )
+                                  .join(', ')
+                              }}
                             </template>
                           </el-tag>
                         </template>
                         <template v-if="from.namespaceSelector">
-                          <el-tag type="warning" size="small" style="margin-right: 4px;">
-                            NS: {{ Object.entries(from.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
-                            <template v-if="from.namespaceSelector.matchExpressions && from.namespaceSelector.matchExpressions.length > 0">
-                              , {{ from.namespaceSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                          <el-tag type="warning" size="small" style="margin-right: 4px">
+                            NS:
+                            {{
+                              Object.entries(from.namespaceSelector.matchLabels || {})
+                                .map(([k, v]) => k + '=' + v)
+                                .join(', ')
+                            }}
+                            <template
+                              v-if="
+                                from.namespaceSelector.matchExpressions &&
+                                from.namespaceSelector.matchExpressions.length > 0
+                              "
+                            >
+                              ,
+                              {{
+                                from.namespaceSelector.matchExpressions
+                                  .map(
+                                    (e: any) =>
+                                      `${e.key} ${e.operator} (${(e.values || []).join(',')})`,
+                                  )
+                                  .join(', ')
+                              }}
                             </template>
                           </el-tag>
                         </template>
-                        <el-tag v-if="from.ipBlock" type="success" size="small" style="margin-right: 4px;">
-                          IP: {{ from.ipBlock.cidr }}<template v-if="from.ipBlock.except && from.ipBlock.except.length > 0"> (except: {{ from.ipBlock.except.join(', ') }})</template>
+                        <el-tag
+                          v-if="from.ipBlock"
+                          type="success"
+                          size="small"
+                          style="margin-right: 4px"
+                        >
+                          IP: {{ from.ipBlock.cidr
+                          }}<template v-if="from.ipBlock.except && from.ipBlock.except.length > 0">
+                            (except: {{ from.ipBlock.except.join(', ') }})</template
+                          >
                         </el-tag>
                       </div>
                     </div>
-                    <div v-else style="color: var(--el-color-success); font-size: 12px; margin-bottom: 4px;">允许所有来源</div>
-                    <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 4px;">
-                      <el-tag v-for="(port, j) in rule.ports" :key="j" size="small" style="margin-right: 4px;">{{ port.protocol }}/{{ port.port }}<template v-if="port.endPort">-{{ port.endPort }}</template></el-tag>
+                    <div
+                      v-else
+                      style="color: var(--el-color-success); font-size: 12px; margin-bottom: 4px"
+                    >
+                      允许所有来源
                     </div>
-                    <div v-else style="color: var(--el-color-warning); font-size: 12px; margin-top: 4px;">允许所有端口</div>
+                    <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 4px">
+                      <el-tag
+                        v-for="(port, j) in rule.ports"
+                        :key="j"
+                        size="small"
+                        style="margin-right: 4px"
+                        >{{ port.protocol }}/{{ port.port
+                        }}<template v-if="port.endPort">-{{ port.endPort }}</template></el-tag
+                      >
+                    </div>
+                    <div
+                      v-else
+                      style="color: var(--el-color-warning); font-size: 12px; margin-top: 4px"
+                    >
+                      允许所有端口
+                    </div>
                   </div>
                 </el-collapse-item>
               </el-collapse>
             </div>
 
             <!-- Egress Rules -->
-            <div v-if="np.egress && np.egress.length > 0" style="margin-top: var(--gk-space-4);">
-              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Egress 规则</h4>
+            <div v-if="np.egress && np.egress.length > 0" style="margin-top: var(--gk-space-4)">
+              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">Egress 规则</h4>
               <el-collapse v-model="egressCollapse">
                 <el-collapse-item v-for="(rule, i) in np.egress" :key="i" :name="Number(i)">
                   <template #title>
-                    <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
-                      <span style="font-size: var(--gk-font-size-sm); font-weight: 500;">规则 {{ Number(i) + 1 }}</span>
-                      <el-tag v-if="!rule.to || rule.to.length === 0" type="success" size="small" effect="plain">Allow All</el-tag>
-                      <el-tag v-else-if="rule.ports && rule.ports.length > 0" size="small" effect="plain" type="info">
+                    <div style="display: flex; align-items: center; gap: 8px; width: 100%">
+                      <span style="font-size: var(--gk-font-size-sm); font-weight: 500"
+                        >规则 {{ Number(i) + 1 }}</span
+                      >
+                      <el-tag
+                        v-if="!rule.to || rule.to.length === 0"
+                        type="success"
+                        size="small"
+                        effect="plain"
+                        >Allow All</el-tag
+                      >
+                      <el-tag
+                        v-else-if="rule.ports && rule.ports.length > 0"
+                        size="small"
+                        effect="plain"
+                        type="info"
+                      >
                         {{ rule.ports.map((p: any) => p.protocol + '/' + p.port).join(', ') }}
                       </el-tag>
                     </div>
                   </template>
                   <div class="rule-summary">
                     <div v-if="rule.to && rule.to.length > 0">
-                      <div v-for="(to, j) in rule.to" :key="j" style="margin-bottom: 4px;">
+                      <div v-for="(to, j) in rule.to" :key="j" style="margin-bottom: 4px">
                         <template v-if="to.podSelector">
-                          <el-tag type="info" size="small" style="margin-right: 4px;">
-                            Pod: {{ Object.entries(to.podSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
-                            <template v-if="to.podSelector.matchExpressions && to.podSelector.matchExpressions.length > 0">
-                              , {{ to.podSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                          <el-tag type="info" size="small" style="margin-right: 4px">
+                            Pod:
+                            {{
+                              Object.entries(to.podSelector.matchLabels || {})
+                                .map(([k, v]) => k + '=' + v)
+                                .join(', ')
+                            }}
+                            <template
+                              v-if="
+                                to.podSelector.matchExpressions &&
+                                to.podSelector.matchExpressions.length > 0
+                              "
+                            >
+                              ,
+                              {{
+                                to.podSelector.matchExpressions
+                                  .map(
+                                    (e: any) =>
+                                      `${e.key} ${e.operator} (${(e.values || []).join(',')})`,
+                                  )
+                                  .join(', ')
+                              }}
                             </template>
                           </el-tag>
                         </template>
                         <template v-if="to.namespaceSelector">
-                          <el-tag type="warning" size="small" style="margin-right: 4px;">
-                            NS: {{ Object.entries(to.namespaceSelector.matchLabels || {}).map(([k,v]) => k+'='+v).join(', ') }}
-                            <template v-if="to.namespaceSelector.matchExpressions && to.namespaceSelector.matchExpressions.length > 0">
-                              , {{ to.namespaceSelector.matchExpressions.map((e: any) => `${e.key} ${e.operator} (${(e.values||[]).join(',')})`).join(', ') }}
+                          <el-tag type="warning" size="small" style="margin-right: 4px">
+                            NS:
+                            {{
+                              Object.entries(to.namespaceSelector.matchLabels || {})
+                                .map(([k, v]) => k + '=' + v)
+                                .join(', ')
+                            }}
+                            <template
+                              v-if="
+                                to.namespaceSelector.matchExpressions &&
+                                to.namespaceSelector.matchExpressions.length > 0
+                              "
+                            >
+                              ,
+                              {{
+                                to.namespaceSelector.matchExpressions
+                                  .map(
+                                    (e: any) =>
+                                      `${e.key} ${e.operator} (${(e.values || []).join(',')})`,
+                                  )
+                                  .join(', ')
+                              }}
                             </template>
                           </el-tag>
                         </template>
-                        <el-tag v-if="to.ipBlock" type="success" size="small" style="margin-right: 4px;">
-                          IP: {{ to.ipBlock.cidr }}<template v-if="to.ipBlock.except && to.ipBlock.except.length > 0"> (except: {{ to.ipBlock.except.join(', ') }})</template>
+                        <el-tag
+                          v-if="to.ipBlock"
+                          type="success"
+                          size="small"
+                          style="margin-right: 4px"
+                        >
+                          IP: {{ to.ipBlock.cidr
+                          }}<template v-if="to.ipBlock.except && to.ipBlock.except.length > 0">
+                            (except: {{ to.ipBlock.except.join(', ') }})</template
+                          >
                         </el-tag>
                       </div>
                     </div>
-                    <div v-else style="color: var(--el-color-success); font-size: 12px; margin-bottom: 4px;">允许所有目标</div>
-                    <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 4px;">
-                      <el-tag v-for="(port, j) in rule.ports" :key="j" size="small" style="margin-right: 4px;">{{ port.protocol }}/{{ port.port }}<template v-if="port.endPort">-{{ port.endPort }}</template></el-tag>
+                    <div
+                      v-else
+                      style="color: var(--el-color-success); font-size: 12px; margin-bottom: 4px"
+                    >
+                      允许所有目标
                     </div>
-                    <div v-else style="color: var(--el-color-warning); font-size: 12px; margin-top: 4px;">允许所有端口</div>
+                    <div v-if="rule.ports && rule.ports.length > 0" style="margin-top: 4px">
+                      <el-tag
+                        v-for="(port, j) in rule.ports"
+                        :key="j"
+                        size="small"
+                        style="margin-right: 4px"
+                        >{{ port.protocol }}/{{ port.port
+                        }}<template v-if="port.endPort">-{{ port.endPort }}</template></el-tag
+                      >
+                    </div>
+                    <div
+                      v-else
+                      style="color: var(--el-color-warning); font-size: 12px; margin-top: 4px"
+                    >
+                      允许所有端口
+                    </div>
                   </div>
                 </el-collapse-item>
               </el-collapse>
@@ -462,9 +692,11 @@ onMounted(() => {
 
         <!-- 右侧：Pods + Events -->
         <div class="right-panel">
-
           <!-- Pod 列表 -->
-          <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
+          <div
+            class="right-section"
+            :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}"
+          >
             <div class="panel-title">
               影响的 Pod
               <span class="count-badge">{{ pods.length }} 个</span>
@@ -488,27 +720,39 @@ onMounted(() => {
               <span class="count-badge">{{ events.length }} 条</span>
             </div>
             <div v-loading="eventsLoading" class="events-body">
-              <el-table v-if="events.length > 0" :data="events" size="small" stripe max-height="260">
+              <el-table
+                v-if="events.length > 0"
+                :data="events"
+                size="small"
+                stripe
+                max-height="260"
+              >
                 <el-table-column prop="type" label="类型" width="80">
                   <template #default="{ row }">
-                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
+                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{
+                      row.type
+                    }}</el-tag>
                   </template>
                 </el-table-column>
                 <el-table-column prop="reason" label="原因" width="130" />
-                <el-table-column prop="message" label="信息" min-width="200" show-overflow-tooltip />
+                <el-table-column
+                  prop="message"
+                  label="信息"
+                  min-width="200"
+                  show-overflow-tooltip
+                />
                 <el-table-column prop="last_seen" label="最后发生" width="150" />
               </el-table>
               <div v-else class="empty-hint">暂无事件</div>
             </div>
           </div>
-
         </div>
 
         <!-- 水平拖拽条 -->
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
+          :style="{ left: leftWidth - 3 + 'px' }"
           @mousedown="onHResizeStart"
         />
       </div>
@@ -545,7 +789,7 @@ onMounted(() => {
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto">
         <NetworkPolicyForm
           v-if="editDialogVisible && npRaw"
           :is-edit="true"

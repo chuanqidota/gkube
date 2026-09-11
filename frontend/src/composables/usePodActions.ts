@@ -11,7 +11,7 @@ export function usePodActions(clusterName: Ref<string>) {
   const handlePodLogs = (pod: { namespace: string; name: string }) => {
     const route = router.resolve({
       name: 'Logs',
-      query: { cluster: clusterName.value, namespace: pod.namespace, pod: pod.name }
+      query: { cluster: clusterName.value, namespace: pod.namespace, pod: pod.name },
     })
     window.open(route.href, '_blank')
   }
@@ -19,7 +19,7 @@ export function usePodActions(clusterName: Ref<string>) {
   const handlePodExec = (pod: { namespace: string; name: string }) => {
     const route = router.resolve({
       name: 'Terminal',
-      query: { cluster: clusterName.value, namespace: pod.namespace, pod: pod.name }
+      query: { cluster: clusterName.value, namespace: pod.namespace, pod: pod.name },
     })
     window.open(route.href, '_blank')
   }
@@ -27,7 +27,7 @@ export function usePodActions(clusterName: Ref<string>) {
   const handlePodDelete = async (
     pod: { namespace: string; name: string },
     onSuccess?: () => void,
-    force = false
+    force = false,
   ) => {
     try {
       await ElMessageBox.confirm(
@@ -35,7 +35,11 @@ export function usePodActions(clusterName: Ref<string>) {
           ? t('workload.forceDeletePodConfirm', { name: pod.name })
           : t('workload.deletePodConfirm', { name: pod.name }),
         force ? t('workload.forceDeletePod') : t('workload.deletePod'),
-        { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
+        {
+          confirmButtonText: t('common.confirm'),
+          cancelButtonText: t('common.cancel'),
+          type: 'warning',
+        },
       )
       await deletePod({ namespace: pod.namespace, name: pod.name, force })
       ElMessage.success(t('common.deleteSuccess', { type: 'Pod' }))

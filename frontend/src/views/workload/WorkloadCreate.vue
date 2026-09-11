@@ -10,8 +10,12 @@ import YamlEditor from '@/components/YamlEditor.vue'
 import CloneDialog from '@/components/CloneDialog.vue'
 import { useCloneCreate, dumpCloneYaml } from '@/composables/useCloneCreate'
 import {
-  getDeploymentYaml, getStatefulSetYaml, getDaemonSetYaml,
-  getDeploymentList, getStatefulSetList, getDaemonSetList,
+  getDeploymentYaml,
+  getStatefulSetYaml,
+  getDaemonSetYaml,
+  getDeploymentList,
+  getStatefulSetList,
+  getDaemonSetList,
 } from '@/api/resource'
 
 const props = defineProps<{
@@ -30,24 +34,45 @@ const submitting = ref(false)
 const parsedData = ref<any>(null)
 
 // Build kind -> { listFn, yamlFn } map once, reused everywhere
-const RESOURCE_API_MAP: Record<string, { list: (params: any) => Promise<any>; yaml: (params: any) => Promise<any> }> = {
+const RESOURCE_API_MAP: Record<
+  string,
+  { list: (params: any) => Promise<any>; yaml: (params: any) => Promise<any> }
+> = {
   Deployment: { list: getDeploymentList, yaml: getDeploymentYaml },
   StatefulSet: { list: getStatefulSetList, yaml: getStatefulSetYaml },
   DaemonSet: { list: getDaemonSetList, yaml: getDaemonSetYaml },
 }
 
 const {
-  cloneMode, cloneNamespace, cloneName, cloneNsOptions, cloneNameOptions,
-  cloneNsLoading, cloneNameLoading, cloneLoading, cloneTarget,
-  startClone, cancelClone, handleLoadClone,
+  cloneMode,
+  cloneNamespace,
+  cloneName,
+  cloneNsOptions,
+  cloneNameOptions,
+  cloneNsLoading,
+  cloneNameLoading,
+  cloneLoading,
+  cloneTarget,
+  startClone,
+  cancelClone,
+  handleLoadClone,
 } = useCloneCreate({
   api: RESOURCE_API_MAP[props.kind],
-  onCloneToForm: (parsed) => { parsedData.value = parsed; yamlContent.value = defaultYaml; mode.value = 'form' },
-  onCloneToYaml: (parsed) => { yamlContent.value = dumpCloneYaml(parsed); parsedData.value = null; mode.value = 'yaml' },
+  onCloneToForm: (parsed) => {
+    parsedData.value = parsed
+    yamlContent.value = defaultYaml
+    mode.value = 'form'
+  },
+  onCloneToYaml: (parsed) => {
+    yamlContent.value = dumpCloneYaml(parsed)
+    parsedData.value = null
+    mode.value = 'yaml'
+  },
 })
 
-const defaultYaml = {
-  Deployment: `apiVersion: apps/v1
+const defaultYaml =
+  {
+    Deployment: `apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: my-deployment
@@ -70,7 +95,7 @@ spec:
           ports:
             - containerPort: 80
 `,
-  StatefulSet: `apiVersion: apps/v1
+    StatefulSet: `apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: my-statefulset
@@ -105,7 +130,7 @@ spec:
           requests:
             storage: 1Gi
 `,
-  DaemonSet: `apiVersion: apps/v1
+    DaemonSet: `apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: my-daemonset
@@ -127,13 +152,35 @@ spec:
           ports:
             - containerPort: 80
 `,
-}[props.kind] || ''
+  }[props.kind] || ''
 
 const yamlContent = ref(defaultYaml)
+
+function validateK8sManifest(content: string): string | null {
+  let parsed: any
+  try {
+    parsed = yaml.load(content)
+  } catch (e: any) {
+    return `YAML 解析错误: ${e.message}`
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return 'YAML 内容不是有效的对象'
+  }
+  if (!parsed.apiVersion) return '缺少 apiVersion 字段'
+  if (!parsed.kind) return '缺少 kind 字段'
+  if (parsed.kind !== props.kind) return `kind 应为 ${props.kind}，当前为 ${parsed.kind}`
+  if (!parsed.metadata?.name) return '缺少 metadata.name 字段'
+  return null
+}
 
 async function handleYamlSubmit() {
   if (!yamlContent.value.trim()) {
     ElMessage.error('YAML content is required')
+    return
+  }
+  const validationError = validateK8sManifest(yamlContent.value)
+  if (validationError) {
+    ElMessage.error(validationError)
     return
   }
   submitting.value = true
@@ -170,18 +217,25 @@ function handleMaximize() {
 <template>
   <div class="workload-create">
     <div class="mode-switcher">
-      <el-segmented v-model="mode" :options="[{ label: t('common.formCreate'), value: 'form' }, { label: t('common.yamlCreate'), value: 'yaml' }]" size="small" />
-      <el-button size="small" style="margin-left: 12px;" @click="startClone">
+      <el-segmented
+        v-model="mode"
+        :options="[
+          { label: t('common.formCreate'), value: 'form' },
+          { label: t('common.yamlCreate'), value: 'yaml' },
+        ]"
+        size="small"
+      />
+      <el-button size="small" style="margin-left: 12px" @click="startClone">
         <el-icon><CopyDocument /></el-icon> 从现有资源克隆
       </el-button>
     </div>
 
     <CloneDialog
-      :kind-label="kind"
       v-model="cloneMode"
       v-model:ns-value="cloneNamespace"
       v-model:name-value="cloneName"
       v-model:target="cloneTarget"
+      :kind-label="kind"
       :ns-options="cloneNsOptions"
       :name-options="cloneNameOptions"
       :ns-loading="cloneNsLoading"
@@ -209,14 +263,27 @@ function handleMaximize() {
           </div>
           <div class="yaml-card-actions">
             <el-button size="small" @click="handleCancel">取消</el-button>
-            <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit">创建</el-button>
+            <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit"
+              >创建</el-button
+            >
           </div>
         </div>
         <div class="yaml-card-body">
-          <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="calc(100dvh - 180px)" :read-only="false" editable auto-format :show-toolbar="false" title="YAML 配置">
+          <YamlEditor
+            ref="yamlEditorRef"
+            v-model="yamlContent"
+            height="calc(100dvh - 180px)"
+            :read-only="false"
+            editable
+            auto-format
+            :show-toolbar="false"
+            title="YAML 配置"
+          >
             <template #fullscreen-actions>
               <el-button size="small" @click="handleCancel">取消</el-button>
-              <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit">创建</el-button>
+              <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit"
+                >创建</el-button
+              >
             </template>
           </YamlEditor>
         </div>
@@ -226,9 +293,19 @@ function handleMaximize() {
 </template>
 
 <style scoped>
-.workload-create { max-width: 1100px; margin: 0 auto; padding: var(--gk-space-5) 0; }
-.mode-switcher { display: flex; justify-content: center; margin-bottom: var(--gk-space-3); }
-.yaml-mode { padding: 0 16px; }
+.workload-create {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--gk-space-5) 0;
+}
+.mode-switcher {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--gk-space-3);
+}
+.yaml-mode {
+  padding: 0 16px;
+}
 
 .yaml-card {
   border: 1px solid var(--el-border-color-light);

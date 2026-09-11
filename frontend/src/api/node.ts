@@ -42,7 +42,13 @@ export interface NodeDetail {
   unschedulable: boolean
   labels: Record<string, string>
   taints: { key: string; value: string; effect: string }[]
-  conditions: { type: string; status: string; reason: string; message: string; lastTransitionTime: string }[]
+  conditions: {
+    type: string
+    status: string
+    reason: string
+    message: string
+    lastTransitionTime: string
+  }[]
   capacity: Record<string, string>
   allocatable: Record<string, string>
   creationTimestamp: string
@@ -91,15 +97,24 @@ export function updateNodeYaml(data: { name: string; yaml: string }): Promise<Ax
   return request.put('/k8s/node/update-yaml', data)
 }
 
-export function cordonNode(data: { name: string; cordon: boolean }): Promise<AxiosResponse<{ isCordon: boolean }>> {
+export function cordonNode(data: {
+  name: string
+  cordon: boolean
+}): Promise<AxiosResponse<{ isCordon: boolean }>> {
   return request.put('/k8s/node/cordon', data)
 }
 
-export function updateNodeTaints(data: { name: string; taints: { key: string; value: string; effect: string }[] }): Promise<AxiosResponse<null>> {
+export function updateNodeTaints(data: {
+  name: string
+  taints: { key: string; value: string; effect: string }[]
+}): Promise<AxiosResponse<null>> {
   return request.put('/k8s/node/taints', data)
 }
 
-export function updateNodeLabels(data: { name: string; labels: Record<string, string> }): Promise<AxiosResponse<null>> {
+export function updateNodeLabels(data: {
+  name: string
+  labels: Record<string, string>
+}): Promise<AxiosResponse<null>> {
   return request.put('/k8s/node/labels', data)
 }
 

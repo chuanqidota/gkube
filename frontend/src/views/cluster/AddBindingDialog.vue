@@ -5,13 +5,11 @@ import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { createBinding, getNamespaceList, searchUsers } from '@/api/rbac'
 
-const { t } = useI18n()
-
 const props = defineProps<{
   visible: boolean
   clusterId: number
   clusterName: string
-  binding?: any | null   // 兼容旧调用（不再使用编辑模式，编辑走 MemberEditDialog）
+  binding?: any | null // 兼容旧调用（不再使用编辑模式，编辑走 MemberEditDialog）
   roles: any[]
 }>()
 
@@ -19,6 +17,8 @@ const emit = defineEmits<{
   (e: 'update:visible', val: boolean): void
   (e: 'success'): void
 }>()
+
+const { t } = useI18n()
 
 const dialogVisible = computed({
   get: () => props.visible,
@@ -46,32 +46,37 @@ const nsLoadError = ref(false)
 const rules = computed<FormRules>(() => ({
   userId: [{ required: true, message: t('rbac.selectUser'), trigger: 'change' }],
   roleId: [{ required: true, message: t('rbac.selectRole'), trigger: 'change' }],
-  namespaces: [{
-    validator: (_rule: any, _value: any, callback: (err?: Error) => void) => {
-      if (form.value.scope === 'namespace' && form.value.namespaces.length === 0) {
-        callback(new Error(t('rbac.selectNamespace')))
-      } else {
-        callback()
-      }
+  namespaces: [
+    {
+      validator: (_rule: any, _value: any, callback: (err?: Error) => void) => {
+        if (form.value.scope === 'namespace' && form.value.namespaces.length === 0) {
+          callback(new Error(t('rbac.selectNamespace')))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change',
     },
-    trigger: 'change',
-  }],
+  ],
 }))
 
 // 角色按作用域过滤：集群级 -> scopeType=cluster；空间级 -> scopeType=namespace
 const filteredRoles = computed(() => {
-  return props.roles.filter(r => r.scopeType === form.value.scope)
+  return props.roles.filter((r) => r.scopeType === form.value.scope)
 })
 
 const selectedRole = computed(() => {
-  return filteredRoles.value.find(r => r.id === form.value.roleId)
+  return filteredRoles.value.find((r) => r.id === form.value.roleId)
 })
 
 // 作用域切换时重置角色选择
-watch(() => form.value.scope, () => {
-  form.value.roleId = ''
-  nextTick(() => formRef.value?.clearValidate('roleId'))
-})
+watch(
+  () => form.value.scope,
+  () => {
+    form.value.roleId = ''
+    nextTick(() => formRef.value?.clearValidate('roleId'))
+  },
+)
 
 async function loadAllUsers() {
   if (userOptions.value.length > 0) return
@@ -86,32 +91,38 @@ async function loadAllUsers() {
   }
 }
 
-watch(() => props.visible, (val) => {
-  if (val) {
-    form.value.userId = ''
-    form.value.scope = 'namespace'
-    form.value.roleId = ''
-    form.value.namespaces = []
-    nextTick(() => formRef.value?.clearValidate())
-    loadAllUsers()
-  }
-})
+watch(
+  () => props.visible,
+  (val) => {
+    if (val) {
+      form.value.userId = ''
+      form.value.scope = 'namespace'
+      form.value.roleId = ''
+      form.value.namespaces = []
+      nextTick(() => formRef.value?.clearValidate())
+      loadAllUsers()
+    }
+  },
+)
 
-watch(() => props.visible, async (val) => {
-  if (!val || !props.clusterName) return
-  nsLoading.value = true
-  nsLoadError.value = false
-  try {
-    const res: any = await getNamespaceList(props.clusterName)
-    const nsData = res?.data ?? res
-    const nsArr: any[] = Array.isArray(nsData) ? nsData : (nsData?.items || [])
-    nsList.value = nsArr.map((ns: any) => ns.metadata?.name || ns.name || ns)
-  } catch {
-    nsLoadError.value = true
-  } finally {
-    nsLoading.value = false
-  }
-})
+watch(
+  () => props.visible,
+  async (val) => {
+    if (!val || !props.clusterName) return
+    nsLoading.value = true
+    nsLoadError.value = false
+    try {
+      const res: any = await getNamespaceList(props.clusterName)
+      const nsData = res?.data ?? res
+      const nsArr: any[] = Array.isArray(nsData) ? nsData : nsData?.items || []
+      nsList.value = nsArr.map((ns: any) => ns.metadata?.name || ns.name || ns)
+    } catch {
+      nsLoadError.value = true
+    } finally {
+      nsLoading.value = false
+    }
+  },
+)
 
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
@@ -138,7 +149,12 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <el-dialog v-model="dialogVisible" :title="t('rbac.addUser')" width="560px" :close-on-click-modal="false">
+  <el-dialog
+    v-model="dialogVisible"
+    :title="t('rbac.addUser')"
+    width="560px"
+    :close-on-click-modal="false"
+  >
     <el-form ref="formRef" :model="form" :rules="rules" label-width="80px" label-position="right">
       <el-form-item :label="t('rbac.username')" prop="userId">
         <el-select
@@ -146,7 +162,7 @@ async function handleSubmit() {
           filterable
           :loading="userLoading"
           :placeholder="t('rbac.selectUser')"
-          style="width: 100%;"
+          style="width: 100%"
         >
           <el-option
             v-for="u in userOptions"
@@ -164,7 +180,11 @@ async function handleSubmit() {
         </el-radio-group>
       </el-form-item>
 
-      <el-form-item v-if="form.scope === 'namespace'" :label="t('rbac.namespace')" prop="namespaces">
+      <el-form-item
+        v-if="form.scope === 'namespace'"
+        :label="t('rbac.namespace')"
+        prop="namespaces"
+      >
         <el-select
           v-if="!nsLoadError"
           v-model="form.namespaces"
@@ -174,7 +194,7 @@ async function handleSubmit() {
           collapse-tags-tooltip
           :loading="nsLoading"
           :placeholder="t('rbac.selectNamespace')"
-          style="width: 100%;"
+          style="width: 100%"
         >
           <el-option v-for="ns in nsList" :key="ns" :label="ns" :value="ns" />
         </el-select>
@@ -186,7 +206,7 @@ async function handleSubmit() {
       </el-form-item>
 
       <el-form-item :label="t('rbac.role')" prop="roleId">
-        <el-select v-model="form.roleId" :placeholder="t('rbac.selectRole')" style="width: 100%;">
+        <el-select v-model="form.roleId" :placeholder="t('rbac.selectRole')" style="width: 100%">
           <el-option-group
             :label="form.scope === 'cluster' ? t('rbac.clusterScope') : t('rbac.namespaceScope')"
           >
@@ -200,7 +220,7 @@ async function handleSubmit() {
         </el-select>
       </el-form-item>
 
-      <el-alert v-if="selectedRole" type="info" :closable="false" style="margin-top: 4px;">
+      <el-alert v-if="selectedRole" type="info" :closable="false" style="margin-top: 4px">
         {{ selectedRole.displayName }}
       </el-alert>
     </el-form>

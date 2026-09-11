@@ -32,7 +32,7 @@ const namespaces = ref<string[]>([])
 interface DataEntry {
   key: string
   value: string
-  preEncoded?: boolean  // true if value is already base64 (binary file import)
+  preEncoded?: boolean // true if value is already base64 (binary file import)
 }
 
 interface FormData {
@@ -77,7 +77,9 @@ const sshAuthData = ref({ privateKey: '' })
 
 function triggerFileInput(event: Event) {
   const btn = event.currentTarget as HTMLElement
-  const input = btn.closest('.file-upload-btn')?.querySelector('input[type="file"]') as HTMLInputElement | null
+  const input = btn
+    .closest('.file-upload-btn')
+    ?.querySelector('input[type="file"]') as HTMLInputElement | null
   input?.click()
 }
 
@@ -185,14 +187,21 @@ function parseInitialData(data: any) {
         password: auth.password || '',
         email: auth.email || '',
       }
-    } catch { /* ignore parse errors */ }
+    } catch {
+      /* ignore parse errors */
+    }
   } else if (form.type === 'kubernetes.io/basic-auth') {
     basicAuthData.value.username = entries['username'] ? base64Decode(entries['username']) : ''
     basicAuthData.value.password = entries['password'] ? base64Decode(entries['password']) : ''
   } else if (form.type === 'kubernetes.io/ssh-auth') {
-    sshAuthData.value.privateKey = entries['ssh-privatekey'] ? base64Decode(entries['ssh-privatekey']) : ''
+    sshAuthData.value.privateKey = entries['ssh-privatekey']
+      ? base64Decode(entries['ssh-privatekey'])
+      : ''
   } else {
-    form.data = Object.entries(entries).map(([k, v]) => ({ key: k, value: base64Decode(String(v ?? '')) }))
+    form.data = Object.entries(entries).map(([k, v]) => ({
+      key: k,
+      value: base64Decode(String(v ?? '')),
+    }))
     if (form.data.length === 0) form.data.push({ key: '', value: '' })
   }
 
@@ -212,7 +221,11 @@ if (props.isEdit && props.initialData) {
 const rules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/, message: '仅支持小写字母、数字、点号、下划线和连字符', trigger: 'blur' },
+    {
+      pattern: /^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/,
+      message: '仅支持小写字母、数字、点号、下划线和连字符',
+      trigger: 'blur',
+    },
     { max: 253, message: '最多253个字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
@@ -262,7 +275,11 @@ const showImportDialog = ref(false)
 
 function handleFileImport(entries: FileImportEntry[]) {
   // Remove trailing empty rows
-  while (form.data.length > 0 && !form.data[form.data.length - 1].key.trim() && !form.data[form.data.length - 1].value) {
+  while (
+    form.data.length > 0 &&
+    !form.data[form.data.length - 1].key.trim() &&
+    !form.data[form.data.length - 1].value
+  ) {
     form.data.pop()
   }
   // Append imported entries
@@ -281,7 +298,7 @@ function buildYamlStr(): string {
     if (l.key.trim()) labels[l.key.trim()] = l.value
   })
 
-  let data: Record<string, string> = {}
+  const data: Record<string, string> = {}
 
   if (form.type === 'kubernetes.io/tls') {
     // TLS: use dedicated cert/key fields
@@ -296,11 +313,13 @@ function buildYamlStr(): string {
     if (basicAuthData.value.username) data['username'] = base64Encode(basicAuthData.value.username)
     if (basicAuthData.value.password) data['password'] = base64Encode(basicAuthData.value.password)
   } else if (form.type === 'kubernetes.io/ssh-auth') {
-    if (sshAuthData.value.privateKey) data['ssh-privatekey'] = base64Encode(sshAuthData.value.privateKey)
+    if (sshAuthData.value.privateKey)
+      data['ssh-privatekey'] = base64Encode(sshAuthData.value.privateKey)
   } else {
     // Opaque: use generic data entries
     form.data.forEach((entry) => {
-      if (entry.key.trim()) data[entry.key.trim()] = entry.preEncoded ? entry.value : base64Encode(entry.value)
+      if (entry.key.trim())
+        data[entry.key.trim()] = entry.preEncoded ? entry.value : base64Encode(entry.value)
     })
   }
 
@@ -326,17 +345,41 @@ async function handleSubmit() {
 
   // Type-specific validation
   if (form.type === 'kubernetes.io/tls') {
-    if (!tlsData.value.cert.trim()) { ElMessage.error(t('config.certRequired')); return }
-    if (!tlsData.value.key.trim()) { ElMessage.error(t('config.keyRequired')); return }
+    if (!tlsData.value.cert.trim()) {
+      ElMessage.error(t('config.certRequired'))
+      return
+    }
+    if (!tlsData.value.key.trim()) {
+      ElMessage.error(t('config.keyRequired'))
+      return
+    }
   } else if (form.type === 'kubernetes.io/dockerconfigjson') {
-    if (!dockerConfig.value.server.trim()) { ElMessage.error(t('config.registryRequired')); return }
-    if (!dockerConfig.value.username.trim()) { ElMessage.error(t('config.usernameRequired')); return }
-    if (!dockerConfig.value.password.trim()) { ElMessage.error(t('config.passwordRequired')); return }
+    if (!dockerConfig.value.server.trim()) {
+      ElMessage.error(t('config.registryRequired'))
+      return
+    }
+    if (!dockerConfig.value.username.trim()) {
+      ElMessage.error(t('config.usernameRequired'))
+      return
+    }
+    if (!dockerConfig.value.password.trim()) {
+      ElMessage.error(t('config.passwordRequired'))
+      return
+    }
   } else if (form.type === 'kubernetes.io/basic-auth') {
-    if (!basicAuthData.value.username.trim()) { ElMessage.error(t('config.usernameRequired')); return }
-    if (!basicAuthData.value.password.trim()) { ElMessage.error(t('config.passwordRequired')); return }
+    if (!basicAuthData.value.username.trim()) {
+      ElMessage.error(t('config.usernameRequired'))
+      return
+    }
+    if (!basicAuthData.value.password.trim()) {
+      ElMessage.error(t('config.passwordRequired'))
+      return
+    }
   } else if (form.type === 'kubernetes.io/ssh-auth') {
-    if (!sshAuthData.value.privateKey.trim()) { ElMessage.error(t('config.sshKeyRequired')); return }
+    if (!sshAuthData.value.privateKey.trim()) {
+      ElMessage.error(t('config.sshKeyRequired'))
+      return
+    }
   }
 
   submitting.value = true
@@ -352,7 +395,9 @@ async function handleSubmit() {
       router.push('/config/secrets')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
+    ElMessage.error(
+      e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')),
+    )
   } finally {
     submitting.value = false
   }
@@ -384,15 +429,27 @@ function handleCancel() {
             </el-form-item>
             <el-form-item label="命名空间" prop="namespace">
               <el-tooltip :disabled="!isEdit" content="编辑模式下不可修改命名空间" placement="top">
-                <el-select v-model="form.namespace" :disabled="isEdit" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+                <el-select
+                  v-model="form.namespace"
+                  :disabled="isEdit"
+                  filterable
+                  placeholder="选择命名空间"
+                  style="width: 100%"
+                  :loading="namespaceLoading"
+                >
                   <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
                 </el-select>
               </el-tooltip>
             </el-form-item>
             <el-form-item label="类型" prop="type" class="full-width">
               <el-tooltip :disabled="!isEdit" content="编辑模式下不可修改类型" placement="top">
-                <el-select v-model="form.type" :disabled="isEdit" style="width: 100%;">
-                  <el-option v-for="t in secretTypes" :key="t.value" :label="t.label" :value="t.value" />
+                <el-select v-model="form.type" :disabled="isEdit" style="width: 100%">
+                  <el-option
+                    v-for="t in secretTypes"
+                    :key="t.value"
+                    :label="t.label"
+                    :value="t.value"
+                  />
                 </el-select>
               </el-tooltip>
             </el-form-item>
@@ -407,15 +464,21 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="标签">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
                 <el-input v-model="label.key" placeholder="Key" />
                 <el-input v-model="label.value" placeholder="Value" />
-                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="removeLabel(i)">
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.labels.length <= 1"
+                  @click="removeLabel(i)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addLabel" size="small">
+              <el-button text type="primary" size="small" @click="addLabel">
                 <el-icon><Plus /></el-icon> 添加标签
               </el-button>
             </div>
@@ -430,33 +493,65 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="不可变">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <el-switch v-model="form.immutable" />
-              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">设置后不可修改，只能删除重建</div>
+              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px">
+                设置后不可修改，只能删除重建
+              </div>
             </div>
           </el-form-item>
 
           <!-- TLS 专用表单 -->
           <template v-if="form.type === 'kubernetes.io/tls'">
-            <el-alert title="TLS Secret 需要证书 (PEM) 和私钥 (PEM) 两个字段。" type="info" :closable="false" show-icon style="margin-bottom: var(--gk-space-4);" />
+            <el-alert
+              title="TLS Secret 需要证书 (PEM) 和私钥 (PEM) 两个字段。"
+              type="info"
+              :closable="false"
+              show-icon
+              style="margin-bottom: var(--gk-space-4)"
+            />
             <el-form-item label="证书 (tls.crt)" required>
-              <div style="width: 100%;">
-                <el-input v-model="tlsData.cert" type="textarea" :rows="6" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----" />
-                <div style="margin-top: 8px;">
+              <div style="width: 100%">
+                <el-input
+                  v-model="tlsData.cert"
+                  type="textarea"
+                  :rows="6"
+                  placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
+                />
+                <div style="margin-top: 8px">
                   <div class="file-upload-btn">
-                    <input type="file" accept=".pem,.crt,.cer,.txt" style="display: none;" @change="handleTlsFileUpload('cert', $event)" />
-                    <el-button size="small" type="primary" plain @click="triggerFileInput">上传证书文件</el-button>
+                    <input
+                      type="file"
+                      accept=".pem,.crt,.cer,.txt"
+                      style="display: none"
+                      @change="handleTlsFileUpload('cert', $event)"
+                    />
+                    <el-button size="small" type="primary" plain @click="triggerFileInput"
+                      >上传证书文件</el-button
+                    >
                   </div>
                 </div>
               </div>
             </el-form-item>
             <el-form-item label="私钥 (tls.key)" required>
-              <div style="width: 100%;">
-                <el-input v-model="tlsData.key" type="textarea" :rows="6" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----" />
-                <div style="margin-top: 8px;">
+              <div style="width: 100%">
+                <el-input
+                  v-model="tlsData.key"
+                  type="textarea"
+                  :rows="6"
+                  placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+                />
+                <div style="margin-top: 8px">
                   <div class="file-upload-btn">
-                    <input type="file" accept=".pem,.key,.txt" style="display: none;" @change="handleTlsFileUpload('key', $event)" />
-                    <el-button size="small" type="primary" plain @click="triggerFileInput">上传私钥文件</el-button>
+                    <input
+                      type="file"
+                      accept=".pem,.key,.txt"
+                      style="display: none"
+                      @change="handleTlsFileUpload('key', $event)"
+                    />
+                    <el-button size="small" type="primary" plain @click="triggerFileInput"
+                      >上传私钥文件</el-button
+                    >
                   </div>
                 </div>
               </div>
@@ -465,7 +560,13 @@ function handleCancel() {
 
           <!-- Docker Config JSON 专用表单 -->
           <template v-else-if="form.type === 'kubernetes.io/dockerconfigjson'">
-            <el-alert title="Docker Registry 认证信息，将自动编码为 .dockerconfigjson 格式。" type="info" :closable="false" show-icon style="margin-bottom: var(--gk-space-4);" />
+            <el-alert
+              title="Docker Registry 认证信息，将自动编码为 .dockerconfigjson 格式。"
+              type="info"
+              :closable="false"
+              show-icon
+              style="margin-bottom: var(--gk-space-4)"
+            />
             <div class="fields-grid">
               <el-form-item label="Registry 地址" required>
                 <el-input v-model="dockerConfig.server" placeholder="https://index.docker.io/v1/" />
@@ -474,7 +575,12 @@ function handleCancel() {
                 <el-input v-model="dockerConfig.username" placeholder="用户名" />
               </el-form-item>
               <el-form-item label="密码" required>
-                <el-input v-model="dockerConfig.password" type="password" show-password placeholder="密码" />
+                <el-input
+                  v-model="dockerConfig.password"
+                  type="password"
+                  show-password
+                  placeholder="密码"
+                />
               </el-form-item>
               <el-form-item label="邮箱">
                 <el-input v-model="dockerConfig.email" placeholder="user@example.com" />
@@ -484,27 +590,56 @@ function handleCancel() {
 
           <!-- Basic Auth 专用表单 -->
           <template v-else-if="form.type === 'kubernetes.io/basic-auth'">
-            <el-alert title="基本认证信息，K8s 要求包含 username 和 password 两个 key。" type="info" :closable="false" show-icon style="margin-bottom: var(--gk-space-4);" />
+            <el-alert
+              title="基本认证信息，K8s 要求包含 username 和 password 两个 key。"
+              type="info"
+              :closable="false"
+              show-icon
+              style="margin-bottom: var(--gk-space-4)"
+            />
             <div class="fields-grid">
               <el-form-item label="用户名" required>
                 <el-input v-model="basicAuthData.username" placeholder="用户名" />
               </el-form-item>
               <el-form-item label="密码" required>
-                <el-input v-model="basicAuthData.password" type="password" show-password placeholder="密码" />
+                <el-input
+                  v-model="basicAuthData.password"
+                  type="password"
+                  show-password
+                  placeholder="密码"
+                />
               </el-form-item>
             </div>
           </template>
 
           <!-- SSH Auth 专用表单 -->
           <template v-else-if="form.type === 'kubernetes.io/ssh-auth'">
-            <el-alert title="SSH 认证信息，K8s 要求包含 ssh-privatekey key。" type="info" :closable="false" show-icon style="margin-bottom: var(--gk-space-4);" />
+            <el-alert
+              title="SSH 认证信息，K8s 要求包含 ssh-privatekey key。"
+              type="info"
+              :closable="false"
+              show-icon
+              style="margin-bottom: var(--gk-space-4)"
+            />
             <el-form-item label="SSH 私钥" required>
-              <div style="width: 100%;">
-                <el-input v-model="sshAuthData.privateKey" type="textarea" :rows="8" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" />
-                <div style="margin-top: 8px;">
+              <div style="width: 100%">
+                <el-input
+                  v-model="sshAuthData.privateKey"
+                  type="textarea"
+                  :rows="8"
+                  placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"
+                />
+                <div style="margin-top: 8px">
                   <div class="file-upload-btn">
-                    <input type="file" accept=".pem,.key,.txt" style="display: none;" @change="handleSshKeyUpload($event)" />
-                    <el-button size="small" type="primary" plain @click="triggerFileInput">上传私钥文件</el-button>
+                    <input
+                      type="file"
+                      accept=".pem,.key,.txt"
+                      style="display: none"
+                      @change="handleSshKeyUpload($event)"
+                    />
+                    <el-button size="small" type="primary" plain @click="triggerFileInput"
+                      >上传私钥文件</el-button
+                    >
                   </div>
                 </div>
               </div>
@@ -513,27 +648,49 @@ function handleCancel() {
 
           <!-- 通用数据表单 (Opaque) -->
           <template v-else>
-            <el-alert title="值将自动进行 Base64 编码后写入 YAML。" type="info" :closable="false" show-icon style="margin-bottom: var(--gk-space-4);" />
+            <el-alert
+              title="值将自动进行 Base64 编码后写入 YAML。"
+              type="info"
+              :closable="false"
+              show-icon
+              style="margin-bottom: var(--gk-space-4)"
+            />
             <el-form-item label="数据项">
-              <div style="width: 100%;">
+              <div style="width: 100%">
                 <div v-for="(entry, i) in form.data" :key="i" class="data-row">
-                  <el-input v-model="entry.key" placeholder="Key" style="width: 220px;" />
-                  <el-input v-model="entry.value" type="textarea" :rows="2" placeholder="Value" style="flex: 1;" />
+                  <el-input v-model="entry.key" placeholder="Key" style="width: 220px" />
+                  <el-input
+                    v-model="entry.value"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="Value"
+                    style="flex: 1"
+                  />
                   <div class="file-upload-btn">
-                    <input type="file" style="display: none;" @change="handleFileUpload(entry, $event)" />
+                    <input
+                      type="file"
+                      style="display: none"
+                      @change="handleFileUpload(entry, $event)"
+                    />
                     <el-button type="primary" text circle @click="triggerFileInput">
                       <el-icon><Upload /></el-icon>
                     </el-button>
                   </div>
-                  <el-button type="danger" text circle :disabled="form.data.length <= 1" @click="removeEntry(i)">
+                  <el-button
+                    type="danger"
+                    text
+                    circle
+                    :disabled="form.data.length <= 1"
+                    @click="removeEntry(i)"
+                  >
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
                 <div class="data-actions">
-                  <el-button text type="primary" @click="addEntry" size="small">
+                  <el-button text type="primary" size="small" @click="addEntry">
                     <el-icon><Plus /></el-icon> 添加数据项
                   </el-button>
-                  <el-button text type="primary" @click="showImportDialog = true" size="small">
+                  <el-button text type="primary" size="small" @click="showImportDialog = true">
                     <el-icon><Upload /></el-icon> 导入文件
                   </el-button>
                 </div>
@@ -549,7 +706,9 @@ function handleCancel() {
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{
+              isEdit ? '更新' : '创建'
+            }}</el-button>
           </div>
         </div>
       </div>

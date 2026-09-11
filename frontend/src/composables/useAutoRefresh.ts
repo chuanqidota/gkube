@@ -16,6 +16,7 @@ export interface AutoRefreshOptions {
 }
 
 const DEFAULT_INTERVAL_OPTIONS = [5, 10, 15, 30, 60]
+const MAX_BACKOFF = 60_000
 
 export function useAutoRefresh(fetchFn: () => Promise<void>, options: AutoRefreshOptions = {}) {
   const {
@@ -30,37 +31,55 @@ export function useAutoRefresh(fetchFn: () => Promise<void>, options: AutoRefres
   const countdown = ref(Math.floor(interval / 1000))
   const availableIntervals = intervalOptions
 
-  let pollTimer: ReturnType<typeof setInterval> | null = null
+  let pollTimer: ReturnType<typeof setTimeout> | null = null
   let countdownTimer: ReturnType<typeof setInterval> | null = null
+  let consecutiveFailures = 0
 
-  function startCountdown() {
-    countdown.value = Math.floor(currentInterval.value / 1000)
+  function getEffectiveDelay() {
+    if (consecutiveFailures >= 3) {
+      return Math.min(currentInterval.value * Math.pow(2, consecutiveFailures - 3), MAX_BACKOFF)
+    }
+    return currentInterval.value
+  }
+
+  function startCountdown(delayMs?: number) {
+    const effective = delayMs ?? getEffectiveDelay()
+    countdown.value = Math.floor(effective / 1000)
     if (countdownTimer) clearInterval(countdownTimer)
     countdownTimer = setInterval(() => {
       countdown.value--
       if (countdown.value <= 0) {
-        countdown.value = Math.floor(currentInterval.value / 1000)
+        countdown.value = Math.floor(getEffectiveDelay() / 1000)
       }
     }, 1000)
   }
 
-  function startPolling() {
-    if (pollTimer) clearInterval(pollTimer)
-    pollTimer = setInterval(() => {
-      fetchFn()
-    }, currentInterval.value)
+  async function pollingTick() {
+    try {
+      await fetchFn()
+      consecutiveFailures = 0
+    } catch (e) {
+      consecutiveFailures++
+      console.warn(`[useAutoRefresh] Poll failed (${consecutiveFailures}x):`, e)
+    } finally {
+      if (isRunning.value) {
+        const delay = getEffectiveDelay()
+        pollTimer = setTimeout(pollingTick, delay)
+        startCountdown(delay)
+      }
+    }
   }
 
   function start() {
     isRunning.value = true
-    startCountdown()
-    startPolling()
+    consecutiveFailures = 0
+    pollingTick()
   }
 
   function stop() {
     isRunning.value = false
     if (pollTimer) {
-      clearInterval(pollTimer)
+      clearTimeout(pollTimer)
       pollTimer = null
     }
     if (countdownTimer) {
@@ -80,7 +99,7 @@ export function useAutoRefresh(fetchFn: () => Promise<void>, options: AutoRefres
   function refresh() {
     // 手动刷新优先用 manualFetch（可显示遮罩），否则回退到 fetchFn
     const fn = manualFetch || fetchFn
-    fn()
+    fn().catch((e) => console.warn('[useAutoRefresh] Manual refresh failed:', e))
     if (isRunning.value) {
       stop()
       start()

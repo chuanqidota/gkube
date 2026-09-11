@@ -29,7 +29,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:visible': [val: boolean]
-  'success': []
+  success: []
 }>()
 
 const { t } = useI18n()
@@ -42,7 +42,7 @@ const dialogVisible = computed({
 
 // 每条授权可选的角色：与其 scopeType 一致的角色
 function availableRoles(scopeType: string) {
-  return props.roles.filter(r => r.scopeType === scopeType)
+  return props.roles.filter((r) => r.scopeType === scopeType)
 }
 
 async function handleChangeRole(b: MemberBinding, newRoleId: number) {
@@ -70,12 +70,15 @@ async function handleRemoveBinding(b: MemberBinding) {
     await ElMessageBox.confirm(
       t('rbac.removeRoleConfirm', {
         name: props.member.username,
-        role: b.scopeType === 'cluster' ? b.roleDisplayName : `${b.roleDisplayName} (${b.namespace})`,
+        role:
+          b.scopeType === 'cluster' ? b.roleDisplayName : `${b.roleDisplayName} (${b.namespace})`,
       }),
       t('common.confirm'),
-      { type: 'warning' }
+      { type: 'warning' },
     )
-  } catch { return }
+  } catch {
+    return
+  }
   saving.value = true
   try {
     await deleteBinding(b.bindingId)
@@ -88,21 +91,26 @@ async function handleRemoveBinding(b: MemberBinding) {
     saving.value = false
   }
 }
-
 </script>
 
 <template>
-  <el-dialog v-model="dialogVisible" :title="t('rbac.editMember', { name: member.username })" width="640px">
+  <el-dialog
+    v-model="dialogVisible"
+    :title="t('rbac.editMember', { name: member.username })"
+    width="640px"
+  >
     <div v-loading="saving" class="binding-list">
       <div v-for="b in member.bindings" :key="b.bindingId" class="binding-row">
         <div class="scope-cell">
-          <el-tag v-if="b.scopeType === 'cluster'" size="small" type="info">{{ t('rbac.clusterScope') }}</el-tag>
+          <el-tag v-if="b.scopeType === 'cluster'" size="small" type="info">{{
+            t('rbac.clusterScope')
+          }}</el-tag>
           <el-tag v-else size="small" type="warning">{{ b.namespace }}</el-tag>
         </div>
         <el-select
           :model-value="b.roleId"
           size="default"
-          style="width: 220px;"
+          style="width: 220px"
           :disabled="saving"
           @change="(v: any) => handleChangeRole(b, Number(v))"
         >
@@ -119,7 +127,7 @@ async function handleRemoveBinding(b: MemberBinding) {
       </div>
       <el-empty v-if="member.bindings.length === 0" :description="t('rbac.noRole')" />
     </div>
-    <el-alert type="info" :closable="false" style="margin-top: 12px;">
+    <el-alert type="info" :closable="false" style="margin-top: 12px">
       {{ t('rbac.scopeChangeWarning') }}
     </el-alert>
     <template #footer>
@@ -129,7 +137,18 @@ async function handleRemoveBinding(b: MemberBinding) {
 </template>
 
 <style scoped>
-.binding-list { display: flex; flex-direction: column; gap: 12px; }
-.binding-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.scope-cell { width: 140px; }
+.binding-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.binding-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.scope-cell {
+  width: 140px;
+}
 </style>

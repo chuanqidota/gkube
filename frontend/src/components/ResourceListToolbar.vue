@@ -5,27 +5,6 @@ import { useI18n } from 'vue-i18n'
 import LabelFilterPopover from './LabelFilterPopover.vue'
 import type { LabelCondition } from './LabelFilterPopover.vue'
 
-const { t } = useI18n()
-
-interface Props {
-  searchValue: string
-  namespaceValue?: string
-  namespaceList?: string[]
-  totalCount?: number
-  selectedCount?: number
-  showCreate?: boolean
-  showNamespace?: boolean
-  showTotalCount?: boolean
-  searchPlaceholder?: string
-  namespacePlaceholder?: string
-  /** 集群名称（传给 LabelFilterPopover） */
-  clusterName?: string
-  /** 资源类型（传给 LabelFilterPopover） */
-  resourceType?: string
-  /** 当前 label 条件 */
-  labelConditions?: LabelCondition[]
-}
-
 const props = withDefaults(defineProps<Props>(), {
   namespaceValue: '',
   namespaceList: () => [],
@@ -47,11 +26,34 @@ const emit = defineEmits<{
   namespaceChange: [value: string]
   create: []
   batchDelete: []
-  'labelSelectorChange': [conditions: LabelCondition[]]
+  labelSelectorChange: [conditions: LabelCondition[]]
 }>()
 
+const { t } = useI18n()
+
+interface Props {
+  searchValue: string
+  namespaceValue?: string
+  namespaceList?: string[]
+  totalCount?: number
+  selectedCount?: number
+  showCreate?: boolean
+  showNamespace?: boolean
+  showTotalCount?: boolean
+  searchPlaceholder?: string
+  namespacePlaceholder?: string
+  /** 集群名称（传给 LabelFilterPopover） */
+  clusterName?: string
+  /** 资源类型（传给 LabelFilterPopover） */
+  resourceType?: string
+  /** 当前 label 条件 */
+  labelConditions?: LabelCondition[]
+}
+
 const searchPlaceholderText = computed(() => props.searchPlaceholder || t('common.searchName'))
-const namespacePlaceholderText = computed(() => props.namespacePlaceholder || t('common.allNamespaces'))
+const namespacePlaceholderText = computed(
+  () => props.namespacePlaceholder || t('common.allNamespaces'),
+)
 </script>
 
 <template>
@@ -61,22 +63,24 @@ const namespacePlaceholderText = computed(() => props.namespacePlaceholder || t(
       <el-select
         v-if="showNamespace"
         :model-value="namespaceValue"
-        @update:model-value="emit('update:namespaceValue', $event)"
         :placeholder="namespacePlaceholderText"
         clearable
-        style="width: 180px;"
+        style="width: 180px"
+        @update:model-value="emit('update:namespaceValue', $event)"
         @change="emit('namespaceChange', $event)"
       >
         <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
       </el-select>
       <el-input
         :model-value="searchValue"
-        @input="emit('searchInput', $event)"
         :placeholder="searchPlaceholderText"
-        style="width: 220px;"
+        style="width: 220px"
         clearable
+        @input="emit('searchInput', $event)"
       >
-        <template #prefix><el-icon><Search /></el-icon></template>
+        <template #prefix
+          ><el-icon><Search /></el-icon
+        ></template>
       </el-input>
       <!-- Label 过滤 -->
       <LabelFilterPopover
@@ -88,7 +92,9 @@ const namespacePlaceholderText = computed(() => props.namespacePlaceholder || t(
         @update:model-value="emit('labelSelectorChange', $event)"
       />
       <!-- 总计数 -->
-      <span class="total-count" v-if="showTotalCount && totalCount">{{ t('common.total') }}: {{ totalCount }}</span>
+      <span v-if="showTotalCount && totalCount" class="total-count"
+        >{{ t('common.total') }}: {{ totalCount }}</span
+      >
 
       <!-- 右侧操作区（推到最右） -->
       <div class="right-actions">

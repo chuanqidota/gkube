@@ -11,5 +11,10 @@ defineEmits<{ success: []; cancel: [] }>()
 </script>
 
 <template>
-  <WorkloadForm kind="DaemonSet" :is-edit="isEdit" :initial-data="initialData" :on-submit="onSubmit" />
+  <WorkloadForm
+    kind="DaemonSet"
+    :is-edit="isEdit"
+    :initial-data="initialData"
+    :on-submit="onSubmit"
+  />
 </template>

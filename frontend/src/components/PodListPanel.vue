@@ -4,6 +4,17 @@ import { useRouter } from 'vue-router'
 import { formatAge } from '@/utils/helpers'
 import { getPodStatusType } from '@/utils/pod'
 
+const _props = defineProps<{
+  pods: Pod[]
+  loading: boolean
+}>()
+
+const emit = defineEmits<{
+  logs: [pod: Pod]
+  exec: [pod: Pod]
+  delete: [pod: Pod, force?: boolean]
+}>()
+
 const router = useRouter()
 
 interface Pod {
@@ -32,82 +43,76 @@ interface Pod {
   }
 }
 
-const props = defineProps<{
-  pods: Pod[]
-  loading: boolean
-}>()
-
-const emit = defineEmits<{
-  logs: [pod: Pod]
-  exec: [pod: Pod]
-  delete: [pod: Pod, force?: boolean]
-}>()
-
 const getRestarts = (pod: Pod): number => {
   return pod.status.containerStatuses?.reduce((sum, cs) => sum + cs.restartCount, 0) || 0
 }
-
 </script>
 
 <template>
-  <div class="pod-list-panel" v-loading="loading">
-    <div v-if="pods.length === 0 && !loading" class="empty-state">
-      暂无 Pod
-    </div>
+  <div v-loading="loading" class="pod-list-panel">
+    <div v-if="pods.length === 0 && !loading" class="empty-state">暂无 Pod</div>
     <div v-else class="table-wrapper">
       <el-table :data="pods" style="width: 100%" row-key="metadata.name" size="small" height="100%">
-      <el-table-column label="名称" min-width="260">
-        <template #default="{ row }">
-          <el-button link type="primary" @click="router.push(`/workloads/pods/${row.metadata.namespace}/${row.metadata.name}`)">{{ row.metadata.name }}</el-button>
-        </template>
-      </el-table-column>
-      <el-table-column label="状态" width="80">
-        <template #default="{ row }">
-          <el-tag :type="getPodStatusType(row.status.phase)" size="small">
-            {{ row.status.phase }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="Pod IP" width="120">
-        <template #default="{ row }">
-          <span class="mono">{{ row.status?.podIP || '-' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="节点 IP" width="120">
-        <template #default="{ row }">
-          <span class="mono">{{ row.status?.hostIP || '-' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="重启" width="65">
-        <template #default="{ row }">
-          <span :class="{ warning: getRestarts(row) > 0 }">{{ getRestarts(row) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="Age" width="75">
-        <template #default="{ row }">
-          {{ formatAge(row.metadata.creationTimestamp, false) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
-        <template #default="{ row }">
-          <div class="action-buttons">
-            <el-button size="small" type="primary" @click="emit('logs', row)">日志</el-button>
-            <el-button size="small" type="success" @click="emit('exec', row)">终端</el-button>
-            <el-dropdown @command="(cmd: string) => emit('delete', row, cmd === 'force')" trigger="click">
-              <el-button size="small" type="danger">
-                删除 <el-icon><ArrowDown /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="normal">删除</el-dropdown-item>
-                  <el-dropdown-item command="force" divided>强制删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </template>
-      </el-table-column>
-    </el-table>
+        <el-table-column label="名称" min-width="260">
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              @click="router.push(`/workloads/pods/${row.metadata.namespace}/${row.metadata.name}`)"
+              >{{ row.metadata.name }}</el-button
+            >
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag :type="getPodStatusType(row.status.phase)" size="small">
+              {{ row.status.phase }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="Pod IP" width="120">
+          <template #default="{ row }">
+            <span class="mono">{{ row.status?.podIP || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="节点 IP" width="120">
+          <template #default="{ row }">
+            <span class="mono">{{ row.status?.hostIP || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="重启" width="65">
+          <template #default="{ row }">
+            <span :class="{ warning: getRestarts(row) > 0 }">{{ getRestarts(row) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="Age" width="75">
+          <template #default="{ row }">
+            {{ formatAge(row.metadata.creationTimestamp, false) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="200" fixed="right">
+          <template #default="{ row }">
+            <div class="action-buttons">
+              <el-button size="small" type="primary" @click="emit('logs', row)">日志</el-button>
+              <el-button size="small" type="success" @click="emit('exec', row)">终端</el-button>
+              <el-dropdown
+                trigger="click"
+                @command="(cmd: string) => emit('delete', row, cmd === 'force')"
+              >
+                <el-button size="small" type="danger">
+                  删除 <el-icon><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="normal">删除</el-dropdown-item>
+                    <el-dropdown-item command="force" divided>强制删除</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
   </div>
 </template>

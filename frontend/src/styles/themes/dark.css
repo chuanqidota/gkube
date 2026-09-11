@@ -2,7 +2,7 @@
    Dark Theme
    ============================================================ */
 
-[data-theme="dark"] {
+[data-theme='dark'] {
   --gk-white: #0f172a;
 
   /* Neutral Scale (inverted) */
@@ -55,6 +55,6 @@
 }
 
 /* 暗色主题下表格斑马纹修复：stripe 行使用略深背景，与 card bg 区分 */
-[data-theme="dark"] .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+[data-theme='dark'] .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
   background: var(--gk-neutral-100);
 }

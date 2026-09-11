@@ -167,7 +167,11 @@ async function handleSave() {
 
 async function handleDelete(row: any) {
   try {
-    await ElMessageBox.confirm(t('user.deleteUserConfirm', { name: row.username }), t('common.confirmDelete'), { type: 'warning' })
+    await ElMessageBox.confirm(
+      t('user.deleteUserConfirm', { name: row.username }),
+      t('common.confirmDelete'),
+      { type: 'warning' },
+    )
   } catch {
     return // 用户取消确认框
   }
@@ -186,10 +190,10 @@ async function handleBatchDelete() {
     await ElMessageBox.confirm(
       t('common.batchDeleteConfirm', { count: selectedRows.value.length, type: t('user.title') }),
       t('common.confirmDelete'),
-      { type: 'warning' }
+      { type: 'warning' },
     )
     const results = await Promise.allSettled(
-      selectedRows.value.map((row) => request.delete('/users', { data: { id: row.id } }))
+      selectedRows.value.map((row) => request.delete('/users', { data: { id: row.id } })),
     )
     const successCount = results.filter((r) => r.status === 'fulfilled').length
     const failCount = results.filter((r) => r.status === 'rejected').length
@@ -234,7 +238,15 @@ function handlePageChange(newPage: number) {
   fetchUsers()
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchUsers)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchUsers)
 
 onMounted(fetchUsers)
 
@@ -277,15 +289,20 @@ onBeforeUnmount(() => {
 
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="userList"
         v-loading="loading"
+        :data="userList"
         stripe
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="username" :label="t('user.username')" min-width="140" />
-        <el-table-column prop="display_name" :label="t('user.nickname')" min-width="140" show-overflow-tooltip />
+        <el-table-column
+          prop="display_name"
+          :label="t('user.nickname')"
+          min-width="140"
+          show-overflow-tooltip
+        />
         <el-table-column prop="email" :label="t('user.email')" min-width="200" />
         <el-table-column prop="status" :label="t('user.status')" width="90">
           <template #default="{ row }">
@@ -294,13 +311,24 @@ onBeforeUnmount(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" :label="t('user.createdAt')" min-width="180" :formatter="formatDate" />
+        <el-table-column
+          prop="created_at"
+          :label="t('user.createdAt')"
+          min-width="180"
+          :formatter="formatDate"
+        />
         <el-table-column :label="t('common.actions')" width="230" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" type="warning" @click="openEdit(row)">{{ t('common.edit') }}</el-button>
-            <el-button size="small" type="warning" @click="openResetPassword(row)">{{ t('user.resetPassword') }}</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
+              <el-button size="small" type="warning" @click="openEdit(row)">{{
+                t('common.edit')
+              }}</el-button>
+              <el-button size="small" type="warning" @click="openResetPassword(row)">{{
+                t('user.resetPassword')
+              }}</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{
+                t('common.delete')
+              }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -347,7 +375,12 @@ onBeforeUnmount(() => {
     </el-dialog>
 
     <!-- Reset Password Dialog -->
-    <el-dialog v-model="resetDialogVisible" :title="t('user.resetPassword')" width="420px" destroy-on-close>
+    <el-dialog
+      v-model="resetDialogVisible"
+      :title="t('user.resetPassword')"
+      width="420px"
+      destroy-on-close
+    >
       <el-form ref="resetFormRef" :model="resetForm" :rules="resetRules" label-width="100px">
         <el-form-item :label="t('user.userLabel')">
           <el-input :model-value="resetTargetUser?.username" disabled />
@@ -363,7 +396,9 @@ onBeforeUnmount(() => {
       </el-form>
       <template #footer>
         <el-button @click="resetDialogVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="resetSaving" @click="handleResetPassword">{{ t('user.confirmReset') }}</el-button>
+        <el-button type="primary" :loading="resetSaving" @click="handleResetPassword">{{
+          t('user.confirmReset')
+        }}</el-button>
       </template>
     </el-dialog>
   </div>

@@ -3,7 +3,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, ArrowLeft } from '@element-plus/icons-vue'
-import { getCustomResourceDetail, getCustomResourceYaml, updateCustomResource, deleteCustomResource } from '@/api/resource'
+import {
+  getCustomResourceDetail,
+  getCustomResourceYaml,
+  updateCustomResource,
+  deleteCustomResource,
+} from '@/api/resource'
 import YamlEditor from '@/components/YamlEditor.vue'
 import { useI18n } from 'vue-i18n'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -21,7 +26,7 @@ const resource = ref<any>(null)
 const group = route.query.group as string
 const version = route.query.version as string
 const resourceName = route.query.resource as string
-const namespace = route.query.namespace as string || ''
+const namespace = (route.query.namespace as string) || ''
 const name = route.query.name as string
 const scope = route.query.scope as string
 
@@ -31,8 +36,8 @@ const yamlContent = ref('')
 const yamlLoading = ref(false)
 const yamlSaving = ref(false)
 
-const backRoute = computed(() =>
-  `/crd/resources?group=${group}&version=${version}&resource=${resourceName}&scope=${scope}`
+const backRoute = computed(
+  () => `/crd/resources?group=${group}&version=${version}&resource=${resourceName}&scope=${scope}`,
 )
 
 const labels = computed(() => {
@@ -128,14 +133,21 @@ async function handleDelete() {
   }
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchDetail, { autoStart: false })
 
 onMounted(fetchDetail)
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
+  <div v-loading="loading" class="detail-page">
     <!-- Header -->
     <div class="page-header">
       <div class="header-left">
@@ -164,10 +176,10 @@ onMounted(fetchDetail)
             </div>
             <el-select
               :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
               :teleported="false"
               size="small"
-              style="width: 100%;"
+              style="width: 100%"
+              @update:model-value="setIntervalOption"
             >
               <el-option
                 v-for="sec in availableIntervals"
@@ -179,7 +191,7 @@ onMounted(fetchDetail)
           </div>
         </el-popover>
         <el-tooltip content="刷新" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+          <el-button :loading="loading" :icon="Refresh" @click="manualRefresh()" />
         </el-tooltip>
         <el-tooltip content="返回列表" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push(backRoute)" />
@@ -189,7 +201,6 @@ onMounted(fetchDetail)
 
     <template v-if="resource">
       <div class="main-layout" :class="{ 'is-resizing': resizingH }">
-
         <!-- Left Panel: Metadata -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">基本信息</div>
@@ -220,15 +231,17 @@ onMounted(fetchDetail)
               <div class="info-row">
                 <span class="info-label">标签</span>
                 <span class="info-value">
-                  <el-tag v-for="(val, key) in labels" :key="key" size="small" class="label-tag">{{ key }}={{ val }}</el-tag>
+                  <el-tag v-for="(val, key) in labels" :key="key" size="small" class="label-tag"
+                    >{{ key }}={{ val }}</el-tag
+                  >
                 </span>
               </div>
             </template>
 
             <!-- Annotations -->
             <template v-if="annotations">
-              <div class="info-row" style="flex-direction: column;">
-                <span class="info-label" style="margin-bottom: 4px;">注解</span>
+              <div class="info-row" style="flex-direction: column">
+                <span class="info-label" style="margin-bottom: 4px">注解</span>
                 <div v-for="(val, key) in annotations" :key="key" class="annotation-row">
                   <span class="annotation-key mono">{{ key }}</span>
                   <span class="annotation-value mono">{{ val }}</span>
@@ -242,7 +255,7 @@ onMounted(fetchDetail)
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
+          :style="{ left: leftWidth - 3 + 'px' }"
           @mousedown="onHResizeStart"
         />
 
@@ -274,7 +287,7 @@ onMounted(fetchDetail)
       :body-style="{ padding: '0', height: '100%' }"
       :destroy-on-close="true"
     >
-      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px);">
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px)">
         <YamlEditor
           v-if="!yamlLoading"
           v-model="yamlContent"

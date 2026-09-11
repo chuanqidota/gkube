@@ -36,3 +36,11 @@ backend/config/config.docker.yaml
 log/
 
 .superpowers
+
+# Frontend
+node_modules/
+dist/
+.eslintcache
+
+# Husky
+.husky/_

@@ -119,7 +119,7 @@ async function fetchPods() {
   selectedPod.value = ''
   try {
     const res: any = await getPodList({ namespace: selectedNamespace.value })
-    const items = Array.isArray(res.data) ? res.data : (res.data?.items || [])
+    const items = Array.isArray(res.data) ? res.data : res.data?.items || []
     pods.value = items.map((p: any) => p.metadata?.name || p.name).filter(Boolean)
   } catch {
     // silently fail
@@ -130,10 +130,16 @@ async function fetchContainers(): Promise<boolean> {
   containers.value = []
   if (!selectedPod.value) return false
   try {
-    const res: any = await getPodDetail({ namespace: selectedNamespace.value, name: selectedPod.value })
+    const res: any = await getPodDetail({
+      namespace: selectedNamespace.value,
+      name: selectedPod.value,
+    })
     const spec = res.data?.spec || {}
     const app = (spec.containers || []).map((c: any) => ({ name: c.name as string, isInit: false }))
-    const init = (spec.initContainers || []).map((c: any) => ({ name: c.name as string, isInit: true }))
+    const init = (spec.initContainers || []).map((c: any) => ({
+      name: c.name as string,
+      isInit: true,
+    }))
     containers.value = [...app, ...init]
     return true
   } catch (e: any) {
@@ -144,7 +150,12 @@ async function fetchContainers(): Promise<boolean> {
 }
 
 async function connectTerminal() {
-  if (!selectedCluster.value || !selectedNamespace.value || !selectedPod.value || !selectedContainer.value) {
+  if (
+    !selectedCluster.value ||
+    !selectedNamespace.value ||
+    !selectedPod.value ||
+    !selectedContainer.value
+  ) {
     return
   }
 
@@ -153,12 +164,13 @@ async function connectTerminal() {
 
   // WebSocket 无法设置自定义 header，改用一次性短期 ticket 鉴权（?ticket=），
   // 避免长效 access token 进入 URL 被网关/浏览器历史记录。
-  let ticket = ''
+  let ticket: string
   try {
     const res: any = await getWsTicket()
     ticket = res.data?.ticket || ''
   } catch (e: any) {
-    if (gen === connectGen) ElMessage.error(t('terminal.authTicketFailed') + (e?.message ? ': ' + e.message : ''))
+    if (gen === connectGen)
+      ElMessage.error(t('terminal.authTicketFailed') + (e?.message ? ': ' + e.message : ''))
     return
   }
   if (!ticket) {
@@ -194,11 +206,14 @@ async function connectTerminal() {
 
   ws.onmessage = (event) => {
     if (event.data instanceof Blob) {
-      event.data.text().then((text: string) => {
-        terminal?.write(text)
-      }).catch(() => {
-        // 忽略 Blob 读取失败
-      })
+      event.data
+        .text()
+        .then((text: string) => {
+          terminal?.write(text)
+        })
+        .catch(() => {
+          // 忽略 Blob 读取失败
+        })
     } else {
       terminal?.write(event.data)
     }
@@ -240,7 +255,8 @@ function initTerminal() {
   const cs = getComputedStyle(document.documentElement)
   const bg = cs.getPropertyValue('--gk-color-bg-terminal').trim() || '#1e1e1e'
   const fg = cs.getPropertyValue('--gk-color-text-terminal').trim() || '#d4d4d4'
-  const monoFont = cs.getPropertyValue('--gk-font-mono').trim() || 'Menlo, Monaco, Consolas, monospace'
+  const monoFont =
+    cs.getPropertyValue('--gk-font-mono').trim() || 'Menlo, Monaco, Consolas, monospace'
 
   terminal = new Terminal({
     cursorBlink: true,
@@ -356,12 +372,7 @@ watch(selectedContainer, (val) => {
           style="width: 200px"
           filterable
         >
-          <el-option
-            v-for="c in clusters"
-            :key="c.name"
-            :label="c.displayName"
-            :value="c.name"
-          />
+          <el-option v-for="c in clusters" :key="c.name" :label="c.displayName" :value="c.name" />
         </el-select>
 
         <el-select
@@ -371,12 +382,7 @@ watch(selectedContainer, (val) => {
           filterable
           :disabled="!selectedCluster"
         >
-          <el-option
-            v-for="ns in namespaces"
-            :key="ns"
-            :label="ns"
-            :value="ns"
-          />
+          <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
         </el-select>
 
         <el-select
@@ -386,12 +392,7 @@ watch(selectedContainer, (val) => {
           filterable
           :disabled="!selectedNamespace"
         >
-          <el-option
-            v-for="p in pods"
-            :key="p"
-            :label="p"
-            :value="p"
-          />
+          <el-option v-for="p in pods" :key="p" :label="p" :value="p" />
         </el-select>
 
         <el-select
@@ -402,20 +403,10 @@ watch(selectedContainer, (val) => {
           filterable
         >
           <el-option-group v-if="appContainers.length" :label="t('terminal.container')">
-            <el-option
-              v-for="c in appContainers"
-              :key="c.name"
-              :label="c.name"
-              :value="c.name"
-            />
+            <el-option v-for="c in appContainers" :key="c.name" :label="c.name" :value="c.name" />
           </el-option-group>
           <el-option-group v-if="initContainers.length" :label="t('terminal.initContainer')">
-            <el-option
-              v-for="c in initContainers"
-              :key="c.name"
-              :label="c.name"
-              :value="c.name"
-            />
+            <el-option v-for="c in initContainers" :key="c.name" :label="c.name" :value="c.name" />
           </el-option-group>
         </el-select>
 
@@ -427,10 +418,7 @@ watch(selectedContainer, (val) => {
           {{ t('terminal.connect') }}
         </el-button>
 
-        <el-button
-          :disabled="!isConnected"
-          @click="disconnectTerminal"
-        >
+        <el-button :disabled="!isConnected" @click="disconnectTerminal">
           {{ t('terminal.disconnect') }}
         </el-button>
       </div>
@@ -441,7 +429,7 @@ watch(selectedContainer, (val) => {
     <!-- Embedded mode: fullscreen terminal with minimal info bar -->
     <div v-else class="terminal-fullscreen">
       <div class="info-bar">
-        <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="display: flex; gap: 8px; align-items: center">
           <span class="info-text">{{ selectedNamespace }} / {{ selectedPod }}</span>
           <el-select
             v-model="selectedContainer"
@@ -451,12 +439,7 @@ watch(selectedContainer, (val) => {
             filterable
           >
             <el-option-group v-if="appContainers.length" :label="t('terminal.container')">
-              <el-option
-                v-for="c in appContainers"
-                :key="c.name"
-                :label="c.name"
-                :value="c.name"
-              />
+              <el-option v-for="c in appContainers" :key="c.name" :label="c.name" :value="c.name" />
             </el-option-group>
             <el-option-group v-if="initContainers.length" :label="t('terminal.initContainer')">
               <el-option
@@ -468,11 +451,16 @@ watch(selectedContainer, (val) => {
             </el-option-group>
           </el-select>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="display: flex; gap: 8px; align-items: center">
           <el-tag :type="isConnected ? 'success' : 'danger'" size="small">
             {{ isConnected ? t('terminal.connected') : t('terminal.notConnected') }}
           </el-tag>
-          <el-button size="small" type="danger" :disabled="!isConnected" @click="disconnectTerminal">
+          <el-button
+            size="small"
+            type="danger"
+            :disabled="!isConnected"
+            @click="disconnectTerminal"
+          >
             {{ t('terminal.disconnect') }}
           </el-button>
         </div>

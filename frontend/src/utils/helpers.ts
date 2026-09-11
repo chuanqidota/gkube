@@ -7,9 +7,24 @@
  */
 export function statusType(status: string): '' | 'success' | 'warning' | 'danger' | 'info' {
   const s = (status || '').toLowerCase()
-  if (['running', 'ready', 'active', 'bound', 'available', 'true', 'ok', 'healthy'].includes(s)) return 'success'
-  if (['pending', 'waiting', 'containercreating', 'terminating', 'released'].includes(s)) return 'warning'
-  if (['failed', 'error', 'crashloopbackoff', 'imagepullbackoff', 'errimagepull', 'OOMKilled', 'unknown', 'notready', 'false'].includes(s)) return 'danger'
+  if (['running', 'ready', 'active', 'bound', 'available', 'true', 'ok', 'healthy'].includes(s))
+    return 'success'
+  if (['pending', 'waiting', 'containercreating', 'terminating', 'released'].includes(s))
+    return 'warning'
+  if (
+    [
+      'failed',
+      'error',
+      'crashloopbackoff',
+      'imagepullbackoff',
+      'errimagepull',
+      'OOMKilled',
+      'unknown',
+      'notready',
+      'false',
+    ].includes(s)
+  )
+    return 'danger'
   if (['succeeded', 'completed'].includes(s)) return 'info'
   return ''
 }
@@ -19,26 +34,26 @@ export function statusType(status: string): '' | 'success' | 'warning' | 'danger
  */
 export function statusLabel(status: string): string {
   const map: Record<string, string> = {
-    'Running': '运行中',
-    'Pending': '等待中',
-    'Succeeded': '成功',
-    'Failed': '失败',
-    'Unknown': '未知',
-    'Terminating': '终止中',
-    'ContainerCreating': '创建中',
-    'ImagePullBackOff': '镜像拉取失败',
-    'ErrImagePull': '镜像拉取错误',
-    'CrashLoopBackOff': '重启循环',
-    'OOMKilled': '内存溢出',
-    'Ready': '就绪',
-    'NotReady': '未就绪',
-    'Active': '活跃',
-    'Bound': '已绑定',
-    'Available': '可用',
-    'Released': '已释放',
-    'Lost': '丢失',
-    'True': '正常',
-    'False': '异常',
+    Running: '运行中',
+    Pending: '等待中',
+    Succeeded: '成功',
+    Failed: '失败',
+    Unknown: '未知',
+    Terminating: '终止中',
+    ContainerCreating: '创建中',
+    ImagePullBackOff: '镜像拉取失败',
+    ErrImagePull: '镜像拉取错误',
+    CrashLoopBackOff: '重启循环',
+    OOMKilled: '内存溢出',
+    Ready: '就绪',
+    NotReady: '未就绪',
+    Active: '活跃',
+    Bound: '已绑定',
+    Available: '可用',
+    Released: '已释放',
+    Lost: '丢失',
+    True: '正常',
+    False: '异常',
   }
   return map[status] || status
 }

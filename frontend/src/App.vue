@@ -7,7 +7,7 @@ import en from 'element-plus/es/locale/lang/en'
 import BootSplash from '@/components/BootSplash.vue'
 
 const { locale } = useI18n()
-const elLocale = computed(() => locale.value === 'zh-CN' ? zhCn : en)
+const elLocale = computed(() => (locale.value === 'zh-CN' ? zhCn : en))
 const showSplash = ref(true)
 </script>
 

@@ -67,14 +67,22 @@ const {
   pageSize: 50,
 })
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchResources)
 </script>
 
 <template>
   <div class="page-container">
     <ResourceListToolbar
-      :search-value="searchName"
       v-model:namespace-value="selectedNamespace"
+      :search-value="searchName"
       :namespace-list="namespaceList"
       :show-create="false"
       :total-count="totalCount"
@@ -107,13 +115,18 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="filteredList"
         v-loading="loading"
+        :data="filteredList"
         stripe
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          prop="name"
+          :label="t('common.name')"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
@@ -122,29 +135,47 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <el-table-column prop="desired" :label="t('workload.desired')" width="90" align="center" />
         <el-table-column prop="current" :label="t('workload.current')" width="90" align="center" />
         <el-table-column prop="ready" :label="t('workload.ready')" width="90" align="center" />
-        <el-table-column prop="available" :label="t('workload.available')" width="100" align="center" />
-        <el-table-column prop="owner" :label="t('workload.selector')" min-width="160" show-overflow-tooltip />
+        <el-table-column
+          prop="available"
+          :label="t('workload.available')"
+          width="100"
+          align="center"
+        />
+        <el-table-column
+          prop="owner"
+          :label="t('workload.selector')"
+          min-width="160"
+          show-overflow-tooltip
+        />
         <el-table-column prop="age" label="Age" width="120" />
         <el-table-column :label="t('common.actions')" width="140" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{
+                t('common.delete')
+              }}</el-button>
             </div>
           </template>
         </el-table-column>
       </el-table>
       <div v-if="hasMore" class="load-more">
-        <el-button @click="fetchNextPage" :loading="loading" link type="primary">
+        <el-button :loading="loading" link type="primary" @click="fetchNextPage">
           {{ t('workload.loadMore') }}
         </el-button>
       </div>
     </el-card>
 
     <!-- YAML Drawer -->
-    <el-drawer v-model="yamlDialogVisible" title="ReplicaSet YAML" size="85%" direction="rtl" class="yaml-drawer"
-      :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: 100%;">
+    <el-drawer
+      v-model="yamlDialogVisible"
+      title="ReplicaSet YAML"
+      size="85%"
+      direction="rtl"
+      class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <div v-loading="yamlLoading" style="height: 100%">
         <YamlEditor v-model="yamlContent" height="calc(100dvh - 56px)" read-only auto-format />
       </div>
     </el-drawer>

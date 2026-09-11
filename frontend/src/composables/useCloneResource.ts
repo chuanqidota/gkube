@@ -80,7 +80,14 @@ export async function fetchAndPrepareClone(
     } else {
       delete parsed.metadata.namespace
     }
-    for (const key of ['uid', 'resourceVersion', 'selfLink', 'creationTimestamp', 'generation', 'managedFields']) {
+    for (const key of [
+      'uid',
+      'resourceVersion',
+      'selfLink',
+      'creationTimestamp',
+      'generation',
+      'managedFields',
+    ]) {
       delete parsed.metadata[key]
     }
     return { parsed, originalName }

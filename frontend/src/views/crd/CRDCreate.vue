@@ -89,7 +89,9 @@ function handleMaximize() {
         </div>
         <div class="yaml-card-actions">
           <el-button size="small" @click="handleCancel">{{ t('common.cancel') }}</el-button>
-          <el-button size="small" type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.create') }}</el-button>
+          <el-button size="small" type="primary" :loading="submitting" @click="handleSubmit">{{
+            t('common.create')
+          }}</el-button>
         </div>
       </div>
       <div class="yaml-card-body">
@@ -105,7 +107,9 @@ function handleMaximize() {
         >
           <template #fullscreen-actions>
             <el-button size="small" @click="handleCancel">{{ t('common.cancel') }}</el-button>
-            <el-button size="small" type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.create') }}</el-button>
+            <el-button size="small" type="primary" :loading="submitting" @click="handleSubmit">{{
+              t('common.create')
+            }}</el-button>
           </template>
         </YamlEditor>
       </div>

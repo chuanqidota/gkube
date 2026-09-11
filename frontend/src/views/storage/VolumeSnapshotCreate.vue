@@ -6,7 +6,13 @@ import { CopyDocument } from '@element-plus/icons-vue'
 import YamlEditor from '@/components/YamlEditor.vue'
 import CloneDialog from '@/components/CloneDialog.vue'
 import { useCloneCreate, dumpCloneYaml } from '@/composables/useCloneCreate'
-import { createVolumeSnapshot, getVolumeSnapshotList, getVolumeSnapshotYaml, getNamespaceList, extractNamespaceNames } from '@/api/resource'
+import {
+  createVolumeSnapshot,
+  getVolumeSnapshotList,
+  getVolumeSnapshotYaml,
+  getNamespaceList,
+  extractNamespaceNames,
+} from '@/api/resource'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -32,7 +38,9 @@ async function fetchNamespaces() {
   try {
     const res: any = await getNamespaceList()
     namespaceList.value = extractNamespaceNames(res.data)
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 function handleNamespaceChange() {
@@ -41,9 +49,17 @@ function handleNamespaceChange() {
 }
 
 const {
-  cloneMode, cloneNamespace, cloneName, cloneNsOptions, cloneNameOptions,
-  cloneNsLoading, cloneNameLoading, cloneLoading,
-  startClone, cancelClone, handleLoadClone,
+  cloneMode,
+  cloneNamespace,
+  cloneName,
+  cloneNsOptions,
+  cloneNameOptions,
+  cloneNsLoading,
+  cloneNameLoading,
+  cloneLoading,
+  startClone,
+  cancelClone,
+  handleLoadClone,
 } = useCloneCreate({
   api: { list: getVolumeSnapshotList, yaml: getVolumeSnapshotYaml },
   hasForm: false,
@@ -83,11 +99,11 @@ onMounted(fetchNamespaces)
     </div>
 
     <CloneDialog
-      kind-label="VolumeSnapshot"
-      :show-target-choice="false"
       v-model="cloneMode"
       v-model:ns-value="cloneNamespace"
       v-model:name-value="cloneName"
+      kind-label="VolumeSnapshot"
+      :show-target-choice="false"
       :ns-options="cloneNsOptions"
       :name-options="cloneNameOptions"
       :ns-loading="cloneNsLoading"
@@ -97,9 +113,9 @@ onMounted(fetchNamespaces)
       @cancel="cancelClone"
     />
 
-    <el-form label-width="140px" style="max-width: 700px; margin-bottom: 16px;">
+    <el-form label-width="140px" style="max-width: 700px; margin-bottom: 16px">
       <el-form-item :label="t('common.namespace_label')" required>
-        <el-select v-model="namespace" style="width: 100%;" @change="handleNamespaceChange">
+        <el-select v-model="namespace" style="width: 100%" @change="handleNamespaceChange">
           <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
       </el-form-item>
@@ -110,14 +126,16 @@ onMounted(fetchNamespaces)
       type="info"
       :closable="false"
       show-icon
-      style="margin-bottom: var(--gk-space-4);"
+      style="margin-bottom: var(--gk-space-4)"
     />
 
     <YamlEditor v-model="yamlContent" height="500px" />
 
     <div class="form-actions">
       <el-button @click="handleCancel">{{ t('common.cancel') }}</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.create') }} {{ t('storage.volumeSnapshot') }}</el-button>
+      <el-button type="primary" :loading="submitting" @click="handleSubmit"
+        >{{ t('common.create') }} {{ t('storage.volumeSnapshot') }}</el-button
+      >
     </div>
   </div>
 </template>

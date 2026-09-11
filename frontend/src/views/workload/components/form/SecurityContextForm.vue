@@ -3,23 +3,34 @@ import { Plus, Delete } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import type { Container } from '../form-types'
 
-const { t } = useI18n()
-
 defineProps<{
   containers: Container[]
 }>()
 
-function addCapability(sc: Container['securityContext'], type: 'add' | 'drop') { (type === 'add' ? sc.capabilitiesAdd : sc.capabilitiesDrop).push('') }
-function removeCapability(sc: Container['securityContext'], type: 'add' | 'drop', i: number) { (type === 'add' ? sc.capabilitiesAdd : sc.capabilitiesDrop).splice(i, 1) }
+const { t } = useI18n()
+
+function addCapability(sc: Container['securityContext'], type: 'add' | 'drop') {
+  ;(type === 'add' ? sc.capabilitiesAdd : sc.capabilitiesDrop).push('')
+}
+function removeCapability(sc: Container['securityContext'], type: 'add' | 'drop', i: number) {
+  ;(type === 'add' ? sc.capabilitiesAdd : sc.capabilitiesDrop).splice(i, 1)
+}
 </script>
 
 <template>
-  <div v-for="(container, ci) in containers" :key="ci" style="margin-bottom: 24px;">
-    <div class="mount-container-name">{{ container.name || t('securityContext.containerLabel', { n: ci + 1 }) }}</div>
+  <div v-for="(container, ci) in containers" :key="ci" style="margin-bottom: 24px">
+    <div class="mount-container-name">
+      {{ container.name || t('securityContext.containerLabel', { n: ci + 1 }) }}
+    </div>
     <div class="security-grid">
       <div class="security-item">
         <div class="security-item-label">{{ t('securityContext.runAsUser') }}</div>
-        <el-input-number v-model="container.securityContext.runAsUser" :min="0" placeholder="UID" style="width: 100%;" />
+        <el-input-number
+          v-model="container.securityContext.runAsUser"
+          :min="0"
+          placeholder="UID"
+          style="width: 100%"
+        />
       </div>
       <div class="security-item">
         <div class="security-item-label">{{ t('securityContext.runAsNonRoot') }}</div>
@@ -35,13 +46,23 @@ function removeCapability(sc: Container['securityContext'], type: 'add' | 'drop'
       </div>
     </div>
     <!-- Capabilities -->
-    <div style="margin-top: var(--gk-space-4);">
+    <div style="margin-top: var(--gk-space-4)">
       <el-divider content-position="left">{{ t('securityContext.capabilities') }}</el-divider>
       <div class="fields-grid">
         <el-form-item :label="t('securityContext.addCapability')">
-          <div style="width: 100%;">
-            <div v-for="(_cap, i) in container.securityContext.capabilitiesAdd" :key="i" class="kv-row">
-              <el-select v-model="container.securityContext.capabilitiesAdd[i]" filterable allow-create :placeholder="t('securityContext.addPlaceholder')" style="flex: 1;">
+          <div style="width: 100%">
+            <div
+              v-for="(_cap, i) in container.securityContext.capabilitiesAdd"
+              :key="i"
+              class="kv-row"
+            >
+              <el-select
+                v-model="container.securityContext.capabilitiesAdd[i]"
+                filterable
+                allow-create
+                :placeholder="t('securityContext.addPlaceholder')"
+                style="flex: 1"
+              >
                 <el-option label="NET_ADMIN" value="NET_ADMIN" />
                 <el-option label="NET_RAW" value="NET_RAW" />
                 <el-option label="SYS_ADMIN" value="SYS_ADMIN" />
@@ -57,19 +78,39 @@ function removeCapability(sc: Container['securityContext'], type: 'add' | 'drop'
                 <el-option label="KILL" value="KILL" />
                 <el-option label="MKNOD" value="MKNOD" />
               </el-select>
-              <el-button type="danger" text circle @click="removeCapability(container.securityContext, 'add', i)">
+              <el-button
+                type="danger"
+                text
+                circle
+                @click="removeCapability(container.securityContext, 'add', i)"
+              >
                 <el-icon><Delete /></el-icon>
               </el-button>
             </div>
-            <el-button text type="primary" size="small" @click="addCapability(container.securityContext, 'add')">
+            <el-button
+              text
+              type="primary"
+              size="small"
+              @click="addCapability(container.securityContext, 'add')"
+            >
               <el-icon><Plus /></el-icon> {{ t('securityContext.addBtn') }}
             </el-button>
           </div>
         </el-form-item>
         <el-form-item :label="t('securityContext.dropCapability')">
-          <div style="width: 100%;">
-            <div v-for="(_cap, i) in container.securityContext.capabilitiesDrop" :key="i" class="kv-row">
-              <el-select v-model="container.securityContext.capabilitiesDrop[i]" filterable allow-create :placeholder="t('securityContext.dropPlaceholder')" style="flex: 1;">
+          <div style="width: 100%">
+            <div
+              v-for="(_cap, i) in container.securityContext.capabilitiesDrop"
+              :key="i"
+              class="kv-row"
+            >
+              <el-select
+                v-model="container.securityContext.capabilitiesDrop[i]"
+                filterable
+                allow-create
+                :placeholder="t('securityContext.dropPlaceholder')"
+                style="flex: 1"
+              >
                 <el-option label="ALL" value="ALL" />
                 <el-option label="NET_ADMIN" value="NET_ADMIN" />
                 <el-option label="NET_RAW" value="NET_RAW" />
@@ -86,11 +127,21 @@ function removeCapability(sc: Container['securityContext'], type: 'add' | 'drop'
                 <el-option label="KILL" value="KILL" />
                 <el-option label="MKNOD" value="MKNOD" />
               </el-select>
-              <el-button type="danger" text circle @click="removeCapability(container.securityContext, 'drop', i)">
+              <el-button
+                type="danger"
+                text
+                circle
+                @click="removeCapability(container.securityContext, 'drop', i)"
+              >
                 <el-icon><Delete /></el-icon>
               </el-button>
             </div>
-            <el-button text type="primary" size="small" @click="addCapability(container.securityContext, 'drop')">
+            <el-button
+              text
+              type="primary"
+              size="small"
+              @click="addCapability(container.securityContext, 'drop')"
+            >
               <el-icon><Plus /></el-icon> {{ t('securityContext.addBtn') }}
             </el-button>
           </div>

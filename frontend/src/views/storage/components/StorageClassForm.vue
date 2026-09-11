@@ -83,29 +83,48 @@ if (props.isEdit && props.initialData) {
 }
 
 // 克隆流入（创建模式 isEdit=false，上面不会触发 parseInitialData，故用 watch 兜底）
-watch(() => props.initialData, (newData) => {
-  if (newData) parseInitialData(newData)
-})
+watch(
+  () => props.initialData,
+  (newData) => {
+    if (newData) parseInitialData(newData)
+  },
+)
 
 const rules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符，以字母开头', trigger: 'blur' },
+    {
+      pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/,
+      message: '仅支持小写字母、数字和连字符，以字母开头',
+      trigger: 'blur',
+    },
     { max: 253, message: '最长 253 个字符', trigger: 'blur' },
   ],
   provisioner: [{ required: true, message: '请输入 Provisioner', trigger: 'blur' }],
 }
 
-function addParam() { form.parameters.push({ key: '', value: '' }) }
-function removeParam(i: number) { form.parameters.splice(i, 1) }
-function addLabel() { form.labels.push({ key: '', value: '' }) }
-function removeLabel(i: number) { form.labels.splice(i, 1) }
+function addParam() {
+  form.parameters.push({ key: '', value: '' })
+}
+function removeParam(i: number) {
+  form.parameters.splice(i, 1)
+}
+function addLabel() {
+  form.labels.push({ key: '', value: '' })
+}
+function removeLabel(i: number) {
+  form.labels.splice(i, 1)
+}
 
 function buildYamlStr(): string {
   const parameters: Record<string, string> = {}
-  form.parameters.forEach((p) => { if (p.key.trim()) parameters[p.key.trim()] = p.value })
+  form.parameters.forEach((p) => {
+    if (p.key.trim()) parameters[p.key.trim()] = p.value
+  })
   const labels: Record<string, string> = {}
-  form.labels.forEach((l) => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+  form.labels.forEach((l) => {
+    if (l.key.trim()) labels[l.key.trim()] = l.value
+  })
 
   const obj: any = {
     apiVersion: 'storage.k8s.io/v1',
@@ -141,7 +160,9 @@ async function handleSubmit() {
       router.push('/storage/storageclasses')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
+    ElMessage.error(
+      e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')),
+    )
   } finally {
     submitting.value = false
   }
@@ -170,7 +191,11 @@ function handleCancel() {
               <el-input v-model="form.name" :disabled="isEdit" placeholder="例如: fast-ssd" />
             </el-form-item>
             <el-form-item label="Provisioner" prop="provisioner">
-              <el-input v-model="form.provisioner" :disabled="isEdit" placeholder="例如: kubernetes.io/aws-ebs" />
+              <el-input
+                v-model="form.provisioner"
+                :disabled="isEdit"
+                placeholder="例如: kubernetes.io/aws-ebs"
+              />
             </el-form-item>
           </div>
           <el-form-item label="回收策略">
@@ -189,14 +214,14 @@ function handleCancel() {
             <el-switch v-model="form.allowVolumeExpansion" />
           </el-form-item>
           <el-form-item label="挂载选项">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(_opt, i) in form.mountOptions" :key="i" class="kv-row">
                 <el-input v-model="form.mountOptions[i]" placeholder="例如: nfsvers=4.1" />
                 <el-button type="danger" text circle @click="form.mountOptions.splice(i, 1)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="form.mountOptions.push('')" size="small">
+              <el-button text type="primary" size="small" @click="form.mountOptions.push('')">
                 <el-icon><Plus /></el-icon> 添加挂载选项
               </el-button>
             </div>
@@ -211,15 +236,21 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="参数">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(p, i) in form.parameters" :key="i" class="kv-row">
                 <el-input v-model="p.key" placeholder="键" />
                 <el-input v-model="p.value" placeholder="值" />
-                <el-button type="danger" text circle :disabled="form.parameters.length <= 1" @click="removeParam(i)">
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.parameters.length <= 1"
+                  @click="removeParam(i)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addParam" size="small">
+              <el-button text type="primary" size="small" @click="addParam">
                 <el-icon><Plus /></el-icon> 添加参数
               </el-button>
             </div>
@@ -234,15 +265,21 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="标签">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(l, i) in form.labels" :key="i" class="kv-row">
                 <el-input v-model="l.key" placeholder="键" />
                 <el-input v-model="l.value" placeholder="值" />
-                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="removeLabel(i)">
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.labels.length <= 1"
+                  @click="removeLabel(i)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addLabel" size="small">
+              <el-button text type="primary" size="small" @click="addLabel">
                 <el-icon><Plus /></el-icon> 添加标签
               </el-button>
             </div>
@@ -256,7 +293,9 @@ function handleCancel() {
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{
+              isEdit ? '更新' : '创建'
+            }}</el-button>
           </div>
         </div>
       </div>

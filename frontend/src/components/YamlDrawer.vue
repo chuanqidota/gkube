@@ -1,54 +1,31 @@
-<template>
-  <el-drawer
-    :model-value="modelValue"
-    @update:model-value="$emit('update:modelValue', $event)"
-    :title="title || 'YAML'"
-    size="85%"
-    direction="rtl"
-    class="yaml-drawer"
-    :body-style="{ padding: '0', height: '100%' }"
-    :destroy-on-close="true"
-  >
-    <div v-loading="loading" style="height: calc(100dvh - 52px);">
-      <YamlEditor
-        v-if="!loading"
-        v-model="yamlContent"
-        height="100%"
-        auto-format
-        show-save-buttons
-        :saving="saving"
-        @save="handleSave"
-        @cancel="handleCancel"
-      />
-    </div>
-  </el-drawer>
-</template>
-
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import YamlEditor from './YamlEditor.vue'
 
-const { t } = useI18n()
-
-const props = withDefaults(defineProps<{
-  modelValue: boolean
-  getYaml: (params: any) => Promise<any>
-  updateYaml?: ((data: any) => Promise<any>) | null
-  namespace?: string
-  name: string
-  title?: string
-}>(), {
-  namespace: '',
-  title: '',
-  updateYaml: null,
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean
+    getYaml: (params: any) => Promise<any>
+    updateYaml?: ((data: any) => Promise<any>) | null
+    namespace?: string
+    name: string
+    title?: string
+  }>(),
+  {
+    namespace: '',
+    title: '',
+    updateYaml: null,
+  },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  'saved': []
+  saved: []
 }>()
+
+const { t } = useI18n()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -117,15 +94,44 @@ function handleCancel() {
 }
 
 // Watch for drawer open
-watch(() => props.modelValue, (visible) => {
-  if (visible && props.name) {
-    fetchYaml()
-  }
-})
+watch(
+  () => props.modelValue,
+  (visible) => {
+    if (visible && props.name) {
+      fetchYaml()
+    }
+  },
+)
 
 // Expose for parent to manually refresh
 defineExpose({ fetchYaml })
 </script>
+
+<template>
+  <el-drawer
+    :model-value="modelValue"
+    :title="title || 'YAML'"
+    size="85%"
+    direction="rtl"
+    class="yaml-drawer"
+    :body-style="{ padding: '0', height: '100%' }"
+    :destroy-on-close="true"
+    @update:model-value="$emit('update:modelValue', $event)"
+  >
+    <div v-loading="loading" style="height: calc(100dvh - 52px)">
+      <YamlEditor
+        v-if="!loading"
+        v-model="yamlContent"
+        height="100%"
+        auto-format
+        show-save-buttons
+        :saving="saving"
+        @save="handleSave"
+        @cancel="handleCancel"
+      />
+    </div>
+  </el-drawer>
+</template>
 
 <style>
 .yaml-drawer .el-drawer__header {

@@ -1,8 +1,7 @@
 import request from '@/api/request'
 
 // 获取所有角色列表
-export const getRoles = () =>
-  request.get('/rbac/roles')
+export const getRoles = () => request.get('/rbac/roles')
 
 // 查询权限绑定列表（管理员）
 export const getBindings = (params: {
@@ -26,12 +25,10 @@ export const updateBinding = (id: number, data: { roleId: number }) =>
   request.put(`/rbac/bindings/${id}`, data)
 
 // 删除权限绑定
-export const deleteBinding = (id: number) =>
-  request.delete(`/rbac/bindings/${id}`)
+export const deleteBinding = (id: number) => request.delete(`/rbac/bindings/${id}`)
 
 // 获取当前用户权限
-export const getMyPermissions = () =>
-  request.get('/rbac/my-permissions')
+export const getMyPermissions = () => request.get('/rbac/my-permissions')
 
 // 获取集群成员列表
 export const getClusterMembers = (clusterId: number) =>
@@ -56,11 +53,8 @@ export const updateBindingBatch = (data: {
 }) => request.put('/rbac/bindings/batch', data)
 
 // 按组批量删除：删除某用户在某集群下指定角色的全部绑定
-export const deleteBindingBatch = (data: {
-  userId: number
-  clusterId: number
-  roleId: number
-}) => request.delete('/rbac/bindings/batch', { data })
+export const deleteBindingBatch = (data: { userId: number; clusterId: number; roleId: number }) =>
+  request.delete('/rbac/bindings/batch', { data })
 
 // 移出集群：删除该用户在该集群下所有绑定
 export const removeClusterMember = (userId: number, clusterId: number) =>
@@ -81,11 +75,14 @@ export const createRole = (data: {
 }) => request.post('/rbac/roles', data)
 
 // 更新自定义角色（预置角色不可改）
-export const updateRole = (id: number, data: {
-  displayName: string
-  description?: string
-  permissions: Record<string, string[]>
-}) => request.put(`/rbac/roles/${id}`, data)
+export const updateRole = (
+  id: number,
+  data: {
+    displayName: string
+    description?: string
+    permissions: Record<string, string[]>
+  },
+) => request.put(`/rbac/roles/${id}`, data)
 
 // 删除自定义角色
 export const deleteRole = (id: number) => request.delete(`/rbac/roles/${id}`)

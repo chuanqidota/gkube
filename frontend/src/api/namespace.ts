@@ -20,9 +20,7 @@ export interface Namespace {
  */
 export function extractNamespaceNames(data: any): string[] {
   if (!Array.isArray(data)) return []
-  return data
-    .map((item: any) => (typeof item === 'string' ? item : item.name))
-    .filter(Boolean)
+  return data.map((item: any) => (typeof item === 'string' ? item : item.name)).filter(Boolean)
 }
 
 // ============ Transform 函数 ============
@@ -64,10 +62,7 @@ export function updateNamespace(data: { yaml: string }) {
   return request.put('/k8s/namespace/update', data)
 }
 
-export function updateNamespaceLabels(data: {
-  namespace: string
-  labels: Record<string, string>
-}) {
+export function updateNamespaceLabels(data: { namespace: string; labels: Record<string, string> }) {
   return request.put('/k8s/namespace/labels', data)
 }
 

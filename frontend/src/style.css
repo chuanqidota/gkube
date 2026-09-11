@@ -10,7 +10,9 @@
   box-sizing: border-box;
 }
 
-html, body, #app {
+html,
+body,
+#app {
   height: 100%;
   font-family: var(--gk-font-sans);
   font-size: var(--gk-font-size-base);
@@ -40,11 +42,11 @@ html, body, #app {
 }
 
 /* Dark theme scrollbar */
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
   background: var(--gk-neutral-600);
 }
 
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
   background: var(--gk-neutral-500);
 }
 
@@ -256,10 +258,18 @@ button:focus-visible,
 }
 
 /* === Status Colors (legacy utility classes - prefer .gk-status) === */
-.status-running { color: var(--gk-color-success); }
-.status-pending { color: var(--gk-color-warning); }
-.status-failed { color: var(--gk-color-danger); }
-.status-succeeded { color: var(--gk-color-primary); }
+.status-running {
+  color: var(--gk-color-success);
+}
+.status-pending {
+  color: var(--gk-color-warning);
+}
+.status-failed {
+  color: var(--gk-color-danger);
+}
+.status-succeeded {
+  color: var(--gk-color-primary);
+}
 
 /* === Total Count Badge === */
 .total-count {
@@ -326,8 +336,18 @@ button:focus-visible,
   flex-shrink: 0;
 }
 
-.gk-status--running .gk-status__dot { background: var(--gk-color-success); }
-.gk-status--pending .gk-status__dot { background: var(--gk-color-warning); }
-.gk-status--failed .gk-status__dot { background: var(--gk-color-danger); }
-.gk-status--succeeded .gk-status__dot { background: var(--gk-color-primary); }
-.gk-status--unknown .gk-status__dot { background: var(--gk-neutral-400); }
+.gk-status--running .gk-status__dot {
+  background: var(--gk-color-success);
+}
+.gk-status--pending .gk-status__dot {
+  background: var(--gk-color-warning);
+}
+.gk-status--failed .gk-status__dot {
+  background: var(--gk-color-danger);
+}
+.gk-status--succeeded .gk-status__dot {
+  background: var(--gk-color-primary);
+}
+.gk-status--unknown .gk-status__dot {
+  background: var(--gk-neutral-400);
+}

@@ -49,13 +49,18 @@ onMounted(fetchData)
 </script>
 
 <template>
-  <div class="page-container" v-loading="loading">
+  <div v-loading="loading" class="page-container">
     <el-card shadow="never" class="table-card">
       <template #header>
         <span>{{ t('rbac.myPermissions') }} — {{ authStore.user?.username }}</span>
       </template>
 
-      <el-alert v-if="isSuperAdmin" type="success" :closable="false" style="margin-bottom: var(--gk-space-4);">
+      <el-alert
+        v-if="isSuperAdmin"
+        type="success"
+        :closable="false"
+        style="margin-bottom: var(--gk-space-4)"
+      >
         {{ t('rbac.superAdminBypass') }}
       </el-alert>
 
@@ -67,13 +72,25 @@ onMounted(fetchData)
           <el-tag v-else size="small" type="info">{{ t('rbac.clusterScope') }}</el-tag>
         </div>
       </div>
-      <el-empty v-if="!isSuperAdmin && byCluster.length === 0" :description="t('rbac.noPermissions')" />
+      <el-empty
+        v-if="!isSuperAdmin && byCluster.length === 0"
+        :description="t('rbac.noPermissions')"
+      />
     </el-card>
   </div>
 </template>
 
 <style scoped>
-.cluster-block { margin-bottom: 16px; }
-.cluster-title { font-weight: 600; margin-bottom: 8px; }
-.perm-row { display: flex; gap: 8px; margin-bottom: 6px; }
+.cluster-block {
+  margin-bottom: 16px;
+}
+.cluster-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.perm-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
 </style>

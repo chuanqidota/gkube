@@ -34,14 +34,28 @@ const yamlContent = ref(defaultYaml)
 const submitting = ref(false)
 
 const {
-  cloneMode, cloneName, cloneNameOptions, cloneNameLoading,
-  cloneLoading, cloneTarget,
-  startClone, cancelClone, handleLoadClone,
+  cloneMode,
+  cloneName,
+  cloneNameOptions,
+  cloneNameLoading,
+  cloneLoading,
+  cloneTarget,
+  startClone,
+  cancelClone,
+  handleLoadClone,
 } = useCloneCreate({
   api: { list: getPvList, yaml: getPvYaml },
   namespaceScoped: false,
-  onCloneToForm: (parsed) => { parsedData.value = parsed; yamlContent.value = defaultYaml; mode.value = 'form' },
-  onCloneToYaml: (parsed) => { yamlContent.value = dumpCloneYaml(parsed); parsedData.value = null; mode.value = 'yaml' },
+  onCloneToForm: (parsed) => {
+    parsedData.value = parsed
+    yamlContent.value = defaultYaml
+    mode.value = 'form'
+  },
+  onCloneToYaml: (parsed) => {
+    yamlContent.value = dumpCloneYaml(parsed)
+    parsedData.value = null
+    mode.value = 'yaml'
+  },
 })
 
 async function handleYamlSubmit() {
@@ -81,18 +95,25 @@ function handleMaximize() {
 <template>
   <div class="pv-create">
     <div class="mode-switcher">
-      <el-segmented v-model="mode" :options="[{ label: t('common.formCreate'), value: 'form' }, { label: t('common.yamlCreate'), value: 'yaml' }]" size="small" />
-      <el-button size="small" style="margin-left: 12px;" @click="startClone">
+      <el-segmented
+        v-model="mode"
+        :options="[
+          { label: t('common.formCreate'), value: 'form' },
+          { label: t('common.yamlCreate'), value: 'yaml' },
+        ]"
+        size="small"
+      />
+      <el-button size="small" style="margin-left: 12px" @click="startClone">
         <el-icon><CopyDocument /></el-icon> 从现有资源克隆
       </el-button>
     </div>
 
     <CloneDialog
-      kind-label="PersistentVolume"
-      :namespace-scoped="false"
       v-model="cloneMode"
       v-model:name-value="cloneName"
       v-model:target="cloneTarget"
+      kind-label="PersistentVolume"
+      :namespace-scoped="false"
       :name-options="cloneNameOptions"
       :name-loading="cloneNameLoading"
       :loading="cloneLoading"
@@ -118,14 +139,27 @@ function handleMaximize() {
           </div>
           <div class="yaml-card-actions">
             <el-button size="small" @click="handleCancel">取消</el-button>
-            <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit">创建</el-button>
+            <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit"
+              >创建</el-button
+            >
           </div>
         </div>
         <div class="yaml-card-body">
-          <YamlEditor ref="yamlEditorRef" v-model="yamlContent" height="calc(100dvh - 180px)" :read-only="false" editable auto-format :show-toolbar="false" title="YAML 配置">
+          <YamlEditor
+            ref="yamlEditorRef"
+            v-model="yamlContent"
+            height="calc(100dvh - 180px)"
+            :read-only="false"
+            editable
+            auto-format
+            :show-toolbar="false"
+            title="YAML 配置"
+          >
             <template #fullscreen-actions>
               <el-button size="small" @click="handleCancel">取消</el-button>
-              <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit">创建</el-button>
+              <el-button size="small" type="primary" :loading="submitting" @click="handleYamlSubmit"
+                >创建</el-button
+              >
             </template>
           </YamlEditor>
         </div>
@@ -135,9 +169,19 @@ function handleMaximize() {
 </template>
 
 <style scoped>
-.pv-create { max-width: 1100px; margin: 0 auto; padding: var(--gk-space-5) 0; }
-.mode-switcher { display: flex; justify-content: center; margin-bottom: var(--gk-space-3); }
-.yaml-mode { padding: 0 16px; }
+.pv-create {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--gk-space-5) 0;
+}
+.mode-switcher {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--gk-space-3);
+}
+.yaml-mode {
+  padding: 0 16px;
+}
 
 .yaml-card {
   border: 1px solid var(--el-border-color-light);

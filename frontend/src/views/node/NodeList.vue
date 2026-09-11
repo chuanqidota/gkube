@@ -22,7 +22,9 @@ const { t } = useI18n()
 const router = useRouter()
 const clusterStore = useClusterStore()
 const storedView = localStorage.getItem('gkube.node.viewMode')
-const viewMode = ref<'card' | 'table'>(storedView === 'table' || storedView === 'card' ? storedView : 'card')
+const viewMode = ref<'card' | 'table'>(
+  storedView === 'table' || storedView === 'card' ? storedView : 'card',
+)
 const loading = ref(false)
 const nodeList = ref<NodeInfo[]>([])
 const searchName = ref('')
@@ -79,21 +81,36 @@ function handleViewYaml(row: NodeInfo) {
   yamlDrawerVisible.value = true
 }
 
-function handleYamlSaved() { fetchNodes() }
+function handleYamlSaved() {
+  fetchNodes()
+}
 
-function handleDetail(row: NodeInfo) { router.push(`/nodes/${row.name}`) }
+function handleDetail(row: NodeInfo) {
+  router.push(`/nodes/${row.name}`)
+}
 
-function handleTaints(row: NodeInfo) { taintDialog.value?.open(row.name, row.taints) }
-function handleLabels(row: NodeInfo) { labelDialog.value?.open(row.name, row.labels) }
-function handleDrain(row: NodeInfo) { drainDialog.value?.open(row.name) }
+function handleTaints(row: NodeInfo) {
+  taintDialog.value?.open(row.name, row.taints)
+}
+function handleLabels(row: NodeInfo) {
+  labelDialog.value?.open(row.name, row.labels)
+}
+function handleDrain(row: NodeInfo) {
+  drainDialog.value?.open(row.name)
+}
 
 const { handleCordon, handleDelete } = useNodeActions(() => fetchNodes())
 
 // 自动刷新走 silent 路径（不显示遮罩）；手动刷新走非 silent（显示遮罩）
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(
-  () => fetchNodes(true),
-  { manualFetch: () => fetchNodes(false) },
-)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(() => fetchNodes(true), { manualFetch: () => fetchNodes(false) })
 
 onMounted(() => fetchNodes())
 </script>
@@ -126,12 +143,25 @@ onMounted(() => fetchNodes())
       </template>
     </ResourceListToolbar>
     <el-card shadow="never" class="table-card">
-      <el-table v-if="viewMode === 'table'" :data="filteredList" v-loading="loading" stripe>
+      <el-table v-if="viewMode === 'table'" v-loading="loading" :data="filteredList" stripe>
         <el-table-column :label="t('common.status')" width="90" align="center">
-          <template #default="{ row }"><el-tag :type="statusType(row)" size="small" effect="dark">{{ row.status || 'Unknown' }}</el-tag></template>
+          <template #default="{ row }"
+            ><el-tag :type="statusType(row)" size="small" effect="dark">{{
+              row.status || 'Unknown'
+            }}</el-tag></template
+          >
         </el-table-column>
-        <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }"><el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button></template>
+        <el-table-column
+          prop="name"
+          :label="t('common.name')"
+          min-width="200"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }"
+            ><el-button link type="primary" @click="handleDetail(row)">{{
+              row.name
+            }}</el-button></template
+          >
         </el-table-column>
         <el-table-column prop="internal_ip" :label="t('node.internalIp')" width="150">
           <template #default="{ row }">{{ row.internal_ip || '-' }}</template>
@@ -139,75 +169,172 @@ onMounted(() => fetchNodes())
         <el-table-column prop="roles" :label="t('node.roles')" width="110">
           <template #default="{ row }">{{ row.roles || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="version" :label="t('node.version')" width="120" show-overflow-tooltip>
+        <el-table-column
+          prop="version"
+          :label="t('node.version')"
+          width="120"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">{{ row.version || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="creationTimestamp" :label="t('common.age')" width="110" show-overflow-tooltip>
+        <el-table-column
+          prop="creationTimestamp"
+          :label="t('common.age')"
+          width="110"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">{{ formatAge(row.creationTimestamp, false) }}</template>
         </el-table-column>
         <el-table-column :label="t('common.actions')" min-width="380" fixed="right" align="center">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-              <el-button size="small" :type="row.unschedulable ? 'success' : 'warning'" @click="handleCordon(row.name, row.unschedulable)">
+              <el-button
+                size="small"
+                :type="row.unschedulable ? 'success' : 'warning'"
+                @click="handleCordon(row.name, row.unschedulable)"
+              >
                 {{ row.unschedulable ? t('node.uncordonButton') : t('node.cordonButton') }}
               </el-button>
-              <el-button size="small" type="primary" @click="handleTaints(row)">{{ t('node.taintButton') }}</el-button>
-              <el-button size="small" type="info" @click="handleLabels(row)">{{ t('node.labelButton') }}</el-button>
-              <el-button size="small" type="danger" @click="handleDrain(row)">{{ t('node.drainButton') }}</el-button>
-              <el-tooltip v-if="row.status === 'Ready'" :content="t('node.deleteReadyWarning')" placement="top">
-                <span><el-button size="small" type="danger" disabled>{{ t('node.deleteButton') }}</el-button></span>
+              <el-button size="small" type="primary" @click="handleTaints(row)">{{
+                t('node.taintButton')
+              }}</el-button>
+              <el-button size="small" type="info" @click="handleLabels(row)">{{
+                t('node.labelButton')
+              }}</el-button>
+              <el-button size="small" type="danger" @click="handleDrain(row)">{{
+                t('node.drainButton')
+              }}</el-button>
+              <el-tooltip
+                v-if="row.status === 'Ready'"
+                :content="t('node.deleteReadyWarning')"
+                placement="top"
+              >
+                <span
+                  ><el-button size="small" type="danger" disabled>{{
+                    t('node.deleteButton')
+                  }}</el-button></span
+                >
               </el-tooltip>
-              <el-button v-else size="small" type="danger" @click="handleDelete(row.name, row.status === 'Ready')">{{ t('node.deleteButton') }}</el-button>
+              <el-button
+                v-else
+                size="small"
+                type="danger"
+                @click="handleDelete(row.name, row.status === 'Ready')"
+                >{{ t('node.deleteButton') }}</el-button
+              >
             </div>
           </template>
         </el-table-column>
       </el-table>
       <el-row v-else :gutter="16">
-        <el-col v-for="node in filteredList" :key="node.name" :xs="24" :sm="12" :md="8" style="margin-bottom: var(--gk-space-4);">
+        <el-col
+          v-for="node in filteredList"
+          :key="node.name"
+          :xs="24"
+          :sm="12"
+          :md="8"
+          style="margin-bottom: var(--gk-space-4)"
+        >
           <el-card shadow="hover" class="node-card">
             <template #header>
               <div class="node-header">
-                <el-button link type="primary" @click="handleDetail(node)">{{ node.name }}</el-button>
+                <el-button link type="primary" @click="handleDetail(node)">{{
+                  node.name
+                }}</el-button>
                 <div class="node-header-tags">
-                  <el-tag :type="statusType(node)" size="small" effect="dark">{{ node.status || 'Unknown' }}</el-tag>
+                  <el-tag :type="statusType(node)" size="small" effect="dark">{{
+                    node.status || 'Unknown'
+                  }}</el-tag>
                   <el-tag v-if="node.roles" size="small" effect="plain">{{ node.roles }}</el-tag>
-                  <el-tag v-if="node.unschedulable" type="warning" size="small">{{ t('node.alreadyCordoned') }}</el-tag>
+                  <el-tag v-if="node.unschedulable" type="warning" size="small">{{
+                    t('node.alreadyCordoned')
+                  }}</el-tag>
                 </div>
               </div>
             </template>
 
             <div class="node-meta">
-              {{ node.internal_ip || '-' }}<template v-if="node.version"> · {{ node.version }}</template><template v-if="node.creationTimestamp"> · {{ formatAge(node.creationTimestamp, false) }}</template>
+              {{ node.internal_ip || '-'
+              }}<template v-if="node.version"> · {{ node.version }}</template
+              ><template v-if="node.creationTimestamp">
+                · {{ formatAge(node.creationTimestamp, false) }}</template
+              >
             </div>
 
             <div class="node-usage">
               <div class="usage-item">
                 <span class="usage-label">CPU</span>
-                <el-progress :percentage="usagePercent(node.cpu_used, node.cpu_total)" :color="progressColor(usagePercent(node.cpu_used, node.cpu_total))" :stroke-width="16" :text-inside="true" :format="(p: number) => `${fmtCpu(node.cpu_used)}/${fmtCpu(node.cpu_total)}核 ${p}%`" />
+                <el-progress
+                  :percentage="usagePercent(node.cpu_used, node.cpu_total)"
+                  :color="progressColor(usagePercent(node.cpu_used, node.cpu_total))"
+                  :stroke-width="16"
+                  :text-inside="true"
+                  :format="
+                    (p: number) => `${fmtCpu(node.cpu_used)}/${fmtCpu(node.cpu_total)}核 ${p}%`
+                  "
+                />
               </div>
               <div class="usage-item">
                 <span class="usage-label">{{ t('node.memory') }}</span>
-                <el-progress :percentage="usagePercent(node.mem_used, node.mem_total)" :color="progressColor(usagePercent(node.mem_used, node.mem_total))" :stroke-width="16" :text-inside="true" :format="(p: number) => `${fmtMem(node.mem_used)}/${fmtMem(node.mem_total)}GiB ${p}%`" />
+                <el-progress
+                  :percentage="usagePercent(node.mem_used, node.mem_total)"
+                  :color="progressColor(usagePercent(node.mem_used, node.mem_total))"
+                  :stroke-width="16"
+                  :text-inside="true"
+                  :format="
+                    (p: number) => `${fmtMem(node.mem_used)}/${fmtMem(node.mem_total)}GiB ${p}%`
+                  "
+                />
               </div>
               <div class="usage-item">
                 <span class="usage-label">Pods</span>
-                <el-progress :percentage="usagePercent(node.pod_count, node.pod_total)" :color="progressColor(usagePercent(node.pod_count, node.pod_total))" :stroke-width="16" :text-inside="true" :format="() => `${node.pod_count || 0}/${node.pod_total || 0}`" />
+                <el-progress
+                  :percentage="usagePercent(node.pod_count, node.pod_total)"
+                  :color="progressColor(usagePercent(node.pod_count, node.pod_total))"
+                  :stroke-width="16"
+                  :text-inside="true"
+                  :format="() => `${node.pod_count || 0}/${node.pod_total || 0}`"
+                />
               </div>
             </div>
 
             <div class="node-footer">
               <el-button size="small" @click="handleViewYaml(node)">YAML</el-button>
-              <el-button size="small" :type="node.unschedulable ? 'success' : 'warning'" @click="handleCordon(node.name, node.unschedulable)">
+              <el-button
+                size="small"
+                :type="node.unschedulable ? 'success' : 'warning'"
+                @click="handleCordon(node.name, node.unschedulable)"
+              >
                 {{ node.unschedulable ? t('node.uncordonButton') : t('node.cordonButton') }}
               </el-button>
-              <el-button size="small" type="primary" @click="handleTaints(node)">{{ t('node.taintButton') }}</el-button>
-              <el-button size="small" type="info" @click="handleLabels(node)">{{ t('node.labelButton') }}</el-button>
-              <el-button size="small" type="danger" @click="handleDrain(node)">{{ t('node.drainButton') }}</el-button>
-              <el-tooltip v-if="node.status === 'Ready'" :content="t('node.deleteReadyWarning')" placement="top">
-                <span><el-button size="small" type="danger" disabled>{{ t('node.deleteButton') }}</el-button></span>
+              <el-button size="small" type="primary" @click="handleTaints(node)">{{
+                t('node.taintButton')
+              }}</el-button>
+              <el-button size="small" type="info" @click="handleLabels(node)">{{
+                t('node.labelButton')
+              }}</el-button>
+              <el-button size="small" type="danger" @click="handleDrain(node)">{{
+                t('node.drainButton')
+              }}</el-button>
+              <el-tooltip
+                v-if="node.status === 'Ready'"
+                :content="t('node.deleteReadyWarning')"
+                placement="top"
+              >
+                <span
+                  ><el-button size="small" type="danger" disabled>{{
+                    t('node.deleteButton')
+                  }}</el-button></span
+                >
               </el-tooltip>
-              <el-button v-else size="small" type="danger" @click="handleDelete(node.name, node.status === 'Ready')">{{ t('node.deleteButton') }}</el-button>
+              <el-button
+                v-else
+                size="small"
+                type="danger"
+                @click="handleDelete(node.name, node.status === 'Ready')"
+                >{{ t('node.deleteButton') }}</el-button
+              >
             </div>
           </el-card>
         </el-col>
@@ -232,24 +359,78 @@ onMounted(() => fetchNodes())
 </template>
 
 <style scoped>
-.page-container { padding: var(--gk-space-5); }
-.table-card { border-radius: var(--gk-radius-md); }
-.table-actions { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: var(--gk-space-1); }
-.table-actions .el-button { margin-left: 0 !important; }
+.page-container {
+  padding: var(--gk-space-5);
+}
+.table-card {
+  border-radius: var(--gk-radius-md);
+}
+.table-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--gk-space-1);
+}
+.table-actions .el-button {
+  margin-left: 0 !important;
+}
 .node-card {
   height: 100%;
   background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%);
   border-color: var(--gk-color-primary-light);
 }
-.node-header { display: flex; justify-content: space-between; align-items: center; gap: var(--gk-space-2); }
-.node-header-tags { display: flex; align-items: center; gap: 6px; }
-.node-meta { font-size: 12px; color: var(--gk-color-text-secondary); margin-bottom: var(--gk-space-3); }
-.node-usage { margin-bottom: var(--gk-space-3); }
-.usage-item { display: flex; align-items: center; margin-bottom: 10px; }
-.usage-item:last-child { margin-bottom: 0; }
-.usage-label { width: 36px; flex-shrink: 0; font-size: 12px; color: var(--gk-color-text-secondary); }
-.usage-item :deep(.el-progress) { flex: 1; }
-.usage-item :deep(.el-progress-bar) { padding-right: 0; }
-.node-footer { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--gk-space-1); border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
-.node-footer .el-button { margin-left: 0 !important; padding: 5px 8px; font-size: 12px; height: auto; }
+.node-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--gk-space-2);
+}
+.node-header-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.node-meta {
+  font-size: 12px;
+  color: var(--gk-color-text-secondary);
+  margin-bottom: var(--gk-space-3);
+}
+.node-usage {
+  margin-bottom: var(--gk-space-3);
+}
+.usage-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.usage-item:last-child {
+  margin-bottom: 0;
+}
+.usage-label {
+  width: 36px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--gk-color-text-secondary);
+}
+.usage-item :deep(.el-progress) {
+  flex: 1;
+}
+.usage-item :deep(.el-progress-bar) {
+  padding-right: 0;
+}
+.node-footer {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--gk-space-1);
+  border-top: 1px solid var(--gk-color-border-light);
+  padding-top: 12px;
+}
+.node-footer .el-button {
+  margin-left: 0 !important;
+  padding: 5px 8px;
+  font-size: 12px;
+  height: auto;
+}
 </style>

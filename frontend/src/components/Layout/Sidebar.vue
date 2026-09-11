@@ -1,3 +1,70 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
+import { useTheme } from '@/styles/theme-switcher'
+import Logo from '@/components/Logo.vue'
+import {
+  Odometer,
+  Connection,
+  Setting,
+  User,
+  Document,
+  Box,
+  Coin,
+  Files,
+  Share,
+  Link,
+  Cpu,
+  FolderOpened,
+  Tickets,
+  Key,
+  Bell,
+  DataLine,
+  Lock,
+  Grid,
+  DocumentCopy,
+  List,
+  SetUp,
+  Finished,
+  Timer,
+  CopyDocument,
+  Avatar,
+} from '@element-plus/icons-vue'
+
+defineProps<{
+  isCollapse: boolean
+}>()
+
+const route = useRoute()
+const router = useRouter()
+const { t } = useI18n()
+const authStore = useAuthStore()
+const { isDark } = useTheme()
+
+const logoTone = computed(() => (isDark.value ? 'light' : 'dark'))
+
+// 仅管理员可见系统管理（用户/审计/权限）入口；未加载到用户信息时默认可见，避免误隐藏。
+const isAdmin = computed(() => authStore.user?.isAdmin || authStore.user?.isSuperAdmin || false)
+
+const activeMenu = computed(() => {
+  if (route.path.startsWith('/autoscaling')) return '/autoscaling'
+  // 详情页高亮父级菜单项
+  if (route.meta.parent) {
+    const parentRoute = router.resolve({ name: route.meta.parent as string })
+    if (parentRoute.matched.length) return parentRoute.path
+  }
+  return route.path
+})
+
+function navigateTo(path: string) {
+  if (route.path !== path) {
+    router.push(path).catch(() => {})
+  }
+}
+</script>
+
 <template>
   <div class="sidebar-container">
     <div class="sidebar-logo">
@@ -43,7 +110,10 @@
           <el-icon><DocumentCopy /></el-icon>
           <template #title>{{ t('sidebar.deployments') }}</template>
         </el-menu-item>
-        <el-menu-item index="/workloads/statefulsets" @click="navigateTo('/workloads/statefulsets')">
+        <el-menu-item
+          index="/workloads/statefulsets"
+          @click="navigateTo('/workloads/statefulsets')"
+        >
           <el-icon><List /></el-icon>
           <template #title>{{ t('sidebar.statefulsets') }}</template>
         </el-menu-item>
@@ -82,7 +152,10 @@
           <el-icon><Link /></el-icon>
           <template #title>{{ t('sidebar.ingresses') }}</template>
         </el-menu-item>
-        <el-menu-item index="/network/networkpolicies" @click="navigateTo('/network/networkpolicies')">
+        <el-menu-item
+          index="/network/networkpolicies"
+          @click="navigateTo('/network/networkpolicies')"
+        >
           <el-icon><Lock /></el-icon>
           <template #title>{{ t('sidebar.networkpolicies') }}</template>
         </el-menu-item>
@@ -101,7 +174,10 @@
           <el-icon><Box /></el-icon>
           <template #title>{{ t('sidebar.pvcs') }}</template>
         </el-menu-item>
-        <el-menu-item index="/storage/storageclasses" @click="navigateTo('/storage/storageclasses')">
+        <el-menu-item
+          index="/storage/storageclasses"
+          @click="navigateTo('/storage/storageclasses')"
+        >
           <el-icon><Files /></el-icon>
           <template #title>{{ t('sidebar.storageclasses') }}</template>
         </el-menu-item>
@@ -153,73 +229,6 @@
     </el-menu>
   </div>
 </template>
-
-<script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@/stores/auth'
-import { useTheme } from '@/styles/theme-switcher'
-import Logo from '@/components/Logo.vue'
-import {
-  Odometer,
-  Connection,
-  Setting,
-  User,
-  Document,
-  Box,
-  Coin,
-  Files,
-  Share,
-  Link,
-  Cpu,
-  FolderOpened,
-  Tickets,
-  Key,
-  Bell,
-  DataLine,
-  Lock,
-  Grid,
-  DocumentCopy,
-  List,
-  SetUp,
-  Finished,
-  Timer,
-  CopyDocument,
-  Avatar,
-} from '@element-plus/icons-vue'
-
-defineProps<{
-  isCollapse: boolean
-}>()
-
-const route = useRoute()
-const router = useRouter()
-const { t } = useI18n()
-const authStore = useAuthStore()
-const { isDark } = useTheme()
-
-const logoTone = computed(() => isDark.value ? 'light' : 'dark')
-
-// 仅管理员可见系统管理（用户/审计/权限）入口；未加载到用户信息时默认可见，避免误隐藏。
-const isAdmin = computed(() => authStore.user?.isAdmin || authStore.user?.isSuperAdmin || false)
-
-const activeMenu = computed(() => {
-  if (route.path.startsWith('/autoscaling')) return '/autoscaling'
-  // 详情页高亮父级菜单项
-  if (route.meta.parent) {
-    const parentRoute = router.resolve({ name: route.meta.parent as string })
-    if (parentRoute.matched.length) return parentRoute.path
-  }
-  return route.path
-})
-
-function navigateTo(path: string) {
-  if (route.path !== path) {
-    router.push(path).catch(() => {})
-  }
-}
-</script>
 
 <style scoped>
 .sidebar-container {
@@ -306,11 +315,11 @@ function navigateTo(path: string) {
 }
 
 /* Dark theme scrollbar */
-[data-theme="dark"] .sidebar-menu::-webkit-scrollbar-thumb {
+[data-theme='dark'] .sidebar-menu::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
 }
 
-[data-theme="dark"] .sidebar-menu::-webkit-scrollbar-thumb:hover {
+[data-theme='dark'] .sidebar-menu::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
 </style>

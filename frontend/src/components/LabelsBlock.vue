@@ -10,13 +10,7 @@ defineProps<Props>()
   <div class="labels-block">
     <div v-if="!labels || Object.keys(labels).length === 0" class="empty-text">无</div>
     <div v-else class="label-list">
-      <el-tag
-        v-for="(val, key) in labels"
-        :key="key"
-        size="small"
-        type="info"
-        class="label-tag"
-      >
+      <el-tag v-for="(val, key) in labels" :key="key" size="small" type="info" class="label-tag">
         {{ key }}={{ val }}
       </el-tag>
     </div>

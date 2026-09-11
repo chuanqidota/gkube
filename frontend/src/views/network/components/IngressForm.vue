@@ -6,15 +6,24 @@ import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import { getNamespaceList, createIngress, updateIngress, extractNamespaceNames, getIngressClassList } from '@/api/resource'
+import {
+  getNamespaceList,
+  createIngress,
+  updateIngress,
+  extractNamespaceNames,
+  getIngressClassList,
+} from '@/api/resource'
 
-const props = withDefaults(defineProps<{
-  isEdit?: boolean
-  initialData?: any
-}>(), {
-  isEdit: false,
-  initialData: undefined,
-})
+const props = withDefaults(
+  defineProps<{
+    isEdit?: boolean
+    initialData?: any
+  }>(),
+  {
+    isEdit: false,
+    initialData: undefined,
+  },
+)
 
 const emit = defineEmits<{
   success: []
@@ -31,7 +40,10 @@ const ingressClassLoading = ref(false)
 
 // ---- Form Data ----
 
-interface Label { key: string; value: string }
+interface Label {
+  key: string
+  value: string
+}
 
 interface IngressPath {
   path: string
@@ -50,7 +62,10 @@ interface TlsConfig {
   secretName: string
 }
 
-interface Annotation { key: string; value: string }
+interface Annotation {
+  key: string
+  value: string
+}
 
 interface FormData {
   name: string
@@ -75,7 +90,9 @@ const form = reactive<FormData>({
   defaultBackendEnabled: false,
   defaultBackendService: '',
   defaultBackendPort: null,
-  rules: [{ host: '', paths: [{ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }] }],
+  rules: [
+    { host: '', paths: [{ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }] },
+  ],
   tlsEnabled: false,
   tls: [{ hosts: '', secretName: '' }],
 })
@@ -87,7 +104,11 @@ const formRef = ref<FormInstance>()
 const formRules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符，以字母开头', trigger: 'blur' },
+    {
+      pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/,
+      message: '仅支持小写字母、数字和连字符，以字母开头',
+      trigger: 'blur',
+    },
     { max: 253, message: '最长 253 个字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
@@ -129,37 +150,63 @@ onMounted(() => {
 })
 
 // 克隆流入（创建模式 isEdit=false，onMounted 不会触发 parseInitialData，故用 watch 兜底）
-watch(() => props.initialData, (newData) => {
-  if (newData) parseInitialData(newData)
-})
+watch(
+  () => props.initialData,
+  (newData) => {
+    if (newData) parseInitialData(newData)
+  },
+)
 
 // ---- Label Management ----
 
-function addLabel() { form.labels.push({ key: '', value: '' }) }
-function removeLabel(i: number) { form.labels.splice(i, 1) }
+function addLabel() {
+  form.labels.push({ key: '', value: '' })
+}
+function removeLabel(i: number) {
+  form.labels.splice(i, 1)
+}
 
 // ---- Rule Management ----
 
 function addRule() {
-  form.rules.push({ host: '', paths: [{ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }] })
+  form.rules.push({
+    host: '',
+    paths: [{ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }],
+  })
 }
 function removeRule(i: number) {
-  if (form.rules.length <= 1) { ElMessage.warning(t('network.atLeastOneRule')); return }
+  if (form.rules.length <= 1) {
+    ElMessage.warning(t('network.atLeastOneRule'))
+    return
+  }
   form.rules.splice(i, 1)
 }
 function addPath(ruleIdx: number) {
-  form.rules[ruleIdx].paths.push({ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 })
+  form.rules[ruleIdx].paths.push({
+    path: '/',
+    pathType: 'Prefix',
+    backendService: '',
+    backendPort: 80,
+  })
 }
 function removePath(ruleIdx: number, pathIdx: number) {
-  if (form.rules[ruleIdx].paths.length <= 1) { ElMessage.warning(t('network.hostPathRequired')); return }
+  if (form.rules[ruleIdx].paths.length <= 1) {
+    ElMessage.warning(t('network.hostPathRequired'))
+    return
+  }
   form.rules[ruleIdx].paths.splice(pathIdx, 1)
 }
 
 // ---- TLS Management ----
 
-function addTls() { form.tls.push({ hosts: '', secretName: '' }) }
+function addTls() {
+  form.tls.push({ hosts: '', secretName: '' })
+}
 function removeTls(i: number) {
-  if (form.tls.length <= 1) { ElMessage.warning(t('network.atLeastOneTls')); return }
+  if (form.tls.length <= 1) {
+    ElMessage.warning(t('network.atLeastOneTls'))
+    return
+  }
   form.tls.splice(i, 1)
 }
 
@@ -172,16 +219,18 @@ const generatedYaml = computed(() => {
 
 function buildK8sIngress(): Record<string, any> {
   const labels: Record<string, string> = {}
-  form.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+  form.labels.forEach((l) => {
+    if (l.key.trim()) labels[l.key.trim()] = l.value
+  })
 
   const rules = form.rules
-    .filter(r => r.host.trim())
-    .map(r => ({
+    .filter((r) => r.host.trim())
+    .map((r) => ({
       host: r.host.trim(),
       http: {
         paths: r.paths
-          .filter(p => p.backendService.trim())
-          .map(p => ({
+          .filter((p) => p.backendService.trim())
+          .map((p) => ({
             path: p.path,
             pathType: p.pathType,
             backend: {
@@ -195,9 +244,15 @@ function buildK8sIngress(): Record<string, any> {
     }))
 
   const annotations: Record<string, string> = {}
-  form.annotations.forEach(a => { if (a.key.trim()) annotations[a.key.trim()] = a.value })
+  form.annotations.forEach((a) => {
+    if (a.key.trim()) annotations[a.key.trim()] = a.value
+  })
 
-  const metadata: Record<string, any> = { name: form.name, namespace: form.namespace, labels: { ...labels } }
+  const metadata: Record<string, any> = {
+    name: form.name,
+    namespace: form.namespace,
+    labels: { ...labels },
+  }
   if (Object.keys(annotations).length > 0) metadata.annotations = annotations
 
   const spec: Record<string, any> = {
@@ -224,9 +279,12 @@ function buildK8sIngress(): Record<string, any> {
 
   if (form.tlsEnabled) {
     const tls = form.tls
-      .filter(t => t.hosts.trim())
-      .map(t => ({
-        hosts: t.hosts.split(',').map(h => h.trim()).filter(Boolean),
+      .filter((t) => t.hosts.trim())
+      .map((t) => ({
+        hosts: t.hosts
+          .split(',')
+          .map((h) => h.trim())
+          .filter(Boolean),
         secretName: t.secretName,
       }))
     if (tls.length > 0) resource.spec.tls = tls
@@ -247,15 +305,17 @@ function parseInitialData(data: any) {
 
   // Labels
   const labels = meta.labels || {}
-  form.labels = Object.keys(labels).length > 0
-    ? Object.entries(labels).map(([k, v]) => ({ key: k, value: v as string }))
-    : [{ key: 'app', value: '' }]
+  form.labels =
+    Object.keys(labels).length > 0
+      ? Object.entries(labels).map(([k, v]) => ({ key: k, value: v as string }))
+      : [{ key: 'app', value: '' }]
 
   // Annotations
   const annotations = meta.annotations || {}
-  form.annotations = Object.keys(annotations).length > 0
-    ? Object.entries(annotations).map(([k, v]) => ({ key: k, value: v as string }))
-    : []
+  form.annotations =
+    Object.keys(annotations).length > 0
+      ? Object.entries(annotations).map(([k, v]) => ({ key: k, value: v as string }))
+      : []
 
   // Default backend
   const defaultBackend = spec.defaultBackend
@@ -271,7 +331,7 @@ function parseInitialData(data: any) {
     const hostMap = new Map<string, IngressPath[]>()
     for (const rule of specRules) {
       const host = rule.host || ''
-      for (const p of (rule.http?.paths || [])) {
+      for (const p of rule.http?.paths || []) {
         const path: IngressPath = {
           path: p.path || '/',
           pathType: p.pathType || 'Prefix',
@@ -285,18 +345,21 @@ function parseInitialData(data: any) {
     }
     form.rules = Array.from(hostMap.entries()).map(([host, paths]) => ({ host, paths }))
   } else {
-    form.rules = [{ host: '', paths: [{ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }] }]
+    form.rules = [
+      { host: '', paths: [{ path: '/', pathType: 'Prefix', backendService: '', backendPort: 80 }] },
+    ]
   }
 
   // TLS
   const tls = spec.tls || []
   form.tlsEnabled = tls.length > 0
-  form.tls = tls.length > 0
-    ? tls.map((t: any) => ({
-        hosts: (t.hosts || []).join(', '),
-        secretName: t.secretName || '',
-      }))
-    : [{ hosts: '', secretName: '' }]
+  form.tls =
+    tls.length > 0
+      ? tls.map((t: any) => ({
+          hosts: (t.hosts || []).join(', '),
+          secretName: t.secretName || '',
+        }))
+      : [{ hosts: '', secretName: '' }]
 }
 
 // ---- Submit ----
@@ -306,11 +369,20 @@ async function handleSubmit() {
   if (!valid) return
   for (let i = 0; i < form.rules.length; i++) {
     const r = form.rules[i]
-    if (!r.host.trim()) { ElMessage.error(t('network.hostRequired', { n: i + 1 })); return }
+    if (!r.host.trim()) {
+      ElMessage.error(t('network.hostRequired', { n: i + 1 }))
+      return
+    }
     for (let j = 0; j < r.paths.length; j++) {
       const p = r.paths[j]
-      if (!p.backendService.trim()) { ElMessage.error(t('network.backendServiceRequired', { n: i + 1, m: j + 1 })); return }
-      if (!p.backendPort) { ElMessage.error(t('network.backendPortRequired', { n: i + 1, m: j + 1 })); return }
+      if (!p.backendService.trim()) {
+        ElMessage.error(t('network.backendServiceRequired', { n: i + 1, m: j + 1 }))
+        return
+      }
+      if (!p.backendPort) {
+        ElMessage.error(t('network.backendPortRequired', { n: i + 1, m: j + 1 }))
+        return
+      }
     }
   }
 
@@ -326,7 +398,9 @@ async function handleSubmit() {
       router.push('/network/ingresses')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
+    ElMessage.error(
+      e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')),
+    )
   } finally {
     submitting.value = false
   }
@@ -344,7 +418,6 @@ function handleCancel() {
 <template>
   <div class="ingress-form">
     <el-form ref="formRef" :model="form" :rules="formRules" label-position="top">
-
       <!-- Section 1: Basic Info -->
       <div class="form-section">
         <div class="section-sidebar">
@@ -356,15 +429,30 @@ function handleCancel() {
               <el-input v-model="form.name" placeholder="my-ingress" />
             </el-form-item>
             <el-form-item label="命名空间" prop="namespace">
-              <el-select v-model="form.namespace" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+              <el-select
+                v-model="form.namespace"
+                filterable
+                placeholder="选择命名空间"
+                style="width: 100%"
+                :loading="namespaceLoading"
+              >
                 <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
               </el-select>
             </el-form-item>
             <el-form-item label="Ingress Class Name" prop="ingressClassName">
-              <el-select v-model="form.ingressClassName" filterable allow-create placeholder="选择或输入 IngressClass" style="width: 100%;" :loading="ingressClassLoading">
+              <el-select
+                v-model="form.ingressClassName"
+                filterable
+                allow-create
+                placeholder="选择或输入 IngressClass"
+                style="width: 100%"
+                :loading="ingressClassLoading"
+              >
                 <el-option v-for="ic in ingressClasses" :key="ic" :label="ic" :value="ic" />
               </el-select>
-              <div class="form-tip" v-if="ingressClasses.length === 0 && !ingressClassLoading">未检测到 IngressClass，可手动输入名称</div>
+              <div v-if="ingressClasses.length === 0 && !ingressClassLoading" class="form-tip">
+                未检测到 IngressClass，可手动输入名称
+              </div>
             </el-form-item>
           </div>
         </div>
@@ -377,15 +465,21 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="标签">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
                 <el-input v-model="label.key" placeholder="Key" />
                 <el-input v-model="label.value" placeholder="Value" />
-                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="removeLabel(i)">
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.labels.length <= 1"
+                  @click="removeLabel(i)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addLabel" size="small">
+              <el-button text type="primary" size="small" @click="addLabel">
                 <el-icon><Plus /></el-icon> 添加标签
               </el-button>
             </div>
@@ -400,18 +494,29 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="注解">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(ann, i) in form.annotations" :key="i" class="kv-row">
-                <el-input v-model="ann.key" placeholder="Key (如 nginx.ingress.kubernetes.io/rewrite-target)" />
+                <el-input
+                  v-model="ann.key"
+                  placeholder="Key (如 nginx.ingress.kubernetes.io/rewrite-target)"
+                />
                 <el-input v-model="ann.value" placeholder="Value" />
                 <el-button type="danger" text circle @click="form.annotations.splice(i, 1)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="form.annotations.push({ key: '', value: '' })" size="small">
+              <el-button
+                text
+                type="primary"
+                size="small"
+                @click="form.annotations.push({ key: '', value: '' })"
+              >
                 <el-icon><Plus /></el-icon> 添加注解
               </el-button>
-              <div class="form-tip">常用注解: nginx.ingress.kubernetes.io/rewrite-target, nginx.ingress.kubernetes.io/ssl-redirect</div>
+              <div class="form-tip">
+                常用注解: nginx.ingress.kubernetes.io/rewrite-target,
+                nginx.ingress.kubernetes.io/ssl-redirect
+              </div>
             </div>
           </el-form-item>
         </div>
@@ -424,29 +529,49 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="规则" required>
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(rule, ri) in form.rules" :key="ri" class="rule-card">
                 <div class="rule-row-top">
-                  <el-input v-model="rule.host" placeholder="Host (如 example.com)" style="flex: 2;" />
+                  <el-input
+                    v-model="rule.host"
+                    placeholder="Host (如 example.com)"
+                    style="flex: 2"
+                  />
                   <el-button type="danger" text circle @click="removeRule(ri)">
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
                 <div v-for="(path, pi) in rule.paths" :key="pi" class="path-row">
-                  <el-input v-model="path.path" placeholder="Path" style="flex: 1;" />
-                  <el-select v-model="path.pathType" style="width: 160px;">
+                  <el-input v-model="path.path" placeholder="Path" style="flex: 1" />
+                  <el-select v-model="path.pathType" style="width: 160px">
                     <el-option label="Prefix" value="Prefix" />
                     <el-option label="Exact" value="Exact" />
                     <el-option label="ImplementationSpecific" value="ImplementationSpecific" />
                   </el-select>
                   <span class="backend-label">→</span>
-                  <el-input v-model="path.backendService" placeholder="Service 名称" style="flex: 1;" />
-                  <el-input-number v-model="path.backendPort" :min="1" :max="65535" placeholder="端口" style="width: 140px;" />
+                  <el-input
+                    v-model="path.backendService"
+                    placeholder="Service 名称"
+                    style="flex: 1"
+                  />
+                  <el-input-number
+                    v-model="path.backendPort"
+                    :min="1"
+                    :max="65535"
+                    placeholder="端口"
+                    style="width: 140px"
+                  />
                   <el-button type="danger" text circle size="small" @click="removePath(ri, pi)">
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
-                <el-button text type="primary" size="small" @click="addPath(ri)" style="margin-top: 4px;">
+                <el-button
+                  text
+                  type="primary"
+                  size="small"
+                  style="margin-top: 4px"
+                  @click="addPath(ri)"
+                >
                   <el-icon><Plus /></el-icon> 添加路径
                 </el-button>
               </div>
@@ -474,7 +599,12 @@ function handleCancel() {
                 <el-input v-model="form.defaultBackendService" placeholder="默认后端 Service" />
               </el-form-item>
               <el-form-item label="端口">
-                <el-input-number v-model="form.defaultBackendPort" :min="1" :max="65535" style="width: 100%;" />
+                <el-input-number
+                  v-model="form.defaultBackendPort"
+                  :min="1"
+                  :max="65535"
+                  style="width: 100%"
+                />
               </el-form-item>
             </div>
           </template>
@@ -492,11 +622,15 @@ function handleCancel() {
           </el-form-item>
           <template v-if="form.tlsEnabled">
             <el-form-item label="TLS 配置">
-              <div style="width: 100%;">
+              <div style="width: 100%">
                 <div v-for="(t, ti) in form.tls" :key="ti" class="tls-card">
                   <div class="tls-row">
-                    <el-input v-model="t.hosts" placeholder="Hosts (逗号分隔)" style="flex: 1;" />
-                    <el-input v-model="t.secretName" placeholder="Secret 名称" style="width: 200px;" />
+                    <el-input v-model="t.hosts" placeholder="Hosts (逗号分隔)" style="flex: 1" />
+                    <el-input
+                      v-model="t.secretName"
+                      placeholder="Secret 名称"
+                      style="width: 200px"
+                    />
                     <el-button type="danger" text circle @click="removeTls(ti)">
                       <el-icon><Delete /></el-icon>
                     </el-button>
@@ -517,7 +651,9 @@ function handleCancel() {
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{
+              isEdit ? '更新' : '创建'
+            }}</el-button>
           </div>
         </div>
       </div>

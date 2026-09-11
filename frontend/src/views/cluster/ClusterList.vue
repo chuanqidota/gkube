@@ -23,7 +23,9 @@ const page = ref(1)
 const size = ref(10)
 
 const storedView = localStorage.getItem('gkube.cluster.viewMode')
-const viewMode = ref<'card' | 'table'>(storedView === 'table' || storedView === 'card' ? storedView : 'card')
+const viewMode = ref<'card' | 'table'>(
+  storedView === 'table' || storedView === 'card' ? storedView : 'card',
+)
 
 // 编辑对话框相关
 const editVisible = ref(false)
@@ -74,7 +76,7 @@ async function handleCheck(row: any) {
         version: info.clusterVersion,
         nodeCount: info.nodeCount,
         responseTimeMs: info.responseTimeMs,
-      })
+      }),
     )
     fetchClusters()
   } catch (e: any) {
@@ -87,7 +89,7 @@ async function handleDelete(row: any) {
     await ElMessageBox.confirm(
       t('cluster.deleteClusterConfirm', { name: row.displayName || row.clusterName }),
       t('common.confirm'),
-      { type: 'warning' }
+      { type: 'warning' },
     )
   } catch {
     return // user cancelled
@@ -191,7 +193,15 @@ function parseLabels(raw: unknown): Record<string, string> | null {
   }
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchClusters)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchClusters)
 
 // 成员管理弹窗
 const membersDialogVisible = ref(false)
@@ -238,101 +248,134 @@ onUnmounted(() => clearTimeout(searchDebounce))
     </ResourceListToolbar>
 
     <el-card shadow="never" class="table-card">
-    <el-table v-if="viewMode === 'table'" :data="clusterList" v-loading="loading" stripe>
-      <el-table-column type="selection" width="45" />
-      <el-table-column label="状态" width="100" align="center">
-        <template #default="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag></template>
-      </el-table-column>
-      <el-table-column label="显示名称" min-width="160" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.displayName || row.clusterName }}</template>
-      </el-table-column>
-      <el-table-column prop="clusterName" label="集群名称" min-width="160" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.clusterName || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="版本" width="130" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.clusterVersion || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="节点数" width="90" align="center">
-        <template #default="{ row }">{{ row.nodeCount || 0 }}</template>
-      </el-table-column>
-      <el-table-column label="成员数" width="90" align="center">
-        <template #default="{ row }">{{ row.memberCount || 0 }}</template>
-      </el-table-column>
-      <el-table-column label="描述" min-width="180" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.description || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="标签" min-width="180">
-        <template #default="{ row }">
-          <template v-if="parseLabels(row.labels)">
-            <el-tag
-              v-for="(val, k) in parseLabels(row.labels)!"
-              :key="k"
-              size="small"
-              style="margin: 2px 4px 2px 0;"
-            >{{ k }}={{ val }}</el-tag>
+      <el-table v-if="viewMode === 'table'" v-loading="loading" :data="clusterList" stripe>
+        <el-table-column type="selection" width="45" />
+        <el-table-column label="状态" width="100" align="center">
+          <template #default="{ row }"
+            ><el-tag :type="statusType(row.status)" size="small">{{
+              statusText(row.status)
+            }}</el-tag></template
+          >
+        </el-table-column>
+        <el-table-column label="显示名称" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.displayName || row.clusterName }}</template>
+        </el-table-column>
+        <el-table-column prop="clusterName" label="集群名称" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.clusterName || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="版本" width="130" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.clusterVersion || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="节点数" width="90" align="center">
+          <template #default="{ row }">{{ row.nodeCount || 0 }}</template>
+        </el-table-column>
+        <el-table-column label="成员数" width="90" align="center">
+          <template #default="{ row }">{{ row.memberCount || 0 }}</template>
+        </el-table-column>
+        <el-table-column label="描述" min-width="180" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.description || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="标签" min-width="180">
+          <template #default="{ row }">
+            <template v-if="parseLabels(row.labels)">
+              <el-tag
+                v-for="(val, k) in parseLabels(row.labels)!"
+                :key="k"
+                size="small"
+                style="margin: 2px 4px 2px 0"
+                >{{ k }}={{ val }}</el-tag
+              >
+            </template>
+            <span v-else style="color: var(--gk-color-text-secondary)">-</span>
           </template>
-          <span v-else style="color: var(--gk-color-text-secondary);">-</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right" align="center">
-        <template #default="{ row }">
-          <div class="action-buttons">
-            <el-button size="small" type="primary" @click="handleMembers(row)">
-              <el-icon><User /></el-icon> {{ t('rbac.members') }}
-            </el-button>
-            <el-button size="small" type="success" @click="handleCheck(row)">{{ t('cluster.checkConnection') }}</el-button>
-            <el-button size="small" type="warning" @click="handleEdit(row)">{{ t('common.edit') }}</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('common.delete') }}</el-button>
-          </div>
-        </template>
-      </el-table-column>
-    </el-table>
+        </el-table-column>
+        <el-table-column label="操作" width="280" fixed="right" align="center">
+          <template #default="{ row }">
+            <div class="action-buttons">
+              <el-button size="small" type="primary" @click="handleMembers(row)">
+                <el-icon><User /></el-icon> {{ t('rbac.members') }}
+              </el-button>
+              <el-button size="small" type="success" @click="handleCheck(row)">{{
+                t('cluster.checkConnection')
+              }}</el-button>
+              <el-button size="small" type="warning" @click="handleEdit(row)">{{
+                t('common.edit')
+              }}</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{
+                t('common.delete')
+              }}</el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <el-row :gutter="16" v-else-if="viewMode === 'card' && clusterList.length > 0">
-      <el-col :xs="24" :sm="12" :md="8" v-for="cluster in clusterList" :key="cluster.id" style="margin-bottom: var(--gk-space-4);">
-        <el-card shadow="hover" class="cluster-card">
-          <template #header>
-            <div class="cluster-header">
-              <div class="cluster-info">
-                <h4 style="margin: 0;">{{ cluster.displayName || cluster.clusterName }}</h4>
-                <el-tag :type="statusType(cluster.status)" size="small">{{ statusText(cluster.status) }}</el-tag>
+      <el-row v-else-if="viewMode === 'card' && clusterList.length > 0" :gutter="16">
+        <el-col
+          v-for="cluster in clusterList"
+          :key="cluster.id"
+          :xs="24"
+          :sm="12"
+          :md="8"
+          style="margin-bottom: var(--gk-space-4)"
+        >
+          <el-card shadow="hover" class="cluster-card">
+            <template #header>
+              <div class="cluster-header">
+                <div class="cluster-info">
+                  <h4 style="margin: 0">{{ cluster.displayName || cluster.clusterName }}</h4>
+                  <el-tag :type="statusType(cluster.status)" size="small">{{
+                    statusText(cluster.status)
+                  }}</el-tag>
+                </div>
+              </div>
+            </template>
+            <div class="cluster-body">
+              <div class="cluster-detail">
+                <span class="label">{{ t('cluster.name') }}:</span>
+                <span class="value">{{ cluster.clusterName }}</span>
+              </div>
+              <div class="cluster-detail">
+                <span class="label">{{ t('cluster.version') }}:</span>
+                <span class="value">{{ cluster.clusterVersion || '-' }}</span>
+              </div>
+              <div class="cluster-detail">
+                <span class="label">{{ t('cluster.nodes') }}:</span>
+                <span class="value">{{ cluster.nodeCount || 0 }}</span>
+              </div>
+              <div v-if="cluster.description" class="cluster-detail">
+                <span class="label">{{ t('cluster.description') }}:</span>
+                <span class="value">{{ cluster.description }}</span>
               </div>
             </div>
-          </template>
-          <div class="cluster-body">
-            <div class="cluster-detail">
-              <span class="label">{{ t('cluster.name') }}:</span>
-              <span class="value">{{ cluster.clusterName }}</span>
+            <div class="cluster-footer">
+              <el-button size="small" type="primary" @click="handleMembers(cluster)"
+                ><el-icon><User /></el-icon> {{ t('rbac.members') }}</el-button
+              >
+              <el-button size="small" type="success" @click="handleCheck(cluster)">{{
+                t('cluster.checkConnection')
+              }}</el-button>
+              <el-button size="small" type="warning" @click="handleEdit(cluster)">{{
+                t('common.edit')
+              }}</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(cluster)">{{
+                t('common.delete')
+              }}</el-button>
             </div>
-            <div class="cluster-detail">
-              <span class="label">{{ t('cluster.version') }}:</span>
-              <span class="value">{{ cluster.clusterVersion || '-' }}</span>
-            </div>
-            <div class="cluster-detail">
-              <span class="label">{{ t('cluster.nodes') }}:</span>
-              <span class="value">{{ cluster.nodeCount || 0 }}</span>
-            </div>
-            <div class="cluster-detail" v-if="cluster.description">
-              <span class="label">{{ t('cluster.description') }}:</span>
-              <span class="value">{{ cluster.description }}</span>
-            </div>
-          </div>
-          <div class="cluster-footer">
-            <el-button size="small" type="primary" @click="handleMembers(cluster)"><el-icon><User /></el-icon> {{ t('rbac.members') }}</el-button>
-            <el-button size="small" type="success" @click="handleCheck(cluster)">{{ t('cluster.checkConnection') }}</el-button>
-            <el-button size="small" type="warning" @click="handleEdit(cluster)">{{ t('common.edit') }}</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(cluster)">{{ t('common.delete') }}</el-button>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+          </el-card>
+        </el-col>
+      </el-row>
 
-    <el-empty v-if="!loading && clusterList.length === 0" :description="searchName ? t('cluster.noSearchResults') : t('cluster.noClusters')">
-      <el-button type="success" @click="router.push('/clusters/create')"><el-icon><Plus /></el-icon> {{ t('cluster.add') }}</el-button>
-    </el-empty>
+      <el-empty
+        v-if="!loading && clusterList.length === 0"
+        :description="searchName ? t('cluster.noSearchResults') : t('cluster.noClusters')"
+      >
+        <el-button type="success" @click="router.push('/clusters/create')"
+          ><el-icon><Plus /></el-icon> {{ t('cluster.add') }}</el-button
+        >
+      </el-empty>
     </el-card>
 
-    <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+    <div style="display: flex; justify-content: flex-end; margin-top: 16px">
       <el-pagination
         v-if="total > size"
         :current-page="page"
@@ -347,29 +390,49 @@ onUnmounted(() => clearTimeout(searchDebounce))
     <el-dialog v-model="editVisible" :title="t('cluster.edit')" width="560px" destroy-on-close>
       <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="100px">
         <el-form-item :label="t('cluster.displayName')">
-          <el-input v-model="editForm.displayName" :placeholder="t('cluster.displayNamePlaceholder')" />
+          <el-input
+            v-model="editForm.displayName"
+            :placeholder="t('cluster.displayNamePlaceholder')"
+          />
         </el-form-item>
         <el-form-item :label="t('cluster.description')">
-          <el-input v-model="editForm.description" type="textarea" :rows="3" :placeholder="t('cluster.descriptionPlaceholder')" />
+          <el-input
+            v-model="editForm.description"
+            type="textarea"
+            :rows="3"
+            :placeholder="t('cluster.descriptionPlaceholder')"
+          />
         </el-form-item>
         <el-form-item :label="t('cluster.labels')">
-          <div style="width: 100%;">
+          <div style="width: 100%">
             <div
               v-for="(label, index) in editForm.labels"
               :key="index"
-              style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px;"
+              style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px"
             >
-              <el-input v-model="label.key" :placeholder="t('cluster.keyPlaceholder')" style="flex: 1;" />
-              <el-input v-model="label.value" :placeholder="t('cluster.valuePlaceholder')" style="flex: 1;" />
+              <el-input
+                v-model="label.key"
+                :placeholder="t('cluster.keyPlaceholder')"
+                style="flex: 1"
+              />
+              <el-input
+                v-model="label.value"
+                :placeholder="t('cluster.valuePlaceholder')"
+                style="flex: 1"
+              />
               <el-button type="danger" circle @click="removeEditLabel(index)">-</el-button>
             </div>
-            <el-button @click="addEditLabel" type="primary" plain>{{ t('cluster.addLabel') }}</el-button>
+            <el-button type="primary" plain @click="addEditLabel">{{
+              t('cluster.addLabel')
+            }}</el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="editVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="editLoading" @click="handleEditSubmit">{{ t('common.save') }}</el-button>
+        <el-button type="primary" :loading="editLoading" @click="handleEditSubmit">{{
+          t('common.save')
+        }}</el-button>
       </template>
     </el-dialog>
 
@@ -383,19 +446,54 @@ onUnmounted(() => clearTimeout(searchDebounce))
 </template>
 
 <style scoped>
-.page-container { padding: var(--gk-space-5); }
-.table-card { border-radius: var(--gk-radius-md); }
+.page-container {
+  padding: var(--gk-space-5);
+}
+.table-card {
+  border-radius: var(--gk-radius-md);
+}
 .cluster-card {
   height: 100%;
   background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%);
   border-color: var(--gk-color-primary-light);
 }
-.cluster-header { display: flex; justify-content: space-between; align-items: center; }
-.cluster-info { display: flex; align-items: center; gap: var(--gk-space-2); }
-.cluster-body { margin-bottom: var(--gk-space-3); }
-.cluster-detail { display: flex; margin-bottom: 8px; }
-.cluster-detail .label { color: var(--gk-color-text-secondary); width: 70px; flex-shrink: 0; }
-.cluster-detail .value { color: var(--gk-color-text-primary); }
-.cluster-footer { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--gk-space-1); border-top: 1px solid var(--gk-color-border-light); padding-top: 12px; }
-.cluster-footer .el-button { margin-left: 0 !important; padding: 5px 8px; font-size: 12px; height: auto; }
+.cluster-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.cluster-info {
+  display: flex;
+  align-items: center;
+  gap: var(--gk-space-2);
+}
+.cluster-body {
+  margin-bottom: var(--gk-space-3);
+}
+.cluster-detail {
+  display: flex;
+  margin-bottom: 8px;
+}
+.cluster-detail .label {
+  color: var(--gk-color-text-secondary);
+  width: 70px;
+  flex-shrink: 0;
+}
+.cluster-detail .value {
+  color: var(--gk-color-text-primary);
+}
+.cluster-footer {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--gk-space-1);
+  border-top: 1px solid var(--gk-color-border-light);
+  padding-top: 12px;
+}
+.cluster-footer .el-button {
+  margin-left: 0 !important;
+  padding: 5px 8px;
+  font-size: 12px;
+  height: auto;
+}
 </style>

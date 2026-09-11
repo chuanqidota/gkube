@@ -1,14 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { setToken, setRefreshToken, removeToken, getToken } from '@/utils/auth'
-import { login as apiLogin } from '@/api/auth'
+import { login as apiLogin, logout as apiLogout } from '@/api/auth'
 import request from '@/api/request'
 import { getRoles } from '@/api/rbac'
 
 interface PermissionBinding {
   clusterId: number
-  namespace: string        // "" = 集群级
-  roleName: string         // "cluster-admin" | "ns-editor" | ...
+  namespace: string // "" = 集群级
+  roleName: string // "cluster-admin" | "ns-editor" | ...
 }
 
 interface UserInfo {
@@ -40,7 +40,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(data: { username: string; password: string }) {
     const res: any = await apiLogin(data)
-    const payload = res.accessToken ? res : (res.data?.data || res.data || res)
+    const payload = res.accessToken ? res : res.data?.data || res.data || res
     token.value = payload.accessToken
     setToken(payload.accessToken)
     setRefreshToken(payload.refreshToken)
@@ -55,7 +55,13 @@ export const useAuthStore = defineStore('auth', () => {
     loadRoles()
   }
 
-  function logout() {
+  async function logout() {
+    // 先调后端注销（需要 token 认证），再清本地状态
+    try {
+      await apiLogout()
+    } catch {
+      /* 后端可能尚未实现 /auth/logout */
+    }
     user.value = null
     token.value = null
     removeToken()
@@ -96,7 +102,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const res: any = await getRoles()
       const data = res?.data ?? res
-      const roles = Array.isArray(data) ? data : (data?.items || [])
+      const roles = Array.isArray(data) ? data : data?.items || []
       const map = new Map<string, Record<string, string[]>>()
       for (const r of roles) {
         map.set(r.name, r.permissions || {})
@@ -115,12 +121,17 @@ export const useAuthStore = defineStore('auth', () => {
    *   3. 命名空间级绑定精确匹配
    *   4. 查角色 permissions JSON 中 resourceGroup 是否包含 verb
    */
-  function canDo(clusterId: number, resourceGroup: string, verb: string, namespace?: string): boolean {
+  function canDo(
+    clusterId: number,
+    resourceGroup: string,
+    verb: string,
+    namespace?: string,
+  ): boolean {
     if (!user.value) return false
     if (user.value.isSuperAdmin) return true
     if (!user.value.permissions) return false
 
-    return user.value.permissions.some(p => {
+    return user.value.permissions.some((p) => {
       if (p.clusterId !== clusterId) return false
       // 集群级绑定覆盖所有 namespace
       if (p.namespace === '' || (namespace && p.namespace === namespace)) {
@@ -138,7 +149,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value.isSuperAdmin) return true
     if (!user.value.permissions) return false
     const writable = (roleName: string) => /admin|editor/.test(roleName)
-    return user.value.permissions.some(p => {
+    return user.value.permissions.some((p) => {
       if (p.clusterId !== clusterId) return false
       if (p.namespace === '') return writable(p.roleName)
       if (namespace && p.namespace === namespace) return writable(p.roleName)
@@ -151,7 +162,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value.isSuperAdmin) return true
     if (!user.value.permissions) return false
 
-    return user.value.permissions.some(p => {
+    return user.value.permissions.some((p) => {
       if (p.clusterId !== clusterId) return false
       if (p.namespace === '') return true
       if (namespace && p.namespace === namespace) return true
@@ -164,7 +175,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value.isSuperAdmin) return true
     if (!user.value.permissions) return false
 
-    return user.value.permissions.some(p => {
+    return user.value.permissions.some((p) => {
       if (p.clusterId !== clusterId) return false
       if (p.namespace === '') {
         return !roles || roles.includes(p.roleName)
@@ -176,5 +187,18 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
-  return { user, token, isLoggedIn, login, logout, setUser, fetchPermissions, loadRoles, canAccess, hasRole, canDo, canWrite }
+  return {
+    user,
+    token,
+    isLoggedIn,
+    login,
+    logout,
+    setUser,
+    fetchPermissions,
+    loadRoles,
+    canAccess,
+    hasRole,
+    canDo,
+    canWrite,
+  }
 })

@@ -50,7 +50,7 @@ const loadError = ref(false)
 // ============ 类型转换 ============
 
 function convertToEditing(conditions: LabelCondition[]): EditingCondition[] {
-  return conditions.map(c => ({
+  return conditions.map((c) => ({
     key: c.key,
     operator: c.operator,
     values: [...c.values],
@@ -59,8 +59,8 @@ function convertToEditing(conditions: LabelCondition[]): EditingCondition[] {
 
 function convertToLabelConditions(editing: EditingCondition[]): LabelCondition[] {
   return editing
-    .filter(c => c.key && c.values.length > 0 && c.values.some(v => v !== ''))
-    .map(c => ({
+    .filter((c) => c.key && c.values.length > 0 && c.values.some((v) => v !== ''))
+    .map((c) => ({
       key: c.key,
       operator: c.operator,
       values: [...c.values],
@@ -155,7 +155,7 @@ function apply() {
   const merged = [...kept]
   for (const nc of newConditions) {
     const key = `${nc.key}|${nc.operator}|${[...nc.values].sort().join(',')}`
-    const isDuplicate = merged.some(m => {
+    const isDuplicate = merged.some((m) => {
       const mk = `${m.key}|${m.operator}|${[...m.values].sort().join(',')}`
       return mk === key
     })
@@ -217,20 +217,19 @@ function onEsc() {
     <template #reference>
       <el-button :class="{ 'has-filters': modelValue.length > 0 }">
         Label
-        <el-badge v-if="modelValue.length" :value="modelValue.length" :max="9" class="label-badge" />
+        <el-badge
+          v-if="modelValue.length"
+          :value="modelValue.length"
+          :max="9"
+          class="label-badge"
+        />
         <el-icon class="el-icon--right"><ArrowDown /></el-icon>
       </el-button>
     </template>
 
     <div class="filter-popover" @keydown.esc="onEsc" @keydown.enter="onEnter">
       <!-- 加载失败警告 -->
-      <el-alert
-        v-if="loadError"
-        type="warning"
-        :closable="false"
-        show-icon
-        class="load-error"
-      >
+      <el-alert v-if="loadError" type="warning" :closable="false" show-icon class="load-error">
         获取标签失败，您可以手动输入标签键值
       </el-alert>
 
@@ -249,9 +248,7 @@ function onEsc() {
             {{ formatCondition(cond) }}
           </el-tag>
         </div>
-        <div v-if="modelValue.length > 5" class="more-hint">
-          共 {{ modelValue.length }} 个条件
-        </div>
+        <div v-if="modelValue.length > 5" class="more-hint">共 {{ modelValue.length }} 个条件</div>
       </div>
 
       <el-divider v-if="modelValue.length" />
@@ -290,7 +287,6 @@ function onEsc() {
         <el-select
           v-if="cond.operator === '=' || cond.operator === '!='"
           :model-value="cond.values[0] || ''"
-          @update:model-value="cond.values = $event ? [$event] : []"
           filterable
           allow-create
           placeholder="Value"
@@ -298,6 +294,7 @@ function onEsc() {
           class="value-select"
           :loading="loading"
           :teleported="false"
+          @update:model-value="cond.values = $event ? [$event] : []"
         >
           <el-option v-if="loading" label="加载中..." value="" disabled />
           <el-option v-for="v in getValuesForKey(cond.key)" :key="v" :label="v" :value="v" />
@@ -320,7 +317,12 @@ function onEsc() {
           <el-option v-for="v in getValuesForKey(cond.key)" :key="v" :label="v" :value="v" />
         </el-select>
 
-        <el-button text size="small" @click="editingConditions.splice(i, 1)" :disabled="editingConditions.length <= 1 && modelValue.length === 0">
+        <el-button
+          text
+          size="small"
+          :disabled="editingConditions.length <= 1 && modelValue.length === 0"
+          @click="editingConditions.splice(i, 1)"
+        >
           <el-icon><Delete /></el-icon>
         </el-button>
       </div>
@@ -328,7 +330,13 @@ function onEsc() {
       <!-- 操作按钮 -->
       <div class="popover-actions">
         <el-button size="small" text @click="addCondition">+ 添加条件</el-button>
-        <el-button size="small" text @click="clearAll" :disabled="modelValue.length === 0 && editingConditions.every(c => !c.key)">清除全部</el-button>
+        <el-button
+          size="small"
+          text
+          :disabled="modelValue.length === 0 && editingConditions.every((c) => !c.key)"
+          @click="clearAll"
+          >清除全部</el-button
+        >
         <div class="spacer" />
         <el-button size="small" @click="cancel">取消</el-button>
         <el-button size="small" type="primary" @click="apply">应用</el-button>

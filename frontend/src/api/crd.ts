@@ -30,19 +30,43 @@ export function getCustomResourceList(data: any) {
   return request.post('/k8s/crd/resources', data)
 }
 
-export function getCustomResourceYaml(params: { group: string; version: string; resource: string; namespace?: string; name: string }) {
+export function getCustomResourceYaml(params: {
+  group: string
+  version: string
+  resource: string
+  namespace?: string
+  name: string
+}) {
   return request.get('/k8s/crd/resource/yaml', { params })
 }
 
-export function getCustomResourceDetail(params: { group: string; version: string; resource: string; namespace?: string; name: string }) {
+export function getCustomResourceDetail(params: {
+  group: string
+  version: string
+  resource: string
+  namespace?: string
+  name: string
+}) {
   return request.get('/k8s/crd/resource/detail', { params })
 }
 
-export function createCustomResource(data: { group: string; version: string; resource: string; namespace?: string; yaml: string }) {
+export function createCustomResource(data: {
+  group: string
+  version: string
+  resource: string
+  namespace?: string
+  yaml: string
+}) {
   return request.post('/k8s/crd/resource/create', data)
 }
 
-export function deleteCustomResource(params: { group: string; version: string; resource: string; namespace?: string; name: string }) {
+export function deleteCustomResource(params: {
+  group: string
+  version: string
+  resource: string
+  namespace?: string
+  name: string
+}) {
   return request.delete('/k8s/crd/resource', { params })
 }
 

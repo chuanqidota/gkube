@@ -5,8 +5,14 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Cpu, Coin, Grid, Files, Search, Refresh, Timer, ArrowLeft } from '@element-plus/icons-vue'
 import {
-  getNodeDetail, getNodePods, getNodeEvents, getNodeYaml, updateNodeYaml,
-  type NodeDetail as NodeDetailType, type K8sPod, type NodeEvent,
+  getNodeDetail,
+  getNodePods,
+  getNodeEvents,
+  getNodeYaml,
+  updateNodeYaml,
+  type NodeDetail as NodeDetailType,
+  type K8sPod,
+  type NodeEvent,
 } from '@/api/resource'
 import { formatAge } from '@/utils/helpers'
 import { formatK8sCPU, formatK8sMemory } from '@/utils/resource'
@@ -43,10 +49,11 @@ const nodeName = computed(() => route.params.name as string)
 const filteredPods = computed(() => {
   if (!podSearch.value) return pods.value
   const keyword = podSearch.value.toLowerCase()
-  return pods.value.filter(pod =>
-    pod.name?.toLowerCase().includes(keyword) ||
-    pod.namespace?.toLowerCase().includes(keyword) ||
-    pod.ip?.toLowerCase().includes(keyword),
+  return pods.value.filter(
+    (pod) =>
+      pod.name?.toLowerCase().includes(keyword) ||
+      pod.namespace?.toLowerCase().includes(keyword) ||
+      pod.ip?.toLowerCase().includes(keyword),
   )
 })
 
@@ -86,9 +93,10 @@ async function fetchPods(silent = false) {
     const rawPods: K8sPod[] = res.data || []
     pods.value = rawPods.map((pod) => {
       const restarts = (pod.status.containerStatuses || []).reduce(
-        (sum, cs) => sum + (cs.restartCount || 0), 0,
+        (sum, cs) => sum + (cs.restartCount || 0),
+        0,
       )
-      const ready = pod.status.conditions?.find(c => c.type === 'Ready')?.status === 'True'
+      const ready = pod.status.conditions?.find((c) => c.type === 'Ready')?.status === 'True'
       return {
         name: pod.name,
         namespace: pod.namespace,
@@ -117,12 +125,22 @@ async function fetchEvents(silent = false) {
   }
 }
 
-function handleOpenYaml() { yamlDialogVisible.value = true }
-function handleYamlSaved() { fetchDetail() }
+function handleOpenYaml() {
+  yamlDialogVisible.value = true
+}
+function handleYamlSaved() {
+  fetchDetail()
+}
 
-function handleTaints() { taintDialog.value?.open(nodeName.value, node.value?.taints || []) }
-function handleLabels() { labelDialog.value?.open(nodeName.value, node.value?.labels || {}) }
-function handleDrain() { drainDialog.value?.open(nodeName.value) }
+function handleTaints() {
+  taintDialog.value?.open(nodeName.value, node.value?.taints || [])
+}
+function handleLabels() {
+  labelDialog.value?.open(nodeName.value, node.value?.labels || {})
+}
+function handleDrain() {
+  drainDialog.value?.open(nodeName.value)
+}
 
 const { handleCordon, handleDelete } = useNodeActions(() => fetchDetail())
 
@@ -149,10 +167,19 @@ function formatCapacity(val: string | undefined): string {
 }
 
 // ---- Resize: left-right + top-bottom ----
-const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } = useResizable({ initialWidth: 300 })
+const { leftWidth, rightTopHeight, resizingH, resizingV, onHResizeStart, onVResizeStart } =
+  useResizable({ initialWidth: 300 })
 
 // 自动刷新走 silent 路径（不触发整页遮罩）；手动刷新显示遮罩；详情/Pods/事件三者独立拉取
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(
   async () => {
     fetchDetail(true)
     fetchPods(true)
@@ -183,8 +210,7 @@ watch(nodeName, () => {
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
+  <div v-loading="loading" class="detail-page">
     <!-- 顶部标题栏 -->
     <div class="page-header">
       <div class="header-left">
@@ -192,32 +218,44 @@ watch(nodeName, () => {
         <div class="meta-line">
           <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
           <span v-if="node?.roles" class="role-tag">{{ node.roles }}</span>
-          <el-tag v-if="node?.unschedulable" type="warning" size="small" effect="plain">{{ t('node.unschedulable') }}</el-tag>
+          <el-tag v-if="node?.unschedulable" type="warning" size="small" effect="plain">{{
+            t('node.unschedulable')
+          }}</el-tag>
           <span v-if="node?.internal_ip" class="info-text">{{ node.internal_ip }}</span>
         </div>
       </div>
       <div class="header-actions">
         <el-button-group>
-          <el-button :type="node?.unschedulable ? 'success' : 'warning'" @click="handleCordon(nodeName, node?.unschedulable || false)">
+          <el-button
+            :type="node?.unschedulable ? 'success' : 'warning'"
+            @click="handleCordon(nodeName, node?.unschedulable || false)"
+          >
             {{ node?.unschedulable ? t('node.uncordonButton') : t('node.cordonButton') }}
           </el-button>
           <el-button type="primary" @click="handleTaints">{{ t('node.taintButton') }}</el-button>
           <el-button type="info" @click="handleLabels">{{ t('node.labelButton') }}</el-button>
           <el-button @click="handleOpenYaml">YAML</el-button>
           <el-button type="danger" @click="handleDrain">{{ t('node.drainButton') }}</el-button>
-          <el-tooltip v-if="node?.status === 'Ready'" :content="t('node.deleteReadyWarning')" placement="top">
-            <span><el-button type="danger" disabled>{{ t('node.deleteButton') }}</el-button></span>
+          <el-tooltip
+            v-if="node?.status === 'Ready'"
+            :content="t('node.deleteReadyWarning')"
+            placement="top"
+          >
+            <span
+              ><el-button type="danger" disabled>{{ t('node.deleteButton') }}</el-button></span
+            >
           </el-tooltip>
-          <el-button v-else type="danger" @click="handleDelete(nodeName, node?.status === 'Ready', () => router.push('/nodes'))">{{ t('node.deleteButton') }}</el-button>
+          <el-button
+            v-else
+            type="danger"
+            @click="handleDelete(nodeName, node?.status === 'Ready', () => router.push('/nodes'))"
+            >{{ t('node.deleteButton') }}</el-button
+          >
         </el-button-group>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
+            <el-button :type="isRunning ? 'success' : 'default'" :icon="Timer" @click="toggle()" />
           </template>
           <div class="auto-refresh-popover">
             <div class="popover-title">
@@ -225,10 +263,10 @@ watch(nodeName, () => {
             </div>
             <el-select
               :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
               :teleported="false"
               size="small"
-              style="width: 100%;"
+              style="width: 100%"
+              @update:model-value="setIntervalOption"
             >
               <el-option
                 v-for="sec in availableIntervals"
@@ -240,7 +278,7 @@ watch(nodeName, () => {
           </div>
         </el-popover>
         <el-tooltip :content="t('common.refresh')" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+          <el-button :loading="loading" :icon="Refresh" @click="manualRefresh()" />
         </el-tooltip>
         <el-tooltip :content="t('common.backToList')" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/nodes')" />
@@ -250,7 +288,6 @@ watch(nodeName, () => {
 
     <template v-if="node">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
-
         <!-- 左侧：基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">{{ t('node.basicInfo') }}</div>
@@ -260,31 +297,63 @@ watch(nodeName, () => {
               <el-descriptions-item :label="t('common.status')">
                 <el-tag :type="statusTagType" size="small">{{ node.status || 'Unknown' }}</el-tag>
               </el-descriptions-item>
-              <el-descriptions-item :label="t('node.roles')">{{ node.roles || '-' }}</el-descriptions-item>
-              <el-descriptions-item :label="`Kubelet ${t('node.version')}`">{{ node.version || '-' }}</el-descriptions-item>
-              <el-descriptions-item :label="t('node.os')">{{ node.os || '-' }}</el-descriptions-item>
-              <el-descriptions-item :label="t('node.kernel')">{{ node.kernel || '-' }}</el-descriptions-item>
-              <el-descriptions-item :label="t('node.runtime')">{{ node.container_runtime || '-' }}</el-descriptions-item>
-              <el-descriptions-item :label="t('node.internalIp')">{{ node.internal_ip || '-' }}</el-descriptions-item>
-              <el-descriptions-item :label="t('node.externalIp')">{{ node.external_ip || '-' }}</el-descriptions-item>
-              <el-descriptions-item :label="t('node.hostname')">{{ node.hostname || '-' }}</el-descriptions-item>
-              <el-descriptions-item :label="t('node.architecture')">{{ node.architecture || '-' }}</el-descriptions-item>
-              <el-descriptions-item :label="t('common.age')">{{ node.creationTimestamp ? formatDateTime(node.creationTimestamp) : '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.roles')">{{
+                node.roles || '-'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="`Kubelet ${t('node.version')}`">{{
+                node.version || '-'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.os')">{{
+                node.os || '-'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.kernel')">{{
+                node.kernel || '-'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.runtime')">{{
+                node.container_runtime || '-'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.internalIp')">{{
+                node.internal_ip || '-'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.externalIp')">{{
+                node.external_ip || '-'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.hostname')">{{
+                node.hostname || '-'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="t('node.architecture')">{{
+                node.architecture || '-'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="t('common.age')">{{
+                node.creationTimestamp ? formatDateTime(node.creationTimestamp) : '-'
+              }}</el-descriptions-item>
               <el-descriptions-item :label="t('node.unschedulable')">
-                <el-tag :type="node.unschedulable ? 'danger' : 'success'" size="small">{{ node.unschedulable ? t('node.unschedulableYes') : t('node.unschedulableNo') }}</el-tag>
+                <el-tag :type="node.unschedulable ? 'danger' : 'success'" size="small">{{
+                  node.unschedulable ? t('node.unschedulableYes') : t('node.unschedulableNo')
+                }}</el-tag>
               </el-descriptions-item>
             </el-descriptions>
 
             <!-- Labels -->
-            <div v-if="node.labels && Object.keys(node.labels).length > 0" style="margin-top: var(--gk-space-4);">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; font-size: 13px;">{{ t('node.labels') }}</h4>
+            <div
+              v-if="node.labels && Object.keys(node.labels).length > 0"
+              style="margin-top: var(--gk-space-4)"
+            >
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-bottom: 8px;
+                "
+              >
+                <h4 style="margin: 0; font-size: 13px">{{ t('node.labels') }}</h4>
                 <el-button size="small" @click="handleLabels">{{ t('common.edit') }}</el-button>
               </div>
               <el-tag
                 v-for="(val, key) in node.labels"
                 :key="key"
-                style="margin-right: 8px; margin-bottom: 8px;"
+                style="margin-right: 8px; margin-bottom: 8px"
                 size="small"
               >
                 {{ key }}={{ val }}
@@ -292,25 +361,39 @@ watch(nodeName, () => {
             </div>
 
             <!-- Taints -->
-            <div style="margin-top: var(--gk-space-4);">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; font-size: 13px;">{{ t('node.taints') }}</h4>
+            <div style="margin-top: var(--gk-space-4)">
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-bottom: 8px;
+                "
+              >
+                <h4 style="margin: 0; font-size: 13px">{{ t('node.taints') }}</h4>
                 <el-button size="small" @click="handleTaints">{{ t('common.edit') }}</el-button>
               </div>
-              <el-table v-if="node.taints && node.taints.length > 0" :data="node.taints" size="small" border>
+              <el-table
+                v-if="node.taints && node.taints.length > 0"
+                :data="node.taints"
+                size="small"
+                border
+              >
                 <el-table-column prop="key" label="Key" min-width="150" />
                 <el-table-column prop="value" label="Value" min-width="100" />
                 <el-table-column prop="effect" label="Effect" min-width="120" />
               </el-table>
-              <span v-else style="color: #909399; font-size: 12px;">{{ t('node.noTaints') }}</span>
+              <span v-else style="color: #909399; font-size: 12px">{{ t('node.noTaints') }}</span>
             </div>
 
             <!-- Resource Capacity -->
-            <div v-if="node.capacity || node.allocatable" style="margin-top: var(--gk-space-4);">
-              <h4 style="margin: 0 0 12px; font-size: 13px;">{{ t('node.resourceCapacity') }}</h4>
+            <div v-if="node.capacity || node.allocatable" style="margin-top: var(--gk-space-4)">
+              <h4 style="margin: 0 0 12px; font-size: 13px">{{ t('node.resourceCapacity') }}</h4>
               <div class="resource-cards">
                 <div class="resource-card">
-                  <div class="resource-icon cpu-icon"><el-icon><Cpu /></el-icon></div>
+                  <div class="resource-icon cpu-icon">
+                    <el-icon><Cpu /></el-icon>
+                  </div>
                   <div class="resource-info">
                     <div class="resource-label">CPU</div>
                     <div class="resource-values">
@@ -320,14 +403,18 @@ watch(nodeName, () => {
                       </div>
                       <div class="value-item">
                         <span class="value-label">{{ t('node.allocatable') }}</span>
-                        <span class="value-number highlight">{{ formatCPU(node.allocatable?.cpu) }}</span>
+                        <span class="value-number highlight">{{
+                          formatCPU(node.allocatable?.cpu)
+                        }}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div class="resource-card">
-                  <div class="resource-icon memory-icon"><el-icon><Coin /></el-icon></div>
+                  <div class="resource-icon memory-icon">
+                    <el-icon><Coin /></el-icon>
+                  </div>
                   <div class="resource-info">
                     <div class="resource-label">{{ t('node.memory') }}</div>
                     <div class="resource-values">
@@ -337,14 +424,18 @@ watch(nodeName, () => {
                       </div>
                       <div class="value-item">
                         <span class="value-label">{{ t('node.allocatable') }}</span>
-                        <span class="value-number highlight">{{ formatMemory(node.allocatable?.memory) }}</span>
+                        <span class="value-number highlight">{{
+                          formatMemory(node.allocatable?.memory)
+                        }}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div class="resource-card">
-                  <div class="resource-icon pods-icon"><el-icon><Grid /></el-icon></div>
+                  <div class="resource-icon pods-icon">
+                    <el-icon><Grid /></el-icon>
+                  </div>
                   <div class="resource-info">
                     <div class="resource-label">{{ t('node.podCount') }}</div>
                     <div class="resource-values">
@@ -354,24 +445,32 @@ watch(nodeName, () => {
                       </div>
                       <div class="value-item">
                         <span class="value-label">{{ t('node.allocatable') }}</span>
-                        <span class="value-number highlight">{{ formatCapacity(node.allocatable?.pods) }}</span>
+                        <span class="value-number highlight">{{
+                          formatCapacity(node.allocatable?.pods)
+                        }}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div class="resource-card">
-                  <div class="resource-icon storage-icon"><el-icon><Files /></el-icon></div>
+                  <div class="resource-icon storage-icon">
+                    <el-icon><Files /></el-icon>
+                  </div>
                   <div class="resource-info">
                     <div class="resource-label">{{ t('node.ephemeralStorage') }}</div>
                     <div class="resource-values">
                       <div class="value-item">
                         <span class="value-label">{{ t('node.totalCapacity') }}</span>
-                        <span class="value-number">{{ formatMemory(node.capacity?.['ephemeral-storage']) }}</span>
+                        <span class="value-number">{{
+                          formatMemory(node.capacity?.['ephemeral-storage'])
+                        }}</span>
                       </div>
                       <div class="value-item">
                         <span class="value-label">{{ t('node.allocatable') }}</span>
-                        <span class="value-number highlight">{{ formatMemory(node.allocatable?.['ephemeral-storage']) }}</span>
+                        <span class="value-number highlight">{{
+                          formatMemory(node.allocatable?.['ephemeral-storage'])
+                        }}</span>
                       </div>
                     </div>
                   </div>
@@ -380,16 +479,32 @@ watch(nodeName, () => {
             </div>
 
             <!-- Conditions -->
-            <div v-if="node.conditions && node.conditions.length > 0" style="margin-top: var(--gk-space-4);">
-              <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('node.nodeConditions') }}</h4>
+            <div
+              v-if="node.conditions && node.conditions.length > 0"
+              style="margin-top: var(--gk-space-4)"
+            >
+              <h4 style="margin: 0 0 8px; font-size: 13px">{{ t('node.nodeConditions') }}</h4>
               <el-table :data="node.conditions" size="small" border>
                 <el-table-column prop="type" :label="t('node.typeLabel')" width="120" />
                 <el-table-column :label="t('node.statusLabel')" width="80">
-                  <template #default="{ row }"><el-tag :type="row.status === 'True' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag></template>
+                  <template #default="{ row }"
+                    ><el-tag :type="row.status === 'True' ? 'success' : 'danger'" size="small">{{
+                      row.status
+                    }}</el-tag></template
+                  >
                 </el-table-column>
                 <el-table-column prop="reason" :label="t('node.reasonLabel')" width="150" />
-                <el-table-column prop="message" :label="t('node.messageLabel')" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="lastTransitionTime" :label="t('node.lastTransition')" width="150" />
+                <el-table-column
+                  prop="message"
+                  :label="t('node.messageLabel')"
+                  min-width="200"
+                  show-overflow-tooltip
+                />
+                <el-table-column
+                  prop="lastTransitionTime"
+                  :label="t('node.lastTransition')"
+                  width="150"
+                />
               </el-table>
             </div>
           </div>
@@ -397,23 +512,48 @@ watch(nodeName, () => {
 
         <!-- 右侧：Pods + Events -->
         <div class="right-panel">
-
           <!-- Pod 列表 -->
-          <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
+          <div
+            class="right-section"
+            :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}"
+          >
             <div class="panel-title">
               Pods
               <span class="count-badge">{{ pods.length }} {{ t('node.countUnit') }}</span>
-              <el-input v-model="podSearch" :placeholder="t('node.searchPods')" size="small" style="width: 200px; margin-left: auto;" clearable>
-                <template #prefix><el-icon><Search /></el-icon></template>
+              <el-input
+                v-model="podSearch"
+                :placeholder="t('node.searchPods')"
+                size="small"
+                style="width: 200px; margin-left: auto"
+                clearable
+              >
+                <template #prefix
+                  ><el-icon><Search /></el-icon
+                ></template>
               </el-input>
             </div>
             <div v-loading="podsLoading" class="pods-body">
               <el-table v-if="filteredPods.length > 0" :data="filteredPods" size="small" stripe>
-                <el-table-column prop="name" :label="t('common.name')" min-width="200" show-overflow-tooltip>
-                  <template #default="{ row }"><el-button link type="primary" @click="handlePodDetail(row)">{{ row.name }}</el-button></template>
+                <el-table-column
+                  prop="name"
+                  :label="t('common.name')"
+                  min-width="200"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }"
+                    ><el-button link type="primary" @click="handlePodDetail(row)">{{
+                      row.name
+                    }}</el-button></template
+                  >
                 </el-table-column>
                 <el-table-column prop="namespace" :label="t('node.namespaceLabel')" width="140" />
-                <el-table-column prop="status" :label="t('common.status')" width="120"><template #default="{ row }"><el-tag :type="podStatusType(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
+                <el-table-column prop="status" :label="t('common.status')" width="120"
+                  ><template #default="{ row }"
+                    ><el-tag :type="podStatusType(row.status)" size="small">{{
+                      row.status
+                    }}</el-tag></template
+                  ></el-table-column
+                >
                 <el-table-column prop="ip" label="IP" width="140" />
                 <el-table-column prop="restarts" :label="t('node.restartCount')" width="100" />
                 <el-table-column prop="age" :label="t('node.ageLabel')" width="120" />
@@ -432,27 +572,39 @@ watch(nodeName, () => {
               <span class="count-badge">{{ events.length }} {{ t('node.eventUnit') }}</span>
             </div>
             <div v-loading="eventsLoading" class="events-body">
-              <el-table v-if="events.length > 0" :data="events" size="small" stripe max-height="260">
+              <el-table
+                v-if="events.length > 0"
+                :data="events"
+                size="small"
+                stripe
+                max-height="260"
+              >
                 <el-table-column prop="type" :label="t('node.typeLabel')" width="80">
                   <template #default="{ row }">
-                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{ row.type }}</el-tag>
+                    <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{
+                      row.type
+                    }}</el-tag>
                   </template>
                 </el-table-column>
                 <el-table-column prop="reason" :label="t('node.reasonLabel')" width="130" />
-                <el-table-column prop="message" :label="t('node.messageLabel')" min-width="200" show-overflow-tooltip />
+                <el-table-column
+                  prop="message"
+                  :label="t('node.messageLabel')"
+                  min-width="200"
+                  show-overflow-tooltip
+                />
                 <el-table-column prop="last_seen" :label="t('event.lastSeen')" width="150" />
               </el-table>
               <div v-else class="empty-hint">{{ t('node.noEvents') }}</div>
             </div>
           </div>
-
         </div>
 
         <!-- 水平拖拽条 -->
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
+          :style="{ left: leftWidth - 3 + 'px' }"
           @mousedown="onHResizeStart"
         />
       </div>
@@ -722,10 +874,34 @@ watch(nodeName, () => {
   flex-shrink: 0;
 }
 
-.cpu-icon { background: linear-gradient(135deg, var(--gk-color-primary-light) 0%, var(--gk-color-primary-dark) 100%); }
-.memory-icon { background: linear-gradient(135deg, var(--gk-color-primary) 0%, var(--gk-color-primary-dark) 100%); }
-.pods-icon { background: linear-gradient(135deg, var(--gk-color-primary-light) 0%, var(--gk-color-primary) 100%); }
-.storage-icon { background: linear-gradient(135deg, var(--gk-color-primary) 0%, var(--gk-color-primary-light) 100%); }
+.cpu-icon {
+  background: linear-gradient(
+    135deg,
+    var(--gk-color-primary-light) 0%,
+    var(--gk-color-primary-dark) 100%
+  );
+}
+.memory-icon {
+  background: linear-gradient(
+    135deg,
+    var(--gk-color-primary) 0%,
+    var(--gk-color-primary-dark) 100%
+  );
+}
+.pods-icon {
+  background: linear-gradient(
+    135deg,
+    var(--gk-color-primary-light) 0%,
+    var(--gk-color-primary) 100%
+  );
+}
+.storage-icon {
+  background: linear-gradient(
+    135deg,
+    var(--gk-color-primary) 0%,
+    var(--gk-color-primary-light) 100%
+  );
+}
 
 .resource-info {
   flex: 1;

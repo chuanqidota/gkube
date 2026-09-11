@@ -6,11 +6,14 @@ import { Delete, Plus } from '@element-plus/icons-vue'
 import { updateNodeLabels } from '@/api/resource'
 import { validateQualifiedName, validateLabelValue } from '@/utils/resource'
 
+const emit = defineEmits<{ saved: [] }>()
+
 const { t } = useI18n()
 
-interface LabelEntry { key: string; value: string }
-
-const emit = defineEmits<{ saved: [] }>()
+interface LabelEntry {
+  key: string
+  value: string
+}
 
 const visible = ref(false)
 const nodeName = ref('')
@@ -23,8 +26,12 @@ function open(name: string, current: Record<string, string>) {
   visible.value = true
 }
 
-function addLabel() { labelsArray.value.push({ key: '', value: '' }) }
-function removeLabel(index: number) { labelsArray.value.splice(index, 1) }
+function addLabel() {
+  labelsArray.value.push({ key: '', value: '' })
+}
+function removeLabel(index: number) {
+  labelsArray.value.splice(index, 1)
+}
 
 // 校验所有 label：key 格式 + value 格式 + key 唯一。返回首个错误提示。
 function validate(): string {
@@ -49,7 +56,9 @@ async function handleSave() {
   }
   try {
     const labelsMap: Record<string, string> = {}
-    labelsArray.value.forEach(l => { if (l.key) labelsMap[l.key] = l.value })
+    labelsArray.value.forEach((l) => {
+      if (l.key) labelsMap[l.key] = l.value
+    })
     await updateNodeLabels({ name: nodeName.value, labels: labelsMap })
     ElMessage.success(t('common.labelUpdateSuccess'))
     visible.value = false
@@ -64,15 +73,27 @@ defineExpose({ open })
 
 <template>
   <el-dialog v-model="visible" :title="t('node.manageLabels')" width="650px">
-    <el-alert type="warning" :closable="false" show-icon style="margin-bottom: 16px;">
+    <el-alert type="warning" :closable="false" show-icon style="margin-bottom: 16px">
       <template #title>{{ t('node.labelSaveWarning') }}</template>
     </el-alert>
-    <div v-for="(label, index) in labelsArray" :key="index" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
-      <el-input v-model="label.key" :placeholder="t('node.labelKeyPlaceholder')" style="flex: 2;" />
-      <el-input v-model="label.value" :placeholder="t('node.labelValuePlaceholder')" style="flex: 2;" />
-      <el-button type="danger" circle size="small" @click="removeLabel(index)"><el-icon><Delete /></el-icon></el-button>
+    <div
+      v-for="(label, index) in labelsArray"
+      :key="index"
+      style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center"
+    >
+      <el-input v-model="label.key" :placeholder="t('node.labelKeyPlaceholder')" style="flex: 2" />
+      <el-input
+        v-model="label.value"
+        :placeholder="t('node.labelValuePlaceholder')"
+        style="flex: 2"
+      />
+      <el-button type="danger" circle size="small" @click="removeLabel(index)"
+        ><el-icon><Delete /></el-icon
+      ></el-button>
     </div>
-    <el-button @click="addLabel" style="margin-top: 8px;"><el-icon><Plus /></el-icon> {{ t('node.addLabel') }}</el-button>
+    <el-button style="margin-top: 8px" @click="addLabel"
+      ><el-icon><Plus /></el-icon> {{ t('node.addLabel') }}</el-button
+    >
     <template #footer>
       <el-button @click="visible = false">{{ t('common.cancel') }}</el-button>
       <el-button type="primary" @click="handleSave">{{ t('common.save') }}</el-button>

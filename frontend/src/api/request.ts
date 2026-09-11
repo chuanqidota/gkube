@@ -44,7 +44,10 @@ request.interceptors.request.use(
       const clusterName = clusterStore.clusterName
       if (clusterName && config.url?.startsWith('/k8s/')) {
         if (!config.params) config.params = {}
-        if (!config.params.clusterName && !(isPlainObject(config.data) && config.data.clusterName)) {
+        if (
+          !config.params.clusterName &&
+          !(isPlainObject(config.data) && config.data.clusterName)
+        ) {
           config.params.clusterName = clusterName
         }
         // POST/PUT/DELETE requests: also inject into body so ShouldBindJSON can read it.
@@ -60,7 +63,7 @@ request.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error)
-  }
+  },
 )
 
 // Response interceptor: handle 401 with silent refresh, then redirect on failure
@@ -147,9 +150,10 @@ request.interceptors.response.use(
 
         const { pathname, search } = window.location
         const current = pathname + search
-        const target = current && current !== '/login'
-          ? `/login?redirect=${encodeURIComponent(current)}`
-          : '/login'
+        const target =
+          current && current !== '/login'
+            ? `/login?redirect=${encodeURIComponent(current)}`
+            : '/login'
         if (pathname !== '/login') {
           window.location.assign(target)
         }
@@ -169,7 +173,7 @@ request.interceptors.response.use(
       return Promise.reject(new Error(error.response.data.msg))
     }
     return Promise.reject(error)
-  }
+  },
 )
 
 export default request

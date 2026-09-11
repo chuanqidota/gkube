@@ -1,22 +1,3 @@
-<template>
-  <el-container class="app-layout">
-    <el-aside
-      :width="isCollapse ? 'var(--gk-sidebar-collapsed-width)' : 'var(--gk-sidebar-width)'"
-      class="app-aside"
-    >
-      <Sidebar :is-collapse="isCollapse" />
-    </el-aside>
-    <el-container class="app-content-wrapper">
-      <el-header class="app-header">
-        <Header @toggle-collapse="isCollapse = !isCollapse" />
-      </el-header>
-      <el-main class="app-main">
-        <router-view :key="reloadKey" />
-      </el-main>
-    </el-container>
-  </el-container>
-</template>
-
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useClusterStore } from '@/stores/cluster'
@@ -35,6 +16,25 @@ const isCollapse = computed({
 // 同集群属性更新(如健康检查状态)不会触发页面重挂。
 const reloadKey = computed(() => clusterStore.currentCluster?.id ?? 0)
 </script>
+
+<template>
+  <el-container class="app-layout">
+    <el-aside
+      :width="isCollapse ? 'var(--gk-sidebar-collapsed-width)' : 'var(--gk-sidebar-width)'"
+      class="app-aside"
+    >
+      <Sidebar :is-collapse="isCollapse" />
+    </el-aside>
+    <el-container class="app-content-wrapper">
+      <el-header class="app-header">
+        <Header @toggle-collapse="isCollapse = !isCollapse" />
+      </el-header>
+      <el-main class="app-main">
+        <router-view :key="reloadKey" />
+      </el-main>
+    </el-container>
+  </el-container>
+</template>
 
 <style scoped>
 .app-layout {

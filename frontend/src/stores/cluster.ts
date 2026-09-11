@@ -28,8 +28,12 @@ export const useClusterStore = defineStore('cluster', () => {
   const currentCluster = ref<Cluster | null>(savedCluster)
 
   // 统一的集群名取值,兼容后端不同字段形态(clusterName / cluster_name / name)
-  const clusterName = computed(() =>
-    currentCluster.value?.clusterName || currentCluster.value?.cluster_name || currentCluster.value?.name || '',
+  const clusterName = computed(
+    () =>
+      currentCluster.value?.clusterName ||
+      currentCluster.value?.cluster_name ||
+      currentCluster.value?.name ||
+      '',
   )
 
   const clusterId = computed(() => currentCluster.value?.id || 0)
@@ -41,7 +45,7 @@ export const useClusterStore = defineStore('cluster', () => {
     } else {
       localStorage.removeItem('gkube_cluster')
     }
-  }, { deep: true })
+  })
 
   async function fetchClusters() {
     const res: any = await getClusterList({ page: 1, size: 100 })
@@ -49,9 +53,7 @@ export const useClusterStore = defineStore('cluster', () => {
 
     // 验证当前选中集群是否仍在列表中
     if (currentCluster.value) {
-      const stillExists = clusterList.value.some(
-        (c: Cluster) => c.id === currentCluster.value?.id
-      )
+      const stillExists = clusterList.value.some((c: Cluster) => c.id === currentCluster.value?.id)
       if (!stillExists) {
         currentCluster.value = null
       }

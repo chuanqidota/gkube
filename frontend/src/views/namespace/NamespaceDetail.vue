@@ -59,17 +59,19 @@ const lrDialogVisible = ref(false)
 const lrCreating = ref(false)
 const lrForm = reactive({
   name: '',
-  limits: [{
-    type: 'Container' as string,
-    maxCpu: '',
-    maxMemory: '',
-    minCpu: '',
-    minMemory: '',
-    defaultCpu: '',
-    defaultMemory: '',
-    defaultRequestCpu: '',
-    defaultRequestMemory: '',
-  }],
+  limits: [
+    {
+      type: 'Container' as string,
+      maxCpu: '',
+      maxMemory: '',
+      minCpu: '',
+      minMemory: '',
+      defaultCpu: '',
+      defaultMemory: '',
+      defaultRequestCpu: '',
+      defaultRequestMemory: '',
+    },
+  ],
 })
 
 const name = route.params.name as string
@@ -95,19 +97,27 @@ async function fetchResourceQuotas() {
   try {
     const res: any = await getResourceQuotaList({ namespace: name })
     resourceQuotas.value = res.data || []
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 async function fetchLimitRanges() {
   try {
     const res: any = await getLimitRangeList({ namespace: name })
     limitRanges.value = res.data || []
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 async function handleDeleteRq(rqName: string) {
   try {
-    await ElMessageBox.confirm(t('common.deleteResourceConfirm', { type: 'ResourceQuota', name: rqName }), t('common.confirmDelete'), { type: 'warning' })
+    await ElMessageBox.confirm(
+      t('common.deleteResourceConfirm', { type: 'ResourceQuota', name: rqName }),
+      t('common.confirmDelete'),
+      { type: 'warning' },
+    )
     await deleteResourceQuota({ namespace: name, name: rqName })
     ElMessage.success(t('config.resourceQuotaDeleted'))
     fetchResourceQuotas()
@@ -118,7 +128,11 @@ async function handleDeleteRq(rqName: string) {
 
 async function handleDeleteLr(lrName: string) {
   try {
-    await ElMessageBox.confirm(t('common.deleteResourceConfirm', { type: 'LimitRange', name: lrName }), t('common.confirmDelete'), { type: 'warning' })
+    await ElMessageBox.confirm(
+      t('common.deleteResourceConfirm', { type: 'LimitRange', name: lrName }),
+      t('common.confirmDelete'),
+      { type: 'warning' },
+    )
     await deleteLimitRange({ namespace: name, name: lrName })
     ElMessage.success(t('config.limitRangeDeleted'))
     fetchLimitRanges()
@@ -169,12 +183,16 @@ async function handleCreateRq() {
 
   rqCreating.value = true
   try {
-    const yamlContent = JSON.stringify({
-      apiVersion: 'v1',
-      kind: 'ResourceQuota',
-      metadata: { name: rqForm.name, namespace: name },
-      spec: { hard },
-    }, null, 2)
+    const yamlContent = JSON.stringify(
+      {
+        apiVersion: 'v1',
+        kind: 'ResourceQuota',
+        metadata: { name: rqForm.name, namespace: name },
+        spec: { hard },
+      },
+      null,
+      2,
+    )
     await createResourceQuota({ namespace: name, yaml: yamlContent })
     ElMessage.success(t('namespace.rqCreated'))
     rqDialogVisible.value = false
@@ -189,23 +207,33 @@ async function handleCreateRq() {
 // Create LimitRange
 function showCreateLrDialog() {
   lrForm.name = ''
-  lrForm.limits = [{
-    type: 'Container',
-    maxCpu: '', maxMemory: '',
-    minCpu: '', minMemory: '',
-    defaultCpu: '', defaultMemory: '',
-    defaultRequestCpu: '', defaultRequestMemory: '',
-  }]
+  lrForm.limits = [
+    {
+      type: 'Container',
+      maxCpu: '',
+      maxMemory: '',
+      minCpu: '',
+      minMemory: '',
+      defaultCpu: '',
+      defaultMemory: '',
+      defaultRequestCpu: '',
+      defaultRequestMemory: '',
+    },
+  ]
   lrDialogVisible.value = true
 }
 
 function addLrLimit() {
   lrForm.limits.push({
     type: 'Container',
-    maxCpu: '', maxMemory: '',
-    minCpu: '', minMemory: '',
-    defaultCpu: '', defaultMemory: '',
-    defaultRequestCpu: '', defaultRequestMemory: '',
+    maxCpu: '',
+    maxMemory: '',
+    minCpu: '',
+    minMemory: '',
+    defaultCpu: '',
+    defaultMemory: '',
+    defaultRequestCpu: '',
+    defaultRequestMemory: '',
   })
 }
 
@@ -219,9 +247,12 @@ async function handleCreateLr() {
     return
   }
 
-  const limits = lrForm.limits.map(l => {
+  const limits = lrForm.limits.map((l) => {
     const limit: any = { type: l.type }
-    const max: any = {}; const min: any = {}; const def: any = {}; const defReq: any = {}
+    const max: any = {}
+    const min: any = {}
+    const def: any = {}
+    const defReq: any = {}
     if (l.maxCpu) max.cpu = l.maxCpu
     if (l.maxMemory) max.memory = l.maxMemory
     if (l.minCpu) min.cpu = l.minCpu
@@ -239,12 +270,16 @@ async function handleCreateLr() {
 
   lrCreating.value = true
   try {
-    const yamlContent = JSON.stringify({
-      apiVersion: 'v1',
-      kind: 'LimitRange',
-      metadata: { name: lrForm.name, namespace: name },
-      spec: { limits },
-    }, null, 2)
+    const yamlContent = JSON.stringify(
+      {
+        apiVersion: 'v1',
+        kind: 'LimitRange',
+        metadata: { name: lrForm.name, namespace: name },
+        spec: { limits },
+      },
+      null,
+      2,
+    )
     await createLimitRange({ namespace: name, yaml: yamlContent })
     ElMessage.success(t('namespace.lrCreated'))
     lrDialogVisible.value = false
@@ -261,24 +296,37 @@ async function handleDelete() {
     await ElMessageBox.confirm(
       t('namespace.deleteConfirm', { name }),
       t('namespace.confirmDelete'),
-      { type: 'error', confirmButtonText: t('namespace.deleteBtn'), cancelButtonText: t('namespace.cancelButton') }
+      {
+        type: 'error',
+        confirmButtonText: t('namespace.deleteBtn'),
+        cancelButtonText: t('namespace.cancelButton'),
+      },
     )
     await deleteNamespace({ name })
     ElMessage.success(t('namespace.deleteSuccess'))
     namespaceStore.clearCache()
     router.push('/namespaces')
-  } catch { /* cancelled */ }
+  } catch {
+    /* cancelled */
+  }
 }
 
 // Labels
 function handleEditLabels() {
-  labelsArray.value = Object.entries(namespace.value?.labels || {}).map(([key, value]) => ({ key, value: value as string }))
+  labelsArray.value = Object.entries(namespace.value?.labels || {}).map(([key, value]) => ({
+    key,
+    value: value as string,
+  }))
   if (labelsArray.value.length === 0) labelsArray.value = [{ key: '', value: '' }]
   labelsDialogVisible.value = true
 }
 
-function addLabel() { labelsArray.value.push({ key: '', value: '' }) }
-function removeLabel(i: number) { labelsArray.value.splice(i, 1) }
+function addLabel() {
+  labelsArray.value.push({ key: '', value: '' })
+}
+function removeLabel(i: number) {
+  labelsArray.value.splice(i, 1)
+}
 
 async function handleSaveLabels() {
   try {
@@ -297,13 +345,19 @@ async function handleSaveLabels() {
 
 // Annotations
 function handleEditAnnotations() {
-  annotationsArray.value = Object.entries(namespace.value?.annotations || {}).map(([key, value]) => ({ key, value: value as string }))
+  annotationsArray.value = Object.entries(namespace.value?.annotations || {}).map(
+    ([key, value]) => ({ key, value: value as string }),
+  )
   if (annotationsArray.value.length === 0) annotationsArray.value = [{ key: '', value: '' }]
   annotationsDialogVisible.value = true
 }
 
-function addAnnotation() { annotationsArray.value.push({ key: '', value: '' }) }
-function removeAnnotation(i: number) { annotationsArray.value.splice(i, 1) }
+function addAnnotation() {
+  annotationsArray.value.push({ key: '', value: '' })
+}
+function removeAnnotation(i: number) {
+  annotationsArray.value.splice(i, 1)
+}
 
 const annotationsSaving = ref(false)
 
@@ -344,7 +398,8 @@ async function handleSaveAnnotations() {
 // ---- Resize: left-right ----
 const leftWidth = ref(300)
 const resizingH = ref(false)
-let startX = 0, startW = 0
+let startX = 0,
+  startW = 0
 function onHResizeStart(e: MouseEvent) {
   e.preventDefault()
   resizingH.value = true
@@ -365,7 +420,8 @@ function onHResizeStart(e: MouseEvent) {
 // ---- Resize: top-bottom (ResourceQuota / LimitRange) ----
 const rightTopHeight = ref<number | null>(null)
 const resizingV = ref(false)
-let startY = 0, startH = 0
+let startY = 0,
+  startH = 0
 function onVResizeStart(e: MouseEvent) {
   e.preventDefault()
   const rightPanel = (e.target as HTMLElement).closest('.right-panel')
@@ -386,11 +442,22 @@ function onVResizeStart(e: MouseEvent) {
   document.addEventListener('mouseup', onUp)
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-  fetchDetail()
-  fetchResourceQuotas()
-  fetchLimitRanges()
-}, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(
+  async () => {
+    fetchDetail()
+    fetchResourceQuotas()
+    fetchLimitRanges()
+  },
+  { autoStart: false },
+)
 
 onMounted(() => {
   fetchDetail()
@@ -400,39 +467,40 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
+  <div v-loading="loading" class="detail-page">
     <!-- 顶部标题栏 -->
     <div class="page-header">
       <div class="header-left">
         <h2 class="res-name">{{ name }}</h2>
         <div class="meta-line">
-          <el-tag :type="statusTagType" effect="dark" size="small">{{ namespace?.status || 'Unknown' }}</el-tag>
+          <el-tag :type="statusTagType" effect="dark" size="small">{{
+            namespace?.status || 'Unknown'
+          }}</el-tag>
         </div>
       </div>
       <div class="header-actions">
-        <el-button type="primary" @click="handleEditLabels">{{ t('namespace.labelBtn') }}</el-button>
+        <el-button type="primary" @click="handleEditLabels">{{
+          t('namespace.labelBtn')
+        }}</el-button>
         <el-button @click="handleOpenYaml">{{ t('common.yaml') }}</el-button>
         <el-button type="danger" @click="handleDelete">{{ t('namespace.deleteBtn') }}</el-button>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
+            <el-button :type="isRunning ? 'success' : 'default'" :icon="Timer" @click="toggle()" />
           </template>
           <div class="auto-refresh-popover">
             <div class="popover-title">
-              {{ isRunning ? t('common.autoRefreshOn', { n: countdown }) : t('common.autoRefresh') }}
+              {{
+                isRunning ? t('common.autoRefreshOn', { n: countdown }) : t('common.autoRefresh')
+              }}
             </div>
             <el-select
               :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
               :teleported="false"
               size="small"
-              style="width: 100%;"
+              style="width: 100%"
+              @update:model-value="setIntervalOption"
             >
               <el-option
                 v-for="sec in availableIntervals"
@@ -444,7 +512,7 @@ onMounted(() => {
           </div>
         </el-popover>
         <el-tooltip :content="t('common.refresh')" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+          <el-button :loading="loading" :icon="Refresh" @click="manualRefresh()" />
         </el-tooltip>
         <el-tooltip :content="t('common.back')" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/namespaces')" />
@@ -454,63 +522,105 @@ onMounted(() => {
 
     <template v-if="namespace">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
-
         <!-- 左侧：基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">{{ t('namespace.detail') }}</div>
           <div class="info-body">
             <el-descriptions :column="1" border size="small">
-              <el-descriptions-item :label="t('namespace.nameLabel')">{{ namespace.name }}</el-descriptions-item>
+              <el-descriptions-item :label="t('namespace.nameLabel')">{{
+                namespace.name
+              }}</el-descriptions-item>
               <el-descriptions-item :label="t('common.status')">
-                <el-tag :type="statusTagType" size="small" effect="dark">{{ namespace.status }}</el-tag>
+                <el-tag :type="statusTagType" size="small" effect="dark">{{
+                  namespace.status
+                }}</el-tag>
               </el-descriptions-item>
-              <el-descriptions-item :label="t('namespace.ageLabel')">{{ namespace.age }}</el-descriptions-item>
+              <el-descriptions-item :label="t('namespace.ageLabel')">{{
+                namespace.age
+              }}</el-descriptions-item>
             </el-descriptions>
 
             <!-- Labels -->
-            <div style="margin-top: var(--gk-space-4);">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; font-size: var(--gk-font-size-sm);">{{ t('namespace.labels') }}</h4>
+            <div style="margin-top: var(--gk-space-4)">
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-bottom: 8px;
+                "
+              >
+                <h4 style="margin: 0; font-size: var(--gk-font-size-sm)">
+                  {{ t('namespace.labels') }}
+                </h4>
                 <el-button size="small" @click="handleEditLabels">{{ t('common.edit') }}</el-button>
               </div>
               <div v-if="namespace.labels && Object.keys(namespace.labels).length > 0">
                 <el-tag
                   v-for="(v, k) in namespace.labels"
                   :key="k"
-                  style="margin-right: 8px; margin-bottom: 8px;"
+                  style="margin-right: 8px; margin-bottom: 8px"
                   size="small"
                 >
                   {{ k }}={{ v }}
                 </el-tag>
               </div>
-              <span v-else style="color: #909399; font-size: 12px;">{{ t('namespace.noLabels') }}</span>
+              <span v-else style="color: #909399; font-size: 12px">{{
+                t('namespace.noLabels')
+              }}</span>
             </div>
 
             <!-- Annotations -->
-            <div style="margin-top: var(--gk-space-4);">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="margin: 0; font-size: var(--gk-font-size-sm);">{{ t('namespace.annotations') }}</h4>
-                <el-button size="small" @click="handleEditAnnotations">{{ t('common.edit') }}</el-button>
+            <div style="margin-top: var(--gk-space-4)">
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-bottom: 8px;
+                "
+              >
+                <h4 style="margin: 0; font-size: var(--gk-font-size-sm)">
+                  {{ t('namespace.annotations') }}
+                </h4>
+                <el-button size="small" @click="handleEditAnnotations">{{
+                  t('common.edit')
+                }}</el-button>
               </div>
               <div v-if="namespace.annotations && Object.keys(namespace.annotations).length > 0">
-                <div v-for="(v, k) in namespace.annotations" :key="k" style="margin-bottom: 4px; font-size: 12px;">
-                  <span style="font-weight: 600;">{{ k }}:</span> {{ v }}
+                <div
+                  v-for="(v, k) in namespace.annotations"
+                  :key="k"
+                  style="margin-bottom: 4px; font-size: 12px"
+                >
+                  <span style="font-weight: 600">{{ k }}:</span> {{ v }}
                 </div>
               </div>
-              <span v-else style="color: #909399; font-size: 12px;">{{ t('namespace.noAnnotations') }}</span>
+              <span v-else style="color: #909399; font-size: 12px">{{
+                t('namespace.noAnnotations')
+              }}</span>
             </div>
           </div>
         </div>
 
         <!-- 右侧：ResourceQuota + LimitRange -->
         <div class="right-panel">
-
           <!-- Resource Quotas -->
-          <div class="right-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
+          <div
+            class="right-section"
+            :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}"
+          >
             <div class="panel-title">
               {{ t('namespace.resourceQuotas') }}
-              <span class="count-badge">{{ resourceQuotas.length }} {{ t('namespace.count') }}</span>
-              <el-button size="small" type="primary" @click="showCreateRqDialog" style="margin-left: auto;">
+              <span class="count-badge"
+                >{{ resourceQuotas.length }} {{ t('namespace.count') }}</span
+              >
+              <el-button
+                size="small"
+                type="primary"
+                style="margin-left: auto"
+                @click="showCreateRqDialog"
+              >
                 <el-icon><Plus /></el-icon> {{ t('namespace.createBtn') }}
               </el-button>
             </div>
@@ -519,24 +629,36 @@ onMounted(() => {
                 <el-table-column prop="name" :label="t('namespace.nameLabel')" min-width="200" />
                 <el-table-column :label="t('namespace.hardLimit')" min-width="250">
                   <template #default="{ row }">
-                    <div v-for="(v, k) in (row.hard || {})" :key="k" style="font-size: 12px;">{{ k }}: {{ v }}</div>
+                    <div v-for="(v, k) in row.hard || {}" :key="k" style="font-size: 12px">
+                      {{ k }}: {{ v }}
+                    </div>
                   </template>
                 </el-table-column>
                 <el-table-column :label="t('namespace.used')" min-width="250">
                   <template #default="{ row }">
-                    <div v-for="(v, k) in (row.used || {})" :key="k" style="font-size: 12px;">{{ k }}: {{ v }}</div>
+                    <div v-for="(v, k) in row.used || {}" :key="k" style="font-size: 12px">
+                      {{ k }}: {{ v }}
+                    </div>
                   </template>
                 </el-table-column>
                 <el-table-column prop="age" :label="t('namespace.ageLabel')" width="180" />
                 <el-table-column :label="t('common.actions')" width="100" fixed="right">
                   <template #default="{ row }">
-                    <el-button size="small" type="danger" text @click="handleDeleteRq(row.name)">{{ t('common.delete') }}</el-button>
+                    <el-button size="small" type="danger" text @click="handleDeleteRq(row.name)">{{
+                      t('common.delete')
+                    }}</el-button>
                   </template>
                 </el-table-column>
               </el-table>
               <div v-else class="empty-hint">
                 {{ t('namespace.noResourceQuotas') }}
-                <el-button type="primary" size="small" @click="showCreateRqDialog" style="margin-top: 8px;">{{ t('namespace.setQuotaBtn') }}</el-button>
+                <el-button
+                  type="primary"
+                  size="small"
+                  style="margin-top: 8px"
+                  @click="showCreateRqDialog"
+                  >{{ t('namespace.setQuotaBtn') }}</el-button
+                >
               </div>
             </div>
           </div>
@@ -549,7 +671,12 @@ onMounted(() => {
             <div class="panel-title">
               {{ t('namespace.limitRanges') }}
               <span class="count-badge">{{ limitRanges.length }} {{ t('namespace.count') }}</span>
-              <el-button size="small" type="primary" @click="showCreateLrDialog" style="margin-left: auto;">
+              <el-button
+                size="small"
+                type="primary"
+                style="margin-left: auto"
+                @click="showCreateLrDialog"
+              >
                 <el-icon><Plus /></el-icon> {{ t('namespace.createBtn') }}
               </el-button>
             </div>
@@ -558,34 +685,45 @@ onMounted(() => {
                 <el-table-column prop="name" :label="t('namespace.nameLabel')" min-width="200" />
                 <el-table-column :label="t('namespace.limit')" min-width="300">
                   <template #default="{ row }">
-                    <div v-for="(limit, i) in (row.limits || [])" :key="i" style="font-size: 12px; margin-bottom: 4px;">
-                      <el-tag size="small" style="margin-right: 4px;">{{ limit.type }}</el-tag>
-                      <span v-for="(v, k) in (limit.max || {})" :key="k">Max {{ k }}: {{ v }} </span>
-                      <span v-for="(v, k) in (limit.min || {})" :key="k">Min {{ k }}: {{ v }} </span>
+                    <div
+                      v-for="(limit, i) in row.limits || []"
+                      :key="i"
+                      style="font-size: 12px; margin-bottom: 4px"
+                    >
+                      <el-tag size="small" style="margin-right: 4px">{{ limit.type }}</el-tag>
+                      <span v-for="(v, k) in limit.max || {}" :key="k">Max {{ k }}: {{ v }} </span>
+                      <span v-for="(v, k) in limit.min || {}" :key="k">Min {{ k }}: {{ v }} </span>
                     </div>
                   </template>
                 </el-table-column>
                 <el-table-column prop="age" :label="t('namespace.ageLabel')" width="180" />
                 <el-table-column :label="t('common.actions')" width="100" fixed="right">
                   <template #default="{ row }">
-                    <el-button size="small" type="danger" text @click="handleDeleteLr(row.name)">{{ t('common.delete') }}</el-button>
+                    <el-button size="small" type="danger" text @click="handleDeleteLr(row.name)">{{
+                      t('common.delete')
+                    }}</el-button>
                   </template>
                 </el-table-column>
               </el-table>
               <div v-else class="empty-hint">
                 {{ t('namespace.noLimitRanges') }}
-                <el-button type="primary" size="small" @click="showCreateLrDialog" style="margin-top: 8px;">{{ t('namespace.setLimitBtn') }}</el-button>
+                <el-button
+                  type="primary"
+                  size="small"
+                  style="margin-top: 8px"
+                  @click="showCreateLrDialog"
+                  >{{ t('namespace.setLimitBtn') }}</el-button
+                >
               </div>
             </div>
           </div>
-
         </div>
 
         <!-- 水平拖拽条 -->
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
+          :style="{ left: leftWidth - 3 + 'px' }"
           @mousedown="onHResizeStart"
         />
       </div>
@@ -602,43 +740,73 @@ onMounted(() => {
     />
 
     <!-- Labels Dialog -->
-    <el-dialog v-model="labelsDialogVisible" :title="t('namespace.labelsTitle')" width="600px" destroy-on-close>
-      <div v-for="(label, i) in labelsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: var(--gk-space-3); align-items: center;">
-        <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 2;" />
-        <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 2;" />
+    <el-dialog
+      v-model="labelsDialogVisible"
+      :title="t('namespace.labelsTitle')"
+      width="600px"
+      destroy-on-close
+    >
+      <div
+        v-for="(label, i) in labelsArray"
+        :key="i"
+        style="display: flex; gap: 8px; margin-bottom: var(--gk-space-3); align-items: center"
+      >
+        <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 2" />
+        <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 2" />
         <el-button type="danger" circle size="small" @click="removeLabel(i)">
           <el-icon><Delete /></el-icon>
         </el-button>
       </div>
-      <el-button @click="addLabel" style="margin-top: 8px;">
+      <el-button style="margin-top: 8px" @click="addLabel">
         <el-icon><Plus /></el-icon> {{ t('namespace.addLabel') }}
       </el-button>
       <template #footer>
-        <el-button @click="labelsDialogVisible = false">{{ t('namespace.cancelButton') }}</el-button>
+        <el-button @click="labelsDialogVisible = false">{{
+          t('namespace.cancelButton')
+        }}</el-button>
         <el-button type="primary" @click="handleSaveLabels">{{ t('namespace.saveBtn') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- Annotations Dialog -->
-    <el-dialog v-model="annotationsDialogVisible" :title="t('namespace.annotationsDialogTitle')" width="650px" destroy-on-close>
-      <div v-for="(anno, i) in annotationsArray" :key="i" style="display: flex; gap: 8px; margin-bottom: var(--gk-space-3); align-items: center;">
-        <el-input v-model="anno.key" :placeholder="t('namespace.key')" style="flex: 2;" />
-        <el-input v-model="anno.value" :placeholder="t('namespace.value')" style="flex: 2;" />
+    <el-dialog
+      v-model="annotationsDialogVisible"
+      :title="t('namespace.annotationsDialogTitle')"
+      width="650px"
+      destroy-on-close
+    >
+      <div
+        v-for="(anno, i) in annotationsArray"
+        :key="i"
+        style="display: flex; gap: 8px; margin-bottom: var(--gk-space-3); align-items: center"
+      >
+        <el-input v-model="anno.key" :placeholder="t('namespace.key')" style="flex: 2" />
+        <el-input v-model="anno.value" :placeholder="t('namespace.value')" style="flex: 2" />
         <el-button type="danger" circle size="small" @click="removeAnnotation(i)">
           <el-icon><Delete /></el-icon>
         </el-button>
       </div>
-      <el-button @click="addAnnotation" style="margin-top: 8px;">
+      <el-button style="margin-top: 8px" @click="addAnnotation">
         <el-icon><Plus /></el-icon> {{ t('namespace.addAnnotation') }}
       </el-button>
       <template #footer>
-        <el-button @click="annotationsDialogVisible = false">{{ t('namespace.cancelButton') }}</el-button>
-        <el-button type="primary" :loading="annotationsSaving" @click="handleSaveAnnotations">{{ t('namespace.saveBtn') }}</el-button>
+        <el-button @click="annotationsDialogVisible = false">{{
+          t('namespace.cancelButton')
+        }}</el-button>
+        <el-button type="primary" :loading="annotationsSaving" @click="handleSaveAnnotations">{{
+          t('namespace.saveBtn')
+        }}</el-button>
       </template>
     </el-dialog>
 
     <!-- Create ResourceQuota Drawer -->
-    <el-drawer v-model="rqDialogVisible" :title="t('namespace.setQuota')" direction="rtl" size="500px" destroy-on-close>
+    <el-drawer
+      v-model="rqDialogVisible"
+      :title="t('namespace.setQuota')"
+      direction="rtl"
+      size="500px"
+      destroy-on-close
+    >
       <el-form label-width="160px">
         <el-form-item :label="t('common.name')" required>
           <el-input v-model="rqForm.name" :placeholder="t('namespace.createNamePlaceholder')" />
@@ -668,25 +836,50 @@ onMounted(() => {
       </el-form>
       <template #footer>
         <el-button @click="rqDialogVisible = false">{{ t('namespace.cancelButton') }}</el-button>
-        <el-button type="primary" :loading="rqCreating" @click="handleCreateRq">{{ t('namespace.createBtn') }}</el-button>
+        <el-button type="primary" :loading="rqCreating" @click="handleCreateRq">{{
+          t('namespace.createBtn')
+        }}</el-button>
       </template>
     </el-drawer>
 
     <!-- Create LimitRange Drawer -->
-    <el-drawer v-model="lrDialogVisible" :title="t('namespace.setLimit')" direction="rtl" size="550px" destroy-on-close>
+    <el-drawer
+      v-model="lrDialogVisible"
+      :title="t('namespace.setLimit')"
+      direction="rtl"
+      size="550px"
+      destroy-on-close
+    >
       <el-form label-width="140px">
         <el-form-item :label="t('common.name')" required>
           <el-input v-model="lrForm.name" :placeholder="t('namespace.createNamePlaceholder')" />
         </el-form-item>
 
-        <div v-for="(limit, i) in lrForm.limits" :key="i" style="border: 1px solid var(--el-border-color); border-radius: var(--gk-radius-md); padding: 16px; margin-bottom: 16px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: var(--gk-space-3);">
-            <el-select v-model="limit.type" style="width: 200px;">
+        <div
+          v-for="(limit, i) in lrForm.limits"
+          :key="i"
+          style="
+            border: 1px solid var(--el-border-color);
+            border-radius: var(--gk-radius-md);
+            padding: 16px;
+            margin-bottom: 16px;
+          "
+        >
+          <div
+            style="display: flex; justify-content: space-between; margin-bottom: var(--gk-space-3)"
+          >
+            <el-select v-model="limit.type" style="width: 200px">
               <el-option :label="t('namespace.containerType')" value="Container" />
               <el-option :label="t('namespace.podType')" value="Pod" />
               <el-option :label="t('namespace.pvcType')" value="PersistentVolumeClaim" />
             </el-select>
-            <el-button v-if="lrForm.limits.length > 1" type="danger" size="small" @click="removeLrLimit(i)">{{ t('namespace.removeLimit') }}</el-button>
+            <el-button
+              v-if="lrForm.limits.length > 1"
+              type="danger"
+              size="small"
+              @click="removeLrLimit(i)"
+              >{{ t('namespace.removeLimit') }}</el-button
+            >
           </div>
           <el-form-item :label="t('namespace.maxCpu')">
             <el-input v-model="limit.maxCpu" :placeholder="t('namespace.exampleCpu')" />
@@ -710,16 +903,21 @@ onMounted(() => {
             <el-input v-model="limit.defaultRequestCpu" :placeholder="t('namespace.exampleCpu')" />
           </el-form-item>
           <el-form-item :label="t('namespace.defaultRequestMemory')">
-            <el-input v-model="limit.defaultRequestMemory" :placeholder="t('namespace.exampleMemory')" />
+            <el-input
+              v-model="limit.defaultRequestMemory"
+              :placeholder="t('namespace.exampleMemory')"
+            />
           </el-form-item>
         </div>
-        <el-button @click="addLrLimit" style="margin-bottom: var(--gk-space-4);">
+        <el-button style="margin-bottom: var(--gk-space-4)" @click="addLrLimit">
           <el-icon><Plus /></el-icon> {{ t('namespace.addLimit') }}
         </el-button>
       </el-form>
       <template #footer>
         <el-button @click="lrDialogVisible = false">{{ t('namespace.cancelButton') }}</el-button>
-        <el-button type="primary" :loading="lrCreating" @click="handleCreateLr">{{ t('namespace.createBtn') }}</el-button>
+        <el-button type="primary" :loading="lrCreating" @click="handleCreateLr">{{
+          t('namespace.createBtn')
+        }}</el-button>
       </template>
     </el-drawer>
   </div>

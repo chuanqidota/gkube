@@ -41,7 +41,9 @@ const drawerSize = computed(() => {
 
 onMounted(() => {
   fetchData()
-  mobileHandler = (e: MediaQueryListEvent) => { isMobile.value = e.matches }
+  mobileHandler = (e: MediaQueryListEvent) => {
+    isMobile.value = e.matches
+  }
   window.matchMedia('(max-width: 768px)').addEventListener('change', mobileHandler)
 })
 onUnmounted(() => {
@@ -65,21 +67,21 @@ const saving = ref(false)
 const filteredRoles = computed(() => {
   if (!searchName.value.trim()) return roles.value
   const q = searchName.value.trim().toLowerCase()
-  return roles.value.filter(r =>
-    r.name.toLowerCase().includes(q) || r.displayName.toLowerCase().includes(q)
+  return roles.value.filter(
+    (r) => r.name.toLowerCase().includes(q) || r.displayName.toLowerCase().includes(q),
   )
 })
 
 // 当前编辑作用域下可配置的资源组（clusterOnly 组仅 cluster 作用域）
 const availableGroups = computed(() => {
   if (editForm.value.scopeType === 'cluster') return dict.value
-  return dict.value.filter(d => !d.clusterOnly)
+  return dict.value.filter((d) => !d.clusterOnly)
 })
 
 // 矩阵表头：字典中出现过的全部动词（去重）
 const allVerbs = computed(() => {
   const s = new Set<string>()
-  for (const d of dict.value) d.verbs.forEach(v => s.add(v))
+  for (const d of dict.value) d.verbs.forEach((v) => s.add(v))
   return [...s].sort()
 })
 
@@ -87,7 +89,11 @@ const allVerbs = computed(() => {
 function parsePerms(p: any): Record<string, string[]> {
   if (!p) return {}
   if (typeof p === 'string') {
-    try { return JSON.parse(p) } catch { return {} }
+    try {
+      return JSON.parse(p)
+    } catch {
+      return {}
+    }
   }
   return p
 }
@@ -95,10 +101,7 @@ function parsePerms(p: any): Record<string, string[]> {
 async function fetchData() {
   loading.value = true
   try {
-    const [rolesRes, dictRes] = await Promise.all([
-      getRoles(),
-      getResourceDict(),
-    ])
+    const [rolesRes, dictRes] = await Promise.all([getRoles(), getResourceDict()])
     const rData: any = rolesRes?.data ?? rolesRes
     roles.value = (Array.isArray(rData) ? rData : rData?.items || []) as RoleItem[]
     const dData: any = dictRes?.data ?? dictRes
@@ -112,7 +115,13 @@ async function fetchData() {
 
 function openCreate() {
   editRole.value = null
-  editForm.value = { name: '', displayName: '', scopeType: 'namespace', description: '', permissions: {} }
+  editForm.value = {
+    name: '',
+    displayName: '',
+    scopeType: 'namespace',
+    description: '',
+    permissions: {},
+  }
   editVisible.value = true
 }
 
@@ -145,9 +154,11 @@ async function handleDelete(role: RoleItem) {
     await ElMessageBox.confirm(
       t('rbac.deleteRoleConfirm', { name: role.displayName }),
       t('common.confirm'),
-      { type: 'warning' }
+      { type: 'warning' },
     )
-  } catch { return }
+  } catch {
+    return
+  }
   try {
     await deleteRole(role.id)
     ElMessage.success(t('common.deleted'))
@@ -179,7 +190,7 @@ function isVerbOn(group: string, verb: string): boolean {
 // 切换作用域时清除 clusterOnly 组的配置
 function handleScopeChange() {
   if (editForm.value.scopeType === 'namespace') {
-    const clusterOnlyGroups = new Set(dict.value.filter(d => d.clusterOnly).map(d => d.group))
+    const clusterOnlyGroups = new Set(dict.value.filter((d) => d.clusterOnly).map((d) => d.group))
     const perms: Record<string, string[]> = {}
     for (const [g, verbs] of Object.entries(editForm.value.permissions)) {
       if (!clusterOnlyGroups.has(g)) perms[g] = verbs
@@ -219,7 +230,6 @@ async function handleSave() {
     saving.value = false
   }
 }
-
 </script>
 
 <template>
@@ -239,7 +249,7 @@ async function handleSave() {
     </ResourceListToolbar>
 
     <el-card shadow="never" class="table-card">
-      <el-table :data="filteredRoles" v-loading="loading" stripe>
+      <el-table v-loading="loading" :data="filteredRoles" stripe>
         <el-table-column prop="displayName" :label="t('rbac.roleName')" min-width="140" />
         <el-table-column prop="name" :label="t('rbac.roleIdent')" min-width="140" />
         <el-table-column :label="t('rbac.scope')" width="120" align="center">
@@ -256,7 +266,12 @@ async function handleSave() {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="description" :label="t('rbac.roleDescLabel')" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          prop="description"
+          :label="t('rbac.roleDescLabel')"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">{{ row.description || '-' }}</template>
         </el-table-column>
         <el-table-column :label="t('rbac.actions')" width="200" fixed="right" align="center">
@@ -273,16 +288,29 @@ async function handleSave() {
     </el-card>
 
     <!-- 矩阵编辑抽屉 -->
-    <el-drawer v-model="editVisible" :title="editRole ? t('rbac.editRole') : t('rbac.createRole')" :size="drawerSize" direction="rtl">
+    <el-drawer
+      v-model="editVisible"
+      :title="editRole ? t('rbac.editRole') : t('rbac.createRole')"
+      :size="drawerSize"
+      direction="rtl"
+    >
       <el-form label-width="80px">
         <el-form-item :label="t('rbac.roleName')">
-          <el-input v-model="editForm.displayName" :disabled="!!editRole" style="width: 240px;" />
+          <el-input v-model="editForm.displayName" :disabled="!!editRole" style="width: 240px" />
         </el-form-item>
         <el-form-item v-if="!editRole" :label="t('rbac.roleIdent')">
-          <el-input v-model="editForm.name" style="width: 240px;" :placeholder="t('rbac.roleIdentPlaceholder')" />
+          <el-input
+            v-model="editForm.name"
+            style="width: 240px"
+            :placeholder="t('rbac.roleIdentPlaceholder')"
+          />
         </el-form-item>
         <el-form-item :label="t('rbac.scope')">
-          <el-radio-group v-model="editForm.scopeType" :disabled="!!editRole" @change="handleScopeChange">
+          <el-radio-group
+            v-model="editForm.scopeType"
+            :disabled="!!editRole"
+            @change="handleScopeChange"
+          >
             <el-radio value="namespace">{{ t('rbac.namespaceScope') }}</el-radio>
             <el-radio value="cluster">{{ t('rbac.clusterScope') }}</el-radio>
           </el-radio-group>
@@ -307,18 +335,22 @@ async function handleSave() {
         </el-table-column>
       </el-table>
 
-      <el-alert type="warning" :closable="false" style="margin-top: 12px;">
+      <el-alert type="warning" :closable="false" style="margin-top: 12px">
         {{ t('rbac.roleCacheWarning') }}
       </el-alert>
 
       <template #footer>
         <el-button @click="editVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="saving" @click="handleSave">{{ t('common.save') }}</el-button>
+        <el-button type="primary" :loading="saving" @click="handleSave">{{
+          t('common.save')
+        }}</el-button>
       </template>
     </el-drawer>
   </div>
 </template>
 
 <style scoped>
-.na { color: var(--gk-color-text-disabled); }
+.na {
+  color: var(--gk-color-text-disabled);
+}
 </style>

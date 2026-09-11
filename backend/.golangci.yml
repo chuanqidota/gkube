@@ -1,0 +1,62 @@
+version: "2"
+
+run:
+  timeout: 5m
+  go: '1.26'
+
+linters:
+  default: none
+  enable:
+    - govet           # Go 官方 vet
+    - staticcheck     # 全面静态分析（含 gosimple）
+    - errcheck        # 未检查的错误返回值
+    - ineffassign     # 无效赋值
+    - unused          # 未使用的代码
+    - misspell        # 拼写检查
+    - gocritic        # 代码风格和最佳实践
+    - bodyclose       # HTTP Response Body 未关闭
+    - noctx           # HTTP 请求未带 context
+    - prealloc        # slice 预分配
+    - unconvert       # 不必要的类型转换
+    - errorlint       # error wrapping 最佳实践
+
+formatters:
+  enable:
+    - gofmt           # 格式检查
+    - goimports       # import 排序
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment  # 改字段顺序会破坏序列化兼容
+
+  gocritic:
+    enabled-tags: [diagnostic, style, performance]
+    disabled-checks:
+      - hugeParam       # K8s 对象天然大
+      - rangeValCopy
+
+  errcheck:
+    check-type-assertions: true
+    exclude-functions:
+      - (io.Closer).Close
+
+  misspell:
+    locale: US
+    ignore-words: [k8s, kubeconfig]
+
+  errorlint:
+    errorf: false     # 项目大量用 %v，不强制切 %w
+
+issues:
+  exclude-rules:
+    - path: _test\.go$
+      linters: [errcheck, gocritic]
+    - path: cmd/
+      linters: [errcheck]
+
+  # 渐进式：首次只检查新增代码
+  new-from-rev: HEAD
+  max-issues-per-linter: 50
+  max-same-issues: 5

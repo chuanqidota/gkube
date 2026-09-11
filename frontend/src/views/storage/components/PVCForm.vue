@@ -78,7 +78,8 @@ function parseInitialData(data: any) {
     const match = storage.match(/^(\d+(?:\.\d+)?)\s*(Mi|Gi|Ti|M|G|T)?$/i)
     if (match) {
       form.storageRequestSize = match[1]
-      form.storageRequestUnit = (match[2] || 'Gi').charAt(0).toUpperCase() + (match[2] || 'Gi').slice(1).toLowerCase()
+      form.storageRequestUnit =
+        (match[2] || 'Gi').charAt(0).toUpperCase() + (match[2] || 'Gi').slice(1).toLowerCase()
       // Normalize units
       if (form.storageRequestUnit === 'M') form.storageRequestUnit = 'Mi'
       if (form.storageRequestUnit === 'G') form.storageRequestUnit = 'Gi'
@@ -110,9 +111,12 @@ if (props.isEdit && props.initialData) {
 }
 
 // 克隆流入（创建模式 isEdit=false，上面不会触发 parseInitialData，故用 watch 兜底）
-watch(() => props.initialData, (newData) => {
-  if (newData) parseInitialData(newData)
-})
+watch(
+  () => props.initialData,
+  (newData) => {
+    if (newData) parseInitialData(newData)
+  },
+)
 
 // ---- Validation ----
 
@@ -121,13 +125,15 @@ const formRef = ref<FormInstance>()
 const formRules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '仅支持小写字母、数字和连字符，必须以字母开头，以字母或数字结尾', trigger: 'blur' },
+    {
+      pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/,
+      message: '仅支持小写字母、数字和连字符，必须以字母开头，以字母或数字结尾',
+      trigger: 'blur',
+    },
     { max: 253, message: '最多253个字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
-  storageRequestSize: [
-    { required: true, message: '请输入存储大小', trigger: 'blur' },
-  ],
+  storageRequestSize: [{ required: true, message: '请输入存储大小', trigger: 'blur' }],
 }
 
 // ---- Namespace Fetch ----
@@ -218,7 +224,11 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    const yamlStr = (await import('js-yaml')).default.dump(buildK8sPVC(), { indent: 2, lineWidth: -1, noRefs: true })
+    const yamlStr = (await import('js-yaml')).default.dump(buildK8sPVC(), {
+      indent: 2,
+      lineWidth: -1,
+      noRefs: true,
+    })
     if (props.isEdit) {
       await updatePvcYaml({ namespace: form.namespace, name: form.name, yaml: yamlStr })
       ElMessage.success(t('storage.pvcUpdated'))
@@ -229,7 +239,9 @@ async function handleSubmit() {
       router.push('/storage/pvcs')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
+    ElMessage.error(
+      e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')),
+    )
   } finally {
     submitting.value = false
   }
@@ -258,7 +270,14 @@ function handleCancel() {
               <el-input v-model="form.name" :disabled="isEdit" placeholder="例如: my-pvc" />
             </el-form-item>
             <el-form-item label="命名空间" prop="namespace">
-              <el-select v-model="form.namespace" :disabled="isEdit" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+              <el-select
+                v-model="form.namespace"
+                :disabled="isEdit"
+                filterable
+                placeholder="选择命名空间"
+                style="width: 100%"
+                :loading="namespaceLoading"
+              >
                 <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
               </el-select>
             </el-form-item>
@@ -273,15 +292,21 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="标签">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
                 <el-input v-model="label.key" placeholder="键" />
                 <el-input v-model="label.value" placeholder="值" />
-                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="removeLabel(i)">
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.labels.length <= 1"
+                  @click="removeLabel(i)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addLabel" size="small">
+              <el-button text type="primary" size="small" @click="addLabel">
                 <el-icon><Plus /></el-icon> 添加标签
               </el-button>
             </div>
@@ -300,9 +325,13 @@ function handleCancel() {
               <el-input v-model="form.storageClassName" placeholder="留空使用默认存储类" />
             </el-form-item>
             <el-form-item label="存储大小" prop="storageRequestSize">
-              <div style="display: flex; gap: 8px; width: 100%;">
-                <el-input v-model="form.storageRequestSize" placeholder="例如: 10" style="flex: 1;" />
-                <el-select v-model="form.storageRequestUnit" style="width: 100px;">
+              <div style="display: flex; gap: 8px; width: 100%">
+                <el-input
+                  v-model="form.storageRequestSize"
+                  placeholder="例如: 10"
+                  style="flex: 1"
+                />
+                <el-select v-model="form.storageRequestUnit" style="width: 100px">
                   <el-option label="Mi" value="Mi" />
                   <el-option label="Gi" value="Gi" />
                   <el-option label="Ti" value="Ti" />
@@ -320,7 +349,7 @@ function handleCancel() {
 
           <div class="fields-grid">
             <el-form-item label="卷模式">
-              <el-select v-model="form.volumeMode" style="width: 100%;">
+              <el-select v-model="form.volumeMode" style="width: 100%">
                 <el-option label="Filesystem (文件系统)" value="Filesystem" />
                 <el-option label="Block (块设备)" value="Block" />
               </el-select>
@@ -333,7 +362,12 @@ function handleCancel() {
           <el-divider content-position="left">数据源 (从快照或 PVC 克隆)</el-divider>
           <div class="fields-grid">
             <el-form-item label="数据源类型">
-              <el-select v-model="form.dataSourceType" style="width: 100%;" clearable placeholder="不使用数据源">
+              <el-select
+                v-model="form.dataSourceType"
+                style="width: 100%"
+                clearable
+                placeholder="不使用数据源"
+              >
                 <el-option label="VolumeSnapshot (快照)" value="snapshot" />
                 <el-option label="PVC (克隆)" value="pvc" />
               </el-select>
@@ -351,7 +385,9 @@ function handleCancel() {
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{
+              isEdit ? '更新' : '创建'
+            }}</el-button>
           </div>
         </div>
       </div>

@@ -43,7 +43,15 @@ const {
   deleteConfirm: (row) => `删除持久卷 "${row.name}"?`,
 })
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchResources)
 </script>
 
 <template>
@@ -83,8 +91,8 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="filteredList"
         v-loading="loading"
+        :data="filteredList"
         stripe
         @selection-change="handleSelectionChange"
       >
@@ -95,21 +103,31 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
           </template>
         </el-table-column>
         <el-table-column prop="capacity" label="容量" width="120" />
-        <el-table-column prop="access_modes" label="访问模式" min-width="160" show-overflow-tooltip />
+        <el-table-column
+          prop="access_modes"
+          label="访问模式"
+          min-width="160"
+          show-overflow-tooltip
+        />
         <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="claim" label="声明" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="storage_class" label="存储类" min-width="140" show-overflow-tooltip />
+        <el-table-column
+          prop="storage_class"
+          label="存储类"
+          min-width="140"
+          show-overflow-tooltip
+        />
         <el-table-column prop="reclaim_policy" label="回收策略" width="100" />
         <el-table-column prop="age" label="存活时间" width="120" />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
         </el-table-column>
@@ -125,7 +143,7 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
       class="yaml-drawer"
       :body-style="{ padding: '0', height: '100%' }"
     >
-      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px);">
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px)">
         <YamlEditor
           v-model="yamlContent"
           height="100%"

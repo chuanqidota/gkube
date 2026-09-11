@@ -2,7 +2,7 @@
    Light Theme (Default)
    ============================================================ */
 
-[data-theme="light"],
+[data-theme='light'],
 :root {
   --gk-white: #ffffff;
 

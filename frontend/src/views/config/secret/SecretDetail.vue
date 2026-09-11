@@ -120,14 +120,21 @@ async function handleDelete() {
   }
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchDetail, { autoStart: false })
 
 onMounted(fetchDetail)
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
+  <div v-loading="loading" class="detail-page">
     <!-- ===== 顶部标题栏 ===== -->
     <div class="page-header">
       <div class="header-left">
@@ -140,20 +147,16 @@ onMounted(fetchDetail)
       </div>
       <div class="header-actions">
         <el-tooltip :content="canWrite ? '' : '权限不足'" placement="top">
-          <el-button type="info" @click="handleEdit" :disabled="!canWrite">编辑</el-button>
+          <el-button type="info" :disabled="!canWrite" @click="handleEdit">编辑</el-button>
         </el-tooltip>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-tooltip :content="canWrite ? '' : '权限不足'" placement="top">
-          <el-button type="danger" @click="handleDelete" :disabled="!canWrite">删除</el-button>
+          <el-button type="danger" :disabled="!canWrite" @click="handleDelete">删除</el-button>
         </el-tooltip>
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
+            <el-button :type="isRunning ? 'success' : 'default'" :icon="Timer" @click="toggle()" />
           </template>
           <div class="auto-refresh-popover">
             <div class="popover-title">
@@ -161,10 +164,10 @@ onMounted(fetchDetail)
             </div>
             <el-select
               :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
               :teleported="false"
               size="small"
-              style="width: 100%;"
+              style="width: 100%"
+              @update:model-value="setIntervalOption"
             >
               <el-option
                 v-for="sec in availableIntervals"
@@ -176,7 +179,7 @@ onMounted(fetchDetail)
           </div>
         </el-popover>
         <el-tooltip content="刷新" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+          <el-button :loading="loading" :icon="Refresh" @click="manualRefresh()" />
         </el-tooltip>
         <el-tooltip content="返回列表" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/config/secrets')" />
@@ -186,7 +189,6 @@ onMounted(fetchDetail)
 
     <template v-if="secret">
       <div class="main-layout" :class="{ 'is-resizing': resizingH }">
-
         <!-- 左侧：基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">基本信息</div>
@@ -197,7 +199,9 @@ onMounted(fetchDetail)
             </div>
             <div class="info-row">
               <span class="info-label">命名空间</span>
-              <span class="info-value">{{ secret.metadata?.namespace || secret.namespace || '-' }}</span>
+              <span class="info-value">{{
+                secret.metadata?.namespace || secret.namespace || '-'
+              }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">类型</span>
@@ -213,20 +217,36 @@ onMounted(fetchDetail)
             </div>
 
             <!-- Labels -->
-            <template v-if="secret.metadata?.labels && Object.keys(secret.metadata.labels).length > 0">
+            <template
+              v-if="secret.metadata?.labels && Object.keys(secret.metadata.labels).length > 0"
+            >
               <div class="info-row">
                 <span class="info-label">标签</span>
                 <span class="info-value">
-                  <el-tag v-for="(val, key) in secret.metadata.labels" :key="key" size="small" class="label-tag">{{ key }}={{ val }}</el-tag>
+                  <el-tag
+                    v-for="(val, key) in secret.metadata.labels"
+                    :key="key"
+                    size="small"
+                    class="label-tag"
+                    >{{ key }}={{ val }}</el-tag
+                  >
                 </span>
               </div>
             </template>
 
             <!-- Annotations -->
-            <template v-if="secret.metadata?.annotations && Object.keys(secret.metadata.annotations).length > 0">
-              <div class="info-row" style="flex-direction: column;">
-                <span class="info-label" style="margin-bottom: 4px;">注解</span>
-                <div v-for="(val, key) in secret.metadata.annotations" :key="key" class="annotation-row">
+            <template
+              v-if="
+                secret.metadata?.annotations && Object.keys(secret.metadata.annotations).length > 0
+              "
+            >
+              <div class="info-row" style="flex-direction: column">
+                <span class="info-label" style="margin-bottom: 4px">注解</span>
+                <div
+                  v-for="(val, key) in secret.metadata.annotations"
+                  :key="key"
+                  class="annotation-row"
+                >
                   <span class="annotation-key mono">{{ key }}</span>
                   <span class="annotation-value mono">{{ val }}</span>
                 </div>
@@ -239,7 +259,7 @@ onMounted(fetchDetail)
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
+          :style="{ left: leftWidth - 3 + 'px' }"
           @mousedown="onHResizeStart"
         />
 
@@ -250,18 +270,34 @@ onMounted(fetchDetail)
               数据
               <span class="count-badge">{{ dataCount }} 项</span>
               <span class="toggle-wrap">
-                <el-switch v-model="showDecoded" active-text="解码" inactive-text="Base64" size="small" />
+                <el-switch
+                  v-model="showDecoded"
+                  active-text="解码"
+                  inactive-text="Base64"
+                  size="small"
+                />
               </span>
             </div>
             <div class="data-body">
-              <el-table v-if="dataEntries.length > 0" :data="dataEntries" size="small" border stripe>
+              <el-table
+                v-if="dataEntries.length > 0"
+                :data="dataEntries"
+                size="small"
+                border
+                stripe
+              >
                 <el-table-column prop="key" label="Key" width="220" show-overflow-tooltip />
                 <el-table-column label="Value" min-width="300">
                   <template #default="{ row }">
                     <div class="value-cell">
                       <span v-if="!revealedKeys.has(row.key)">•••••••</span>
                       <span v-else>{{ showDecoded ? row.decodedValue : row.rawValue }}</span>
-                      <el-button link size="small" @click="toggleReveal(row.key)" style="margin-left: 8px;">
+                      <el-button
+                        link
+                        size="small"
+                        style="margin-left: 8px"
+                        @click="toggleReveal(row.key)"
+                      >
                         {{ revealedKeys.has(row.key) ? '隐藏' : '显示' }}
                       </el-button>
                     </div>
@@ -306,7 +342,7 @@ onMounted(fetchDetail)
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto">
         <SecretForm
           v-if="editDialogVisible && secret"
           :is-edit="true"

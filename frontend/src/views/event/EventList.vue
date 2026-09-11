@@ -20,7 +20,7 @@ const namespaceList = ref<string[]>([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(50)
-const nextToken = ref('')          // continue token returned for the *next* page
+const nextToken = ref('') // continue token returned for the *next* page
 const pageTokens = ref<string[]>([]) // token used to load each page; pageTokens[i] loads page i+1
 const hasMore = ref(false)
 
@@ -34,7 +34,15 @@ const clusterId = computed(() => Number(clusterStore.currentCluster?.id) || 0)
 const isSingleCluster = computed(() => clusterId.value > 0)
 
 // Auto-refresh — shorter intervals for near-realtime event monitoring
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchEvents, {
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchEvents, {
   interval: 10000,
   intervalOptions: [3, 5, 10, 15, 30, 60],
 })
@@ -184,7 +192,13 @@ function eventTypeIcon(type: string) {
   return type === 'Warning' ? Warning : InfoFilled
 }
 
-function handleSortChange({ prop, order }: { prop: string; order: 'ascending' | 'descending' | null }) {
+function handleSortChange({
+  prop,
+  order,
+}: {
+  prop: string
+  order: 'ascending' | 'descending' | null
+}) {
   if (prop) {
     sortProp.value = prop
     sortOrder.value = order || 'descending'
@@ -211,9 +225,10 @@ const filteredEvents = computed(() => {
   let result = sortedEvents.value
   if (reasonSearch.value) {
     const query = reasonSearch.value.toLowerCase()
-    result = result.filter(e =>
-      (e.reason || '').toLowerCase().includes(query) ||
-      (e.message || '').toLowerCase().includes(query)
+    result = result.filter(
+      (e) =>
+        (e.reason || '').toLowerCase().includes(query) ||
+        (e.message || '').toLowerCase().includes(query),
     )
   }
   return result
@@ -231,6 +246,12 @@ onMounted(() => {
   fetchNamespaces()
   fetchEvents()
 })
+</script>
+
+<script lang="ts">
+export default {
+  name: 'EventList',
+}
 </script>
 
 <template>
@@ -262,21 +283,16 @@ onMounted(() => {
           v-model="selectedNamespace"
           :placeholder="t('event.allNamespaces')"
           clearable
-          style="width: 180px;"
+          style="width: 180px"
           @change="handleFilterChange"
         >
-          <el-option
-            v-for="ns in namespaceList"
-            :key="ns"
-            :label="ns"
-            :value="ns"
-          />
+          <el-option v-for="ns in namespaceList" :key="ns" :label="ns" :value="ns" />
         </el-select>
         <el-select
           v-model="selectedType"
           :placeholder="t('event.allTypes')"
           clearable
-          style="width: 140px;"
+          style="width: 140px"
           @change="handleFilterChange"
         >
           <el-option :label="t('event.normal')" value="Normal" />
@@ -285,7 +301,7 @@ onMounted(() => {
         <el-input
           v-model="reasonSearch"
           :placeholder="t('event.searchEvents')"
-          style="width: 250px;"
+          style="width: 250px"
           clearable
         >
           <template #prefix>
@@ -302,14 +318,14 @@ onMounted(() => {
       type="info"
       show-icon
       :closable="false"
-      style="margin-bottom: var(--gk-space-3);"
+      style="margin-bottom: var(--gk-space-3)"
     />
 
     <!-- Event Table -->
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="filteredEvents"
         v-loading="loading"
+        :data="filteredEvents"
         stripe
         style="width: 100%"
         max-height="calc(100dvh - 360px)"
@@ -317,17 +333,9 @@ onMounted(() => {
         @sort-change="handleSortChange"
         @row-click="showEventDetail"
       >
-        <el-table-column
-          prop="type"
-          :label="t('event.type')"
-          width="80"
-          sortable="custom"
-        >
+        <el-table-column prop="type" :label="t('event.type')" width="80" sortable="custom">
           <template #default="{ row }">
-            <div
-              class="event-type-badge"
-              :style="eventTypeStyle(row.type)"
-            >
+            <div class="event-type-badge" :style="eventTypeStyle(row.type)">
               <el-icon :size="14">
                 <component :is="eventTypeIcon(row.type)" />
               </el-icon>
@@ -392,10 +400,15 @@ onMounted(() => {
         <el-select
           v-model="pageSize"
           size="small"
-          style="width: 120px; margin-right: 12px;"
+          style="width: 120px; margin-right: 12px"
           @change="handleSizeChange"
         >
-          <el-option v-for="s in [20, 50, 100, 200]" :key="s" :value="s" :label="`${s} / ${t('common.page')}`" />
+          <el-option
+            v-for="s in [20, 50, 100, 200]"
+            :key="s"
+            :value="s"
+            :label="`${s} / ${t('common.page')}`"
+          />
         </el-select>
         <el-button-group>
           <el-button size="small" :disabled="currentPage <= 1 || loading" @click="handlePrevPage">
@@ -424,10 +437,7 @@ onMounted(() => {
             <h4>{{ t('event.basicInfo') }}</h4>
             <el-descriptions :column="1" border>
               <el-descriptions-item :label="t('event.type')">
-                <div
-                  class="event-type-badge"
-                  :style="eventTypeStyle(selectedEvent.type)"
-                >
+                <div class="event-type-badge" :style="eventTypeStyle(selectedEvent.type)">
                   <el-icon :size="14">
                     <component :is="eventTypeIcon(selectedEvent.type)" />
                   </el-icon>
@@ -492,12 +502,6 @@ onMounted(() => {
     </el-drawer>
   </div>
 </template>
-
-<script lang="ts">
-export default {
-  name: 'EventList',
-}
-</script>
 
 <style scoped>
 .event-page {

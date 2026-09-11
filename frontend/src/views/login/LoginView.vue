@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import Logo from '@/components/Logo.vue'
-import { useClusterGraph, graphState } from '@/composables/useClusterGraph'
+import { useClusterGraph, graphState } from './graph'
 
 const router = useRouter()
 const route = useRoute()
@@ -119,8 +119,8 @@ onMounted(() => {
           :model="form"
           :rules="rules"
           label-position="top"
-          @submit.prevent="handleLogin"
           class="login-form"
+          @submit.prevent="handleLogin"
         >
           <el-form-item :label="t('login.usernameLabel')" prop="username">
             <el-input
@@ -286,8 +286,11 @@ onMounted(() => {
   border-radius: var(--gk-radius-md);
   box-shadow: none;
   padding: 8px 14px;
-  transition: border-color var(--gk-transition-base), background var(--gk-transition-base),
-    box-shadow var(--gk-transition-base), transform var(--gk-transition-fast);
+  transition:
+    border-color var(--gk-transition-base),
+    background var(--gk-transition-base),
+    box-shadow var(--gk-transition-base),
+    transform var(--gk-transition-fast);
 }
 
 .login-form :deep(.el-input__wrapper:hover) {
@@ -330,8 +333,11 @@ onMounted(() => {
   background: var(--gk-color-primary);
   border: none;
   margin-top: var(--gk-space-2);
-  transition: transform var(--gk-transition-fast), box-shadow var(--gk-transition-base),
-    background var(--gk-transition-base), opacity var(--gk-transition-fast);
+  transition:
+    transform var(--gk-transition-fast),
+    box-shadow var(--gk-transition-base),
+    background var(--gk-transition-base),
+    opacity var(--gk-transition-fast);
 }
 
 .login-btn:hover:not(:disabled):not(.is-loading) {

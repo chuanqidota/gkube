@@ -6,7 +6,11 @@ import { CopyDocument } from '@element-plus/icons-vue'
 import YamlEditor from '@/components/YamlEditor.vue'
 import CloneDialog from '@/components/CloneDialog.vue'
 import { useCloneCreate, dumpCloneYaml } from '@/composables/useCloneCreate'
-import { createVolumeSnapshotClass, getVolumeSnapshotClassList, getVolumeSnapshotClassYaml } from '@/api/resource'
+import {
+  createVolumeSnapshotClass,
+  getVolumeSnapshotClassList,
+  getVolumeSnapshotClassYaml,
+} from '@/api/resource'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -26,13 +30,21 @@ parameters:
 const yamlContent = ref(defaultYaml)
 
 const {
-  cloneMode, cloneName, cloneNameOptions, cloneNameLoading,
-  cloneLoading, startClone, cancelClone, handleLoadClone,
+  cloneMode,
+  cloneName,
+  cloneNameOptions,
+  cloneNameLoading,
+  cloneLoading,
+  startClone,
+  cancelClone,
+  handleLoadClone,
 } = useCloneCreate({
   api: { list: getVolumeSnapshotClassList, yaml: getVolumeSnapshotClassYaml },
   namespaceScoped: false,
   hasForm: false,
-  onCloneToYaml: (parsed) => { yamlContent.value = dumpCloneYaml(parsed) },
+  onCloneToYaml: (parsed) => {
+    yamlContent.value = dumpCloneYaml(parsed)
+  },
 })
 
 async function handleSubmit() {
@@ -63,11 +75,11 @@ function handleCancel() {
     </div>
 
     <CloneDialog
+      v-model="cloneMode"
+      v-model:name-value="cloneName"
       kind-label="VolumeSnapshotClass"
       :namespace-scoped="false"
       :show-target-choice="false"
-      v-model="cloneMode"
-      v-model:name-value="cloneName"
       :name-options="cloneNameOptions"
       :name-loading="cloneNameLoading"
       :loading="cloneLoading"
@@ -80,14 +92,16 @@ function handleCancel() {
       type="info"
       :closable="false"
       show-icon
-      style="margin-bottom: var(--gk-space-4);"
+      style="margin-bottom: var(--gk-space-4)"
     />
 
     <YamlEditor v-model="yamlContent" height="500px" />
 
     <div class="form-actions">
       <el-button @click="handleCancel">{{ t('common.cancel') }}</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.create') }} {{ t('storage.volumeSnapshotClass') }}</el-button>
+      <el-button type="primary" :loading="submitting" @click="handleSubmit"
+        >{{ t('common.create') }} {{ t('storage.volumeSnapshotClass') }}</el-button
+      >
     </div>
   </div>
 </template>

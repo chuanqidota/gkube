@@ -45,7 +45,15 @@ const {
   createRoute: '/storage/storageclasses/create',
 })
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchResources)
 </script>
 
 <template>
@@ -85,20 +93,35 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="filteredList"
         v-loading="loading"
+        :data="filteredList"
         stripe
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
         <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-button link type="primary" @click="$router.push(`/storage/storageclasses/${row.name}`)">{{ row.name }}</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="$router.push(`/storage/storageclasses/${row.name}`)"
+              >{{ row.name }}</el-button
+            >
           </template>
         </el-table-column>
-        <el-table-column prop="provisioner" label="Provisioner" min-width="200" show-overflow-tooltip />
+        <el-table-column
+          prop="provisioner"
+          label="Provisioner"
+          min-width="200"
+          show-overflow-tooltip
+        />
         <el-table-column prop="reclaim_policy" label="回收策略" width="120" />
-        <el-table-column prop="volume_binding_mode" label="卷绑定模式" width="180" show-overflow-tooltip />
+        <el-table-column
+          prop="volume_binding_mode"
+          label="卷绑定模式"
+          width="180"
+          show-overflow-tooltip
+        />
         <el-table-column prop="default" label="默认" width="80">
           <template #default="{ row }">
             <el-tag v-if="row.default" type="success" size="small">是</el-tag>
@@ -109,8 +132,8 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
         </el-table-column>
@@ -118,10 +141,24 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     </el-card>
 
     <!-- YAML Drawer -->
-    <el-drawer v-model="yamlDialogVisible" title="StorageClass YAML" size="85%" direction="rtl" class="yaml-drawer"
-      :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px);">
-        <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
+    <el-drawer
+      v-model="yamlDialogVisible"
+      title="StorageClass YAML"
+      size="85%"
+      direction="rtl"
+      class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px)">
+        <YamlEditor
+          v-model="yamlContent"
+          height="100%"
+          auto-format
+          show-save-buttons
+          :saving="yamlSaving"
+          @save="handleSaveYaml"
+          @cancel="handleCancelYaml"
+        />
       </div>
     </el-drawer>
   </div>

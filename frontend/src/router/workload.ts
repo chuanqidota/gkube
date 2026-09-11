@@ -139,7 +139,7 @@ export const workloadRoutes: RouteRecordRaw[] = [
   },
   {
     path: 'workloads/hpa/:namespace/:name',
-    redirect: to => `/autoscaling/hpa/${to.params.namespace}/${to.params.name}`,
+    redirect: (to) => `/autoscaling/hpa/${to.params.namespace}/${to.params.name}`,
   },
   // Autoscaling
   {

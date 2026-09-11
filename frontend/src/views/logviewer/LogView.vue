@@ -77,7 +77,8 @@ async function fetchClusters() {
       displayName: c.displayName || c.display_name || c.clusterName || c.name,
     }))
   } catch (e) {
-    ElMessage.error(t('log.loadClusterListFailed')); console.error('[LogView] Failed to load clusters:', e)
+    ElMessage.error(t('log.loadClusterListFailed'))
+    console.error('[LogView] Failed to load clusters:', e)
   }
 }
 
@@ -103,7 +104,7 @@ async function fetchPods() {
   selectedContainer.value = ''
   try {
     const res: any = await getPodList({ namespace: selectedNamespace.value })
-    const items = Array.isArray(res.data) ? res.data : (res.data?.items || [])
+    const items = Array.isArray(res.data) ? res.data : res.data?.items || []
     pods.value = items.map((p: any) => p.metadata?.name || p.name).filter(Boolean)
   } catch (e: any) {
     ElMessage.error(e?.message || t('common.loadFailed'))
@@ -124,10 +125,16 @@ async function fetchContainers(): Promise<boolean> {
   containers.value = []
   if (!selectedPod.value) return false
   try {
-    const res: any = await getPodDetail({ namespace: selectedNamespace.value, name: selectedPod.value })
+    const res: any = await getPodDetail({
+      namespace: selectedNamespace.value,
+      name: selectedPod.value,
+    })
     const spec = res.data?.spec || {}
     const app = (spec.containers || []).map((c: any) => ({ name: c.name as string, isInit: false }))
-    const init = (spec.initContainers || []).map((c: any) => ({ name: c.name as string, isInit: true }))
+    const init = (spec.initContainers || []).map((c: any) => ({
+      name: c.name as string,
+      isInit: true,
+    }))
     containers.value = [...app, ...init]
     return true
   } catch (e: any) {
@@ -138,7 +145,12 @@ async function fetchContainers(): Promise<boolean> {
 }
 
 async function startLogStream() {
-  if (!selectedCluster.value || !selectedNamespace.value || !selectedPod.value || !selectedContainer.value) {
+  if (
+    !selectedCluster.value ||
+    !selectedNamespace.value ||
+    !selectedPod.value ||
+    !selectedContainer.value
+  ) {
     return
   }
 
@@ -147,7 +159,7 @@ async function startLogStream() {
   const gen = ++streamGen
 
   // 使用一次性 ticket 鉴权（与 TerminalView 一致），避免长效 access token 进入 URL
-  let ticket = ''
+  let ticket: string
   try {
     const res: any = await getWsTicket()
     ticket = res.data?.ticket || ''
@@ -367,12 +379,7 @@ watch(selectedContainer, (val) => {
           style="width: 200px"
           filterable
         >
-          <el-option
-            v-for="c in clusters"
-            :key="c.name"
-            :label="c.displayName"
-            :value="c.name"
-          />
+          <el-option v-for="c in clusters" :key="c.name" :label="c.displayName" :value="c.name" />
         </el-select>
 
         <el-select
@@ -382,12 +389,7 @@ watch(selectedContainer, (val) => {
           filterable
           :disabled="!selectedCluster"
         >
-          <el-option
-            v-for="ns in namespaces"
-            :key="ns"
-            :label="ns"
-            :value="ns"
-          />
+          <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
         </el-select>
 
         <el-select
@@ -397,12 +399,7 @@ watch(selectedContainer, (val) => {
           filterable
           :disabled="!selectedNamespace"
         >
-          <el-option
-            v-for="p in pods"
-            :key="p"
-            :label="p"
-            :value="p"
-          />
+          <el-option v-for="p in pods" :key="p" :label="p" :value="p" />
         </el-select>
 
         <el-select
@@ -413,35 +410,28 @@ watch(selectedContainer, (val) => {
           filterable
         >
           <el-option-group v-if="appContainers.length" :label="t('log.container')">
-            <el-option
-              v-for="c in appContainers"
-              :key="c.name"
-              :label="c.name"
-              :value="c.name"
-            />
+            <el-option v-for="c in appContainers" :key="c.name" :label="c.name" :value="c.name" />
           </el-option-group>
           <el-option-group v-if="initContainers.length" :label="t('log.initContainer')">
-            <el-option
-              v-for="c in initContainers"
-              :key="c.name"
-              :label="c.name"
-              :value="c.name"
-            />
+            <el-option v-for="c in initContainers" :key="c.name" :label="c.name" :value="c.name" />
           </el-option-group>
         </el-select>
 
         <el-button
           type="primary"
-          :disabled="!selectedCluster || !selectedNamespace || !selectedPod || !selectedContainer || status === 'connecting'"
+          :disabled="
+            !selectedCluster ||
+            !selectedNamespace ||
+            !selectedPod ||
+            !selectedContainer ||
+            status === 'connecting'
+          "
           @click="startLogStream"
         >
           {{ t('log.startListening') }}
         </el-button>
 
-        <el-button
-          :disabled="status !== 'connected'"
-          @click="stopLogStream"
-        >
+        <el-button :disabled="status !== 'connected'" @click="stopLogStream">
           {{ t('log.stop') }}
         </el-button>
 
@@ -454,10 +444,7 @@ watch(selectedContainer, (val) => {
         </el-checkbox>
       </div>
 
-      <div
-        ref="logContainerRef"
-        class="log-container"
-      >
+      <div ref="logContainerRef" class="log-container">
         <pre class="log-content">{{ logContent || t('log.waitingForLogs') }}</pre>
       </div>
     </el-card>
@@ -465,7 +452,7 @@ watch(selectedContainer, (val) => {
     <!-- Embedded mode: fullscreen log with minimal info bar -->
     <div v-else class="log-fullscreen">
       <div class="info-bar">
-        <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="display: flex; gap: 8px; align-items: center">
           <span class="info-text">{{ selectedNamespace }} / {{ selectedPod }}</span>
           <el-select
             v-model="selectedContainer"
@@ -475,12 +462,7 @@ watch(selectedContainer, (val) => {
             filterable
           >
             <el-option-group v-if="appContainers.length" :label="t('log.container')">
-              <el-option
-                v-for="c in appContainers"
-                :key="c.name"
-                :label="c.name"
-                :value="c.name"
-              />
+              <el-option v-for="c in appContainers" :key="c.name" :label="c.name" :value="c.name" />
             </el-option-group>
             <el-option-group v-if="initContainers.length" :label="t('log.initContainer')">
               <el-option
@@ -492,11 +474,16 @@ watch(selectedContainer, (val) => {
             </el-option-group>
           </el-select>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="display: flex; gap: 8px; align-items: center">
           <el-tag :type="statusType[status] as any" size="small">
             {{ statusTextMap[status]() }}
           </el-tag>
-          <el-button size="small" type="danger" :disabled="status !== 'connected'" @click="stopLogStream">
+          <el-button
+            size="small"
+            type="danger"
+            :disabled="status !== 'connected'"
+            @click="stopLogStream"
+          >
             {{ t('log.stop') }}
           </el-button>
           <el-button size="small" @click="clearLogs">
@@ -507,10 +494,7 @@ watch(selectedContainer, (val) => {
           </el-checkbox>
         </div>
       </div>
-      <div
-        ref="logContainerRef"
-        class="log-fullscreen-body"
-      >
+      <div ref="logContainerRef" class="log-fullscreen-body">
         <pre class="log-content">{{ logContent || t('log.waitingForLogs') }}</pre>
       </div>
     </div>

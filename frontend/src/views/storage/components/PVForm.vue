@@ -128,27 +128,30 @@ if (props.isEdit && props.initialData) {
 }
 
 // 克隆流入（创建模式 isEdit=false，上面不会触发 parseInitialData，故用 watch 兜底）
-watch(() => props.initialData, (newData) => {
-  if (newData) parseInitialData(newData)
-})
+watch(
+  () => props.initialData,
+  (newData) => {
+    if (newData) parseInitialData(newData)
+  },
+)
 
 // ---- Validation ----
 
 const rules: FormRules = {
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/, message: '只能包含小写字母、数字和连字符，必须以字母开头，以字母或数字结尾', trigger: 'blur' },
+    {
+      pattern: /^[a-z][a-z0-9-]*[a-z0-9]$/,
+      message: '只能包含小写字母、数字和连字符，必须以字母开头，以字母或数字结尾',
+      trigger: 'blur',
+    },
     { max: 253, message: '最大长度为253个字符', trigger: 'blur' },
   ],
-  capacity: [
-    { required: true, message: '请输入容量', trigger: 'blur' },
-  ],
+  capacity: [{ required: true, message: '请输入容量', trigger: 'blur' }],
   accessModes: [
     { type: 'array', required: true, message: '请至少选择一种访问模式', trigger: 'change' },
   ],
-  storageType: [
-    { required: true, message: '请选择存储类型', trigger: 'change' },
-  ],
+  storageType: [{ required: true, message: '请选择存储类型', trigger: 'change' }],
 }
 
 // ---- Label Management ----
@@ -195,17 +198,24 @@ function buildK8sPV(): Record<string, any> {
 
   // Node affinity for local volumes
   if (form.storageType === 'local' && form.nodeAffinityRequired) {
-    const values = form.nodeAffinityRequired.split(',').map(s => s.trim()).filter(Boolean)
+    const values = form.nodeAffinityRequired
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
     if (values.length > 0) {
       spec.nodeAffinity = {
         required: {
-          nodeSelectorTerms: [{
-            matchExpressions: [{
-              key: 'kubernetes.io/hostname',
-              operator: 'In',
-              values,
-            }],
-          }],
+          nodeSelectorTerms: [
+            {
+              matchExpressions: [
+                {
+                  key: 'kubernetes.io/hostname',
+                  operator: 'In',
+                  values,
+                },
+              ],
+            },
+          ],
         },
       }
     }
@@ -298,7 +308,9 @@ async function handleSubmit() {
       router.push('/storage/pvs')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
+    ElMessage.error(
+      e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')),
+    )
   } finally {
     submitting.value = false
   }
@@ -333,13 +345,13 @@ function handleCancel() {
               <el-input v-model="form.storageClassName" placeholder="留空表示不指定存储类" />
             </el-form-item>
             <el-form-item label="回收策略">
-              <el-select v-model="form.reclaimPolicy" style="width: 100%;">
+              <el-select v-model="form.reclaimPolicy" style="width: 100%">
                 <el-option label="Retain - 手动回收" value="Retain" />
                 <el-option label="Delete - 自动删除" value="Delete" />
               </el-select>
             </el-form-item>
             <el-form-item label="卷模式">
-              <el-select v-model="form.volumeMode" style="width: 100%;">
+              <el-select v-model="form.volumeMode" style="width: 100%">
                 <el-option label="Filesystem (文件系统)" value="Filesystem" />
                 <el-option label="Block (块设备)" value="Block" />
               </el-select>
@@ -353,14 +365,14 @@ function handleCancel() {
             </el-checkbox-group>
           </el-form-item>
           <el-form-item label="挂载选项">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(_opt, i) in form.mountOptions" :key="i" class="kv-row">
                 <el-input v-model="form.mountOptions[i]" placeholder="例如: hard,nfsvers=4.1" />
                 <el-button type="danger" text circle @click="form.mountOptions.splice(i, 1)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="form.mountOptions.push('')" size="small">
+              <el-button text type="primary" size="small" @click="form.mountOptions.push('')">
                 <el-icon><Plus /></el-icon> 添加挂载选项
               </el-button>
             </div>
@@ -375,15 +387,21 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="标签">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(label, index) in form.labels" :key="index" class="kv-row">
                 <el-input v-model="label.key" placeholder="键" />
                 <el-input v-model="label.value" placeholder="值" />
-                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="removeLabel(index)">
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.labels.length <= 1"
+                  @click="removeLabel(index)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addLabel" size="small">
+              <el-button text type="primary" size="small" @click="addLabel">
                 <el-icon><Plus /></el-icon> 添加标签
               </el-button>
             </div>
@@ -398,7 +416,7 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="存储类型" prop="storageType" required>
-            <el-select v-model="form.storageType" style="width: 100%;">
+            <el-select v-model="form.storageType" style="width: 100%">
               <el-option label="NFS" value="nfs" />
               <el-option label="Host Path" value="hostPath" />
               <el-option label="Local" value="local" />
@@ -427,8 +445,13 @@ function handleCancel() {
               <el-input v-model="form.localPath" placeholder="例如: /mnt/disks/ssd1" />
             </el-form-item>
             <el-form-item label="节点亲和性">
-              <el-input v-model="form.nodeAffinityRequired" placeholder="节点名称，多个用逗号分隔" />
-              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px;">Local PV 必须指定节点亲和性，用逗号分隔多个节点名</div>
+              <el-input
+                v-model="form.nodeAffinityRequired"
+                placeholder="节点名称，多个用逗号分隔"
+              />
+              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px">
+                Local PV 必须指定节点亲和性，用逗号分隔多个节点名
+              </div>
             </el-form-item>
           </template>
 
@@ -455,7 +478,9 @@ function handleCancel() {
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{
+              isEdit ? '更新' : '创建'
+            }}</el-button>
           </div>
         </div>
       </div>

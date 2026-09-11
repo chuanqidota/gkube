@@ -3,9 +3,21 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import * as echarts from 'echarts'
-import { getOverview, getResources, getWorkloads, getNamespaceResources, getHealth } from '@/api/dashboard'
-import type { Overview, ResourceMetrics, WorkloadSummary, NamespaceUsage, ClusterHealth } from '@/api/dashboard'
+import { echarts } from '@/utils/echarts'
+import {
+  getOverview,
+  getResources,
+  getWorkloads,
+  getNamespaceResources,
+  getHealth,
+} from '@/api/dashboard'
+import type {
+  Overview,
+  ResourceMetrics,
+  WorkloadSummary,
+  NamespaceUsage,
+  ClusterHealth,
+} from '@/api/dashboard'
 import { getNodeList, type NodeInfo } from '@/api/resource'
 import { useClusterStore } from '@/stores/cluster'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
@@ -18,7 +30,9 @@ const { t } = useI18n()
 const clusterStore = useClusterStore()
 
 const clusterId = computed(() => Number(clusterStore.currentCluster?.id) || undefined)
-const clusterName = computed(() => clusterStore.currentCluster?.displayName || clusterStore.currentCluster?.clusterName || '-')
+const clusterName = computed(
+  () => clusterStore.currentCluster?.displayName || clusterStore.currentCluster?.clusterName || '-',
+)
 
 // ---- loading ----
 const resourcesLoading = ref(false)
@@ -27,29 +41,82 @@ const workloadsLoading = ref(false)
 const nodesLoading = ref(false)
 const nsLoading = ref(false)
 const healthLoading = ref(false)
-const loading = computed(() => overviewLoading.value || resourcesLoading.value || workloadsLoading.value || nodesLoading.value || nsLoading.value || healthLoading.value)
+const loading = computed(
+  () =>
+    overviewLoading.value ||
+    resourcesLoading.value ||
+    workloadsLoading.value ||
+    nodesLoading.value ||
+    nsLoading.value ||
+    healthLoading.value,
+)
 
 // ---- state ----
-const overview = ref<Overview>({ cluster_count: 0, node_count: 0, pod_count: 0, namespace_count: 0 })
-const resources = ref<ResourceMetrics>({ cpu: { used: 0, total: 0 }, memory: { used: 0, total: 0 }, storage: { used: 0, total: 0 } })
-const workloads = ref<WorkloadSummary>({ deployments: 0, statefulsets: 0, daemonsets: 0, jobs: 0, cronjobs: 0, ingresses: 0 })
+const overview = ref<Overview>({
+  cluster_count: 0,
+  node_count: 0,
+  pod_count: 0,
+  namespace_count: 0,
+})
+const resources = ref<ResourceMetrics>({
+  cpu: { used: 0, total: 0 },
+  memory: { used: 0, total: 0 },
+  storage: { used: 0, total: 0 },
+})
+const workloads = ref<WorkloadSummary>({
+  deployments: 0,
+  statefulsets: 0,
+  daemonsets: 0,
+  jobs: 0,
+  cronjobs: 0,
+  ingresses: 0,
+})
 const nodeList = ref<NodeInfo[]>([])
 const nsList = ref<NamespaceUsage[]>([])
 const sortKey = ref<'cpu' | 'mem'>('cpu')
 const health = ref<ClusterHealth | null>(null)
 
-
-
-// 读取 CSS token(ECharts 需具体色值,运行时读取保证主题一致)
-function tk(name: string) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+// 缓存 CSS token，避免每次图表更新都触发 getComputedStyle（强制样式重计算）
+let cachedTokens: Record<string, string> | null = null
+function tk(nameOrVar: string) {
+  // 兼容 'var(--xxx)' 和 '--xxx' 两种格式
+  const name = nameOrVar.startsWith('var(') ? nameOrVar.slice(4, -1) : nameOrVar
+  if (!cachedTokens) {
+    const style = getComputedStyle(document.documentElement)
+    cachedTokens = {}
+    const vars = [
+      '--gk-color-primary',
+      '--gk-color-primary-light',
+      '--gk-color-primary-bg',
+      '--gk-color-success',
+      '--gk-color-success-bg',
+      '--gk-color-warning',
+      '--gk-color-warning-bg',
+      '--gk-color-danger',
+      '--gk-color-danger-bg',
+      '--gk-color-text-primary',
+      '--gk-color-text-secondary',
+      '--gk-color-border-light',
+      '--gk-font-mono',
+      '--el-bg-color',
+      '--el-bg-color-overlay',
+      '--el-color-primary',
+      '--el-fill-color-light',
+    ]
+    for (const v of vars) cachedTokens[v] = style.getPropertyValue(v).trim()
+  }
+  return cachedTokens[name] || ''
 }
-function threshColor(pct: number) { return tk(progressColor(pct)) }
+function threshColor(pct: number) {
+  return tk(progressColor(pct))
+}
 function readyColor(pct: number) {
   if (pct >= 90) return tk('--gk-color-success')
   if (pct >= 70) return tk('--gk-color-warning')
   return tk('--gk-color-danger')
 }
+
+// 主题变化时清空缓存（在 onMounted 中初始化 observer）
 
 const sortedNamespaces = computed(() => {
   const list = [...nsList.value]
@@ -62,7 +129,7 @@ const sortedNamespaces = computed(() => {
 const BAR_TOP_N = 8
 const nsExpanded = ref(false)
 const displayNamespaces = computed(() =>
-  nsExpanded.value ? sortedNamespaces.value : sortedNamespaces.value.slice(0, BAR_TOP_N)
+  nsExpanded.value ? sortedNamespaces.value : sortedNamespaces.value.slice(0, BAR_TOP_N),
 )
 const hasMoreNamespaces = computed(() => sortedNamespaces.value.length > BAR_TOP_N)
 
@@ -92,88 +159,220 @@ const readyCount = computed(() => nodeList.value.filter((n) => n.is_ready).lengt
 const stats = computed(() => [
   { label: t('dashboard.nodeCount'), value: overview.value.node_count, route: '/nodes' },
   { label: t('dashboard.podCount'), value: overview.value.pod_count, route: '/workloads/pods' },
-  { label: t('dashboard.namespaceCount'), value: overview.value.namespace_count, route: '/namespaces' },
-  { label: t('workload.deployment'), value: workloads.value.deployments, route: '/workloads/deployments' },
+  {
+    label: t('dashboard.namespaceCount'),
+    value: overview.value.namespace_count,
+    route: '/namespaces',
+  },
+  {
+    label: t('workload.deployment'),
+    value: workloads.value.deployments,
+    route: '/workloads/deployments',
+  },
   { label: t('network.ingress'), value: workloads.value.ingresses, route: '/network/ingresses' },
 ])
 
 // 容量环(口径:已分配 / Allocatable,语义为分配率)
 const rings = computed(() => [
-  { key: 'cpu', label: t('dashboard.cpuAllocated'), used: resources.value.cpu.used, total: resources.value.cpu.total, unit: t('dashboard.cores'), fmt: fmtCpu, color: threshColor },
-  { key: 'mem', label: t('dashboard.memAllocated'), used: resources.value.memory.used, total: resources.value.memory.total, unit: 'GiB', fmt: fmtMem, color: threshColor },
-  { key: 'storage', label: t('dashboard.storageAllocated'), used: resources.value.storage.used, total: resources.value.storage.total, unit: 'GiB', fmt: fmtMem, color: threshColor },
-  { key: 'ready', label: t('dashboard.nodeReadiness'), used: readyCount.value, total: nodeList.value.length, unit: '', fmt: (n: number) => String(n || 0), color: readyColor },
+  {
+    key: 'cpu',
+    label: t('dashboard.cpuAllocated'),
+    used: resources.value.cpu.used,
+    total: resources.value.cpu.total,
+    unit: t('dashboard.cores'),
+    fmt: fmtCpu,
+    color: threshColor,
+  },
+  {
+    key: 'mem',
+    label: t('dashboard.memAllocated'),
+    used: resources.value.memory.used,
+    total: resources.value.memory.total,
+    unit: 'GiB',
+    fmt: fmtMem,
+    color: threshColor,
+  },
+  {
+    key: 'storage',
+    label: t('dashboard.storageAllocated'),
+    used: resources.value.storage.used,
+    total: resources.value.storage.total,
+    unit: 'GiB',
+    fmt: fmtMem,
+    color: threshColor,
+  },
+  {
+    key: 'ready',
+    label: t('dashboard.nodeReadiness'),
+    used: readyCount.value,
+    total: nodeList.value.length,
+    unit: '',
+    fmt: (n: number) => String(n || 0),
+    color: readyColor,
+  },
 ])
 
 // 健康派生
 const abnormalPods = computed(() => health.value?.abnormal_pods || [])
 const restartingPods = computed(() => health.value?.restarting_pods || [])
-const issueCount = computed(() => (health.value?.summary.abnormal_pods || 0) + (health.value?.summary.not_ready_nodes || 0) + (health.value?.summary.abnormal_pvcs || 0) + restartingPods.value.length)
+const issueCount = computed(
+  () =>
+    (health.value?.summary.abnormal_pods || 0) +
+    (health.value?.summary.not_ready_nodes || 0) +
+    (health.value?.summary.abnormal_pvcs || 0) +
+    restartingPods.value.length,
+)
 const allHealthy = computed(() => issueCount.value === 0)
 
 // 健康数字组:abnormal 标异常(ok 用其反面)
 const healthStats = computed(() => {
   const s = health.value?.summary
   return [
-    { label: t('dashboard.healthyPods'), value: s?.healthy_pods || 0, abnormal: false, ok: true, route: '/workloads/pods' },
-    { label: t('dashboard.abnormalPods'), value: s?.abnormal_pods || 0, abnormal: (s?.abnormal_pods || 0) > 0, ok: false, route: '/workloads/pods' },
-    { label: t('dashboard.readyNodes'), value: s?.ready_nodes || 0, abnormal: false, ok: true, route: '/nodes' },
-    { label: t('dashboard.notReadyNodes'), value: s?.not_ready_nodes || 0, abnormal: (s?.not_ready_nodes || 0) > 0, ok: false, route: '/nodes' },
-    { label: t('dashboard.boundPvcs'), value: s?.bound_pvcs || 0, abnormal: false, ok: true, route: '/storage/pvcs' },
-    { label: t('dashboard.abnormalPvcs'), value: s?.abnormal_pvcs || 0, abnormal: (s?.abnormal_pvcs || 0) > 0, ok: false, route: '/storage/pvcs' },
+    {
+      label: t('dashboard.healthyPods'),
+      value: s?.healthy_pods || 0,
+      abnormal: false,
+      ok: true,
+      route: '/workloads/pods',
+    },
+    {
+      label: t('dashboard.abnormalPods'),
+      value: s?.abnormal_pods || 0,
+      abnormal: (s?.abnormal_pods || 0) > 0,
+      ok: false,
+      route: '/workloads/pods',
+    },
+    {
+      label: t('dashboard.readyNodes'),
+      value: s?.ready_nodes || 0,
+      abnormal: false,
+      ok: true,
+      route: '/nodes',
+    },
+    {
+      label: t('dashboard.notReadyNodes'),
+      value: s?.not_ready_nodes || 0,
+      abnormal: (s?.not_ready_nodes || 0) > 0,
+      ok: false,
+      route: '/nodes',
+    },
+    {
+      label: t('dashboard.boundPvcs'),
+      value: s?.bound_pvcs || 0,
+      abnormal: false,
+      ok: true,
+      route: '/storage/pvcs',
+    },
+    {
+      label: t('dashboard.abnormalPvcs'),
+      value: s?.abnormal_pvcs || 0,
+      abnormal: (s?.abnormal_pvcs || 0) > 0,
+      ok: false,
+      route: '/storage/pvcs',
+    },
   ]
 })
 
 // ---- fetch ----
 async function fetchOverview() {
   overviewLoading.value = true
-  try { const res = await getOverview({ clusterId: clusterId.value }); overview.value = res.data }
-  catch (e: any) { ElMessage.error(e?.message || t('dashboard.loadFailed')) }
-  finally { overviewLoading.value = false }
+  try {
+    const res = await getOverview({ clusterId: clusterId.value })
+    overview.value = res.data
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('dashboard.loadFailed'))
+  } finally {
+    overviewLoading.value = false
+  }
 }
 async function fetchResources() {
   resourcesLoading.value = true
-  try { const res = await getResources({ clusterId: clusterId.value }); resources.value = res.data }
-  catch (e: any) { ElMessage.error(e?.message || t('dashboard.loadFailed')) }
-  finally { resourcesLoading.value = false }
+  try {
+    const res = await getResources({ clusterId: clusterId.value })
+    resources.value = res.data
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('dashboard.loadFailed'))
+  } finally {
+    resourcesLoading.value = false
+  }
 }
 async function fetchWorkloads() {
   workloadsLoading.value = true
-  try { const res = await getWorkloads({ clusterId: clusterId.value }); workloads.value = res.data }
-  catch (e: any) { ElMessage.error(e?.message || t('dashboard.loadFailed')) }
-  finally { workloadsLoading.value = false }
+  try {
+    const res = await getWorkloads({ clusterId: clusterId.value })
+    workloads.value = res.data
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('dashboard.loadFailed'))
+  } finally {
+    workloadsLoading.value = false
+  }
 }
 async function fetchNodes() {
   nodesLoading.value = true
-  try { const res = await getNodeList({ clusterName: clusterStore.clusterName }); nodeList.value = res.data || [] }
-  catch (e) { ElMessage.error(t('dashboard.fetchNodesFailed')); console.error('Failed to fetch nodes:', e) }
-  finally { nodesLoading.value = false }
+  try {
+    const res = await getNodeList({ clusterName: clusterStore.clusterName })
+    nodeList.value = res.data || []
+  } catch (e) {
+    ElMessage.error(t('dashboard.fetchNodesFailed'))
+    console.error('Failed to fetch nodes:', e)
+  } finally {
+    nodesLoading.value = false
+  }
 }
 async function fetchNamespaces() {
   nsLoading.value = true
   try {
     const res = await getNamespaceResources({ clusterId: clusterId.value })
     nsList.value = res.data.namespaces || []
-  } catch (e) { ElMessage.error(t('dashboard.fetchNsResourcesFailed')); console.error('Failed to fetch namespace resources:', e); nsList.value = [] }
-  finally { nsLoading.value = false }
+  } catch (e) {
+    ElMessage.error(t('dashboard.fetchNsResourcesFailed'))
+    console.error('Failed to fetch namespace resources:', e)
+    nsList.value = []
+  } finally {
+    nsLoading.value = false
+  }
 }
 async function fetchHealth() {
   healthLoading.value = true
-  try { const res = await getHealth({ clusterId: clusterId.value }); health.value = res.data }
-  catch (e) { ElMessage.error(t('dashboard.fetchHealthFailed')); console.error('Failed to fetch health:', e); health.value = null }
-  finally { healthLoading.value = false }
+  try {
+    const res = await getHealth({ clusterId: clusterId.value })
+    health.value = res.data
+  } catch (e) {
+    ElMessage.error(t('dashboard.fetchHealthFailed'))
+    console.error('Failed to fetch health:', e)
+    health.value = null
+  } finally {
+    healthLoading.value = false
+  }
 }
 
 async function fetchAll() {
   if (!clusterId.value) return
   nsExpanded.value = false
-  await Promise.all([fetchOverview(), fetchResources(), fetchWorkloads(), fetchNodes(), fetchNamespaces(), fetchHealth()])
+  await Promise.all([
+    fetchOverview(),
+    fetchResources(),
+    fetchWorkloads(),
+    fetchNodes(),
+    fetchNamespaces(),
+    fetchHealth(),
+  ])
   nextTick(updateAllCharts)
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchAll, { interval: 15000, autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchAll, { interval: 15000, autoStart: false })
 
-watch(clusterId, (val) => { if (val) fetchAll() })
+watch(clusterId, (val) => {
+  if (val) fetchAll()
+})
 
 // ===== ECharts =====
 const ringRefs = ref<Record<string, HTMLElement | null>>({})
@@ -182,26 +381,38 @@ const charts: Record<string, echarts.ECharts | null> = {}
 let themeObserver: MutationObserver | null = null
 
 function setRingRef(key: string) {
-  return (el: any) => { ringRefs.value[key] = el }
+  return (el: any) => {
+    ringRefs.value[key] = el
+  }
 }
 
 function initRing(el: HTMLElement): echarts.ECharts {
   const chart = echarts.init(el)
   chart.setOption({
-    series: [{
-      type: 'gauge',
-      startAngle: 90,
-      endAngle: -270,
-      radius: '90%',
-      pointer: { show: false },
-      progress: { show: true, overlap: false, roundCap: true, clip: false, width: 10 },
-      axisLine: { lineStyle: { width: 10, color: [[1, tk('--gk-color-border-light')]] } },
-      splitLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: { show: false },
-      data: [{ value: 0 }],
-      detail: { valueAnimation: true, formatter: '{value}%', fontSize: 26, fontWeight: 500, offsetCenter: [0, '5%'], color: tk('--gk-color-primary'), fontFamily: 'JetBrains Mono, monospace' },
-    }],
+    series: [
+      {
+        type: 'gauge',
+        startAngle: 90,
+        endAngle: -270,
+        radius: '90%',
+        pointer: { show: false },
+        progress: { show: true, overlap: false, roundCap: true, clip: false, width: 10 },
+        axisLine: { lineStyle: { width: 10, color: [[1, tk('--gk-color-border-light')]] } },
+        splitLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { show: false },
+        data: [{ value: 0 }],
+        detail: {
+          valueAnimation: true,
+          formatter: '{value}%',
+          fontSize: 26,
+          fontWeight: 500,
+          offsetCenter: [0, '5%'],
+          color: tk('--gk-color-primary'),
+          fontFamily: 'JetBrains Mono, monospace',
+        },
+      },
+    ],
   })
   return chart
 }
@@ -211,12 +422,14 @@ function updateRing(key: string, pct: number, colorFn: (p: number) => string) {
   if (!chart) return
   const color = colorFn(pct)
   chart.setOption({
-    series: [{
-      progress: { itemStyle: { color } },
-      axisLine: { lineStyle: { color: [[1, tk('--gk-color-border-light')]] } },
-      data: [{ value: pct }],
-      detail: { color },
-    }],
+    series: [
+      {
+        progress: { itemStyle: { color } },
+        axisLine: { lineStyle: { color: [[1, tk('--gk-color-border-light')]] } },
+        data: [{ value: pct }],
+        detail: { color },
+      },
+    ],
   })
 }
 
@@ -227,39 +440,67 @@ function updateBar() {
   const names = list.map((n) => n.name)
   const values = list.map((n) => (sortKey.value === 'cpu' ? n.cpu_used : n.mem_used))
   // max 基于全量(非仅 Top N),使条长比例反映真实差距
-  const fullMax = Math.max(...sortedNamespaces.value.map((n) => (sortKey.value === 'cpu' ? n.cpu_used : n.mem_used)), 0.001)
+  const fullMax = Math.max(
+    ...sortedNamespaces.value.map((n) => (sortKey.value === 'cpu' ? n.cpu_used : n.mem_used)),
+    0.001,
+  )
   const primary = tk('--gk-color-primary')
   const primaryLight = tk('--gk-color-primary-light')
   const secondary = tk('--gk-color-text-secondary')
-  chart.setOption({
-    grid: { left: 8, right: 58, top: 8, bottom: 8, containLabel: true },
-    xAxis: { type: 'value', show: false, max: fullMax * 1.2 },
-    yAxis: {
-      type: 'category', inverse: true, data: names,
-      axisLine: { show: false }, axisTick: { show: false },
-      axisLabel: { color: secondary, fontSize: 12, margin: 12 },
+  chart.setOption(
+    {
+      grid: { left: 8, right: 58, top: 8, bottom: 8, containLabel: true },
+      xAxis: { type: 'value', show: false, max: fullMax * 1.2 },
+      yAxis: {
+        type: 'category',
+        inverse: true,
+        data: names,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: secondary, fontSize: 12, margin: 12 },
+      },
+      series: [
+        {
+          type: 'bar',
+          data: values,
+          barWidth: 14,
+          itemStyle: {
+            borderRadius: 7,
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: primaryLight },
+              { offset: 1, color: primary },
+            ]),
+          },
+          label: {
+            show: true,
+            position: 'right',
+            formatter: (p: any) =>
+              sortKey.value === 'cpu'
+                ? fmtCpu(p.value) + ' ' + t('dashboard.cores')
+                : fmtMem(p.value) + 'G',
+            color: secondary,
+            fontSize: 11,
+            fontFamily: tk('--gk-font-mono'),
+          },
+        },
+      ],
     },
-    series: [{
-      type: 'bar', data: values, barWidth: 14,
-      itemStyle: {
-        borderRadius: 7,
-        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-          { offset: 0, color: primaryLight }, { offset: 1, color: primary },
-        ]),
-      },
-      label: {
-        show: true, position: 'right',
-        formatter: (p: any) => sortKey.value === 'cpu' ? fmtCpu(p.value) + ' ' + t('dashboard.cores') : fmtMem(p.value) + 'G',
-        color: secondary, fontSize: 11, fontFamily: tk('--gk-font-mono'),
-      },
-    }],
-  }, true)
+    true,
+  )
 }
 
 function updateAllCharts() {
   updateRing('cpu', usagePercent(resources.value.cpu.used, resources.value.cpu.total), threshColor)
-  updateRing('mem', usagePercent(resources.value.memory.used, resources.value.memory.total), threshColor)
-  updateRing('storage', usagePercent(resources.value.storage.used, resources.value.storage.total), threshColor)
+  updateRing(
+    'mem',
+    usagePercent(resources.value.memory.used, resources.value.memory.total),
+    threshColor,
+  )
+  updateRing(
+    'storage',
+    usagePercent(resources.value.storage.used, resources.value.storage.total),
+    threshColor,
+  )
   updateRing('ready', usagePercent(readyCount.value, nodeList.value.length), readyColor)
   updateBar()
 }
@@ -273,14 +514,22 @@ function initCharts() {
   updateAllCharts()
 }
 
-function handleResize() { Object.values(charts).forEach((c) => c?.resize()) }
+function handleResize() {
+  Object.values(charts).forEach((c) => c?.resize())
+}
 
 onMounted(() => {
   nextTick(initCharts)
   if (clusterId.value) fetchAll()
   window.addEventListener('resize', handleResize)
-  themeObserver = new MutationObserver(() => nextTick(updateAllCharts))
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+  themeObserver = new MutationObserver(() => {
+    cachedTokens = null
+    nextTick(updateAllCharts)
+  })
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class', 'data-theme'],
+  })
 })
 
 onBeforeUnmount(() => {
@@ -295,7 +544,9 @@ watch([sortKey, nsExpanded], () => nextTick(updateBar))
 // 柱状图高度随 ns 数量变化时,resize ECharts
 watch(barHeight, () => nextTick(() => charts.bar?.resize()))
 
-function goto(route: string) { router.push(route) }
+function goto(route: string) {
+  router.push(route)
+}
 function nodePipClass(n: NodeInfo) {
   if (n.status === 'Ready') return 'success'
   if (n.status === 'NotReady') return 'danger'
@@ -310,10 +561,17 @@ function nodePipClass(n: NodeInfo) {
       <div class="cmd-left">
         <span class="cmd-accent" />
         <h1 class="cmd-name">{{ clusterName }}</h1>
-        <span class="pip" :class="`pip-${clusterStatusType(String(clusterStore.currentCluster?.status || ''))}`">
-          <i class="pip-dot" />{{ clusterStatusText(String(clusterStore.currentCluster?.status || '')) }}
+        <span
+          class="pip"
+          :class="`pip-${clusterStatusType(String(clusterStore.currentCluster?.status || ''))}`"
+        >
+          <i class="pip-dot" />{{
+            clusterStatusText(String(clusterStore.currentCluster?.status || ''))
+          }}
         </span>
-        <span v-if="clusterStore.currentCluster?.clusterVersion" class="chip-mono">{{ clusterStore.currentCluster.clusterVersion }}</span>
+        <span v-if="clusterStore.currentCluster?.clusterVersion" class="chip-mono">{{
+          clusterStore.currentCluster.clusterVersion
+        }}</span>
       </div>
       <div class="cmd-stats">
         <button v-for="s in stats" :key="s.label" class="stat-pill" @click="goto(s.route)">
@@ -323,9 +581,14 @@ function nodePipClass(n: NodeInfo) {
       </div>
       <div class="cmd-actions">
         <AutoRefreshToolbar
-          :is-running="isRunning" :countdown="countdown" :current-interval="currentInterval"
-          :available-intervals="availableIntervals" :loading="loading"
-          @refresh="manualRefresh()" @toggle="toggle()" @interval-change="setIntervalOption"
+          :is-running="isRunning"
+          :countdown="countdown"
+          :current-interval="currentInterval"
+          :available-intervals="availableIntervals"
+          :loading="loading"
+          @refresh="manualRefresh()"
+          @toggle="toggle()"
+          @interval-change="setIntervalOption"
         />
       </div>
     </header>
@@ -333,22 +596,43 @@ function nodePipClass(n: NodeInfo) {
     <!-- 2. grip 主区(填满剩余视口) -->
     <div class="grip">
       <!-- 左:健康汇总面板 -->
-      <section class="cell cell-health" v-loading="healthLoading">
+      <section v-loading="healthLoading" class="cell cell-health">
         <div class="cell-head">
           <span class="cell-title">{{ t('dashboard.health') }}</span>
-          <span v-if="allHealthy" class="health-badge health-badge-ok">{{ t('dashboard.clusterHealthy') }}</span>
-          <span v-else class="health-badge health-badge-warn">{{ t('dashboard.hasIssues', { n: issueCount }) }}</span>
+          <span v-if="allHealthy" class="health-badge health-badge-ok">{{
+            t('dashboard.clusterHealthy')
+          }}</span>
+          <span v-else class="health-badge health-badge-warn">{{
+            t('dashboard.hasIssues', { n: issueCount })
+          }}</span>
         </div>
         <div class="health-grid">
-          <button v-for="hs in healthStats" :key="hs.label" class="health-cell" :class="{ 'health-cell-abnormal': hs.abnormal }" @click="goto(hs.route)">
-            <span class="health-num mono" :class="hs.abnormal ? 'num-danger' : (hs.ok ? 'num-ok' : '')">{{ hs.value }}</span>
+          <button
+            v-for="hs in healthStats"
+            :key="hs.label"
+            class="health-cell"
+            :class="{ 'health-cell-abnormal': hs.abnormal }"
+            @click="goto(hs.route)"
+          >
+            <span
+              class="health-num mono"
+              :class="hs.abnormal ? 'num-danger' : hs.ok ? 'num-ok' : ''"
+              >{{ hs.value }}</span
+            >
             <span class="health-label">{{ hs.label }}</span>
           </button>
         </div>
         <div class="issue-list">
           <div v-if="abnormalPods.length" class="issue-group">
-            <div class="issue-group-title">{{ t('dashboard.abnormalPodList') }} ({{ health?.summary.abnormal_pods || 0 }})</div>
-            <div v-for="(p, i) in abnormalPods" :key="'ab'+i" class="issue-row" @click="goto('/workloads/pods')">
+            <div class="issue-group-title">
+              {{ t('dashboard.abnormalPodList') }} ({{ health?.summary.abnormal_pods || 0 }})
+            </div>
+            <div
+              v-for="(p, i) in abnormalPods"
+              :key="'ab' + i"
+              class="issue-row"
+              @click="goto('/workloads/pods')"
+            >
               <i class="issue-dot issue-dot-danger" />
               <span class="issue-name name-link">{{ p.namespace }}/{{ p.name }}</span>
               <span class="issue-reason mono">{{ p.reason || p.phase }}</span>
@@ -356,10 +640,17 @@ function nodePipClass(n: NodeInfo) {
           </div>
           <div v-if="restartingPods.length" class="issue-group">
             <div class="issue-group-title">{{ t('dashboard.restartingPodList') }}</div>
-            <div v-for="(p, i) in restartingPods" :key="'rs'+i" class="issue-row" @click="goto('/workloads/pods')">
+            <div
+              v-for="(p, i) in restartingPods"
+              :key="'rs' + i"
+              class="issue-row"
+              @click="goto('/workloads/pods')"
+            >
               <i class="issue-dot issue-dot-warn" />
               <span class="issue-name name-link">{{ p.namespace }}/{{ p.name }}</span>
-              <span class="issue-reason mono">{{ t('dashboard.restarts') }} {{ p.restart_count }}</span>
+              <span class="issue-reason mono"
+                >{{ t('dashboard.restarts') }} {{ p.restart_count }}</span
+              >
             </div>
           </div>
           <div v-if="!abnormalPods.length && !restartingPods.length" class="issue-empty">
@@ -370,14 +661,17 @@ function nodePipClass(n: NodeInfo) {
       </section>
 
       <!-- 中:容量环 2x2(分配率) -->
-      <section class="cell cell-rings" v-loading="resourcesLoading || nodesLoading">
+      <section v-loading="resourcesLoading || nodesLoading" class="cell cell-rings">
         <div class="cell-title">{{ t('dashboard.allocationRate') }}</div>
         <div class="rings-grid">
           <div v-for="ring in rings" :key="ring.key" class="ring-cell">
-            <div class="ring-chart" :ref="setRingRef(ring.key)"></div>
+            <div :ref="setRingRef(ring.key)" class="ring-chart"></div>
             <div class="ring-foot">
               <span class="ring-label">{{ ring.label }}</span>
-              <span class="ring-nums mono">{{ ring.fmt(ring.used) }}<span class="sep">/</span>{{ ring.fmt(ring.total) }}<span v-if="ring.unit" class="unit"> {{ ring.unit }}</span></span>
+              <span class="ring-nums mono"
+                >{{ ring.fmt(ring.used) }}<span class="sep">/</span>{{ ring.fmt(ring.total)
+                }}<span v-if="ring.unit" class="unit"> {{ ring.unit }}</span></span
+              >
             </div>
           </div>
         </div>
@@ -389,22 +683,38 @@ function nodePipClass(n: NodeInfo) {
           <div class="cell-head">
             <span class="cell-title">{{ t('dashboard.nsDistribution') }}</span>
             <div class="ns-sort">
-              <button class="sort-pill" :class="{ 'sort-pill-active': sortKey === 'cpu' }" @click="sortKey = 'cpu'">CPU</button>
-              <button class="sort-pill" :class="{ 'sort-pill-active': sortKey === 'mem' }" @click="sortKey = 'mem'">{{ t('dashboard.memAllocated') }}</button>
+              <button
+                class="sort-pill"
+                :class="{ 'sort-pill-active': sortKey === 'cpu' }"
+                @click="sortKey = 'cpu'"
+              >
+                CPU
+              </button>
+              <button
+                class="sort-pill"
+                :class="{ 'sort-pill-active': sortKey === 'mem' }"
+                @click="sortKey = 'mem'"
+              >
+                {{ t('dashboard.memAllocated') }}
+              </button>
             </div>
           </div>
-          <div class="bar-wrap" v-loading="nsLoading">
-            <div class="bar-chart" ref="barRef" :style="{ height: barHeight + 'px' }"></div>
+          <div v-loading="nsLoading" class="bar-wrap">
+            <div ref="barRef" class="bar-chart" :style="{ height: barHeight + 'px' }"></div>
             <div v-if="!sortedNamespaces.length && !nsLoading" class="bar-empty">
               <el-empty :description="t('common.noData')" :image-size="44" />
             </div>
           </div>
           <div v-if="hasMoreNamespaces" class="bar-more" @click="nsExpanded = !nsExpanded">
-            <template v-if="nsExpanded">
-              {{ t('dashboard.collapseNs') }} ↑
-            </template>
+            <template v-if="nsExpanded"> {{ t('dashboard.collapseNs') }} ↑ </template>
             <template v-else>
-              {{ t('dashboard.viewTopN', { shown: displayNamespaces.length, total: sortedNamespaces.length }) }} ↓
+              {{
+                t('dashboard.viewTopN', {
+                  shown: displayNamespaces.length,
+                  total: sortedNamespaces.length,
+                })
+              }}
+              ↓
             </template>
           </div>
         </div>
@@ -414,25 +724,50 @@ function nodePipClass(n: NodeInfo) {
             <span class="cell-title">{{ t('dashboard.nodeCapacity') }}</span>
             <span class="cell-hint">{{ nodeList.length }}</span>
           </div>
-          <div class="node-list" v-loading="nodesLoading">
+          <div v-loading="nodesLoading" class="node-list">
             <div v-if="nodeList.length" class="node-rows">
-              <div v-for="node in nodeList" :key="node.name" class="node-row" @click="goto('/nodes')">
+              <div
+                v-for="node in nodeList"
+                :key="node.name"
+                class="node-row"
+                @click="goto('/nodes')"
+              >
                 <div class="node-top">
                   <span class="node-dot" :class="nodePipClass(node)" />
                   <span class="node-name name-link">{{ node.name }}</span>
-                  <span class="node-pods mono">{{ node.pod_count || 0 }}/{{ node.pod_total || 0 }}</span>
+                  <span class="node-pods mono"
+                    >{{ node.pod_count || 0 }}/{{ node.pod_total || 0 }}</span
+                  >
                 </div>
                 <div class="node-mini-bar">
                   <div class="mini-track">
-                    <div class="mini-fill" :style="{ width: usagePercent(node.cpu_used, node.cpu_total) + '%', background: threshColor(usagePercent(node.cpu_used, node.cpu_total)) }" />
+                    <div
+                      class="mini-fill"
+                      :style="{
+                        width: usagePercent(node.cpu_used, node.cpu_total) + '%',
+                        background: threshColor(usagePercent(node.cpu_used, node.cpu_total)),
+                      }"
+                    />
                   </div>
-                  <span class="mini-num mono">{{ fmtCpu(node.cpu_used) }}<span class="mini-sep">/</span>{{ fmtCpu(node.cpu_total) }}</span>
+                  <span class="mini-num mono"
+                    >{{ fmtCpu(node.cpu_used) }}<span class="mini-sep">/</span
+                    >{{ fmtCpu(node.cpu_total) }}</span
+                  >
                 </div>
                 <div class="node-mini-bar">
                   <div class="mini-track">
-                    <div class="mini-fill" :style="{ width: usagePercent(node.mem_used, node.mem_total) + '%', background: threshColor(usagePercent(node.mem_used, node.mem_total)) }" />
+                    <div
+                      class="mini-fill"
+                      :style="{
+                        width: usagePercent(node.mem_used, node.mem_total) + '%',
+                        background: threshColor(usagePercent(node.mem_used, node.mem_total)),
+                      }"
+                    />
                   </div>
-                  <span class="mini-num mono">{{ fmtMem(node.mem_used) }}<span class="mini-sep">/</span>{{ fmtMem(node.mem_total) }}G</span>
+                  <span class="mini-num mono"
+                    >{{ fmtMem(node.mem_used) }}<span class="mini-sep">/</span
+                    >{{ fmtMem(node.mem_total) }}G</span
+                  >
                 </div>
               </div>
             </div>
@@ -463,7 +798,11 @@ function nodePipClass(n: NodeInfo) {
   letter-spacing: -0.01em;
 }
 
-.cmd-bar, .grip { position: relative; z-index: 1; }
+.cmd-bar,
+.grip {
+  position: relative;
+  z-index: 1;
+}
 
 /* ===== 1. 命令栏 ===== */
 .cmd-bar {
@@ -516,13 +855,35 @@ function nodePipClass(n: NodeInfo) {
   font-weight: 600;
   flex-shrink: 0;
 }
-.pip-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-.pip-success { color: var(--gk-color-success); background: var(--gk-color-success-bg); }
-.pip-success .pip-dot { background: var(--gk-color-success); box-shadow: 0 0 0 3px rgba(34,197,94,0.18); }
-.pip-danger { color: var(--gk-color-danger); background: var(--gk-color-danger-bg); }
-.pip-danger .pip-dot { background: var(--gk-color-danger); box-shadow: 0 0 0 3px rgba(239,68,68,0.18); }
-.pip-info { color: var(--gk-color-text-secondary); background: var(--gk-color-border-light); }
-.pip-info .pip-dot { background: var(--gk-color-text-secondary); }
+.pip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.pip-success {
+  color: var(--gk-color-success);
+  background: var(--gk-color-success-bg);
+}
+.pip-success .pip-dot {
+  background: var(--gk-color-success);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+.pip-danger {
+  color: var(--gk-color-danger);
+  background: var(--gk-color-danger-bg);
+}
+.pip-danger .pip-dot {
+  background: var(--gk-color-danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
+}
+.pip-info {
+  color: var(--gk-color-text-secondary);
+  background: var(--gk-color-border-light);
+}
+.pip-info .pip-dot {
+  background: var(--gk-color-text-secondary);
+}
 
 .chip-mono {
   font-family: var(--gk-font-mono);
@@ -557,11 +918,23 @@ function nodePipClass(n: NodeInfo) {
   text-align: center;
   min-width: 76px;
 }
-.stat-pill:hover { border-color: var(--gk-color-primary-light); }
-.stat-value { font-size: var(--gk-font-size-lg); font-weight: 700; color: var(--gk-color-text-primary); line-height: 1.2; }
-.stat-label { font-size: 11px; color: var(--gk-color-text-secondary); }
+.stat-pill:hover {
+  border-color: var(--gk-color-primary-light);
+}
+.stat-value {
+  font-size: var(--gk-font-size-lg);
+  font-weight: 700;
+  color: var(--gk-color-text-primary);
+  line-height: 1.2;
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--gk-color-text-secondary);
+}
 
-.cmd-actions { flex-shrink: 0; }
+.cmd-actions {
+  flex-shrink: 0;
+}
 
 /* ===== 2. grip 主区 ===== */
 .grip {
@@ -584,13 +957,42 @@ function nodePipClass(n: NodeInfo) {
   overflow: hidden;
 }
 
-.cell-title { font-size: var(--gk-font-size-sm); font-weight: 600; color: var(--gk-color-text-primary); letter-spacing: 0.02em; flex-shrink: 0; }
-.cell-head { display: flex; align-items: center; justify-content: space-between; gap: var(--gk-space-2); flex-shrink: 0; flex-wrap: nowrap; margin-bottom: var(--gk-space-3); }
-.cell-title-row { display: flex; align-items: baseline; gap: var(--gk-space-2); flex-shrink: 1; min-width: 0; }
-.cell-hint { font-size: var(--gk-font-size-xs); color: var(--gk-color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell-title {
+  font-size: var(--gk-font-size-sm);
+  font-weight: 600;
+  color: var(--gk-color-text-primary);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+.cell-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gk-space-2);
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  margin-bottom: var(--gk-space-3);
+}
+.cell-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gk-space-2);
+  flex-shrink: 1;
+  min-width: 0;
+}
+.cell-hint {
+  font-size: var(--gk-font-size-xs);
+  color: var(--gk-color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* 健康面板 */
-.cell-health { background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%); border-color: var(--gk-color-primary-light); }
+.cell-health {
+  background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%);
+  border-color: var(--gk-color-primary-light);
+}
 
 .health-badge {
   padding: 2px 10px;
@@ -599,8 +1001,14 @@ function nodePipClass(n: NodeInfo) {
   font-weight: 600;
   flex-shrink: 0;
 }
-.health-badge-ok { color: var(--gk-color-success); background: var(--gk-color-success-bg); }
-.health-badge-warn { color: var(--gk-color-danger); background: var(--gk-color-danger-bg); }
+.health-badge-ok {
+  color: var(--gk-color-success);
+  background: var(--gk-color-success-bg);
+}
+.health-badge-warn {
+  color: var(--gk-color-danger);
+  background: var(--gk-color-danger-bg);
+}
 
 .health-grid {
   display: grid;
@@ -622,18 +1030,50 @@ function nodePipClass(n: NodeInfo) {
   transition: all var(--gk-transition-fast);
   text-align: left;
 }
-.health-cell:hover { border-color: var(--gk-color-primary-light); }
-.health-cell-abnormal { border-color: var(--gk-color-danger-light); background: var(--gk-color-danger-bg); }
+.health-cell:hover {
+  border-color: var(--gk-color-primary-light);
+}
+.health-cell-abnormal {
+  border-color: var(--gk-color-danger-light);
+  background: var(--gk-color-danger-bg);
+}
 
-.health-num { font-size: var(--gk-font-size-lg); font-weight: 700; line-height: 1.2; color: var(--gk-color-text-primary); }
-.num-ok { color: var(--gk-color-success); }
-.num-danger { color: var(--gk-color-danger); }
-.health-label { font-size: 11px; color: var(--gk-color-text-secondary); }
+.health-num {
+  font-size: var(--gk-font-size-lg);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--gk-color-text-primary);
+}
+.num-ok {
+  color: var(--gk-color-success);
+}
+.num-danger {
+  color: var(--gk-color-danger);
+}
+.health-label {
+  font-size: 11px;
+  color: var(--gk-color-text-secondary);
+}
 
 /* 异常清单 */
-.issue-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--gk-space-3); }
-.issue-group { display: flex; flex-direction: column; gap: 4px; }
-.issue-group-title { font-size: 11px; color: var(--gk-color-text-secondary); font-weight: 600; }
+.issue-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gk-space-3);
+}
+.issue-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.issue-group-title {
+  font-size: 11px;
+  color: var(--gk-color-text-secondary);
+  font-weight: 600;
+}
 .issue-row {
   display: flex;
   align-items: center;
@@ -644,12 +1084,32 @@ function nodePipClass(n: NodeInfo) {
   transition: background var(--gk-transition-fast);
   font-size: 11px;
 }
-.issue-row:hover { background: var(--gk-color-primary-bg); }
-.issue-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.issue-dot-danger { background: var(--gk-color-danger); }
-.issue-dot-warn { background: var(--gk-color-warning); }
-.issue-name { color: var(--gk-color-text-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.issue-reason { color: var(--gk-color-text-secondary); flex-shrink: 0; }
+.issue-row:hover {
+  background: var(--gk-color-primary-bg);
+}
+.issue-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.issue-dot-danger {
+  background: var(--gk-color-danger);
+}
+.issue-dot-warn {
+  background: var(--gk-color-warning);
+}
+.issue-name {
+  color: var(--gk-color-text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.issue-reason {
+  color: var(--gk-color-text-secondary);
+  flex-shrink: 0;
+}
 
 .issue-empty {
   flex: 1;
@@ -660,10 +1120,19 @@ function nodePipClass(n: NodeInfo) {
   color: var(--gk-color-success);
   font-size: var(--gk-font-size-xs);
 }
-.issue-ok-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gk-color-success); display: inline-block; }
+.issue-ok-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gk-color-success);
+  display: inline-block;
+}
 
 /* 容量环 2x2 */
-.cell-rings { background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%); border-color: var(--gk-color-primary-light); }
+.cell-rings {
+  background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%);
+  border-color: var(--gk-color-primary-light);
+}
 .rings-grid {
   flex: 1;
   display: grid;
@@ -684,12 +1153,32 @@ function nodePipClass(n: NodeInfo) {
   padding: var(--gk-space-2);
   min-height: 0;
 }
-.ring-chart { width: 100%; flex: 1; min-height: 0; }
-.ring-foot { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-.ring-label { font-size: 11px; color: var(--gk-color-text-secondary); }
-.ring-nums { font-size: var(--gk-font-size-xs); color: var(--gk-color-text-primary); }
-.ring-nums .sep { color: var(--gk-color-text-placeholder); margin: 0 2px; }
-.ring-nums .unit { color: var(--gk-color-text-placeholder); }
+.ring-chart {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+.ring-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.ring-label {
+  font-size: 11px;
+  color: var(--gk-color-text-secondary);
+}
+.ring-nums {
+  font-size: var(--gk-font-size-xs);
+  color: var(--gk-color-text-primary);
+}
+.ring-nums .sep {
+  color: var(--gk-color-text-placeholder);
+  margin: 0 2px;
+}
+.ring-nums .unit {
+  color: var(--gk-color-text-placeholder);
+}
 
 /* 右列:上下分栏,柱状图区内容驱动、节点区吃剩余空间 */
 .cell-right {
@@ -697,12 +1186,38 @@ function nodePipClass(n: NodeInfo) {
   background: linear-gradient(180deg, var(--gk-color-primary-bg) 0%, var(--gk-color-bg-card) 60%);
   border-color: var(--gk-color-primary-light);
 }
-.right-top { flex: 0 1 auto; min-height: 0; max-height: 65%; overflow-y: auto; display: flex; flex-direction: column; padding: var(--gk-space-4); border-bottom: 1px solid var(--gk-color-border-light); }
-.right-bottom { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--gk-space-4); }
+.right-top {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 65%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: var(--gk-space-4);
+  border-bottom: 1px solid var(--gk-color-border-light);
+}
+.right-bottom {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--gk-space-4);
+}
 
-.bar-wrap { position: relative; min-height: 0; }
-.bar-chart { width: 100%; }
-.bar-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.bar-wrap {
+  position: relative;
+  min-height: 0;
+}
+.bar-chart {
+  width: 100%;
+}
+.bar-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .bar-more {
   flex-shrink: 0;
   margin-top: var(--gk-space-2);
@@ -712,9 +1227,15 @@ function nodePipClass(n: NodeInfo) {
   text-align: right;
   transition: opacity var(--gk-transition-fast);
 }
-.bar-more:hover { opacity: 0.75; }
+.bar-more:hover {
+  opacity: 0.75;
+}
 
-.ns-sort { display: flex; gap: 4px; flex-shrink: 0; }
+.ns-sort {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
 .sort-pill {
   background: transparent;
   border: 1px solid var(--gk-color-border);
@@ -725,12 +1246,31 @@ function nodePipClass(n: NodeInfo) {
   cursor: pointer;
   transition: all var(--gk-transition-fast);
 }
-.sort-pill:hover { border-color: var(--gk-color-primary-light); color: var(--gk-color-primary); }
-.sort-pill-active { background: var(--gk-color-primary-bg); border-color: var(--gk-color-primary); color: var(--gk-color-primary); font-weight: 600; }
+.sort-pill:hover {
+  border-color: var(--gk-color-primary-light);
+  color: var(--gk-color-primary);
+}
+.sort-pill-active {
+  background: var(--gk-color-primary-bg);
+  border-color: var(--gk-color-primary);
+  color: var(--gk-color-primary);
+  font-weight: 600;
+}
 
 /* 节点迷你条列表 */
-.node-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--gk-space-2); }
-.node-rows { display: flex; flex-direction: column; gap: var(--gk-space-2); }
+.node-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gk-space-2);
+}
+.node-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gk-space-2);
+}
 .node-row {
   padding: var(--gk-space-2) var(--gk-space-3);
   background: var(--gk-color-bg-page);
@@ -742,39 +1282,120 @@ function nodePipClass(n: NodeInfo) {
   flex-direction: column;
   gap: 5px;
 }
-.node-row:hover { border-color: var(--gk-color-primary-light); background: var(--gk-color-primary-bg); }
+.node-row:hover {
+  border-color: var(--gk-color-primary-light);
+  background: var(--gk-color-primary-bg);
+}
 
-.node-top { display: flex; align-items: center; gap: 6px; }
-.node-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.node-dot.success { background: var(--gk-color-success); box-shadow: 0 0 0 2px rgba(34,197,94,0.18); }
-.node-dot.danger { background: var(--gk-color-danger); box-shadow: 0 0 0 2px rgba(239,68,68,0.18); }
-.node-dot.warning { background: var(--gk-color-warning); box-shadow: 0 0 0 2px rgba(245,158,11,0.18); }
-.node-name { font-size: var(--gk-font-size-xs); font-weight: 500; color: var(--gk-color-text-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.node-pods { font-size: 11px; color: var(--gk-color-text-secondary); }
+.node-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.node-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.node-dot.success {
+  background: var(--gk-color-success);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.18);
+}
+.node-dot.danger {
+  background: var(--gk-color-danger);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
+}
+.node-dot.warning {
+  background: var(--gk-color-warning);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
+}
+.node-name {
+  font-size: var(--gk-font-size-xs);
+  font-weight: 500;
+  color: var(--gk-color-text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.node-pods {
+  font-size: 11px;
+  color: var(--gk-color-text-secondary);
+}
 
-.node-mini-bar { display: flex; align-items: center; gap: 6px; }
-.mini-track { flex: 1; height: 4px; background: var(--gk-color-border-light); border-radius: var(--gk-radius-full); overflow: hidden; }
-.mini-fill { height: 100%; border-radius: var(--gk-radius-full); transition: width var(--gk-transition-slow); }
-.mini-num { font-size: 10px; color: var(--gk-color-text-secondary); flex-shrink: 0; }
-.mini-num .mini-sep { color: var(--gk-color-text-placeholder); margin: 0 1px; }
+.node-mini-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mini-track {
+  flex: 1;
+  height: 4px;
+  background: var(--gk-color-border-light);
+  border-radius: var(--gk-radius-full);
+  overflow: hidden;
+}
+.mini-fill {
+  height: 100%;
+  border-radius: var(--gk-radius-full);
+  transition: width var(--gk-transition-slow);
+}
+.mini-num {
+  font-size: 10px;
+  color: var(--gk-color-text-secondary);
+  flex-shrink: 0;
+}
+.mini-num .mini-sep {
+  color: var(--gk-color-text-placeholder);
+  margin: 0 1px;
+}
 
-.name-link { color: var(--gk-color-primary); }
-.node-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
+.name-link {
+  color: var(--gk-color-primary);
+}
+.node-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* ===== 响应:窄屏退化为单列滚动 ===== */
 @media (max-width: 1200px) {
-  .dash { height: auto; min-height: calc(100dvh - var(--gk-header-height)); overflow: visible; }
-  .grip { grid-template-columns: 1fr 1fr; }
-  .cmd-stats { gap: var(--gk-space-1); }
-  .stat-pill { min-width: 60px; padding: 3px 8px; }
-  .stat-label { display: none; }
-  .ring-chart { min-height: 130px; }
-  .bar-chart { min-height: 180px; }
+  .dash {
+    height: auto;
+    min-height: calc(100dvh - var(--gk-header-height));
+    overflow: visible;
+  }
+  .grip {
+    grid-template-columns: 1fr 1fr;
+  }
+  .cmd-stats {
+    gap: var(--gk-space-1);
+  }
+  .stat-pill {
+    min-width: 60px;
+    padding: 3px 8px;
+  }
+  .stat-label {
+    display: none;
+  }
+  .ring-chart {
+    min-height: 130px;
+  }
+  .bar-chart {
+    min-height: 180px;
+  }
 }
 @media (max-width: 900px) {
-  .grip { grid-template-columns: 1fr; }
+  .grip {
+    grid-template-columns: 1fr;
+  }
 }
 @media (max-width: 768px) {
-  .cmd-stats { display: none; }
+  .cmd-stats {
+    display: none;
+  }
 }
 </style>

@@ -34,12 +34,26 @@ import { formatAge } from '@/utils/helpers'
 import { useI18n } from 'vue-i18n'
 
 const {
-  namespace, name,
-  loading, detail: daemonset, events, eventsLoading, yamlDialogVisible,
-  isRunning, countdown, currentInterval, availableIntervals,
-  toggle, manualRefresh, setIntervalOption,
-  fetchDetail, fetchEvents, handleDelete, handleOpenYaml,
-  router, clusterName,
+  namespace,
+  name,
+  loading,
+  detail: daemonset,
+  events,
+  eventsLoading,
+  yamlDialogVisible,
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  manualRefresh,
+  setIntervalOption,
+  fetchDetail,
+  fetchEvents,
+  handleDelete,
+  handleOpenYaml,
+  router,
+  clusterName,
 } = useDetailPage({
   resourceName: 'DaemonSet',
   fetchDetail: getDaemonSetDetail,
@@ -57,7 +71,8 @@ const {
 // Shared composables
 const { handlePodLogs, handlePodExec, handlePodDelete } = usePodActions(clusterName)
 const { handleRestart } = useRestartAction('daemonset', restartDaemonSet)
-const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess, handleEditCancel } = useEditDrawer(fetchDetail)
+const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess, handleEditCancel } =
+  useEditDrawer(fetchDetail)
 
 const { t } = useI18n()
 
@@ -161,7 +176,7 @@ interface NodePodItem {
 function nodeBarClass(node: NodePodItem): string {
   if (node.pods.length === 0) return 'bar-empty'
   if (!node.isReady) return 'bar-danger'
-  if (node.pods.some(p => p.phase !== 'Running' || !p.ready)) return 'bar-warning'
+  if (node.pods.some((p) => p.phase !== 'Running' || !p.ready)) return 'bar-warning'
   return 'bar-success'
 }
 
@@ -192,14 +207,17 @@ const nodeDistribution = computed<NodePodItem[]>(() => {
     })
   }
   const items = Array.from(nodeMap.values())
-  const score = (item: NodePodItem) => item.pods.some(p => p.phase !== 'Running' || !p.ready) ? 0 : item.pods.length === 0 ? 1 : 2
+  const score = (item: NodePodItem) =>
+    item.pods.some((p) => p.phase !== 'Running' || !p.ready) ? 0 : item.pods.length === 0 ? 1 : 2
   return items.sort((a, b) => score(a) - score(b))
 })
 
 const nodeDistStats = computed(() => {
   const total = nodeDistribution.value.length
-  const withPod = nodeDistribution.value.filter(n => n.pods.length > 0).length
-  const abnormal = nodeDistribution.value.filter(n => n.pods.some(p => p.phase !== 'Running' || !p.ready)).length
+  const withPod = nodeDistribution.value.filter((n) => n.pods.length > 0).length
+  const abnormal = nodeDistribution.value.filter((n) =>
+    n.pods.some((p) => p.phase !== 'Running' || !p.ready),
+  ).length
   const missing = total - withPod
   return { total, withPod, missing, abnormal }
 })
@@ -216,7 +234,7 @@ async function handleRevisionRollback(rev: any) {
     await ElMessageBox.confirm(
       `${t('workload.rollback')} revision ${rev.revision}?`,
       t('common.confirmAction'),
-      { type: 'warning' }
+      { type: 'warning' },
     )
     await rollbackDaemonSet({ namespace, name, revision: rev.revision })
     ElMessage.success(t('common.success'))
@@ -242,8 +260,10 @@ function onPodExec(pod: any) {
 function onPodDelete(pod: any, force?: boolean) {
   handlePodDelete(
     { namespace: pod.metadata?.namespace || namespace, name: pod.metadata?.name },
-    () => { if (selectedRevision.value) handleRevisionSelect(selectedRevision.value) },
-    force
+    () => {
+      if (selectedRevision.value) handleRevisionSelect(selectedRevision.value)
+    },
+    force,
   )
 }
 
@@ -268,7 +288,12 @@ function onEditSuccess() {
 }
 
 // Image update handlers
-async function handleImageUpdateFn(data: { namespace: string; name: string; containerName: string; image: string }) {
+async function handleImageUpdateFn(data: {
+  namespace: string
+  name: string
+  containerName: string
+  image: string
+}) {
   return updateDaemonSetImage(data)
 }
 
@@ -297,13 +322,18 @@ function handleImageUpdated() {
       @back="router.push('/workloads/daemonsets')"
     >
       <template #meta>
-        <span class="replicas-info" v-if="daemonset">
-          {{ daemonset.status?.numberReady ?? 0 }}/{{ daemonset.status?.desiredNumberScheduled ?? 0 }} ready
+        <span v-if="daemonset" class="replicas-info">
+          {{ daemonset.status?.numberReady ?? 0 }}/{{
+            daemonset.status?.desiredNumberScheduled ?? 0
+          }}
+          ready
         </span>
       </template>
       <template #actions>
         <el-button type="warning" @click="onRestart">{{ t('workload.restart') }}</el-button>
-        <el-button type="success" @click="imageDialogVisible = true">{{ t('workload.updateImage') }}</el-button>
+        <el-button type="success" @click="imageDialogVisible = true">{{
+          t('workload.updateImage')
+        }}</el-button>
         <el-button type="info" @click="handleEdit">{{ t('common.edit') }}</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="danger" @click="handleDelete">{{ t('common.delete') }}</el-button>
@@ -325,7 +355,7 @@ function handleImageUpdated() {
       </div>
 
       <!-- 修订历史 -->
-      <div v-show="leftView === 'revisions'" class="rs-list" v-loading="revisionsLoading">
+      <div v-show="leftView === 'revisions'" v-loading="revisionsLoading" class="rs-list">
         <div v-if="revisions.length === 0" class="empty-hint">{{ t('common.noData') }}</div>
         <div
           v-for="rev in revisions"
@@ -338,13 +368,19 @@ function handleImageUpdated() {
           <div class="rs-meta">
             <span class="rs-rev">v{{ rev.revision }}</span>
             <span class="rs-replicas">{{ revisionPodCount(rev) }} 个 Pod</span>
-            <el-tag v-if="rev.isCurrent" type="success" size="small">{{ t('workload.current') }}</el-tag>
-            <el-tag v-else-if="revisionPodCount(rev) > 0" type="primary" size="small">{{ t('workload.active') }}</el-tag>
+            <el-tag v-if="rev.isCurrent" type="success" size="small">{{
+              t('workload.current')
+            }}</el-tag>
+            <el-tag v-else-if="revisionPodCount(rev) > 0" type="primary" size="small">{{
+              t('workload.active')
+            }}</el-tag>
           </div>
-          <div class="rs-image" v-for="(img, i) in (rev.images || [])" :key="i">{{ img }}</div>
+          <div v-for="(img, i) in rev.images || []" :key="i" class="rs-image">{{ img }}</div>
           <div class="rs-age">{{ formatAge(rev.createdAt, false) }}</div>
-          <div class="rs-rollback" v-if="!rev.isCurrent">
-            <el-button size="small" type="warning" @click.stop="handleRevisionRollback(rev)">{{ t('workload.rollback') }}</el-button>
+          <div v-if="!rev.isCurrent" class="rs-rollback">
+            <el-button size="small" type="warning" @click.stop="handleRevisionRollback(rev)">{{
+              t('workload.rollback')
+            }}</el-button>
           </div>
         </div>
       </div>
@@ -352,8 +388,12 @@ function handleImageUpdated() {
       <!-- 基本信息 -->
       <div v-show="leftView === 'info'" class="info-body">
         <el-descriptions :column="1" border size="small">
-          <el-descriptions-item :label="t('common.name')">{{ daemonset?.metadata?.name || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('common.namespace_label')">{{ daemonset?.metadata?.namespace || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.name')">{{
+            daemonset?.metadata?.name || '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.namespace_label')">{{
+            daemonset?.metadata?.namespace || '-'
+          }}</el-descriptions-item>
           <el-descriptions-item label="调度数">
             {{ daemonset?.status?.desiredNumberScheduled ?? 0 }} 期望 ·
             {{ daemonset?.status?.currentNumberScheduled ?? 0 }} 当前 ·
@@ -364,24 +404,44 @@ function handleImageUpdated() {
           </el-descriptions-item>
           <el-descriptions-item :label="t('workload.strategy')">
             {{ daemonset?.spec?.updateStrategy?.type || 'RollingUpdate' }}
-            <span v-if="(daemonset?.spec?.updateStrategy?.type || 'RollingUpdate') === 'RollingUpdate'" class="info-sub">
-              (maxUnavailable {{ daemonset?.spec?.updateStrategy?.rollingUpdate?.maxUnavailable ?? '-' }},
-              maxSurge {{ daemonset?.spec?.updateStrategy?.rollingUpdate?.maxSurge ?? '-' }})
+            <span
+              v-if="(daemonset?.spec?.updateStrategy?.type || 'RollingUpdate') === 'RollingUpdate'"
+              class="info-sub"
+            >
+              (maxUnavailable
+              {{ daemonset?.spec?.updateStrategy?.rollingUpdate?.maxUnavailable ?? '-' }}, maxSurge
+              {{ daemonset?.spec?.updateStrategy?.rollingUpdate?.maxSurge ?? '-' }})
             </span>
           </el-descriptions-item>
-          <el-descriptions-item label="当前 revision">{{ revisions.find((r: any) => r.isCurrent)?.name || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="历史上限">{{ daemonset?.spec?.revisionHistoryLimit ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.created')">{{ daemonset?.metadata?.creationTimestamp || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="UID">{{ daemonset?.metadata?.uid || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="当前 revision">{{
+            revisions.find((r: any) => r.isCurrent)?.name || '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item label="历史上限">{{
+            daemonset?.spec?.revisionHistoryLimit ?? '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.created')">{{
+            daemonset?.metadata?.creationTimestamp || '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item label="UID">{{
+            daemonset?.metadata?.uid || '-'
+          }}</el-descriptions-item>
         </el-descriptions>
 
-        <div class="info-section-title">{{ t('workload.containers') }} {{ t('workload.image') }}</div>
+        <div class="info-section-title">
+          {{ t('workload.containers') }} {{ t('workload.image') }}
+        </div>
         <div class="vct-list">
-          <div v-for="c in (daemonset?.spec?.template?.spec?.containers || [])" :key="c.name" class="vct-item">
+          <div
+            v-for="c in daemonset?.spec?.template?.spec?.containers || []"
+            :key="c.name"
+            class="vct-item"
+          >
             <span class="vct-name">{{ c.name }}</span>
             <span class="vct-meta">{{ c.image || '-' }}</span>
           </div>
-          <div v-if="!daemonset?.spec?.template?.spec?.containers?.length" class="info-empty">{{ t('common.noData') }}</div>
+          <div v-if="!daemonset?.spec?.template?.spec?.containers?.length" class="info-empty">
+            {{ t('common.noData') }}
+          </div>
         </div>
 
         <div class="info-section-title">Conditions</div>
@@ -395,34 +455,38 @@ function handleImageUpdated() {
       </div>
 
       <!-- 节点分布 -->
-      <div v-show="leftView === 'nodes'" class="node-dist-body" v-loading="nodesLoading">
+      <div v-show="leftView === 'nodes'" v-loading="nodesLoading" class="node-dist-body">
         <div class="node-stats">
           <div class="node-stat">
             <span class="node-stat-num">{{ nodeDistStats.total }}</span>
             <span class="node-stat-label">节点</span>
           </div>
           <div class="node-stat">
-            <span class="node-stat-num" style="color: var(--el-color-success)">{{ nodeDistStats.withPod }}</span>
+            <span class="node-stat-num" style="color: var(--el-color-success)">{{
+              nodeDistStats.withPod
+            }}</span>
             <span class="node-stat-label">有 Pod</span>
           </div>
           <div class="node-stat">
-            <span class="node-stat-num" style="color: var(--el-color-warning)">{{ nodeDistStats.missing }}</span>
+            <span class="node-stat-num" style="color: var(--el-color-warning)">{{
+              nodeDistStats.missing
+            }}</span>
             <span class="node-stat-label">缺失</span>
           </div>
           <div class="node-stat">
-            <span class="node-stat-num" style="color: var(--el-color-danger)">{{ nodeDistStats.abnormal }}</span>
+            <span class="node-stat-num" style="color: var(--el-color-danger)">{{
+              nodeDistStats.abnormal
+            }}</span>
             <span class="node-stat-label">异常</span>
           </div>
         </div>
 
-        <div v-if="nodeDistribution.length === 0 && !nodesLoading" class="empty-hint">{{ t('common.noData') }}</div>
+        <div v-if="nodeDistribution.length === 0 && !nodesLoading" class="empty-hint">
+          {{ t('common.noData') }}
+        </div>
 
         <div class="node-cards">
-          <div
-            v-for="node in nodeDistribution"
-            :key="node.nodeName"
-            class="node-card"
-          >
+          <div v-for="node in nodeDistribution" :key="node.nodeName" class="node-card">
             <div class="node-card-bar" :class="nodeBarClass(node)" />
             <div class="node-card-body">
               <div class="node-card-head">
@@ -434,9 +498,16 @@ function handleImageUpdated() {
                 <div v-for="pod in node.pods" :key="pod.name" class="node-pod-row">
                   <span class="node-pod-name" :title="pod.name">{{ pod.name }}</span>
                   <el-tag
-                    :type="pod.phase === 'Running' && pod.ready ? 'success' : pod.phase === 'Pending' ? 'warning' : 'danger'"
+                    :type="
+                      pod.phase === 'Running' && pod.ready
+                        ? 'success'
+                        : pod.phase === 'Pending'
+                          ? 'warning'
+                          : 'danger'
+                    "
                     size="small"
-                  >{{ pod.phase }}</el-tag>
+                    >{{ pod.phase }}</el-tag
+                  >
                 </div>
               </div>
             </div>
@@ -449,7 +520,7 @@ function handleImageUpdated() {
       <div class="panel-title">
         {{ t('workload.pod') }}
         <span class="count-badge">{{ rsPods.length }} 个</span>
-        <span class="rs-label" v-if="selectedRevision">{{ selectedRevision.name }}</span>
+        <span v-if="selectedRevision" class="rs-label">{{ selectedRevision.name }}</span>
       </div>
       <PodListPanel
         :pods="rsPods"
@@ -508,7 +579,7 @@ function handleImageUpdated() {
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto">
         <DaemonSetForm
           v-if="editDialogVisible && daemonset"
           :is-edit="true"
@@ -637,10 +708,18 @@ function handleImageUpdated() {
   flex-shrink: 0;
 }
 
-.bar-success { background: var(--el-color-success); }
-.bar-warning { background: var(--el-color-warning); }
-.bar-danger { background: var(--el-color-danger); }
-.bar-empty { background: var(--el-fill-color); }
+.bar-success {
+  background: var(--el-color-success);
+}
+.bar-warning {
+  background: var(--el-color-warning);
+}
+.bar-danger {
+  background: var(--el-color-danger);
+}
+.bar-empty {
+  background: var(--el-fill-color);
+}
 
 .node-card-body {
   flex: 1;

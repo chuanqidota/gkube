@@ -98,10 +98,18 @@ async function loadYaml(ns: Namespace) {
 }
 
 // Create
-function addLabel() { createForm.value.labels.push({ key: '', value: '' }) }
-function removeLabel(i: number) { createForm.value.labels.splice(i, 1) }
-function addAnnotation() { createForm.value.annotations.push({ key: '', value: '' }) }
-function removeAnnotation(i: number) { createForm.value.annotations.splice(i, 1) }
+function addLabel() {
+  createForm.value.labels.push({ key: '', value: '' })
+}
+function removeLabel(i: number) {
+  createForm.value.labels.splice(i, 1)
+}
+function addAnnotation() {
+  createForm.value.annotations.push({ key: '', value: '' })
+}
+function removeAnnotation(i: number) {
+  createForm.value.annotations.splice(i, 1)
+}
 
 async function handleCreate() {
   if (!createForm.value.name.trim()) {
@@ -141,7 +149,11 @@ async function handleDelete(row: Namespace) {
     await ElMessageBox.confirm(
       t('namespace.deleteConfirm', { name: row.name }),
       t('namespace.confirmDelete'),
-      { type: 'warning', confirmButtonText: t('namespace.deleteBtn'), cancelButtonText: t('namespace.cancelButton') }
+      {
+        type: 'warning',
+        confirmButtonText: t('namespace.deleteBtn'),
+        cancelButtonText: t('namespace.cancelButton'),
+      },
     )
     await deleteNamespace({ name: row.name })
     ElMessage.success(t('namespace.deleteSuccess'))
@@ -181,8 +193,12 @@ function handleLabels(row: Namespace) {
   labelsDialogVisible.value = true
 }
 
-function addEditLabel() { labelsArray.value.push({ key: '', value: '' }) }
-function removeEditLabel(i: number) { labelsArray.value.splice(i, 1) }
+function addEditLabel() {
+  labelsArray.value.push({ key: '', value: '' })
+}
+function removeEditLabel(i: number) {
+  labelsArray.value.splice(i, 1)
+}
 
 async function handleSaveLabels() {
   if (!labelsTarget.value) return
@@ -204,7 +220,15 @@ function handleDetail(row: Namespace) {
   router.push(`/namespaces/${row.name}`)
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchNamespaces)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchNamespaces)
 
 onMounted(fetchNamespaces)
 </script>
@@ -242,13 +266,20 @@ onMounted(fetchNamespaces)
     </ResourceListToolbar>
 
     <el-card shadow="never" class="table-card">
-      <el-table :data="filteredList" v-loading="loading" stripe>
+      <el-table v-loading="loading" :data="filteredList" stripe>
         <el-table-column :label="t('namespace.statusLabel')" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small" effect="dark">{{ row.status || 'Unknown' }}</el-tag>
+            <el-tag :type="statusType(row.status)" size="small" effect="dark">{{
+              row.status || 'Unknown'
+            }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column :prop=" 'name' " :label="t('namespace.nameLabel')" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          :prop="'name'"
+          :label="t('namespace.nameLabel')"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
@@ -256,21 +287,32 @@ onMounted(fetchNamespaces)
         <el-table-column :label="t('common.labels')" min-width="250" show-overflow-tooltip>
           <template #default="{ row }">
             <el-tag
-              v-for="(v, k) in (row.labels || {})"
+              v-for="(v, k) in row.labels || {}"
               :key="k"
               size="small"
-              style="margin-right: 4px; margin-bottom: 2px;"
-            >{{ k }}={{ v }}</el-tag>
-            <span v-if="!row.labels || Object.keys(row.labels).length === 0" style="color: var(--gk-color-text-secondary);">-</span>
+              style="margin-right: 4px; margin-bottom: 2px"
+              >{{ k }}={{ v }}</el-tag
+            >
+            <span
+              v-if="!row.labels || Object.keys(row.labels).length === 0"
+              style="color: var(--gk-color-text-secondary)"
+              >-</span
+            >
           </template>
         </el-table-column>
-        <el-table-column :prop=" 'age' " :label="t('namespace.ageLabel')" width="180" />
+        <el-table-column :prop="'age'" :label="t('namespace.ageLabel')" width="180" />
         <el-table-column :label="t('common.actions')" width="220" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-button size="small" @click="handleViewYaml(row)">{{ t('namespace.yamlBtn') }}</el-button>
-              <el-button size="small" type="primary" @click="handleLabels(row)">{{ t('namespace.labelBtn') }}</el-button>
-              <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('namespace.deleteBtn') }}</el-button>
+              <el-button size="small" @click="handleViewYaml(row)">{{
+                t('namespace.yamlBtn')
+              }}</el-button>
+              <el-button size="small" type="primary" @click="handleLabels(row)">{{
+                t('namespace.labelBtn')
+              }}</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{
+                t('namespace.deleteBtn')
+              }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -278,60 +320,115 @@ onMounted(fetchNamespaces)
     </el-card>
 
     <!-- Create Namespace Dialog -->
-    <el-dialog v-model="createDialogVisible" :title="t('namespace.createDialogTitle')" width="580px" destroy-on-close>
+    <el-dialog
+      v-model="createDialogVisible"
+      :title="t('namespace.createDialogTitle')"
+      width="580px"
+      destroy-on-close
+    >
       <el-form label-width="100px">
         <el-form-item :label="t('common.name')" required>
           <el-input v-model="createForm.name" :placeholder="t('namespace.createNamePlaceholder')" />
         </el-form-item>
         <el-form-item :label="t('namespace.labels')">
-          <div style="width: 100%;">
-            <div v-for="(label, i) in createForm.labels" :key="i" style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px;">
-              <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 1;" />
-              <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 1;" />
-              <el-button type="danger" circle size="small" @click="removeLabel(i)"><el-icon><Delete /></el-icon></el-button>
+          <div style="width: 100%">
+            <div
+              v-for="(label, i) in createForm.labels"
+              :key="i"
+              style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px"
+            >
+              <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 1" />
+              <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 1" />
+              <el-button type="danger" circle size="small" @click="removeLabel(i)"
+                ><el-icon><Delete /></el-icon
+              ></el-button>
             </div>
-            <el-button size="small" @click="addLabel"><el-icon><Plus /></el-icon> {{ t('namespace.addLabel') }}</el-button>
+            <el-button size="small" @click="addLabel"
+              ><el-icon><Plus /></el-icon> {{ t('namespace.addLabel') }}</el-button
+            >
           </div>
         </el-form-item>
         <el-form-item :label="t('namespace.annotations')">
-          <div style="width: 100%;">
-            <div v-for="(anno, i) in createForm.annotations" :key="i" style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px;">
-              <el-input v-model="anno.key" :placeholder="t('namespace.key')" style="flex: 1;" />
-              <el-input v-model="anno.value" :placeholder="t('namespace.value')" style="flex: 1;" />
-              <el-button type="danger" circle size="small" @click="removeAnnotation(i)"><el-icon><Delete /></el-icon></el-button>
+          <div style="width: 100%">
+            <div
+              v-for="(anno, i) in createForm.annotations"
+              :key="i"
+              style="display: flex; gap: var(--gk-space-2); margin-bottom: 8px"
+            >
+              <el-input v-model="anno.key" :placeholder="t('namespace.key')" style="flex: 1" />
+              <el-input v-model="anno.value" :placeholder="t('namespace.value')" style="flex: 1" />
+              <el-button type="danger" circle size="small" @click="removeAnnotation(i)"
+                ><el-icon><Delete /></el-icon
+              ></el-button>
             </div>
-            <el-button size="small" @click="addAnnotation"><el-icon><Plus /></el-icon> {{ t('namespace.addAnnotation') }}</el-button>
+            <el-button size="small" @click="addAnnotation"
+              ><el-icon><Plus /></el-icon> {{ t('namespace.addAnnotation') }}</el-button
+            >
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createDialogVisible = false">{{ t('namespace.cancelButton') }}</el-button>
-        <el-button type="primary" @click="handleCreate" :loading="creating">{{ t('namespace.createBtn') }}</el-button>
+        <el-button @click="createDialogVisible = false">{{
+          t('namespace.cancelButton')
+        }}</el-button>
+        <el-button type="primary" :loading="creating" @click="handleCreate">{{
+          t('namespace.createBtn')
+        }}</el-button>
       </template>
     </el-dialog>
 
     <!-- YAML Drawer -->
-    <el-drawer v-model="yamlDialogVisible" :title="`${t('namespace.yamlTitle')}: ${yamlTarget?.name}`" size="85%" direction="rtl" class="yaml-drawer"
-      :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100dvh - 56px);">
-        <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="yamlTarget ? loadYaml(yamlTarget) : null" />
+    <el-drawer
+      v-model="yamlDialogVisible"
+      :title="`${t('namespace.yamlTitle')}: ${yamlTarget?.name}`"
+      size="85%"
+      direction="rtl"
+      class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 56px)">
+        <YamlEditor
+          v-model="yamlContent"
+          height="100%"
+          auto-format
+          show-save-buttons
+          :saving="yamlSaving"
+          @save="handleSaveYaml"
+          @cancel="yamlTarget ? loadYaml(yamlTarget) : null"
+        />
       </div>
     </el-drawer>
 
     <!-- Labels Dialog -->
-    <el-dialog v-model="labelsDialogVisible" :title="`${t('namespace.labelsTitle')}: ${labelsTarget?.name}`" width="600px" destroy-on-close>
-      <div v-for="(label, i) in labelsArray" :key="i" style="display: flex; gap: var(--gk-space-2); margin-bottom: var(--gk-space-3); align-items: center;">
-        <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 2;" />
-        <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 2;" />
+    <el-dialog
+      v-model="labelsDialogVisible"
+      :title="`${t('namespace.labelsTitle')}: ${labelsTarget?.name}`"
+      width="600px"
+      destroy-on-close
+    >
+      <div
+        v-for="(label, i) in labelsArray"
+        :key="i"
+        style="
+          display: flex;
+          gap: var(--gk-space-2);
+          margin-bottom: var(--gk-space-3);
+          align-items: center;
+        "
+      >
+        <el-input v-model="label.key" :placeholder="t('namespace.key')" style="flex: 2" />
+        <el-input v-model="label.value" :placeholder="t('namespace.value')" style="flex: 2" />
         <el-button type="danger" circle size="small" @click="removeEditLabel(i)">
           <el-icon><Delete /></el-icon>
         </el-button>
       </div>
-      <el-button @click="addEditLabel" style="margin-top: 8px;">
+      <el-button style="margin-top: 8px" @click="addEditLabel">
         <el-icon><Plus /></el-icon> {{ t('namespace.addLabel') }}
       </el-button>
       <template #footer>
-        <el-button @click="labelsDialogVisible = false">{{ t('namespace.cancelButton') }}</el-button>
+        <el-button @click="labelsDialogVisible = false">{{
+          t('namespace.cancelButton')
+        }}</el-button>
         <el-button type="primary" @click="handleSaveLabels">{{ t('namespace.saveBtn') }}</el-button>
       </template>
     </el-dialog>
@@ -339,8 +436,12 @@ onMounted(fetchNamespaces)
 </template>
 
 <style scoped>
-.page-container { padding: var(--gk-space-5); }
-.table-card { border-radius: var(--gk-radius-md); }
+.page-container {
+  padding: var(--gk-space-5);
+}
+.table-card {
+  border-radius: var(--gk-radius-md);
+}
 .action-buttons {
   display: flex;
   flex-wrap: nowrap;

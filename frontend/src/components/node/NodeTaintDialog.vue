@@ -6,11 +6,15 @@ import { Delete, Plus } from '@element-plus/icons-vue'
 import { updateNodeTaints } from '@/api/resource'
 import { validateQualifiedName, validateTaintEffect } from '@/utils/resource'
 
+const emit = defineEmits<{ saved: [] }>()
+
 const { t } = useI18n()
 
-interface Taint { key: string; value: string; effect: string }
-
-const emit = defineEmits<{ saved: [] }>()
+interface Taint {
+  key: string
+  value: string
+  effect: string
+}
 
 const visible = ref(false)
 const nodeName = ref('')
@@ -20,13 +24,17 @@ const EFFECTS = ['NoSchedule', 'PreferNoSchedule', 'NoExecute']
 
 function open(name: string, current: Taint[]) {
   nodeName.value = name
-  taints.value = (current || []).map(t => ({ ...t }))
+  taints.value = (current || []).map((t) => ({ ...t }))
   if (taints.value.length === 0) taints.value = [{ key: '', value: '', effect: 'NoSchedule' }]
   visible.value = true
 }
 
-function addTaint() { taints.value.push({ key: '', value: '', effect: 'NoSchedule' }) }
-function removeTaint(index: number) { taints.value.splice(index, 1) }
+function addTaint() {
+  taints.value.push({ key: '', value: '', effect: 'NoSchedule' })
+}
+function removeTaint(index: number) {
+  taints.value.splice(index, 1)
+}
 
 // 校验所有 taint：key 格式 + effect 枚举 + key+effect 唯一。返回首个错误提示。
 function validate(): string {
@@ -38,7 +46,8 @@ function validate(): string {
     const effErr = validateTaintEffect(taint.effect)
     if (effErr) return t('node.taintKeyError', { key: taint.key, error: effErr })
     const dedupKey = `${taint.key}/${taint.effect}`
-    if (seen.has(dedupKey)) return t('node.taintDuplicate', { key: taint.key, effect: taint.effect })
+    if (seen.has(dedupKey))
+      return t('node.taintDuplicate', { key: taint.key, effect: taint.effect })
     seen.add(dedupKey)
   }
   return ''
@@ -51,7 +60,7 @@ async function handleSave() {
     return
   }
   try {
-    await updateNodeTaints({ name: nodeName.value, taints: taints.value.filter(t => t.key) })
+    await updateNodeTaints({ name: nodeName.value, taints: taints.value.filter((t) => t.key) })
     ElMessage.success(t('common.taintUpdateSuccess'))
     visible.value = false
     emit('saved')
@@ -65,15 +74,23 @@ defineExpose({ open })
 
 <template>
   <el-dialog v-model="visible" :title="t('node.manageTaints')" width="600px">
-    <div v-for="(taint, index) in taints" :key="index" style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
-      <el-input v-model="taint.key" :placeholder="t('node.taintKeyPlaceholder')" style="flex: 2;" />
-      <el-input v-model="taint.value" :placeholder="t('common.value')" style="flex: 1;" />
-      <el-select v-model="taint.effect" style="flex: 1.5;">
+    <div
+      v-for="(taint, index) in taints"
+      :key="index"
+      style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center"
+    >
+      <el-input v-model="taint.key" :placeholder="t('node.taintKeyPlaceholder')" style="flex: 2" />
+      <el-input v-model="taint.value" :placeholder="t('common.value')" style="flex: 1" />
+      <el-select v-model="taint.effect" style="flex: 1.5">
         <el-option v-for="eff in EFFECTS" :key="eff" :label="eff" :value="eff" />
       </el-select>
-      <el-button type="danger" circle size="small" @click="removeTaint(index)"><el-icon><Delete /></el-icon></el-button>
+      <el-button type="danger" circle size="small" @click="removeTaint(index)"
+        ><el-icon><Delete /></el-icon
+      ></el-button>
     </div>
-    <el-button @click="addTaint" style="margin-top: 8px;"><el-icon><Plus /></el-icon> {{ t('node.addTaint') }}</el-button>
+    <el-button style="margin-top: 8px" @click="addTaint"
+      ><el-icon><Plus /></el-icon> {{ t('node.addTaint') }}</el-button
+    >
     <template #footer>
       <el-button @click="visible = false">{{ t('common.cancel') }}</el-button>
       <el-button type="primary" @click="handleSave">{{ t('common.save') }}</el-button>

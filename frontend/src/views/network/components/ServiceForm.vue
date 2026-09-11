@@ -5,15 +5,23 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import yaml from 'js-yaml'
 import type { FormInstance, FormRules } from 'element-plus'
-import { getNamespaceList, createService, updateService, extractNamespaceNames } from '@/api/resource'
+import {
+  getNamespaceList,
+  createService,
+  updateService,
+  extractNamespaceNames,
+} from '@/api/resource'
 
-const props = withDefaults(defineProps<{
-  isEdit?: boolean
-  initialData?: any
-}>(), {
-  isEdit: false,
-  initialData: undefined,
-})
+const props = withDefaults(
+  defineProps<{
+    isEdit?: boolean
+    initialData?: any
+  }>(),
+  {
+    isEdit: false,
+    initialData: undefined,
+  },
+)
 
 const emit = defineEmits<{
   success: []
@@ -28,10 +36,25 @@ const namespaces = ref<string[]>([])
 
 // ---- Form Data ----
 
-interface Label { key: string; value: string }
-interface ServicePort { name: string; port: number | null; targetPort: number | string | null; protocol: string; nodePort: number | null }
-interface Selector { key: string; value: string }
-interface Annotation { key: string; value: string }
+interface Label {
+  key: string
+  value: string
+}
+interface ServicePort {
+  name: string
+  port: number | null
+  targetPort: number | string | null
+  protocol: string
+  nodePort: number | null
+}
+interface Selector {
+  key: string
+  value: string
+}
+interface Annotation {
+  key: string
+  value: string
+}
 
 interface FormData {
   name: string
@@ -72,7 +95,11 @@ const formRef = ref<FormInstance>()
 const formRules = computed<FormRules>(() => ({
   name: [
     { required: true, message: '请输入名称', trigger: 'blur' },
-    { pattern: /^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/, message: '仅支持小写字母、数字、点号、下划线和连字符', trigger: 'blur' },
+    {
+      pattern: /^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/,
+      message: '仅支持小写字母、数字、点号、下划线和连字符',
+      trigger: 'blur',
+    },
     { max: 253, message: '最长 253 个字符', trigger: 'blur' },
   ],
   namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
@@ -104,42 +131,69 @@ onMounted(() => {
 })
 
 // 克隆流入（创建模式 isEdit=false，onMounted 不会触发 parseInitialData，故用 watch 兜底）
-watch(() => props.initialData, (newData) => {
-  if (newData) parseInitialData(newData)
-})
+watch(
+  () => props.initialData,
+  (newData) => {
+    if (newData) parseInitialData(newData)
+  },
+)
 
 // 切换类型时，若离开 ExternalName 则清除校验错误
-watch(() => form.type, (newType) => {
-  if (newType !== 'ExternalName') {
-    nextTick(() => formRef.value?.clearValidate('externalName'))
-  }
-})
+watch(
+  () => form.type,
+  (newType) => {
+    if (newType !== 'ExternalName') {
+      nextTick(() => formRef.value?.clearValidate('externalName'))
+    }
+  },
+)
 
 // ---- Label Management ----
 
-function addLabel() { form.labels.push({ key: '', value: '' }) }
-function removeLabel(i: number) { form.labels.splice(i, 1) }
+function addLabel() {
+  form.labels.push({ key: '', value: '' })
+}
+function removeLabel(i: number) {
+  form.labels.splice(i, 1)
+}
 
 // ---- Selector Management ----
 
-function addSelector() { form.selectors.push({ key: '', value: '' }) }
-function removeSelector(i: number) { form.selectors.splice(i, 1) }
+function addSelector() {
+  form.selectors.push({ key: '', value: '' })
+}
+function removeSelector(i: number) {
+  form.selectors.splice(i, 1)
+}
 
 // ---- Port Management ----
 
-function addPort() { form.ports.push({ name: '', port: null, targetPort: null, protocol: 'TCP', nodePort: null }) }
+function addPort() {
+  form.ports.push({ name: '', port: null, targetPort: null, protocol: 'TCP', nodePort: null })
+}
 function removePort(i: number) {
-  if (form.ports.length <= 1) { ElMessage.warning(t('network.atLeastOnePort')); return }
+  if (form.ports.length <= 1) {
+    ElMessage.warning(t('network.atLeastOnePort'))
+    return
+  }
   form.ports.splice(i, 1)
 }
 
 // ---- Annotation Management ----
-function addAnnotation() { form.annotations.push({ key: '', value: '' }) }
-function removeAnnotation(i: number) { form.annotations.splice(i, 1) }
+function addAnnotation() {
+  form.annotations.push({ key: '', value: '' })
+}
+function removeAnnotation(i: number) {
+  form.annotations.splice(i, 1)
+}
 
 // ---- ExternalIPs Management ----
-function addExternalIP() { form.externalIPs.push('') }
-function removeExternalIP(i: number) { form.externalIPs.splice(i, 1) }
+function addExternalIP() {
+  form.externalIPs.push('')
+}
+function removeExternalIP(i: number) {
+  form.externalIPs.splice(i, 1)
+}
 
 // ---- YAML Generation ----
 
@@ -150,27 +204,38 @@ const generatedYaml = computed(() => {
 
 function buildK8sService(): Record<string, any> {
   const labels: Record<string, string> = {}
-  form.labels.forEach(l => { if (l.key.trim()) labels[l.key.trim()] = l.value })
+  form.labels.forEach((l) => {
+    if (l.key.trim()) labels[l.key.trim()] = l.value
+  })
 
   const annotations: Record<string, string> = {}
-  form.annotations.forEach(a => { if (a.key.trim()) annotations[a.key.trim()] = a.value })
+  form.annotations.forEach((a) => {
+    if (a.key.trim()) annotations[a.key.trim()] = a.value
+  })
 
   const selector: Record<string, string> = {}
-  form.selectors.forEach(s => { if (s.key.trim()) selector[s.key.trim()] = s.value })
+  form.selectors.forEach((s) => {
+    if (s.key.trim()) selector[s.key.trim()] = s.value
+  })
 
   const ports = form.ports
-    .filter(p => p.port && p.targetPort)
-    .map(p => {
+    .filter((p) => p.port && p.targetPort)
+    .map((p) => {
       // targetPort 可以是数字或字符串端口名(如 "http")
       const rawTarget = p.targetPort
-      const targetPort = typeof rawTarget === 'string' && /^\d+$/.test(rawTarget) ? Number(rawTarget) : rawTarget
+      const targetPort =
+        typeof rawTarget === 'string' && /^\d+$/.test(rawTarget) ? Number(rawTarget) : rawTarget
       const port: Record<string, any> = { port: p.port, targetPort, protocol: p.protocol }
       if (p.name) port.name = p.name
       if (form.type === 'NodePort' && p.nodePort) port.nodePort = p.nodePort
       return port
     })
 
-  const metadata: Record<string, any> = { name: form.name, namespace: form.namespace, labels: { ...labels } }
+  const metadata: Record<string, any> = {
+    name: form.name,
+    namespace: form.namespace,
+    labels: { ...labels },
+  }
   if (Object.keys(annotations).length > 0) metadata.annotations = annotations
 
   const serviceType = form.type === 'Headless' ? 'ClusterIP' : form.type
@@ -204,7 +269,7 @@ function buildK8sService(): Record<string, any> {
   }
 
   // ExternalIPs
-  const validExternalIPs = form.externalIPs.filter(ip => ip.trim())
+  const validExternalIPs = form.externalIPs.filter((ip) => ip.trim())
   if (validExternalIPs.length > 0) {
     resource.spec.externalIPs = validExternalIPs
   }
@@ -239,33 +304,37 @@ function parseInitialData(data: any) {
 
   // Labels
   const labels = meta.labels || {}
-  form.labels = Object.keys(labels).length > 0
-    ? Object.entries(labels).map(([k, v]) => ({ key: k, value: v as string }))
-    : [{ key: 'app', value: '' }]
+  form.labels =
+    Object.keys(labels).length > 0
+      ? Object.entries(labels).map(([k, v]) => ({ key: k, value: v as string }))
+      : [{ key: 'app', value: '' }]
 
   // Annotations
   const annotations = meta.annotations || {}
-  form.annotations = Object.keys(annotations).length > 0
-    ? Object.entries(annotations).map(([k, v]) => ({ key: k, value: v as string }))
-    : []
+  form.annotations =
+    Object.keys(annotations).length > 0
+      ? Object.entries(annotations).map(([k, v]) => ({ key: k, value: v as string }))
+      : []
 
   // Selector
   const selector = spec.selector || {}
-  form.selectors = Object.keys(selector).length > 0
-    ? Object.entries(selector).map(([k, v]) => ({ key: k, value: v as string }))
-    : [{ key: 'app', value: '' }]
+  form.selectors =
+    Object.keys(selector).length > 0
+      ? Object.entries(selector).map(([k, v]) => ({ key: k, value: v as string }))
+      : [{ key: 'app', value: '' }]
 
   // Ports
   const ports = spec.ports || []
-  form.ports = ports.length > 0
-    ? ports.map((p: any) => ({
-        name: p.name || '',
-        port: p.port ?? null,
-        targetPort: p.targetPort ?? null,
-        protocol: p.protocol || 'TCP',
-        nodePort: p.nodePort ?? null,
-      }))
-    : [{ name: 'http', port: 80, targetPort: 80, protocol: 'TCP', nodePort: null }]
+  form.ports =
+    ports.length > 0
+      ? ports.map((p: any) => ({
+          name: p.name || '',
+          port: p.port ?? null,
+          targetPort: p.targetPort ?? null,
+          protocol: p.protocol || 'TCP',
+          nodePort: p.nodePort ?? null,
+        }))
+      : [{ name: 'http', port: 80, targetPort: 80, protocol: 'TCP', nodePort: null }]
 }
 
 // ---- Submit ----
@@ -274,8 +343,14 @@ async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
   for (let i = 0; i < form.ports.length; i++) {
-    if (form.ports[i].port == null) { ElMessage.error(t('network.portNumberRequired', { n: i + 1 })); return }
-    if (form.ports[i].targetPort == null) { ElMessage.error(t('network.targetPortRequired', { n: i + 1 })); return }
+    if (form.ports[i].port === null) {
+      ElMessage.error(t('network.portNumberRequired', { n: i + 1 }))
+      return
+    }
+    if (form.ports[i].targetPort === null) {
+      ElMessage.error(t('network.targetPortRequired', { n: i + 1 }))
+      return
+    }
   }
 
   submitting.value = true
@@ -290,7 +365,9 @@ async function handleSubmit() {
       router.push('/network/services')
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')))
+    ElMessage.error(
+      e?.message || (props.isEdit ? t('common.updateFailed') : t('common.createFailed')),
+    )
   } finally {
     submitting.value = false
   }
@@ -308,7 +385,6 @@ function handleCancel() {
 <template>
   <div class="service-form">
     <el-form ref="formRef" :model="form" :rules="formRules" label-position="top">
-
       <!-- Section 1: Basic Info -->
       <div class="form-section">
         <div class="section-sidebar">
@@ -320,12 +396,18 @@ function handleCancel() {
               <el-input v-model="form.name" placeholder="my-service" />
             </el-form-item>
             <el-form-item label="命名空间" prop="namespace">
-              <el-select v-model="form.namespace" filterable placeholder="选择命名空间" style="width: 100%;" :loading="namespaceLoading">
+              <el-select
+                v-model="form.namespace"
+                filterable
+                placeholder="选择命名空间"
+                style="width: 100%"
+                :loading="namespaceLoading"
+              >
                 <el-option v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
               </el-select>
             </el-form-item>
             <el-form-item label="类型" prop="type">
-              <el-select v-model="form.type" style="width: 100%;">
+              <el-select v-model="form.type" style="width: 100%">
                 <el-option label="ClusterIP" value="ClusterIP" />
                 <el-option label="Headless (ClusterIP=None)" value="Headless" />
                 <el-option label="NodePort" value="NodePort" />
@@ -336,7 +418,10 @@ function handleCancel() {
             <el-form-item v-if="form.type === 'ExternalName'" label="External Name" required>
               <el-input v-model="form.externalName" placeholder="my.database.example.com" />
             </el-form-item>
-            <el-form-item v-if="form.type === 'ClusterIP' || form.type === 'Headless'" label="Cluster IP">
+            <el-form-item
+              v-if="form.type === 'ClusterIP' || form.type === 'Headless'"
+              label="Cluster IP"
+            >
               <el-input
                 v-model="form.clusterIP"
                 :disabled="!!isEdit"
@@ -347,13 +432,16 @@ function handleCancel() {
               <el-input v-model="form.loadBalancerIP" placeholder="指定 LB IP (可选)" />
             </el-form-item>
             <el-form-item label="Session Affinity">
-              <el-select v-model="form.sessionAffinity" style="width: 100%;">
+              <el-select v-model="form.sessionAffinity" style="width: 100%">
                 <el-option label="None" value="None" />
                 <el-option label="ClientIP" value="ClientIP" />
               </el-select>
             </el-form-item>
-            <el-form-item v-if="form.type === 'LoadBalancer' || form.type === 'NodePort'" label="外部流量策略">
-              <el-select v-model="form.externalTrafficPolicy" style="width: 100%;">
+            <el-form-item
+              v-if="form.type === 'LoadBalancer' || form.type === 'NodePort'"
+              label="外部流量策略"
+            >
+              <el-select v-model="form.externalTrafficPolicy" style="width: 100%">
                 <el-option label="Cluster" value="Cluster" />
                 <el-option label="Local" value="Local" />
               </el-select>
@@ -369,35 +457,47 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="标签">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(label, i) in form.labels" :key="i" class="kv-row">
                 <el-input v-model="label.key" placeholder="Key" />
                 <el-input v-model="label.value" placeholder="Value" />
-                <el-button type="danger" text circle :disabled="form.labels.length <= 1" @click="removeLabel(i)">
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.labels.length <= 1"
+                  @click="removeLabel(i)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addLabel" size="small">
+              <el-button text type="primary" size="small" @click="addLabel">
                 <el-icon><Plus /></el-icon> 添加标签
               </el-button>
             </div>
           </el-form-item>
           <el-form-item label="Selector">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(sel, i) in form.selectors" :key="i" class="kv-row">
                 <el-input v-model="sel.key" placeholder="Key" />
                 <el-input v-model="sel.value" placeholder="Value" />
-                <el-button type="danger" text circle :disabled="form.selectors.length <= 1" @click="removeSelector(i)">
+                <el-button
+                  type="danger"
+                  text
+                  circle
+                  :disabled="form.selectors.length <= 1"
+                  @click="removeSelector(i)"
+                >
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addSelector" size="small">
+              <el-button text type="primary" size="small" @click="addSelector">
                 <el-icon><Plus /></el-icon> 添加选择器
               </el-button>
             </div>
           </el-form-item>
           <el-form-item label="注解 (Annotations)">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(ann, i) in form.annotations" :key="i" class="kv-row">
                 <el-input v-model="ann.key" placeholder="Key" />
                 <el-input v-model="ann.value" placeholder="Value" />
@@ -405,20 +505,20 @@ function handleCancel() {
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addAnnotation" size="small">
+              <el-button text type="primary" size="small" @click="addAnnotation">
                 <el-icon><Plus /></el-icon> 添加注解
               </el-button>
             </div>
           </el-form-item>
           <el-form-item v-if="form.type !== 'ExternalName'" label="External IPs">
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(_ip, i) in form.externalIPs" :key="i" class="kv-row">
                 <el-input v-model="form.externalIPs[i]" placeholder="外部 IP 地址" />
                 <el-button type="danger" text circle @click="removeExternalIP(i)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
-              <el-button text type="primary" @click="addExternalIP" size="small">
+              <el-button text type="primary" size="small" @click="addExternalIP">
                 <el-icon><Plus /></el-icon> 添加 External IP
               </el-button>
             </div>
@@ -433,13 +533,23 @@ function handleCancel() {
         </div>
         <div class="section-content">
           <el-form-item label="端口" required>
-            <div style="width: 100%;">
+            <div style="width: 100%">
               <div v-for="(port, pi) in form.ports" :key="pi" class="port-card">
                 <div class="port-row">
-                  <el-input v-model="port.name" placeholder="名称 (可选)" style="width: 120px;" />
-                  <el-input-number v-model="port.port" :min="1" :max="65535" placeholder="Port" style="flex: 1;" />
-                  <el-input v-model="port.targetPort" placeholder="Target Port (数字或端口名)" style="flex: 1;" />
-                  <el-select v-model="port.protocol" style="width: 100px;">
+                  <el-input v-model="port.name" placeholder="名称 (可选)" style="width: 120px" />
+                  <el-input-number
+                    v-model="port.port"
+                    :min="1"
+                    :max="65535"
+                    placeholder="Port"
+                    style="flex: 1"
+                  />
+                  <el-input
+                    v-model="port.targetPort"
+                    placeholder="Target Port (数字或端口名)"
+                    style="flex: 1"
+                  />
+                  <el-select v-model="port.protocol" style="width: 100px">
                     <el-option label="TCP" value="TCP" />
                     <el-option label="UDP" value="UDP" />
                     <el-option label="SCTP" value="SCTP" />
@@ -450,7 +560,7 @@ function handleCancel() {
                     :min="30000"
                     :max="32767"
                     placeholder="NodePort"
-                    style="width: 140px;"
+                    style="width: 140px"
                   />
                   <el-button type="danger" text circle @click="removePort(pi)">
                     <el-icon><Delete /></el-icon>
@@ -471,7 +581,9 @@ function handleCancel() {
         <div class="section-content">
           <div class="form-actions">
             <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '更新' : '创建' }}</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">{{
+              isEdit ? '更新' : '创建'
+            }}</el-button>
           </div>
         </div>
       </div>

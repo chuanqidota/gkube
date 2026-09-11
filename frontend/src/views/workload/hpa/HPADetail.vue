@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getHpaDetail, deleteHpa, getHpaEvents, pauseHpa, resumeHpa, getHpaYaml, updateHpa } from '@/api/resource'
+import {
+  getHpaDetail,
+  deleteHpa,
+  getHpaEvents,
+  pauseHpa,
+  resumeHpa,
+  getHpaYaml,
+  updateHpa,
+} from '@/api/resource'
 import { Refresh, Timer, ArrowLeft, FullScreen, Aim } from '@element-plus/icons-vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 import HPAForm from './components/HPAForm.vue'
@@ -213,7 +221,11 @@ async function handleDelete() {
     await ElMessageBox.confirm(
       t('workload.confirmDeleteHpa', { name }),
       t('common.confirmDelete'),
-      { type: 'error', confirmButtonText: t('common.delete'), cancelButtonText: t('common.cancel') }
+      {
+        type: 'error',
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
+      },
     )
     await deleteHpa({ namespace, name })
     ElMessage.success(t('workload.hpaDeleteSuccess'))
@@ -245,7 +257,11 @@ async function handlePause() {
     await ElMessageBox.confirm(
       t('workload.pauseConfirm', { n: current ?? '-' }),
       t('common.confirmAction'),
-      { type: 'warning', confirmButtonText: t('workload.suspend'), cancelButtonText: t('common.cancel') }
+      {
+        type: 'warning',
+        confirmButtonText: t('workload.suspend'),
+        cancelButtonText: t('common.cancel'),
+      },
     )
     await pauseHpa({ namespace, name })
     ElMessage.success(t('workload.hpaPauseSuccess'))
@@ -270,12 +286,13 @@ async function handleResume() {
 // ---- Resize: left-right ----
 const leftWidth = ref(300)
 const resizingH = ref(false)
-let startX = 0, startW = 0
+let activeHMove: ((ev: MouseEvent) => void) | null = null
+let activeHUp: (() => void) | null = null
 function onHResizeStart(e: MouseEvent) {
   e.preventDefault()
   resizingH.value = true
-  startX = e.clientX
-  startW = leftWidth.value
+  const startX = e.clientX
+  const startW = leftWidth.value
   const onMove = (ev: MouseEvent) => {
     leftWidth.value = Math.min(Math.max(startW + ev.clientX - startX, 220), 500)
   }
@@ -283,7 +300,11 @@ function onHResizeStart(e: MouseEvent) {
     resizingH.value = false
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup', onUp)
+    activeHMove = null
+    activeHUp = null
   }
+  activeHMove = onMove
+  activeHUp = onUp
   document.addEventListener('mousemove', onMove)
   document.addEventListener('mouseup', onUp)
 }
@@ -291,14 +312,15 @@ function onHResizeStart(e: MouseEvent) {
 // ---- Resize: top-bottom (Metrics / Conditions) ----
 const rightTopHeight = ref<number | null>(null)
 const resizingV = ref(false)
-let startY = 0, startH = 0
+let activeVMove: ((ev: MouseEvent) => void) | null = null
+let activeVUp: (() => void) | null = null
 function onVResizeStart(e: MouseEvent) {
   e.preventDefault()
   const rightPanel = (e.target as HTMLElement).closest('.right-panel')
   if (!rightPanel) return
   resizingV.value = true
-  startY = e.clientY
-  startH = rightPanel.getBoundingClientRect().height
+  const startY = e.clientY
+  const startH = rightPanel.getBoundingClientRect().height
   const onMove = (ev: MouseEvent) => {
     const delta = ev.clientY - startY
     rightTopHeight.value = Math.min(Math.max(startH * 0.3 + delta, 120), startH - 120)
@@ -307,25 +329,46 @@ function onVResizeStart(e: MouseEvent) {
     resizingV.value = false
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup', onUp)
+    activeVMove = null
+    activeVUp = null
   }
+  activeVMove = onMove
+  activeVUp = onUp
   document.addEventListener('mousemove', onMove)
   document.addEventListener('mouseup', onUp)
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-  await fetchDetail()
-  await fetchEvents()
-}, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(
+  async () => {
+    await fetchDetail()
+    await fetchEvents()
+  },
+  { autoStart: false },
+)
 
 onMounted(() => {
   fetchDetail()
   fetchEvents()
 })
+
+onBeforeUnmount(() => {
+  if (activeHMove) document.removeEventListener('mousemove', activeHMove)
+  if (activeHUp) document.removeEventListener('mouseup', activeHUp)
+  if (activeVMove) document.removeEventListener('mousemove', activeVMove)
+  if (activeVUp) document.removeEventListener('mouseup', activeVUp)
+})
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
+  <div v-loading="loading" class="detail-page">
     <!-- 顶部标题栏 -->
     <div class="page-header">
       <div class="header-left">
@@ -339,7 +382,8 @@ onMounted(() => {
             type="primary"
             class="target-link"
             @click="$router.push(targetRoute!)"
-          >{{ hpa.spec.scaleTargetRef.kind }}/{{ hpa.spec.scaleTargetRef.name }}</el-button>
+            >{{ hpa.spec.scaleTargetRef.kind }}/{{ hpa.spec.scaleTargetRef.name }}</el-button
+          >
           <span v-else-if="hpa?.spec?.scaleTargetRef" class="replicas-info">
             {{ hpa.spec.scaleTargetRef.kind }}/{{ hpa.spec.scaleTargetRef.name }}
           </span>
@@ -354,11 +398,7 @@ onMounted(() => {
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
+            <el-button :type="isRunning ? 'success' : 'default'" :icon="Timer" @click="toggle()" />
           </template>
           <div class="auto-refresh-popover">
             <div class="popover-title">
@@ -366,10 +406,10 @@ onMounted(() => {
             </div>
             <el-select
               :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
               :teleported="false"
               size="small"
-              style="width: 100%;"
+              style="width: 100%"
+              @update:model-value="setIntervalOption"
             >
               <el-option
                 v-for="sec in availableIntervals"
@@ -381,7 +421,7 @@ onMounted(() => {
           </div>
         </el-popover>
         <el-tooltip content="刷新" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+          <el-button :loading="loading" :icon="Refresh" @click="manualRefresh()" />
         </el-tooltip>
         <el-tooltip content="返回列表" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/autoscaling/hpa')" />
@@ -391,44 +431,67 @@ onMounted(() => {
 
     <template v-if="hpa">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
-
         <!-- 左侧：基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">{{ t('config.basicInfo') }}</div>
           <div class="info-body">
             <el-descriptions :column="1" border size="small">
-              <el-descriptions-item :label="t('common.name')">{{ hpa.metadata?.name || hpa.name }}</el-descriptions-item>
-              <el-descriptions-item :label="t('common.namespace_label')">{{ hpa.metadata?.namespace || hpa.namespace }}</el-descriptions-item>
+              <el-descriptions-item :label="t('common.name')">{{
+                hpa.metadata?.name || hpa.name
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="t('common.namespace_label')">{{
+                hpa.metadata?.namespace || hpa.namespace
+              }}</el-descriptions-item>
               <el-descriptions-item :label="t('workload.scaleTarget')">
                 <el-button
                   v-if="targetRoute"
                   link
                   type="primary"
                   @click="$router.push(targetRoute!)"
-                >{{ hpa.spec?.scaleTargetRef?.kind }}/{{ hpa.spec?.scaleTargetRef?.name }}</el-button>
-                <span v-else>{{ hpa.spec?.scaleTargetRef?.kind }}/{{ hpa.spec?.scaleTargetRef?.name }}</span>
+                  >{{ hpa.spec?.scaleTargetRef?.kind }}/{{
+                    hpa.spec?.scaleTargetRef?.name
+                  }}</el-button
+                >
+                <span v-else
+                  >{{ hpa.spec?.scaleTargetRef?.kind }}/{{ hpa.spec?.scaleTargetRef?.name }}</span
+                >
               </el-descriptions-item>
-              <el-descriptions-item :label="t('workload.minReplicas')">{{ hpa.spec?.minReplicas ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item :label="t('workload.maxReplicas')">{{ hpa.spec?.maxReplicas ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item :label="t('workload.currentReplicasLabel')">{{ hpa.status?.currentReplicas ?? '-' }}</el-descriptions-item>
-              <el-descriptions-item :label="t('workload.desiredReplicas')">{{ hpa.status?.desiredReplicas ?? '-' }}</el-descriptions-item>
+              <el-descriptions-item :label="t('workload.minReplicas')">{{
+                hpa.spec?.minReplicas ?? '-'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="t('workload.maxReplicas')">{{
+                hpa.spec?.maxReplicas ?? '-'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="t('workload.currentReplicasLabel')">{{
+                hpa.status?.currentReplicas ?? '-'
+              }}</el-descriptions-item>
+              <el-descriptions-item :label="t('workload.desiredReplicas')">{{
+                hpa.status?.desiredReplicas ?? '-'
+              }}</el-descriptions-item>
               <template v-if="isPaused">
                 <el-descriptions-item label="原始最小副本数">
-                  <el-tag type="warning" size="small">{{ hpa.metadata?.annotations?.['gkube.io/paused-min-replicas'] ?? '-' }}</el-tag>
+                  <el-tag type="warning" size="small">{{
+                    hpa.metadata?.annotations?.['gkube.io/paused-min-replicas'] ?? '-'
+                  }}</el-tag>
                 </el-descriptions-item>
                 <el-descriptions-item label="原始最大副本数">
-                  <el-tag type="warning" size="small">{{ hpa.metadata?.annotations?.['gkube.io/paused-max-replicas'] ?? '-' }}</el-tag>
+                  <el-tag type="warning" size="small">{{
+                    hpa.metadata?.annotations?.['gkube.io/paused-max-replicas'] ?? '-'
+                  }}</el-tag>
                 </el-descriptions-item>
               </template>
             </el-descriptions>
 
             <!-- Labels -->
-            <div v-if="hpa.metadata?.labels && Object.keys(hpa.metadata.labels).length > 0" style="margin-top: var(--gk-space-4);">
-              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Labels</h4>
+            <div
+              v-if="hpa.metadata?.labels && Object.keys(hpa.metadata.labels).length > 0"
+              style="margin-top: var(--gk-space-4)"
+            >
+              <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">Labels</h4>
               <el-tag
                 v-for="(val, key) in hpa.metadata.labels"
                 :key="key"
-                style="margin-right: 8px; margin-bottom: 8px;"
+                style="margin-right: 8px; margin-bottom: 8px"
                 size="small"
               >
                 {{ key }}={{ val }}
@@ -439,9 +502,11 @@ onMounted(() => {
 
         <!-- 右侧：Metrics + Behavior + Conditions + Events -->
         <div class="right-panel">
-
           <!-- Metrics Progress Bars -->
-          <div class="right-section metrics-section" :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}">
+          <div
+            class="right-section metrics-section"
+            :style="rightTopHeight ? { flex: 'none', height: rightTopHeight + 'px' } : {}"
+          >
             <div class="panel-title">
               指标目标
               <span class="count-badge">{{ metricInfos.length }} 个</span>
@@ -450,28 +515,53 @@ onMounted(() => {
               <div v-if="metricInfos.length" class="metrics-grid">
                 <div v-for="(m, idx) in metricInfos" :key="idx" class="metric-card">
                   <div class="metric-header">
-                    <span class="metric-name">{{ m.name === 'cpu' ? 'CPU 使用率' : m.name === 'memory' ? 'Memory 使用率' : m.name }}</span>
+                    <span class="metric-name">{{
+                      m.name === 'cpu'
+                        ? 'CPU 使用率'
+                        : m.name === 'memory'
+                          ? 'Memory 使用率'
+                          : m.name
+                    }}</span>
                     <span class="metric-values">
-                      目标: {{ m.targetValue }}<template v-if="m.targetType === 'Utilization'">%</template>
-                      &nbsp;&nbsp;
-                      当前: <template v-if="m.currentValue !== null">{{ m.currentValue }}<template v-if="m.targetType === 'Utilization'">%</template></template><template v-else>-</template>
+                      目标: {{ m.targetValue
+                      }}<template v-if="m.targetType === 'Utilization'">%</template> &nbsp;&nbsp;
+                      当前:
+                      <template v-if="m.currentValue !== null"
+                        >{{ m.currentValue
+                        }}<template v-if="m.targetType === 'Utilization'">%</template></template
+                      ><template v-else>-</template>
                     </span>
                   </div>
                   <el-progress
                     :percentage="m.currentValue !== null ? Math.min(m.currentValue, 100) : 0"
-                    :color="m.color === 'success' ? '#67c23a' : m.color === 'warning' ? '#e6a23c' : '#f56c6c'"
+                    :color="
+                      m.color === 'success'
+                        ? '#67c23a'
+                        : m.color === 'warning'
+                          ? '#e6a23c'
+                          : '#f56c6c'
+                    "
                     :stroke-width="18"
                     :show-text="false"
                     :status="m.currentValue === null ? undefined : undefined"
                   />
                   <div class="metric-markers">
-                    <span class="marker marker-target" :style="{ left: Math.min(m.targetValue, 100) + '%' }">↑目标{{ m.targetValue }}%</span>
-                    <span v-if="m.currentValue !== null" class="marker marker-current" :style="{ left: Math.min(m.currentValue, 100) + '%' }">↑当前{{ m.currentValue }}%</span>
+                    <span
+                      class="marker marker-target"
+                      :style="{ left: Math.min(m.targetValue, 100) + '%' }"
+                      >↑目标{{ m.targetValue }}%</span
+                    >
+                    <span
+                      v-if="m.currentValue !== null"
+                      class="marker marker-current"
+                      :style="{ left: Math.min(m.currentValue, 100) + '%' }"
+                      >↑当前{{ m.currentValue }}%</span
+                    >
                   </div>
-                  <div class="metric-status" v-if="m.currentValue !== null">
+                  <div v-if="m.currentValue !== null" class="metric-status">
                     <el-tag :type="m.color" size="small" effect="plain">{{ m.statusText }}</el-tag>
                   </div>
-                  <div class="metric-status" v-else>
+                  <div v-else class="metric-status">
                     <el-tag type="info" size="small" effect="plain">无当前数据</el-tag>
                   </div>
                 </div>
@@ -484,7 +574,7 @@ onMounted(() => {
           <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="onVResizeStart" />
 
           <!-- Behavior -->
-          <div class="right-section behavior-section" v-if="hpa.spec?.behavior">
+          <div v-if="hpa.spec?.behavior" class="right-section behavior-section">
             <div class="panel-title">扩缩容行为</div>
             <div class="behavior-body">
               <el-table :data="behaviorRows" size="small" stripe>
@@ -499,7 +589,11 @@ onMounted(() => {
                 <el-table-column label="策略" min-width="250">
                   <template #default="{ row }">
                     <span v-if="row.policies.length === 0" class="text-hint">默认</span>
-                    <span v-else>{{ row.policies.map((p: any) => `${p.type} ${p.value}/${p.periodSeconds}s`).join(', ') }}</span>
+                    <span v-else>{{
+                      row.policies
+                        .map((p: any) => `${p.type} ${p.value}/${p.periodSeconds}s`)
+                        .join(', ')
+                    }}</span>
                   </template>
                 </el-table-column>
               </el-table>
@@ -513,15 +607,28 @@ onMounted(() => {
               <span class="count-badge">{{ hpa.status?.conditions?.length || 0 }} 条</span>
             </div>
             <div class="conditions-body">
-              <el-table v-if="hpa.status?.conditions?.length" :data="hpa.status.conditions" size="small" stripe max-height="260">
+              <el-table
+                v-if="hpa.status?.conditions?.length"
+                :data="hpa.status.conditions"
+                size="small"
+                stripe
+                max-height="260"
+              >
                 <el-table-column prop="type" label="类型" width="180" />
                 <el-table-column :label="t('common.status')" width="100">
                   <template #default="{ row }">
-                    <el-tag :type="row.status === 'True' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag>
+                    <el-tag :type="row.status === 'True' ? 'success' : 'danger'" size="small">{{
+                      row.status
+                    }}</el-tag>
                   </template>
                 </el-table-column>
                 <el-table-column prop="reason" label="原因" width="180" />
-                <el-table-column prop="message" label="信息" min-width="250" show-overflow-tooltip />
+                <el-table-column
+                  prop="message"
+                  label="信息"
+                  min-width="250"
+                  show-overflow-tooltip
+                />
               </el-table>
               <div v-else class="empty-hint">{{ t('workload.noStatusConditions') }}</div>
             </div>
@@ -533,8 +640,14 @@ onMounted(() => {
               伸缩事件
               <span class="count-badge">{{ scalingEvents.length }} 条</span>
             </div>
-            <div class="events-body" v-loading="eventsLoading">
-              <el-table v-if="scalingEvents.length" :data="scalingEvents" size="small" stripe max-height="260">
+            <div v-loading="eventsLoading" class="events-body">
+              <el-table
+                v-if="scalingEvents.length"
+                :data="scalingEvents"
+                size="small"
+                stripe
+                max-height="260"
+              >
                 <el-table-column label="时间" width="180">
                   <template #default="{ row }">
                     {{ row.lastTimestamp || row.firstTimestamp || '-' }}
@@ -542,23 +655,31 @@ onMounted(() => {
                 </el-table-column>
                 <el-table-column label="类型" width="100">
                   <template #default="{ row }">
-                    <el-tag :type="row.type === 'Normal' ? 'success' : 'warning'" size="small">{{ row.type || '-' }}</el-tag>
+                    <el-tag :type="row.type === 'Normal' ? 'success' : 'warning'" size="small">{{
+                      row.type || '-'
+                    }}</el-tag>
                   </template>
                 </el-table-column>
                 <el-table-column prop="reason" label="原因" width="180" />
-                <el-table-column prop="message" label="消息" min-width="300" show-overflow-tooltip />
+                <el-table-column
+                  prop="message"
+                  label="消息"
+                  min-width="300"
+                  show-overflow-tooltip
+                />
               </el-table>
-              <div v-else class="empty-hint">{{ eventsLoading ? t('common.loading') : t('workload.noScalingEvents') }}</div>
+              <div v-else class="empty-hint">
+                {{ eventsLoading ? t('common.loading') : t('workload.noScalingEvents') }}
+              </div>
             </div>
           </div>
-
         </div>
 
         <!-- 水平拖拽条 -->
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
+          :style="{ left: leftWidth - 3 + 'px' }"
           @mousedown="onHResizeStart"
         />
       </div>
@@ -595,7 +716,7 @@ onMounted(() => {
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto">
         <HPAForm
           v-if="editDialogVisible && hpa"
           :is-edit="true"

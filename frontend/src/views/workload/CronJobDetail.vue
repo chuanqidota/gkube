@@ -27,11 +27,23 @@ import { useI18n } from 'vue-i18n'
 
 // ---- useDetailPage composable ----
 const {
-  namespace, name,
-  loading, detail: cronjob, events, eventsLoading, yamlDialogVisible,
-  isRunning, countdown, currentInterval, availableIntervals,
-  toggle, manualRefresh, setIntervalOption,
-  fetchDetail, handleDelete, handleOpenYaml,
+  namespace,
+  name,
+  loading,
+  detail: cronjob,
+  events,
+  eventsLoading,
+  yamlDialogVisible,
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  manualRefresh,
+  setIntervalOption,
+  fetchDetail,
+  handleDelete,
+  handleOpenYaml,
   router,
 } = useDetailPage({
   resourceName: 'CronJob',
@@ -40,11 +52,14 @@ const {
   deleteResource: (p) => deleteCronJob(p),
   listRoute: '/workloads/cronjobs',
   buildParams: () => ({ namespace, name }),
-  onRefresh: async () => { await fetchJobs() },
+  onRefresh: async () => {
+    await fetchJobs()
+  },
 })
 
 // ---- Edit drawer composable ----
-const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess, handleEditCancel } = useEditDrawer(fetchDetail)
+const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess, handleEditCancel } =
+  useEditDrawer(fetchDetail)
 
 // ---- Execution history ----
 const jobs = ref<any[]>([])
@@ -66,7 +81,8 @@ const { t } = useI18n()
 
 // ---- Status ----
 const statusTag = computed(() => {
-  if (cronjob.value?.spec?.suspend) return { text: t('workload.suspended'), type: 'warning' as const }
+  if (cronjob.value?.spec?.suspend)
+    return { text: t('workload.suspended'), type: 'warning' as const }
   return { text: t('workload.active'), type: 'success' as const }
 })
 
@@ -82,11 +98,9 @@ function onEditSuccess() {
 
 async function handleTrigger() {
   try {
-    await ElMessageBox.confirm(
-      t('workload.triggerConfirm', { name }),
-      t('common.confirmAction'),
-      { type: 'info' }
-    )
+    await ElMessageBox.confirm(t('workload.triggerConfirm', { name }), t('common.confirmAction'), {
+      type: 'info',
+    })
   } catch {
     return
   }
@@ -107,7 +121,7 @@ async function handleToggleSuspend() {
     await ElMessageBox.confirm(
       t('workload.suspendConfirm', { action: actionLabel, type: 'CronJob', name }),
       t('common.confirmAction'),
-      { type: 'warning' }
+      { type: 'warning' },
     )
   } catch {
     return
@@ -118,10 +132,15 @@ async function handleToggleSuspend() {
     } else {
       await resumeCronJob({ namespace, name })
     }
-    ElMessage.success(t(willSuspend ? 'workload.cronJobSuspendSuccess' : 'workload.cronJobResumeSuccess'))
+    ElMessage.success(
+      t(willSuspend ? 'workload.cronJobSuspendSuccess' : 'workload.cronJobResumeSuccess'),
+    )
     fetchDetail()
   } catch (e: any) {
-    ElMessage.error(e?.message || t(willSuspend ? 'workload.cronJobSuspendFailed' : 'workload.cronJobResumeFailed'))
+    ElMessage.error(
+      e?.message ||
+        t(willSuspend ? 'workload.cronJobSuspendFailed' : 'workload.cronJobResumeFailed'),
+    )
   }
 }
 
@@ -150,7 +169,10 @@ function getJobFinishedAt(job: any): string {
 
 function formatDateTime(value?: string): string {
   if (!value) return '-'
-  return value.replace('T', ' ').replace(/\.\d+Z$/, '').replace('Z', '')
+  return value
+    .replace('T', ' ')
+    .replace(/\.\d+Z$/, '')
+    .replace('Z', '')
 }
 
 function getJobDuration(job: any): string {
@@ -174,7 +196,12 @@ function getJobDuration(job: any): string {
 
 function getJobImages(job: any): string {
   const containers = job.spec?.template?.spec?.containers || []
-  return containers.map((c: any) => c.image).filter(Boolean).join(', ') || '-'
+  return (
+    containers
+      .map((c: any) => c.image)
+      .filter(Boolean)
+      .join(', ') || '-'
+  )
 }
 
 function isManualJob(job: any): boolean {
@@ -184,7 +211,6 @@ function isManualJob(job: any): boolean {
 
 <template>
   <DetailPageLayout v-loading="loading" :resizable="true" :initial-left-width="300">
-
     <!-- Header -->
     <DetailPageHeader
       :title="name"
@@ -201,7 +227,7 @@ function isManualJob(job: any): boolean {
       @back="router.push('/workloads/cronjobs')"
     >
       <template #meta>
-        <span class="replicas-info" v-if="cronjob">{{ cronjob.spec?.schedule }}</span>
+        <span v-if="cronjob" class="replicas-info">{{ cronjob.spec?.schedule }}</span>
       </template>
       <template #actions>
         <el-button
@@ -209,7 +235,10 @@ function isManualJob(job: any): boolean {
           :type="cronjob.spec?.suspend ? 'success' : 'warning'"
           :icon="cronjob.spec?.suspend ? VideoPlay : VideoPause"
           @click="handleToggleSuspend"
-        >{{ cronjob.spec?.suspend ? t('workload.resumeLabel') : t('workload.suspendLabel') }}</el-button>
+          >{{
+            cronjob.spec?.suspend ? t('workload.resumeLabel') : t('workload.suspendLabel')
+          }}</el-button
+        >
         <el-button type="info" @click="handleEdit">{{ t('common.edit') }}</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
         <el-button type="primary" @click="handleTrigger">{{ t('workload.trigger') }}</el-button>
@@ -222,25 +251,45 @@ function isManualJob(job: any): boolean {
       <div class="panel-title">{{ t('config.basicInfo') }}</div>
       <div class="info-body">
         <el-descriptions :column="1" border size="small">
-          <el-descriptions-item :label="t('common.name')">{{ cronjob.metadata?.name }}</el-descriptions-item>
-          <el-descriptions-item :label="t('common.namespace_label')">{{ cronjob.metadata?.namespace }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.schedule')">{{ cronjob.spec?.schedule || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.suspend')">{{ cronjob.spec?.suspend ?? false }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.concurrencyPolicy')">{{ cronjob.spec?.concurrencyPolicy || 'Allow' }}</el-descriptions-item>
-          <el-descriptions-item label="成功历史限制">{{ cronjob.spec?.successfulJobsHistoryLimit ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="失败历史限制">{{ cronjob.spec?.failedJobsHistoryLimit ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.lastSchedule')">{{ cronjob.status?.lastScheduleTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.name')">{{
+            cronjob.metadata?.name
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.namespace_label')">{{
+            cronjob.metadata?.namespace
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.schedule')">{{
+            cronjob.spec?.schedule || '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.suspend')">{{
+            cronjob.spec?.suspend ?? false
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.concurrencyPolicy')">{{
+            cronjob.spec?.concurrencyPolicy || 'Allow'
+          }}</el-descriptions-item>
+          <el-descriptions-item label="成功历史限制">{{
+            cronjob.spec?.successfulJobsHistoryLimit ?? '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item label="失败历史限制">{{
+            cronjob.spec?.failedJobsHistoryLimit ?? '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.lastSchedule')">{{
+            cronjob.status?.lastScheduleTime || '-'
+          }}</el-descriptions-item>
           <el-descriptions-item :label="t('workload.nextScheduleTime')">
             <span v-if="cronjob.nextScheduleTime">{{ cronjob.nextScheduleTime }}</span>
-            <el-tag v-else-if="cronjob.spec?.suspend" type="info" size="small">{{ t('workload.suspended') }}</el-tag>
+            <el-tag v-else-if="cronjob.spec?.suspend" type="info" size="small">{{
+              t('workload.suspended')
+            }}</el-tag>
             <span v-else>-</span>
           </el-descriptions-item>
-          <el-descriptions-item :label="t('workload.activeJobs')">{{ cronjob.status?.active?.length ?? 0 }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.activeJobs')">{{
+            cronjob.status?.active?.length ?? 0
+          }}</el-descriptions-item>
         </el-descriptions>
 
         <!-- Labels -->
-        <div style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Labels</h4>
+        <div style="margin-top: var(--gk-space-4)">
+          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">Labels</h4>
           <LabelsBlock :labels="cronjob.metadata?.labels || {}" />
         </div>
       </div>
@@ -260,10 +309,18 @@ function isManualJob(job: any): boolean {
           <el-table-column :label="t('common.name')" min-width="240" show-overflow-tooltip>
             <template #default="{ row }">
               <div class="job-name-cell">
-                <el-button link type="primary" @click="router.push(`/workloads/jobs/${row.metadata?.namespace}/${row.metadata?.name}`)">
+                <el-button
+                  link
+                  type="primary"
+                  @click="
+                    router.push(`/workloads/jobs/${row.metadata?.namespace}/${row.metadata?.name}`)
+                  "
+                >
                   {{ row.metadata?.name }}
                 </el-button>
-                <el-tag v-if="isManualJob(row)" type="info" size="small">{{ t('workload.manuallyTriggered') }}</el-tag>
+                <el-tag v-if="isManualJob(row)" type="info" size="small">{{
+                  t('workload.manuallyTriggered')
+                }}</el-tag>
               </div>
             </template>
           </el-table-column>
@@ -287,7 +344,9 @@ function isManualJob(job: any): boolean {
             <template #default="{ row }">{{ getJobDuration(row) }}</template>
           </el-table-column>
           <el-table-column label="Age" width="100">
-            <template #default="{ row }">{{ formatAge(row.metadata?.creationTimestamp, false) }}</template>
+            <template #default="{ row }">{{
+              formatAge(row.metadata?.creationTimestamp, false)
+            }}</template>
           </el-table-column>
           <el-table-column :label="t('workload.image')" min-width="220" show-overflow-tooltip>
             <template #default="{ row }">{{ getJobImages(row) }}</template>
@@ -333,7 +392,7 @@ function isManualJob(job: any): boolean {
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto">
         <CronJobForm
           v-if="editDialogVisible && cronjob"
           :is-edit="true"

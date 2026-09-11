@@ -34,7 +34,9 @@ const versions = computed(() => {
     name: v.name,
     served: v.served,
     storage: v.storage,
-    schema: v.schema?.openAPIV3Schema ? jsYaml.dump(v.schema.openAPIV3Schema, { indent: 2, lineWidth: -1 }) : '',
+    schema: v.schema?.openAPIV3Schema
+      ? jsYaml.dump(v.schema.openAPIV3Schema, { indent: 2, lineWidth: -1 })
+      : '',
     subresources: v.subresources || null,
     additionalPrinterColumns: v.additionalPrinterColumns || [],
   }))
@@ -100,11 +102,9 @@ async function handleYamlSave() {
 
 async function handleDelete() {
   try {
-    await ElMessageBox.confirm(
-      t('crd.deleteCrdConfirm', { name }),
-      t('crd.confirmDelete'),
-      { type: 'error' }
-    )
+    await ElMessageBox.confirm(t('crd.deleteCrdConfirm', { name }), t('crd.confirmDelete'), {
+      type: 'error',
+    })
     await deleteCrd({ name })
     ElMessage.success(t('crd.crdDeleted'))
     router.push('/crd')
@@ -113,14 +113,21 @@ async function handleDelete() {
   }
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchDetail, { autoStart: false })
 
 onMounted(fetchDetail)
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
+  <div v-loading="loading" class="detail-page">
     <!-- Header -->
     <div class="page-header">
       <div class="header-left">
@@ -151,10 +158,10 @@ onMounted(fetchDetail)
             </div>
             <el-select
               :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
               :teleported="false"
               size="small"
-              style="width: 100%;"
+              style="width: 100%"
+              @update:model-value="setIntervalOption"
             >
               <el-option
                 v-for="sec in availableIntervals"
@@ -166,7 +173,7 @@ onMounted(fetchDetail)
           </div>
         </el-popover>
         <el-tooltip :content="t('common.refresh')" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+          <el-button :loading="loading" :icon="Refresh" @click="manualRefresh()" />
         </el-tooltip>
         <el-tooltip :content="t('common.backToList')" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/crd')" />
@@ -176,7 +183,6 @@ onMounted(fetchDetail)
 
     <template v-if="crd">
       <div class="main-layout" :class="{ 'is-resizing': resizingH }">
-
         <!-- Left Panel: Basic Info -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">{{ t('crd.basicInfo') }}</div>
@@ -209,14 +215,22 @@ onMounted(fetchDetail)
               <span class="info-label">{{ t('crd.scope') }}</span>
               <span class="info-value">
                 <el-tag size="small" :type="crd.spec?.scope === 'Namespaced' ? 'info' : 'warning'">
-                  {{ crd.spec?.scope === 'Namespaced' ? t('crd.namespaced') : t('crd.clusterScope') }}
+                  {{
+                    crd.spec?.scope === 'Namespaced' ? t('crd.namespaced') : t('crd.clusterScope')
+                  }}
                 </el-tag>
               </span>
             </div>
             <div class="info-row">
               <span class="info-label">{{ t('crd.versions') }}</span>
               <span class="info-value">
-                <el-tag v-for="v in versions" :key="v.name" size="small" :type="v.storage ? 'success' : 'info'" class="label-tag">
+                <el-tag
+                  v-for="v in versions"
+                  :key="v.name"
+                  size="small"
+                  :type="v.storage ? 'success' : 'info'"
+                  class="label-tag"
+                >
                   {{ v.name }}{{ v.storage ? t('crd.storageTag') : '' }}
                 </el-tag>
               </span>
@@ -239,7 +253,13 @@ onMounted(fetchDetail)
               <div class="info-row">
                 <span class="info-label">{{ t('crd.labelTag') }}</span>
                 <span class="info-value">
-                  <el-tag v-for="(val, key) in crd.metadata.labels" :key="key" size="small" class="label-tag">{{ key }}={{ val }}</el-tag>
+                  <el-tag
+                    v-for="(val, key) in crd.metadata.labels"
+                    :key="key"
+                    size="small"
+                    class="label-tag"
+                    >{{ key }}={{ val }}</el-tag
+                  >
                 </span>
               </div>
             </template>
@@ -250,7 +270,7 @@ onMounted(fetchDetail)
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
+          :style="{ left: leftWidth - 3 + 'px' }"
           @mousedown="onHResizeStart"
         />
 
@@ -258,15 +278,15 @@ onMounted(fetchDetail)
         <div class="right-panel">
           <div class="right-section">
             <el-tabs v-model="activeVersion" class="version-tabs">
-              <el-tab-pane
-                v-for="ver in versions"
-                :key="ver.name"
-                :name="ver.name"
-              >
+              <el-tab-pane v-for="ver in versions" :key="ver.name" :name="ver.name">
                 <template #label>
                   <span>{{ ver.name }}</span>
-                  <el-tag v-if="ver.storage" size="small" type="success" style="margin-left: 4px;">{{ t('crd.storageVersion') }}</el-tag>
-                  <el-tag v-if="ver.served" size="small" type="info" style="margin-left: 4px;">{{ t('crd.enabled') }}</el-tag>
+                  <el-tag v-if="ver.storage" size="small" type="success" style="margin-left: 4px">{{
+                    t('crd.storageVersion')
+                  }}</el-tag>
+                  <el-tag v-if="ver.served" size="small" type="info" style="margin-left: 4px">{{
+                    t('crd.enabled')
+                  }}</el-tag>
                 </template>
 
                 <div v-if="selectedVersion" class="version-body">
@@ -275,9 +295,26 @@ onMounted(fetchDetail)
                     <div class="section-block">
                       <div class="section-title">{{ t('crd.subresources') }}</div>
                       <div class="section-content">
-                        <el-tag v-if="selectedVersion.subresources.status" size="small" type="warning">status</el-tag>
-                        <el-tag v-if="selectedVersion.subresources.scale" size="small" type="warning">scale</el-tag>
-                        <span v-if="!selectedVersion.subresources.status && !selectedVersion.subresources.scale" class="empty-text">{{ t('common.no') }}</span>
+                        <el-tag
+                          v-if="selectedVersion.subresources.status"
+                          size="small"
+                          type="warning"
+                          >status</el-tag
+                        >
+                        <el-tag
+                          v-if="selectedVersion.subresources.scale"
+                          size="small"
+                          type="warning"
+                          >scale</el-tag
+                        >
+                        <span
+                          v-if="
+                            !selectedVersion.subresources.status &&
+                            !selectedVersion.subresources.scale
+                          "
+                          class="empty-text"
+                          >{{ t('common.no') }}</span
+                        >
                       </div>
                     </div>
                   </template>
@@ -287,11 +324,26 @@ onMounted(fetchDetail)
                     <div class="section-block">
                       <div class="section-title">{{ t('crd.additionalPrinterColumns') }}</div>
                       <div class="section-content">
-                        <el-table :data="selectedVersion.additionalPrinterColumns" size="small" border stripe>
+                        <el-table
+                          :data="selectedVersion.additionalPrinterColumns"
+                          size="small"
+                          border
+                          stripe
+                        >
                           <el-table-column prop="name" :label="t('common.name')" min-width="120" />
                           <el-table-column prop="type" :label="t('common.type')" width="100" />
-                          <el-table-column prop="jsonPath" label="JSON Path" min-width="180" show-overflow-tooltip />
-                          <el-table-column prop="description" :label="t('common.description')" min-width="200" show-overflow-tooltip />
+                          <el-table-column
+                            prop="jsonPath"
+                            label="JSON Path"
+                            min-width="180"
+                            show-overflow-tooltip
+                          />
+                          <el-table-column
+                            prop="description"
+                            :label="t('common.description')"
+                            min-width="200"
+                            show-overflow-tooltip
+                          />
                         </el-table>
                       </div>
                     </div>
@@ -309,7 +361,9 @@ onMounted(fetchDetail)
                         auto-format
                         :show-toolbar="false"
                       />
-                      <div v-else class="empty-text" style="padding: 20px;">{{ t('crd.noSchema') }}</div>
+                      <div v-else class="empty-text" style="padding: 20px">
+                        {{ t('crd.noSchema') }}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -329,7 +383,7 @@ onMounted(fetchDetail)
       :body-style="{ padding: '0', height: '100%' }"
       :destroy-on-close="true"
     >
-      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px);">
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px)">
         <YamlEditor
           v-if="!yamlLoading"
           v-model="yamlContent"

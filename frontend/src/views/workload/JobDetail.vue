@@ -31,11 +31,24 @@ const { t } = useI18n()
 const clusterName = computed(() => clusterStore.clusterName)
 
 const {
-  namespace, name,
-  loading, detail: job, events, eventsLoading, yamlDialogVisible,
-  isRunning, countdown, currentInterval, availableIntervals,
-  toggle, manualRefresh, setIntervalOption,
-  fetchDetail, fetchEvents, handleDelete, handleOpenYaml,
+  namespace,
+  name,
+  loading,
+  detail: job,
+  events,
+  eventsLoading,
+  yamlDialogVisible,
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  manualRefresh,
+  setIntervalOption,
+  fetchDetail,
+  fetchEvents,
+  handleDelete,
+  handleOpenYaml,
   router,
 } = useDetailPage({
   resourceName: 'Job',
@@ -44,11 +57,14 @@ const {
   deleteResource: deleteJob,
   listRoute: '/workloads/jobs',
   buildParams: () => ({ namespace, name }),
-  onRefresh: async () => { await fetchPods() },
+  onRefresh: async () => {
+    await fetchPods()
+  },
 })
 
 const { handlePodLogs, handlePodExec, handlePodDelete } = usePodActions(clusterName)
-const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess, handleEditCancel } = useEditDrawer(fetchDetail)
+const { editDialogVisible, editFullscreen, handleEdit, handleEditSuccess, handleEditCancel } =
+  useEditDrawer(fetchDetail)
 
 // ---- Pods ----
 const pods = ref<any[]>([])
@@ -73,7 +89,12 @@ const completionPercent = computed(() => {
 })
 
 const progressStatus = computed(() => {
-  if (job.value?.status?.failed > 0 && job.value?.status?.active === 0 && (job.value?.status?.succeeded ?? 0) < (job.value?.spec?.completions ?? 1)) return 'exception'
+  if (
+    job.value?.status?.failed > 0 &&
+    job.value?.status?.active === 0 &&
+    (job.value?.status?.succeeded ?? 0) < (job.value?.spec?.completions ?? 1)
+  )
+    return 'exception'
   if (completionPercent.value >= 100) return 'success'
   return ''
 })
@@ -88,7 +109,7 @@ async function fetchPods() {
   try {
     const res: any = await getJobPods({ namespace, name })
     pods.value = res.data?.items || res.data || []
-  } catch (e: any) {
+  } catch (_e: any) {
     pods.value = []
   } finally {
     podsLoading.value = false
@@ -103,11 +124,11 @@ function handleYamlSaved() {
 
 async function handleRerun() {
   try {
-    await ElMessageBox.confirm(
-      t('workload.rerunConfirm', { name }),
-      t('common.confirmAction'),
-      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
-    )
+    await ElMessageBox.confirm(t('workload.rerunConfirm', { name }), t('common.confirmAction'), {
+      type: 'warning',
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+    })
     await rerunJob({ namespace, name })
     ElMessage.success(t('workload.rerunSuccess'))
     fetchDetail()
@@ -126,7 +147,7 @@ function onPodDelete(pod: any, force?: boolean) {
   handlePodDelete(
     { namespace: pod.metadata.namespace || namespace, name: pod.metadata.name },
     fetchPods,
-    force
+    force,
   )
 }
 </script>
@@ -148,7 +169,7 @@ function onPodDelete(pod: any, force?: boolean) {
       @back="router.push('/workloads/jobs')"
     >
       <template #meta>
-        <span class="replicas-info" v-if="job">
+        <span v-if="job" class="replicas-info">
           {{ job.status?.succeeded ?? 0 }}/{{ job.spec?.completions ?? 1 }} completed
         </span>
       </template>
@@ -167,52 +188,80 @@ function onPodDelete(pod: any, force?: boolean) {
       <div class="panel-title">{{ t('config.basicInfo') }}</div>
       <div class="info-body">
         <el-descriptions :column="1" border size="small">
-          <el-descriptions-item :label="t('common.name')">{{ job.metadata?.name }}</el-descriptions-item>
-          <el-descriptions-item :label="t('common.namespace_label')">{{ job.metadata?.namespace }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.name')">{{
+            job.metadata?.name
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.namespace_label')">{{
+            job.metadata?.namespace
+          }}</el-descriptions-item>
           <el-descriptions-item v-if="ownerCronJob" label="所属 CronJob">
-            <el-button link type="primary" @click="router.push(`/workloads/cronjobs/${job.metadata?.namespace || namespace}/${ownerCronJob.name}`)">
+            <el-button
+              link
+              type="primary"
+              @click="
+                router.push(
+                  `/workloads/cronjobs/${job.metadata?.namespace || namespace}/${ownerCronJob.name}`,
+                )
+              "
+            >
               {{ ownerCronJob.name }}
             </el-button>
           </el-descriptions-item>
-          <el-descriptions-item :label="t('workload.completions')">{{ job.spec?.completions ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.parallelism')">{{ job.spec?.parallelism ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="最大失败次数">{{ job.spec?.backoffLimit ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="已成功">{{ job.status?.succeeded ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="进行中">{{ job.status?.active ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="已失败">{{ job.status?.failed ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.startTime')">{{ job.status?.startTime || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.completionTime')">{{ job.status?.completionTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.completions')">{{
+            job.spec?.completions ?? '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.parallelism')">{{
+            job.spec?.parallelism ?? '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item label="最大失败次数">{{
+            job.spec?.backoffLimit ?? '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item label="已成功">{{
+            job.status?.succeeded ?? '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item label="进行中">{{
+            job.status?.active ?? '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item label="已失败">{{
+            job.status?.failed ?? '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.startTime')">{{
+            job.status?.startTime || '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.completionTime')">{{
+            job.status?.completionTime || '-'
+          }}</el-descriptions-item>
         </el-descriptions>
 
         <!-- Completion Progress -->
-        <div style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">完成进度</h4>
+        <div style="margin-top: var(--gk-space-4)">
+          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">完成进度</h4>
           <el-progress
             :percentage="completionPercent"
             :status="progressStatus"
             :stroke-width="18"
             :text-inside="true"
-            style="margin-bottom: 4px;"
+            style="margin-bottom: 4px"
           />
-          <div style="font-size: 12px; color: var(--gk-color-text-secondary);">
+          <div style="font-size: 12px; color: var(--gk-color-text-secondary)">
             已成功 {{ job.status?.succeeded ?? 0 }} / {{ job.spec?.completions ?? 1 }} 个 Pod
             <template v-if="job.status?.active > 0"> · 运行中 {{ job.status.active }} 个</template>
             <template v-if="job.status?.failed > 0"> · 失败 {{ job.status.failed }} 个</template>
           </div>
         </div>
 
-        <div style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Labels</h4>
+        <div style="margin-top: var(--gk-space-4)">
+          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">Labels</h4>
           <LabelsBlock :labels="job.metadata?.labels || {}" />
         </div>
 
-        <div style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Selector</h4>
+        <div style="margin-top: var(--gk-space-4)">
+          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">Selector</h4>
           <SelectorBlock :selector="job.spec?.selector?.matchLabels || {}" />
         </div>
 
-        <div v-if="jobConditions.length > 0" style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm);">Conditions</h4>
+        <div v-if="jobConditions.length > 0" style="margin-top: var(--gk-space-4)">
+          <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">Conditions</h4>
           <ConditionsBlock :conditions="jobConditions" />
         </div>
       </div>
@@ -227,8 +276,20 @@ function onPodDelete(pod: any, force?: boolean) {
       <PodListPanel
         :pods="pods"
         :loading="podsLoading"
-        @logs="(pod: any) => handlePodLogs({ namespace: pod.metadata.namespace || namespace, name: pod.metadata.name })"
-        @exec="(pod: any) => handlePodExec({ namespace: pod.metadata.namespace || namespace, name: pod.metadata.name })"
+        @logs="
+          (pod: any) =>
+            handlePodLogs({
+              namespace: pod.metadata.namespace || namespace,
+              name: pod.metadata.name,
+            })
+        "
+        @exec="
+          (pod: any) =>
+            handlePodExec({
+              namespace: pod.metadata.namespace || namespace,
+              name: pod.metadata.name,
+            })
+        "
         @delete="onPodDelete"
       />
     </template>
@@ -273,7 +334,7 @@ function onPodDelete(pod: any, force?: boolean) {
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto">
         <JobForm
           v-if="editDialogVisible && job"
           :is-edit="true"

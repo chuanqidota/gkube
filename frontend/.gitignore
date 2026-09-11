@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Auto-generated type declarations (unplugin-auto-import / unplugin-vue-components)
+auto-imports.d.ts
+components.d.ts

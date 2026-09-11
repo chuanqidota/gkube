@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -24,9 +24,11 @@ const editDialogVisible = ref(false)
 const editFullscreen = ref(false)
 
 // Right panel vertical resize (between each section pair)
-const section1Height = ref(180)   // 存储源
-const section2Height = ref(120)   // 声明引用 / 节点亲和性
+const section1Height = ref(180) // 存储源
+const section2Height = ref(120) // 声明引用 / 节点亲和性
 const resizingV = ref(false)
+let activeVMove: ((ev: MouseEvent) => void) | null = null
+let activeVUp: (() => void) | null = null
 
 function onVResizeStart(e: MouseEvent, target: 'section1' | 'section2') {
   e.preventDefault()
@@ -47,7 +49,11 @@ function onVResizeStart(e: MouseEvent, target: 'section1' | 'section2') {
     resizingV.value = false
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup', onUp)
+    activeVMove = null
+    activeVUp = null
   }
+  activeVMove = onMove
+  activeVUp = onUp
   document.addEventListener('mousemove', onMove)
   document.addEventListener('mouseup', onUp)
 }
@@ -123,21 +129,36 @@ async function handleDelete() {
 
 const { leftWidth, resizingH, onHResizeStart } = useResizable({ initialWidth: 320 })
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchDetail, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchDetail, { autoStart: false })
 
 onMounted(fetchDetail)
+
+onBeforeUnmount(() => {
+  if (activeVMove) document.removeEventListener('mousemove', activeVMove)
+  if (activeVUp) document.removeEventListener('mouseup', activeVUp)
+})
 </script>
 
 <template>
-  <div class="detail-page" v-loading="loading">
-
+  <div v-loading="loading" class="detail-page">
     <!-- ===== 顶部标题栏 ===== -->
     <div class="page-header">
       <div class="header-left">
         <h2 class="res-name">{{ name }}</h2>
         <div class="meta-line">
           <el-tag :type="statusTagType" effect="dark" size="small">{{ statusText }}</el-tag>
-          <span class="info-text" v-if="pv">{{ pv.spec?.capacity?.storage || '-' }} / {{ (pv.spec?.accessModes || []).join(', ') }}</span>
+          <span v-if="pv" class="info-text"
+            >{{ pv.spec?.capacity?.storage || '-' }} /
+            {{ (pv.spec?.accessModes || []).join(', ') }}</span
+          >
         </div>
       </div>
       <div class="header-actions">
@@ -147,11 +168,7 @@ onMounted(fetchDetail)
         <div class="action-divider" />
         <el-popover placement="bottom" :width="200" trigger="click">
           <template #reference>
-            <el-button
-              :type="isRunning ? 'success' : 'default'"
-              :icon="Timer"
-              @click="toggle()"
-            />
+            <el-button :type="isRunning ? 'success' : 'default'" :icon="Timer" @click="toggle()" />
           </template>
           <div class="auto-refresh-popover">
             <div class="popover-title">
@@ -159,10 +176,10 @@ onMounted(fetchDetail)
             </div>
             <el-select
               :model-value="currentInterval / 1000"
-              @update:model-value="setIntervalOption"
               :teleported="false"
               size="small"
-              style="width: 100%;"
+              style="width: 100%"
+              @update:model-value="setIntervalOption"
             >
               <el-option
                 v-for="sec in availableIntervals"
@@ -174,7 +191,7 @@ onMounted(fetchDetail)
           </div>
         </el-popover>
         <el-tooltip content="刷新" placement="top">
-          <el-button @click="manualRefresh()" :loading="loading" :icon="Refresh" />
+          <el-button :loading="loading" :icon="Refresh" @click="manualRefresh()" />
         </el-tooltip>
         <el-tooltip content="返回列表" placement="top">
           <el-button :icon="ArrowLeft" @click="router.push('/storage/pvs')" />
@@ -184,7 +201,6 @@ onMounted(fetchDetail)
 
     <template v-if="pv">
       <div class="main-layout" :class="{ 'is-resizing': resizingH || resizingV }">
-
         <!-- 左侧：基本信息 -->
         <div class="left-panel" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
           <div class="panel-title">基本信息</div>
@@ -229,7 +245,13 @@ onMounted(fetchDetail)
               <div class="info-row">
                 <span class="info-label">标签</span>
                 <span class="info-value">
-                  <el-tag v-for="(val, key) in pv.metadata.labels" :key="key" size="small" class="label-tag">{{ key }}={{ val }}</el-tag>
+                  <el-tag
+                    v-for="(val, key) in pv.metadata.labels"
+                    :key="key"
+                    size="small"
+                    class="label-tag"
+                    >{{ key }}={{ val }}</el-tag
+                  >
                 </span>
               </div>
             </template>
@@ -239,7 +261,14 @@ onMounted(fetchDetail)
               <div class="info-row">
                 <span class="info-label">挂载选项</span>
                 <span class="info-value">
-                  <el-tag v-for="opt in pv.spec.mountOptions" :key="opt" size="small" type="info" class="label-tag">{{ opt }}</el-tag>
+                  <el-tag
+                    v-for="opt in pv.spec.mountOptions"
+                    :key="opt"
+                    size="small"
+                    type="info"
+                    class="label-tag"
+                    >{{ opt }}</el-tag
+                  >
                 </span>
               </div>
             </template>
@@ -250,7 +279,7 @@ onMounted(fetchDetail)
         <div
           class="resize-handle-h"
           :class="{ active: resizingH }"
-          :style="{ left: (leftWidth - 3) + 'px' }"
+          :style="{ left: leftWidth - 3 + 'px' }"
           @mousedown="onHResizeStart"
         />
 
@@ -264,7 +293,7 @@ onMounted(fetchDetail)
                 <span class="info-label">类型</span>
                 <span class="info-value">{{ storageType }}</span>
               </div>
-              <div class="info-row" v-if="pv.spec?.nfs">
+              <div v-if="pv.spec?.nfs" class="info-row">
                 <span class="info-label">服务器</span>
                 <span class="info-value mono">{{ pv.spec.nfs.server || '-' }}</span>
               </div>
@@ -277,12 +306,20 @@ onMounted(fetchDetail)
 
           <!-- 拖拽条 1：存储源 ↔ 声明引用（仅当下方有内容时显示） -->
           <template v-if="pv.spec?.claimRef || pv.spec?.nodeAffinity">
-            <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="(e) => onVResizeStart(e, 'section1')" />
+            <div
+              class="resize-handle-v"
+              :class="{ active: resizingV }"
+              @mousedown="(e) => onVResizeStart(e, 'section1')"
+            />
           </template>
 
           <!-- 声明引用 + 节点亲和性 -->
-          <div class="right-middle-group" v-if="pv.spec?.claimRef || pv.spec?.nodeAffinity" :style="{ flex: 'none', height: section2Height + 'px' }">
-            <div class="right-section" v-if="pv.spec?.claimRef">
+          <div
+            v-if="pv.spec?.claimRef || pv.spec?.nodeAffinity"
+            class="right-middle-group"
+            :style="{ flex: 'none', height: section2Height + 'px' }"
+          >
+            <div v-if="pv.spec?.claimRef" class="right-section">
               <div class="panel-title">声明引用</div>
               <div class="info-body">
                 <div class="info-row">
@@ -292,7 +329,17 @@ onMounted(fetchDetail)
                 <div class="info-row">
                   <span class="info-label">名称</span>
                   <span class="info-value">
-                    <el-button v-if="pv.spec.claimRef.name" link type="primary" @click="$router.push(`/storage/pvcs/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`)">{{ pv.spec.claimRef.name }}</el-button>
+                    <el-button
+                      v-if="pv.spec.claimRef.name"
+                      link
+                      type="primary"
+                      @click="
+                        $router.push(
+                          `/storage/pvcs/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`,
+                        )
+                      "
+                      >{{ pv.spec.claimRef.name }}</el-button
+                    >
                     <span v-else>-</span>
                   </span>
                 </div>
@@ -300,10 +347,13 @@ onMounted(fetchDetail)
             </div>
 
             <!-- 节点亲和性（Local PV） -->
-            <div class="right-section" v-if="pv.spec?.nodeAffinity">
+            <div v-if="pv.spec?.nodeAffinity" class="right-section">
               <div class="panel-title">节点亲和性</div>
               <div class="info-body">
-                <template v-for="(term, ti) in pv.spec.nodeAffinity.required?.nodeSelectorTerms || []" :key="ti">
+                <template
+                  v-for="(term, ti) in pv.spec.nodeAffinity.required?.nodeSelectorTerms || []"
+                  :key="ti"
+                >
                   <template v-for="(expr, ei) in term.matchExpressions || []" :key="ei">
                     <div class="info-row">
                       <span class="info-label">Key</span>
@@ -316,7 +366,13 @@ onMounted(fetchDetail)
                     <div class="info-row">
                       <span class="info-label">节点</span>
                       <span class="info-value">
-                        <el-tag v-for="v in (expr.values || [])" :key="v" size="small" class="label-tag">{{ v }}</el-tag>
+                        <el-tag
+                          v-for="v in expr.values || []"
+                          :key="v"
+                          size="small"
+                          class="label-tag"
+                          >{{ v }}</el-tag
+                        >
                       </span>
                     </div>
                   </template>
@@ -326,14 +382,20 @@ onMounted(fetchDetail)
           </div>
 
           <!-- 拖拽条 2 + 注解 -->
-          <template v-if="pv.metadata?.annotations && Object.keys(pv.metadata.annotations).length > 0">
-            <div class="resize-handle-v" :class="{ active: resizingV }" @mousedown="(e) => onVResizeStart(e, 'section2')" />
+          <template
+            v-if="pv.metadata?.annotations && Object.keys(pv.metadata.annotations).length > 0"
+          >
+            <div
+              class="resize-handle-v"
+              :class="{ active: resizingV }"
+              @mousedown="(e) => onVResizeStart(e, 'section2')"
+            />
             <div class="right-section right-section-bottom">
               <div class="panel-title">注解</div>
               <div class="info-body">
                 <div v-for="(val, key) in pv.metadata.annotations" :key="key" class="info-row">
-                  <span class="info-label mono" style="min-width: 120px;">{{ key }}</span>
-                  <span class="info-value mono" style="word-break: break-all;">{{ val }}</span>
+                  <span class="info-label mono" style="min-width: 120px">{{ key }}</span>
+                  <span class="info-value mono" style="word-break: break-all">{{ val }}</span>
                 </div>
               </div>
             </div>
@@ -372,7 +434,7 @@ onMounted(fetchDetail)
           </el-tooltip>
         </div>
       </template>
-      <div style="height: calc(100dvh - 52px); overflow-y: auto;">
+      <div style="height: calc(100dvh - 52px); overflow-y: auto">
         <PVForm
           v-if="editDialogVisible && pv"
           :is-edit="true"

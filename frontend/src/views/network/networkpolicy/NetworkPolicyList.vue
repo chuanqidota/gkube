@@ -50,14 +50,22 @@ const {
   autoRefreshInterval: 30000,
 })
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchResources)
 </script>
 
 <template>
   <div class="page-container">
     <ResourceListToolbar
-      :search-value="searchName"
       v-model:namespace-value="selectedNamespace"
+      :search-value="searchName"
       :namespace-list="namespaceList"
       :total-count="totalCount"
       :selected-count="selectedRows.length"
@@ -92,8 +100,8 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="filteredList"
         v-loading="loading"
+        :data="filteredList"
         stripe
         @selection-change="handleSelectionChange"
       >
@@ -104,18 +112,45 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
           </template>
         </el-table-column>
         <el-table-column prop="namespace" label="命名空间" width="140" />
-        <el-table-column prop="pod_selector" label="Pod 选择器" min-width="200" show-overflow-tooltip />
+        <el-table-column
+          prop="pod_selector"
+          label="Pod 选择器"
+          min-width="200"
+          show-overflow-tooltip
+        />
         <el-table-column label="策略类型" width="160">
           <template #default="{ row }">
-            <el-tag v-for="pt in (row.policy_types || [])" :key="pt" size="small" style="margin-right: 4px;">{{ pt }}</el-tag>
+            <el-tag
+              v-for="pt in row.policy_types || []"
+              :key="pt"
+              size="small"
+              style="margin-right: 4px"
+              >{{ pt }}</el-tag
+            >
           </template>
         </el-table-column>
         <el-table-column label="规则" min-width="220">
           <template #default="{ row }">
-            <div style="display: flex; flex-wrap: wrap; gap: var(--gk-space-1); align-items: center;">
-              <span style="font-size: 12px; color: var(--gk-color-text-primary);">Ingress: {{ row.ingress_rules }}, Egress: {{ row.egress_rules }}</span>
-              <el-tag v-if="row.policy_types?.includes('Ingress') && row.ingress_rules === 0" type="danger" size="small" effect="dark">Deny All Ingress</el-tag>
-              <el-tag v-if="row.policy_types?.includes('Egress') && row.egress_rules === 0" type="danger" size="small" effect="dark">Deny All Egress</el-tag>
+            <div
+              style="display: flex; flex-wrap: wrap; gap: var(--gk-space-1); align-items: center"
+            >
+              <span style="font-size: 12px; color: var(--gk-color-text-primary)"
+                >Ingress: {{ row.ingress_rules }}, Egress: {{ row.egress_rules }}</span
+              >
+              <el-tag
+                v-if="row.policy_types?.includes('Ingress') && row.ingress_rules === 0"
+                type="danger"
+                size="small"
+                effect="dark"
+                >Deny All Ingress</el-tag
+              >
+              <el-tag
+                v-if="row.policy_types?.includes('Egress') && row.egress_rules === 0"
+                type="danger"
+                size="small"
+                effect="dark"
+                >Deny All Egress</el-tag
+              >
             </div>
           </template>
         </el-table-column>
@@ -123,9 +158,17 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" @click="$router.push(`/network/networkpolicies/create?clone=${row.name}&namespace=${row.namespace}`)">克隆</el-button>
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button
+                size="small"
+                @click="
+                  $router.push(
+                    `/network/networkpolicies/create?clone=${row.name}&namespace=${row.namespace}`,
+                  )
+                "
+                >克隆</el-button
+              >
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
         </el-table-column>
@@ -133,10 +176,24 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     </el-card>
 
     <!-- YAML Drawer -->
-    <el-drawer v-model="yamlDialogVisible" title="NetworkPolicy YAML" size="85%" direction="rtl" class="yaml-drawer"
-      :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px);">
-        <YamlEditor v-model="yamlContent" height="100%" auto-format show-save-buttons :saving="yamlSaving" @save="handleSaveYaml" @cancel="handleCancelYaml" />
+    <el-drawer
+      v-model="yamlDialogVisible"
+      title="NetworkPolicy YAML"
+      size="85%"
+      direction="rtl"
+      class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px)">
+        <YamlEditor
+          v-model="yamlContent"
+          height="100%"
+          auto-format
+          show-save-buttons
+          :saving="yamlSaving"
+          @save="handleSaveYaml"
+          @cancel="handleCancelYaml"
+        />
       </div>
     </el-drawer>
   </div>

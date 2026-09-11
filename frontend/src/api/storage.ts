@@ -61,8 +61,9 @@ export function transformStorageClasses(items: any[]) {
   if (!Array.isArray(items)) return []
   return items.map((sc: any) => {
     const annotations = sc.metadata?.annotations || {}
-    const isDefault = annotations['storageclass.kubernetes.io/is-default-class'] === 'true' ||
-                      annotations['storageclass.beta.kubernetes.io/is-default-class'] === 'true'
+    const isDefault =
+      annotations['storageclass.kubernetes.io/is-default-class'] === 'true' ||
+      annotations['storageclass.beta.kubernetes.io/is-default-class'] === 'true'
     return {
       name: sc.metadata?.name || '',
       provisioner: sc.provisioner || '-',
@@ -164,4 +165,5 @@ export const deleteVolumeSnapshotClass = volumeSnapshotClassApi.delete
 
 // ============ 资源特有操作 ============
 
-export const getPvcListByStorageClass = (params: { storageClassName: string }) => request.get('/k8s/pvc/list-by-storageclass', { params })
+export const getPvcListByStorageClass = (params: { storageClassName: string }) =>
+  request.get('/k8s/pvc/list-by-storageclass', { params })

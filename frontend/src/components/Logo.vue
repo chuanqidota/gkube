@@ -88,9 +88,25 @@ const detailed = computed(() => props.size >= 24)
         :filter="`url(#${softId})`"
       />
       <!-- outer rim -->
-      <circle cx="24" cy="24" r="21" fill="none" stroke="#a78bfa" stroke-width="0.8" opacity="0.75" />
+      <circle
+        cx="24"
+        cy="24"
+        r="21"
+        fill="none"
+        stroke="#a78bfa"
+        stroke-width="0.8"
+        opacity="0.75"
+      />
       <!-- inner edge shadow -->
-      <circle cx="24" cy="24" r="18" fill="none" stroke="#0b0a1f" stroke-width="0.6" opacity="0.5" />
+      <circle
+        cx="24"
+        cy="24"
+        r="18"
+        fill="none"
+        stroke="#0b0a1f"
+        stroke-width="0.6"
+        opacity="0.5"
+      />
 
       <!-- 6 spokes (hex-vertex aligned) — only at full size -->
       <g
@@ -121,9 +137,11 @@ const detailed = computed(() => props.size >= 24)
       />
       <!-- the G — bold open bowl (right opening) + inward crossbar -->
       <path
-        :d="detailed
-          ? 'M28.73 20.31 A6 6 0 1 0 28.73 27.69 M29.4 24 L23 24'
-          : 'M29.04 20.06 A6.4 6.4 0 1 0 29.04 27.94 M29.7 24 L22.6 24'"
+        :d="
+          detailed
+            ? 'M28.73 20.31 A6 6 0 1 0 28.73 27.69 M29.4 24 L23 24'
+            : 'M29.04 20.06 A6.4 6.4 0 1 0 29.04 27.94 M29.7 24 L22.6 24'
+        "
         fill="none"
         stroke="#e0e7ff"
         :stroke-width="detailed ? 3 : 3.2"
@@ -137,7 +155,8 @@ const detailed = computed(() => props.size >= 24)
         class="gk-logo-text"
         :class="`gk-logo-text--${tone}`"
         :style="{ fontSize: `${props.textSize}px` }"
-      >GKube</span>
+        >GKube</span
+      >
     </transition>
   </div>
 </template>

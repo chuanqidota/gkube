@@ -4,9 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { drainNode, type DrainResult } from '@/api/resource'
 
-const { t } = useI18n()
-
 const emit = defineEmits<{ saved: [] }>()
+
+const { t } = useI18n()
 
 const visible = ref(false)
 const nodeName = ref('')
@@ -19,7 +19,12 @@ const drainOptions = ref({
 
 function open(name: string) {
   nodeName.value = name
-  drainOptions.value = { ignoreDaemonSets: true, deleteLocalData: false, gracePeriod: -1, force: false }
+  drainOptions.value = {
+    ignoreDaemonSets: true,
+    deleteLocalData: false,
+    gracePeriod: -1,
+    force: false,
+  }
   visible.value = true
 }
 
@@ -28,7 +33,11 @@ async function handleConfirm() {
     await ElMessageBox.confirm(
       t('node.drainConfirmMsg', { name: nodeName.value }),
       t('node.confirmDrain'),
-      { type: 'warning', confirmButtonText: t('node.confirmDrain'), cancelButtonText: t('common.cancel') },
+      {
+        type: 'warning',
+        confirmButtonText: t('node.confirmDrain'),
+        cancelButtonText: t('common.cancel'),
+      },
     )
     const res = await drainNode({ name: nodeName.value, ...drainOptions.value })
     const result = (res.data || {}) as DrainResult
@@ -45,9 +54,8 @@ async function handleConfirm() {
       failed.length > 0 ? t('node.drainFailed', { count: failed.length }) : '',
     ].filter(Boolean)
     const type = failed.length > 0 ? 'warning' : 'success'
-    const cordonedHint = failed.length > 0
-      ? t('node.drainCordonedPartialFailHint')
-      : t('node.drainCordonedHint')
+    const cordonedHint =
+      failed.length > 0 ? t('node.drainCordonedPartialFailHint') : t('node.drainCordonedHint')
     ElMessage({
       type,
       message: `${t('node.drainResultSubmitted', { parts: parts.join(', ') })}${cordonedHint}`,
@@ -65,7 +73,7 @@ defineExpose({ open })
 
 <template>
   <el-dialog v-model="visible" :title="t('node.drainPod')" width="500px">
-    <el-alert type="warning" :closable="false" style="margin-bottom: 16px;">
+    <el-alert type="warning" :closable="false" style="margin-bottom: 16px">
       <template #title>{{ t('node.drainWarning') }}</template>
     </el-alert>
     <el-form label-width="160px">
@@ -94,5 +102,9 @@ defineExpose({ open })
 </template>
 
 <style scoped>
-.hint { margin-left: 8px; color: #909399; font-size: 12px; }
+.hint {
+  margin-left: 8px;
+  color: #909399;
+  font-size: 12px;
+}
 </style>

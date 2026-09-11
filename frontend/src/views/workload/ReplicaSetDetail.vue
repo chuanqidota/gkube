@@ -66,7 +66,7 @@ function onPodDelete(pod: any, force?: boolean) {
   handlePodDelete(
     { namespace: pod.metadata.namespace || namespace, name: pod.metadata.name },
     () => fetchDetail(),
-    force
+    force,
   )
 }
 
@@ -104,7 +104,11 @@ async function handleDelete() {
     await ElMessageBox.confirm(
       t('common.deleteResourceConfirm', { type: 'ReplicaSet', name }),
       t('common.confirmDelete'),
-      { type: 'error', confirmButtonText: t('common.delete'), cancelButtonText: t('common.cancel') }
+      {
+        type: 'error',
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
+      },
     )
     await deleteReplicaSet({ namespace, name })
     ElMessage.success(t('workload.deleteResourceSuccess', { type: 'ReplicaSet' }))
@@ -124,10 +128,21 @@ function goController() {
   }
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(async () => {
-  fetchDetail()
-  fetchEvents()
-}, { autoStart: false })
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(
+  async () => {
+    fetchDetail()
+    fetchEvents()
+  },
+  { autoStart: false },
+)
 
 onMounted(() => {
   Promise.all([fetchDetail(), fetchEvents()])
@@ -152,7 +167,7 @@ onMounted(() => {
       @back="router.push('/workloads/replicasets')"
     >
       <template #meta>
-        <span class="replicas-info" v-if="rs">
+        <span v-if="rs" class="replicas-info">
           {{ rs.status?.readyReplicas ?? 0 }}/{{ rs.spec?.replicas ?? 0 }} ready
         </span>
         <el-tag
@@ -176,20 +191,42 @@ onMounted(() => {
       <div class="left-scroll">
         <div class="info-block">
           <div class="block-title">{{ t('config.basicInfo') }}</div>
-          <div class="info-row"><span class="info-label">{{ t('common.name') }}</span><span class="info-value mono">{{ rs.metadata?.name }}</span></div>
-          <div class="info-row"><span class="info-label">{{ t('common.namespace_label') }}</span><span class="info-value">{{ rs.metadata?.namespace }}</span></div>
-          <div class="info-row"><span class="info-label">{{ t('workload.replicas') }}</span><span class="info-value">{{ rs.spec?.replicas ?? 0 }}</span></div>
-          <div class="info-row"><span class="info-label">{{ t('workload.currentReplicas') }}</span><span class="info-value">{{ rs.status?.replicas ?? 0 }}</span></div>
-          <div class="info-row"><span class="info-label">{{ t('workload.readyReplicas') }}</span><span class="info-value">{{ rs.status?.readyReplicas ?? 0 }}</span></div>
-          <div class="info-row"><span class="info-label">{{ t('workload.availableReplicas') }}</span><span class="info-value">{{ rs.status?.availableReplicas ?? 0 }}</span></div>
-          <div class="info-row"><span class="info-label">{{ t('common.creationTime') }}</span><span class="info-value">{{ formatAge(rs.metadata?.creationTimestamp, false) }}</span></div>
-          <div class="info-row" v-if="controllerOf">
+          <div class="info-row">
+            <span class="info-label">{{ t('common.name') }}</span
+            ><span class="info-value mono">{{ rs.metadata?.name }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('common.namespace_label') }}</span
+            ><span class="info-value">{{ rs.metadata?.namespace }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('workload.replicas') }}</span
+            ><span class="info-value">{{ rs.spec?.replicas ?? 0 }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('workload.currentReplicas') }}</span
+            ><span class="info-value">{{ rs.status?.replicas ?? 0 }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('workload.readyReplicas') }}</span
+            ><span class="info-value">{{ rs.status?.readyReplicas ?? 0 }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('workload.availableReplicas') }}</span
+            ><span class="info-value">{{ rs.status?.availableReplicas ?? 0 }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ t('common.creationTime') }}</span
+            ><span class="info-value">{{ formatAge(rs.metadata?.creationTimestamp, false) }}</span>
+          </div>
+          <div v-if="controllerOf" class="info-row">
             <span class="info-label">{{ t('workload.owner') }}</span>
             <span
               class="info-value link"
               :class="{ disabled: controllerOf.kind !== 'Deployment' }"
               @click="goController"
-            >{{ controllerOf.kind }}/{{ controllerOf.name }}</span>
+              >{{ controllerOf.kind }}/{{ controllerOf.name }}</span
+            >
           </div>
         </div>
 

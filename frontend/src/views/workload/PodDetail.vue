@@ -19,11 +19,22 @@ const clusterStore = useClusterStore()
 const { t } = useI18n()
 
 const {
-  namespace, name,
-  loading, detail: pod, events, eventsLoading, yamlDialogVisible,
-  isRunning, countdown, currentInterval, availableIntervals,
-  toggle, manualRefresh, setIntervalOption,
-  fetchDetail, handleOpenYaml,
+  namespace,
+  name,
+  loading,
+  detail: pod,
+  events,
+  eventsLoading,
+  yamlDialogVisible,
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  manualRefresh,
+  setIntervalOption,
+  fetchDetail,
+  handleOpenYaml,
   router,
 } = useDetailPage({
   resourceName: 'Pod',
@@ -43,7 +54,8 @@ const {
 function transformPodDetail(raw: any): any {
   if (!raw) return null
   const restarts = (raw.status?.containerStatuses || []).reduce(
-    (sum: number, cs: any) => sum + (cs.restartCount || 0), 0
+    (sum: number, cs: any) => sum + (cs.restartCount || 0),
+    0,
   )
   const specContainers = raw.spec?.containers || []
   const statusContainers = raw.status?.containerStatuses || []
@@ -53,8 +65,13 @@ function transformPodDetail(raw: any): any {
     let stateReason = ''
     let exitCode: number | undefined
     if (status.state?.running) state = 'Running'
-    else if (status.state?.waiting) { state = 'Waiting'; stateReason = status.state.waiting.reason || '' }
-    else if (status.state?.terminated) { state = 'Terminated'; exitCode = status.state.terminated.exitCode }
+    else if (status.state?.waiting) {
+      state = 'Waiting'
+      stateReason = status.state.waiting.reason || ''
+    } else if (status.state?.terminated) {
+      state = 'Terminated'
+      exitCode = status.state.terminated.exitCode
+    }
     return {
       name: spec.name,
       image: spec.image,
@@ -122,11 +139,25 @@ function handleYamlSaved() {
 }
 
 function handleLogs() {
-  window.open(buildFullscreenUrl('logs', { namespace, pod: name, cluster: clusterStore.clusterName || undefined }), '_blank')
+  window.open(
+    buildFullscreenUrl('logs', {
+      namespace,
+      pod: name,
+      cluster: clusterStore.clusterName || undefined,
+    }),
+    '_blank',
+  )
 }
 
 function handleExec() {
-  window.open(buildFullscreenUrl('terminal', { namespace, pod: name, cluster: clusterStore.clusterName || undefined }), '_blank')
+  window.open(
+    buildFullscreenUrl('terminal', {
+      namespace,
+      pod: name,
+      cluster: clusterStore.clusterName || undefined,
+    }),
+    '_blank',
+  )
 }
 
 async function handleDelete(force = false) {
@@ -135,7 +166,11 @@ async function handleDelete(force = false) {
       await ElMessageBox.confirm(
         t('common.forceDeleteResourceConfirm', { type: 'Pod', name }),
         t('common.confirmForceDelete'),
-        { type: 'warning', confirmButtonText: t('common.forceDelete'), cancelButtonText: t('common.cancel') }
+        {
+          type: 'warning',
+          confirmButtonText: t('common.forceDelete'),
+          cancelButtonText: t('common.cancel'),
+        },
       )
     } catch {
       return
@@ -145,7 +180,8 @@ async function handleDelete(force = false) {
       ElMessage.success(t('common.forceDeleteResourceSuccess', { type: 'Pod' }))
       router.push('/workloads/pods')
     } catch (e: any) {
-      if (e !== 'cancel') ElMessage.error(e?.message || t('common.forceDeleteResourceFailed', { type: 'Pod' }))
+      if (e !== 'cancel')
+        ElMessage.error(e?.message || t('common.forceDeleteResourceFailed', { type: 'Pod' }))
     }
     return
   }
@@ -153,7 +189,11 @@ async function handleDelete(force = false) {
     await ElMessageBox.confirm(
       t('common.deleteResourceConfirmNs', { type: 'Pod', name, ns: namespace }),
       t('common.confirmDelete'),
-      { type: 'warning', confirmButtonText: t('common.delete'), cancelButtonText: t('common.cancel') }
+      {
+        type: 'warning',
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
+      },
     )
     await deletePod({ namespace, name })
     ElMessage.success(t('workload.deleteResourceSuccess', { type: 'Pod' }))
@@ -183,7 +223,7 @@ async function handleDelete(force = false) {
       @back="router.push('/workloads/pods')"
     >
       <template #meta>
-        <span class="replicas-info" v-if="pod">
+        <span v-if="pod" class="replicas-info">
           {{ pod.ip || '-' }}
         </span>
       </template>
@@ -191,14 +231,16 @@ async function handleDelete(force = false) {
         <el-button type="primary" @click="handleLogs">{{ t('log.title') }}</el-button>
         <el-button type="success" @click="handleExec">{{ t('terminal.title') }}</el-button>
         <el-button @click="handleOpenYaml">YAML</el-button>
-        <el-dropdown @command="(cmd: string) => handleDelete(cmd === 'force')" trigger="click">
+        <el-dropdown trigger="click" @command="(cmd: string) => handleDelete(cmd === 'force')">
           <el-button type="danger">
             {{ t('common.delete') }} <el-icon><ArrowDown /></el-icon>
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="normal">{{ t('common.delete') }}</el-dropdown-item>
-              <el-dropdown-item command="force" divided>{{ t('common.forceDelete') }}</el-dropdown-item>
+              <el-dropdown-item command="force" divided>{{
+                t('common.forceDelete')
+              }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -211,30 +253,50 @@ async function handleDelete(force = false) {
       <div class="info-body">
         <el-descriptions :column="1" border size="small">
           <el-descriptions-item :label="t('common.name')">{{ pod.name }}</el-descriptions-item>
-          <el-descriptions-item :label="t('common.namespace_label')">{{ pod.namespace }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.namespace_label')">{{
+            pod.namespace
+          }}</el-descriptions-item>
           <el-descriptions-item :label="t('common.status')">
             <el-tag :type="getPodStatusType(pod.status)" size="small">{{ pod.status }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="Pod IP">{{ pod.ip || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.hostIp')">{{ pod.host_ip || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.hostIp')">{{
+            pod.host_ip || '-'
+          }}</el-descriptions-item>
           <el-descriptions-item label="Node">{{ pod.node || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.qosClass')">{{ pod.qos_class || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.priority')">{{ pod.priority ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.serviceAccount')">{{ pod.service_account || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.restarts')">{{ pod.restarts ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.qosClass')">{{
+            pod.qos_class || '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.priority')">{{
+            pod.priority ?? '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.serviceAccount')">{{
+            pod.service_account || '-'
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.restarts')">{{
+            pod.restarts ?? '-'
+          }}</el-descriptions-item>
           <el-descriptions-item label="Age">{{ pod.age || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('workload.created')">{{ pod.created_at || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('workload.created')">{{
+            pod.created_at || '-'
+          }}</el-descriptions-item>
         </el-descriptions>
 
         <!-- Labels -->
-        <div v-if="pod.labels && Object.keys(pod.labels).length > 0" style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: 13px;">Labels</h4>
+        <div
+          v-if="pod.labels && Object.keys(pod.labels).length > 0"
+          style="margin-top: var(--gk-space-4)"
+        >
+          <h4 style="margin: 0 0 8px; font-size: 13px">Labels</h4>
           <LabelsBlock :labels="pod.labels" />
         </div>
 
         <!-- Annotations -->
-        <div v-if="pod.annotations && Object.keys(pod.annotations).length > 0" style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: 13px;">Annotations</h4>
+        <div
+          v-if="pod.annotations && Object.keys(pod.annotations).length > 0"
+          style="margin-top: var(--gk-space-4)"
+        >
+          <h4 style="margin: 0 0 8px; font-size: 13px">Annotations</h4>
           <div class="annotation-list">
             <div v-for="(val, key) in pod.annotations" :key="key" class="annotation-item">
               <span class="annotation-key">{{ key }}</span>
@@ -244,8 +306,11 @@ async function handleDelete(force = false) {
         </div>
 
         <!-- Pod Conditions -->
-        <div v-if="pod.conditions && pod.conditions.length > 0" style="margin-top: var(--gk-space-4);">
-          <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('workload.conditions') }}</h4>
+        <div
+          v-if="pod.conditions && pod.conditions.length > 0"
+          style="margin-top: var(--gk-space-4)"
+        >
+          <h4 style="margin: 0 0 8px; font-size: 13px">{{ t('workload.conditions') }}</h4>
           <ConditionsBlock :conditions="pod.conditions" />
         </div>
       </div>
@@ -261,66 +326,137 @@ async function handleDelete(force = false) {
         <el-table :data="pod.containers || []" size="small" stripe>
           <el-table-column type="expand">
             <template #default="{ row }">
-              <div style="padding: 12px 16px;">
-                <div v-if="row.ports && row.ports.length > 0" style="margin-bottom: var(--gk-space-4);">
-                  <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('workload.ports') }}</h4>
+              <div style="padding: 12px 16px">
+                <div
+                  v-if="row.ports && row.ports.length > 0"
+                  style="margin-bottom: var(--gk-space-4)"
+                >
+                  <h4 style="margin: 0 0 8px; font-size: 13px">{{ t('workload.ports') }}</h4>
                   <el-table :data="row.ports" border size="small">
                     <el-table-column prop="name" :label="t('common.name')" width="120" />
-                    <el-table-column prop="containerPort" :label="t('workload.containerPort')" width="130" />
+                    <el-table-column
+                      prop="containerPort"
+                      :label="t('workload.containerPort')"
+                      width="130"
+                    />
                     <el-table-column prop="protocol" :label="t('workload.protocol')" width="100" />
                   </el-table>
                 </div>
-                <div v-if="row.env && row.env.length > 0" style="margin-bottom: var(--gk-space-4);">
-                  <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('workload.environmentVariables') }}</h4>
+                <div v-if="row.env && row.env.length > 0" style="margin-bottom: var(--gk-space-4)">
+                  <h4 style="margin: 0 0 8px; font-size: 13px">
+                    {{ t('workload.environmentVariables') }}
+                  </h4>
                   <el-table :data="row.env" border size="small">
                     <el-table-column prop="name" :label="t('common.name')" min-width="180" />
                     <el-table-column label="值" min-width="250">
                       <template #default="{ row: envRow }">
-                        <span v-if="envRow.value !== undefined && envRow.value !== ''">{{ envRow.value }}</span>
-                        <span v-else-if="envRow.valueFrom" style="color: var(--el-text-color-secondary);">{{ envRow.valueFrom.fieldRef?.fieldPath || envRow.valueFrom.secretKeyRef?.name || envRow.valueFrom.configMapKeyRef?.name || '来自引用' }}</span>
-                        <span v-else style="color: var(--el-text-color-secondary);">-</span>
+                        <span v-if="envRow.value !== undefined && envRow.value !== ''">{{
+                          envRow.value
+                        }}</span>
+                        <span
+                          v-else-if="envRow.valueFrom"
+                          style="color: var(--el-text-color-secondary)"
+                          >{{
+                            envRow.valueFrom.fieldRef?.fieldPath ||
+                            envRow.valueFrom.secretKeyRef?.name ||
+                            envRow.valueFrom.configMapKeyRef?.name ||
+                            '来自引用'
+                          }}</span
+                        >
+                        <span v-else style="color: var(--el-text-color-secondary)">-</span>
                       </template>
                     </el-table-column>
                   </el-table>
                 </div>
-                <div v-if="row.volumeMounts && row.volumeMounts.length > 0" style="margin-bottom: var(--gk-space-4);">
-                  <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('workload.volumeMounts') }}</h4>
+                <div
+                  v-if="row.volumeMounts && row.volumeMounts.length > 0"
+                  style="margin-bottom: var(--gk-space-4)"
+                >
+                  <h4 style="margin: 0 0 8px; font-size: 13px">{{ t('workload.volumeMounts') }}</h4>
                   <el-table :data="row.volumeMounts" border size="small">
-                    <el-table-column prop="name" :label="t('workload.volumeName')" min-width="150" />
-                    <el-table-column prop="mountPath" :label="t('workload.mountPath')" min-width="200" />
+                    <el-table-column
+                      prop="name"
+                      :label="t('workload.volumeName')"
+                      min-width="150"
+                    />
+                    <el-table-column
+                      prop="mountPath"
+                      :label="t('workload.mountPath')"
+                      min-width="200"
+                    />
                     <el-table-column prop="subPath" :label="t('workload.subPath')" width="150" />
                     <el-table-column :label="t('workload.readOnly')" width="80">
                       <template #default="{ row: vm }">
-                        <el-tag :type="vm.readOnly ? 'warning' : 'success'" size="small">{{ vm.readOnly ? t('common.yes') : t('common.no') }}</el-tag>
+                        <el-tag :type="vm.readOnly ? 'warning' : 'success'" size="small">{{
+                          vm.readOnly ? t('common.yes') : t('common.no')
+                        }}</el-tag>
                       </template>
                     </el-table-column>
                   </el-table>
                 </div>
-                <div v-if="row.livenessProbe" style="margin-bottom: var(--gk-space-4);">
-                  <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('workload.livenessProbe') }}</h4>
+                <div v-if="row.livenessProbe" style="margin-bottom: var(--gk-space-4)">
+                  <h4 style="margin: 0 0 8px; font-size: 13px">
+                    {{ t('workload.livenessProbe') }}
+                  </h4>
                   <el-descriptions :column="2" border size="small">
-                    <el-descriptions-item v-if="row.livenessProbe.httpGet" label="Type">HTTP GET</el-descriptions-item>
-                    <el-descriptions-item v-if="row.livenessProbe.httpGet" label="Path">{{ row.livenessProbe.httpGet.path || '/' }}</el-descriptions-item>
-                    <el-descriptions-item v-if="row.livenessProbe.httpGet" label="Port">{{ row.livenessProbe.httpGet.port }}</el-descriptions-item>
-                    <el-descriptions-item v-if="row.livenessProbe.tcpSocket" label="Type">TCP Socket</el-descriptions-item>
-                    <el-descriptions-item v-if="row.livenessProbe.exec" label="Type">Exec</el-descriptions-item>
-                    <el-descriptions-item v-if="row.livenessProbe.exec" :label="t('workload.command')">{{ (row.livenessProbe.exec.command || []).join(' ') }}</el-descriptions-item>
-                    <el-descriptions-item :label="t('workload.initialDelay')">{{ row.livenessProbe.initialDelaySeconds ?? '-' }}s</el-descriptions-item>
-                    <el-descriptions-item :label="t('workload.period')">{{ row.livenessProbe.periodSeconds ?? '-' }}s</el-descriptions-item>
+                    <el-descriptions-item v-if="row.livenessProbe.httpGet" label="Type"
+                      >HTTP GET</el-descriptions-item
+                    >
+                    <el-descriptions-item v-if="row.livenessProbe.httpGet" label="Path">{{
+                      row.livenessProbe.httpGet.path || '/'
+                    }}</el-descriptions-item>
+                    <el-descriptions-item v-if="row.livenessProbe.httpGet" label="Port">{{
+                      row.livenessProbe.httpGet.port
+                    }}</el-descriptions-item>
+                    <el-descriptions-item v-if="row.livenessProbe.tcpSocket" label="Type"
+                      >TCP Socket</el-descriptions-item
+                    >
+                    <el-descriptions-item v-if="row.livenessProbe.exec" label="Type"
+                      >Exec</el-descriptions-item
+                    >
+                    <el-descriptions-item
+                      v-if="row.livenessProbe.exec"
+                      :label="t('workload.command')"
+                      >{{ (row.livenessProbe.exec.command || []).join(' ') }}</el-descriptions-item
+                    >
+                    <el-descriptions-item :label="t('workload.initialDelay')"
+                      >{{ row.livenessProbe.initialDelaySeconds ?? '-' }}s</el-descriptions-item
+                    >
+                    <el-descriptions-item :label="t('workload.period')"
+                      >{{ row.livenessProbe.periodSeconds ?? '-' }}s</el-descriptions-item
+                    >
                   </el-descriptions>
                 </div>
                 <div v-if="row.readinessProbe">
-                  <h4 style="margin: 0 0 8px; font-size: 13px;">{{ t('workload.readinessProbe') }}</h4>
+                  <h4 style="margin: 0 0 8px; font-size: 13px">
+                    {{ t('workload.readinessProbe') }}
+                  </h4>
                   <el-descriptions :column="2" border size="small">
-                    <el-descriptions-item v-if="row.readinessProbe.httpGet" label="Type">HTTP GET</el-descriptions-item>
-                    <el-descriptions-item v-if="row.readinessProbe.httpGet" label="Path">{{ row.readinessProbe.httpGet.path || '/' }}</el-descriptions-item>
-                    <el-descriptions-item v-if="row.readinessProbe.httpGet" label="Port">{{ row.readinessProbe.httpGet.port }}</el-descriptions-item>
-                    <el-descriptions-item :label="t('workload.initialDelay')">{{ row.readinessProbe.initialDelaySeconds ?? '-' }}s</el-descriptions-item>
-                    <el-descriptions-item :label="t('workload.period')">{{ row.readinessProbe.periodSeconds ?? '-' }}s</el-descriptions-item>
+                    <el-descriptions-item v-if="row.readinessProbe.httpGet" label="Type"
+                      >HTTP GET</el-descriptions-item
+                    >
+                    <el-descriptions-item v-if="row.readinessProbe.httpGet" label="Path">{{
+                      row.readinessProbe.httpGet.path || '/'
+                    }}</el-descriptions-item>
+                    <el-descriptions-item v-if="row.readinessProbe.httpGet" label="Port">{{
+                      row.readinessProbe.httpGet.port
+                    }}</el-descriptions-item>
+                    <el-descriptions-item :label="t('workload.initialDelay')"
+                      >{{ row.readinessProbe.initialDelaySeconds ?? '-' }}s</el-descriptions-item
+                    >
+                    <el-descriptions-item :label="t('workload.period')"
+                      >{{ row.readinessProbe.periodSeconds ?? '-' }}s</el-descriptions-item
+                    >
                   </el-descriptions>
                 </div>
                 <el-empty
-                  v-if="(!row.ports || row.ports.length === 0) && (!row.env || row.env.length === 0) && (!row.volumeMounts || row.volumeMounts.length === 0) && !row.livenessProbe && !row.readinessProbe"
+                  v-if="
+                    (!row.ports || row.ports.length === 0) &&
+                    (!row.env || row.env.length === 0) &&
+                    (!row.volumeMounts || row.volumeMounts.length === 0) &&
+                    !row.livenessProbe &&
+                    !row.readinessProbe
+                  "
                   :description="t('workload.noAdditionalDetails')"
                   :image-size="60"
                 />
@@ -328,20 +464,32 @@ async function handleDelete(force = false) {
             </template>
           </el-table-column>
           <el-table-column prop="name" :label="t('common.name')" min-width="150" />
-          <el-table-column prop="image" :label="t('workload.image')" min-width="260" show-overflow-tooltip />
+          <el-table-column
+            prop="image"
+            :label="t('workload.image')"
+            min-width="260"
+            show-overflow-tooltip
+          />
           <el-table-column :label="t('workload.ready')" width="70">
             <template #default="{ row }">
-              <el-tag :type="row.ready ? 'success' : 'danger'" size="small">{{ row.ready ? t('common.yes') : t('common.no') }}</el-tag>
+              <el-tag :type="row.ready ? 'success' : 'danger'" size="small">{{
+                row.ready ? t('common.yes') : t('common.no')
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="restartCount" :label="t('workload.restarts')" width="70" />
           <el-table-column :label="t('common.status')" width="160">
             <template #default="{ row }">
-              <el-tag :type="containerStateType(row.state)" size="small">{{ getContainerStateLabel(row) }}</el-tag>
+              <el-tag :type="containerStateType(row.state)" size="small">{{
+                getContainerStateLabel(row)
+              }}</el-tag>
             </template>
           </el-table-column>
         </el-table>
-        <el-empty v-if="!pod.containers || pod.containers.length === 0" :description="t('workload.noContainers')" />
+        <el-empty
+          v-if="!pod.containers || pod.containers.length === 0"
+          :description="t('workload.noContainers')"
+        />
       </div>
     </template>
 

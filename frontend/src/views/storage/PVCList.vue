@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { Plus, Delete } from '@element-plus/icons-vue'
-import {
-  getPvcList,
-  getPvcYaml,
-  updatePvcYaml,
-  deletePvc,
-  transformPvcs,
-} from '@/api/resource'
+import { getPvcList, getPvcYaml, updatePvcYaml, deletePvc, transformPvcs } from '@/api/resource'
 import { useResourceList } from '@/composables/useResourceList'
 import YamlEditor from '@/components/YamlEditor.vue'
 import AutoRefreshToolbar from '@/components/AutoRefreshToolbar.vue'
@@ -60,14 +54,22 @@ function statusType(status: string) {
   return 'info'
 }
 
-const { isRunning, countdown, currentInterval, availableIntervals, toggle, refresh: manualRefresh, setIntervalOption } = useAutoRefresh(fetchResources)
+const {
+  isRunning,
+  countdown,
+  currentInterval,
+  availableIntervals,
+  toggle,
+  refresh: manualRefresh,
+  setIntervalOption,
+} = useAutoRefresh(fetchResources)
 </script>
 
 <template>
   <div class="page-container">
     <ResourceListToolbar
-      :search-value="searchName"
       v-model:namespace-value="selectedNamespace"
+      :search-value="searchName"
       :namespace-list="namespaceList"
       :total-count="totalCount"
       :selected-count="selectedRows.length"
@@ -102,8 +104,8 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
 
     <el-card shadow="never" class="table-card">
       <el-table
-        :data="filteredList"
         v-loading="loading"
+        :data="filteredList"
         stripe
         @selection-change="handleSelectionChange"
       >
@@ -121,13 +123,18 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
         </el-table-column>
         <el-table-column prop="volume" label="卷" min-width="160" show-overflow-tooltip />
         <el-table-column prop="capacity" label="容量" width="120" />
-        <el-table-column prop="storage_class" label="存储类" min-width="140" show-overflow-tooltip />
+        <el-table-column
+          prop="storage_class"
+          label="存储类"
+          min-width="140"
+          show-overflow-tooltip
+        />
         <el-table-column prop="age" label="存活时间" width="120" />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-            <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
         </el-table-column>
@@ -135,9 +142,15 @@ const { isRunning, countdown, currentInterval, availableIntervals, toggle, refre
     </el-card>
 
     <!-- YAML Drawer -->
-    <el-drawer v-model="yamlDialogVisible" title="持久卷声明 YAML" size="85%" direction="rtl" class="yaml-drawer"
-      :body-style="{ padding: '0', height: '100%' }">
-      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px);">
+    <el-drawer
+      v-model="yamlDialogVisible"
+      title="持久卷声明 YAML"
+      size="85%"
+      direction="rtl"
+      class="yaml-drawer"
+      :body-style="{ padding: '0', height: '100%' }"
+    >
+      <div v-loading="yamlLoading" style="height: calc(100dvh - 52px)">
         <YamlEditor
           v-model="yamlContent"
           height="100%"

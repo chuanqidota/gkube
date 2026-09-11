@@ -5,21 +5,24 @@ import { Editor as MonacoEditor } from '@guolao/vue-monaco-editor'
 import { ElMessage } from 'element-plus'
 import { Search, CopyDocument, Download, FullScreen, Aim } from '@element-plus/icons-vue'
 
+const props = withDefaults(
+  defineProps<{
+    entries: DataEntry[]
+    loading?: boolean
+    emptyText?: string
+  }>(),
+  {
+    loading: false,
+    emptyText: '',
+  },
+)
+
 const { t } = useI18n()
 
 interface DataEntry {
   key: string
   value: string
 }
-
-const props = withDefaults(defineProps<{
-  entries: DataEntry[]
-  loading?: boolean
-  emptyText?: string
-}>(), {
-  loading: false,
-  emptyText: '',
-})
 
 const emptyTextDisplay = computed(() => props.emptyText || t('config.noDataDefault'))
 const selectedKey = ref('')
@@ -37,25 +40,42 @@ const selectedEntry = computed<DataEntry | undefined>(() =>
 )
 
 // 默认选中第一个 key；entries 变化时保持或重置
-watch(() => props.entries, (list) => {
-  if (!list.length) { selectedKey.value = ''; return }
-  if (!list.some((e) => e.key === selectedKey.value)) {
-    selectedKey.value = list[0].key
-  }
-}, { immediate: true })
+watch(
+  () => props.entries,
+  (list) => {
+    if (!list.length) {
+      selectedKey.value = ''
+      return
+    }
+    if (!list.some((e) => e.key === selectedKey.value)) {
+      selectedKey.value = list[0].key
+    }
+  },
+  { immediate: true },
+)
 
 const EXT_LANG: Record<string, string> = {
   json: 'json',
-  yaml: 'yaml', yml: 'yaml',
-  js: 'javascript', mjs: 'javascript', cjs: 'javascript',
+  yaml: 'yaml',
+  yml: 'yaml',
+  js: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
   ts: 'typescript',
-  html: 'html', htm: 'html',
-  css: 'css', scss: 'scss', less: 'less',
-  sh: 'shell', bash: 'shell', zsh: 'shell',
+  html: 'html',
+  htm: 'html',
+  css: 'css',
+  scss: 'scss',
+  less: 'less',
+  sh: 'shell',
+  bash: 'shell',
+  zsh: 'shell',
   py: 'python',
   go: 'go',
   xml: 'xml',
-  ini: 'ini', conf: 'ini', cfg: 'ini',
+  ini: 'ini',
+  conf: 'ini',
+  cfg: 'ini',
   properties: 'properties',
   md: 'markdown',
   sql: 'sql',
@@ -68,17 +88,26 @@ function detectLanguage(key: string, value: string): string {
   if (ext && EXT_LANG[ext]) return EXT_LANG[ext]
   const trimmed = value.trim()
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-    try { JSON.parse(trimmed); return 'json' } catch { /* fallthrough */ }
+    try {
+      JSON.parse(trimmed)
+      return 'json'
+    } catch {
+      /* fallthrough */
+    }
   }
   return 'plaintext'
 }
 
 // 计算右侧展示内容：JSON 美化，其余原样
 const LARGE_VALUE_THRESHOLD = 100 * 1024 // 100 KB
-const isLargeValue = computed(() => (selectedEntry.value?.value.length || 0) > LARGE_VALUE_THRESHOLD)
+const isLargeValue = computed(
+  () => (selectedEntry.value?.value.length || 0) > LARGE_VALUE_THRESHOLD,
+)
 const showFull = ref(false)
 
-watch(selectedKey, () => { showFull.value = false })
+watch(selectedKey, () => {
+  showFull.value = false
+})
 
 const displayValue = computed(() => {
   const entry = selectedEntry.value
@@ -88,13 +117,19 @@ const displayValue = computed(() => {
   }
   const lang = detectLanguage(entry.key, entry.value)
   if (lang === 'json') {
-    try { return JSON.stringify(JSON.parse(entry.value.trim()), null, 2) } catch { return entry.value }
+    try {
+      return JSON.stringify(JSON.parse(entry.value.trim()), null, 2)
+    } catch {
+      return entry.value
+    }
   }
   return entry.value
 })
 
 const displayLanguage = computed(() =>
-  selectedEntry.value ? detectLanguage(selectedEntry.value.key, selectedEntry.value.value) : 'plaintext',
+  selectedEntry.value
+    ? detectLanguage(selectedEntry.value.key, selectedEntry.value.value)
+    : 'plaintext',
 )
 
 const editorOptions = computed(() => ({
@@ -117,7 +152,8 @@ function handleEditorMount() {
 
 function handleCopy() {
   if (!selectedEntry.value) return
-  navigator.clipboard.writeText(selectedEntry.value.value)
+  navigator.clipboard
+    .writeText(selectedEntry.value.value)
     .then(() => ElMessage.success(t('config.copiedToClipboard')))
     .catch(() => ElMessage.error(t('config.copyFailed')))
 }
@@ -152,8 +188,12 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 </script>
 
 <template>
-  <div class="config-data-viewer" :class="{ 'is-fullscreen': isFullscreen }" v-loading="loading">
-    <el-empty v-if="!loading && !entries.length" :description="emptyTextDisplay" class="viewer-empty" />
+  <div v-loading="loading" class="config-data-viewer" :class="{ 'is-fullscreen': isFullscreen }">
+    <el-empty
+      v-if="!loading && !entries.length"
+      :description="emptyTextDisplay"
+      class="viewer-empty"
+    />
     <div v-else class="viewer-body">
       <!-- 左侧：Key 列表 -->
       <div class="key-panel">
@@ -177,7 +217,9 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
             <span class="key-dot" />
             <span class="key-name">{{ entry.key }}</span>
           </div>
-          <div v-if="!filteredEntries.length" class="key-empty">{{ t('config.noMatchingKey') }}</div>
+          <div v-if="!filteredEntries.length" class="key-empty">
+            {{ t('config.noMatchingKey') }}
+          </div>
         </div>
         <div class="key-count">{{ t('config.totalItems', { count: entries.length }) }}</div>
       </div>
@@ -185,28 +227,57 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
       <!-- 右侧：值视图 -->
       <div class="value-panel">
         <div class="value-toolbar">
-          <span class="value-title" :title="selectedEntry?.key">{{ t('config.valuePrefix') }}: {{ selectedEntry?.key || '-' }}</span>
-          <el-tag size="small" type="info" effect="plain" class="lang-tag">{{ displayLanguage }}</el-tag>
+          <span class="value-title" :title="selectedEntry?.key"
+            >{{ t('config.valuePrefix') }}: {{ selectedEntry?.key || '-' }}</span
+          >
+          <el-tag size="small" type="info" effect="plain" class="lang-tag">{{
+            displayLanguage
+          }}</el-tag>
           <el-tag v-if="isLargeValue" size="small" type="warning" effect="plain">
             {{ (selectedEntry!.value.length / 1024).toFixed(0) }} KB
           </el-tag>
           <div class="toolbar-actions">
             <el-tooltip :content="t('config.copyTooltip')" placement="top">
-              <el-button size="small" :icon="CopyDocument" :disabled="!selectedEntry" @click="handleCopy" />
+              <el-button
+                size="small"
+                :icon="CopyDocument"
+                :disabled="!selectedEntry"
+                @click="handleCopy"
+              />
             </el-tooltip>
             <el-tooltip :content="t('config.downloadTooltip')" placement="top">
-              <el-button size="small" :icon="Download" :disabled="!selectedEntry" @click="handleDownload" />
+              <el-button
+                size="small"
+                :icon="Download"
+                :disabled="!selectedEntry"
+                @click="handleDownload"
+              />
             </el-tooltip>
-            <el-tooltip :content="isFullscreen ? t('config.exitFullscreen') : t('config.fullscreen')" placement="top">
-              <el-button size="small" :icon="isFullscreen ? Aim : FullScreen" @click="toggleFullscreen" />
+            <el-tooltip
+              :content="isFullscreen ? t('config.exitFullscreen') : t('config.fullscreen')"
+              placement="top"
+            >
+              <el-button
+                size="small"
+                :icon="isFullscreen ? Aim : FullScreen"
+                @click="toggleFullscreen"
+              />
             </el-tooltip>
           </div>
         </div>
         <div v-if="isLargeValue && !showFull" class="large-value-banner">
           <el-alert type="warning" :closable="false" show-icon>
-            {{ t('config.largeValueWarning', { size: (selectedEntry!.value.length / 1024).toFixed(0) }) }}
-            <el-button size="small" text type="primary" @click="showFull = true">{{ t('config.loadAll') }}</el-button>
-            <el-button size="small" text type="primary" @click="handleDownload">{{ t('config.downloadTooltip') }}</el-button>
+            {{
+              t('config.largeValueWarning', {
+                size: (selectedEntry!.value.length / 1024).toFixed(0),
+              })
+            }}
+            <el-button size="small" text type="primary" @click="showFull = true">{{
+              t('config.loadAll')
+            }}</el-button>
+            <el-button size="small" text type="primary" @click="handleDownload">{{
+              t('config.downloadTooltip')
+            }}</el-button>
           </el-alert>
         </div>
         <div class="editor-wrap">

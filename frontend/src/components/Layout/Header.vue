@@ -1,3 +1,74 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
+import { useTheme } from '@/styles/theme-switcher'
+import ClusterSelector from './ClusterSelector.vue'
+import {
+  Fold,
+  Switch,
+  ArrowDown,
+  User,
+  SwitchButton,
+  Sunny,
+  Moon,
+  Avatar,
+} from '@element-plus/icons-vue'
+
+defineEmits(['toggleCollapse'])
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+const { locale, t } = useI18n()
+const { isDark, toggle } = useTheme()
+
+function resolveTitle(meta: Record<string, unknown> | undefined): string {
+  if (!meta) return ''
+  if (meta.titleKey) return t(meta.titleKey as string)
+  return (meta.title as string) || ''
+}
+
+const breadcrumbs = computed(() => {
+  const items: Array<{ title: string; path?: string; to?: { path: string } }> = []
+
+  if (route.meta?.parent) {
+    const parentRoute = router.getRoutes().find((r) => r.name === route.meta.parent)
+    if (parentRoute?.meta) {
+      const parentTitle = resolveTitle(parentRoute.meta as Record<string, unknown>)
+      if (parentTitle) {
+        items.push({
+          title: parentTitle,
+          path: parentRoute.path,
+          to: { path: parentRoute.path },
+        })
+      }
+    }
+  }
+
+  const currentTitle = resolveTitle(route.meta as Record<string, unknown>)
+  if (currentTitle) {
+    items.push({ title: currentTitle })
+  }
+
+  return items
+})
+
+function handleLangChange(lang: string) {
+  locale.value = lang
+  localStorage.setItem('gkube_locale', lang)
+}
+
+async function handleCommand(command: string) {
+  if (command === 'logout') {
+    await authStore.logout()
+    router.push('/login')
+  } else if (command === 'myPermissions') {
+    router.push('/my-permissions')
+  }
+}
+</script>
+
 <template>
   <div class="header">
     <div class="header-left">
@@ -40,7 +111,10 @@
       </el-dropdown>
 
       <!-- Theme Toggle -->
-      <el-tooltip :content="isDark ? t('common.lightMode') : t('common.darkMode')" placement="bottom">
+      <el-tooltip
+        :content="isDark ? t('common.lightMode') : t('common.darkMode')"
+        placement="bottom"
+      >
         <el-button size="small" text class="header-action-btn" @click="toggle()">
           <el-icon :size="18">
             <Sunny v-if="isDark" />
@@ -55,7 +129,9 @@
           <el-avatar :size="32" class="user-avatar">
             {{ (authStore.user?.username || '?')[0].toUpperCase() }}
           </el-avatar>
-          <span class="username">{{ authStore.user?.display_name || authStore.user?.username || '-' }}</span>
+          <span class="username">{{
+            authStore.user?.display_name || authStore.user?.username || '-'
+          }}</span>
           <el-icon class="user-arrow"><ArrowDown /></el-icon>
         </div>
         <template #dropdown>
@@ -78,77 +154,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@/stores/auth'
-import { useTheme } from '@/styles/theme-switcher'
-import ClusterSelector from './ClusterSelector.vue'
-import {
-  Fold,
-  Switch,
-  ArrowDown,
-  User,
-  SwitchButton,
-  Sunny,
-  Moon,
-  Avatar,
-} from '@element-plus/icons-vue'
-
-defineEmits(['toggleCollapse'])
-const route = useRoute()
-const router = useRouter()
-const authStore = useAuthStore()
-const { locale, t } = useI18n()
-const { isDark, toggle } = useTheme()
-
-function resolveTitle(meta: Record<string, unknown> | undefined): string {
-  if (!meta) return ''
-  if (meta.titleKey) return t(meta.titleKey as string)
-  return (meta.title as string) || ''
-}
-
-const breadcrumbs = computed(() => {
-  const items: Array<{ title: string; path?: string; to?: { path: string } }> = []
-
-  if (route.meta?.parent) {
-    const parentRoute = router.getRoutes().find(r => r.name === route.meta.parent)
-    if (parentRoute?.meta) {
-      const parentTitle = resolveTitle(parentRoute.meta as Record<string, unknown>)
-      if (parentTitle) {
-        items.push({
-          title: parentTitle,
-          path: parentRoute.path,
-          to: { path: parentRoute.path },
-        })
-      }
-    }
-  }
-
-  const currentTitle = resolveTitle(route.meta as Record<string, unknown>)
-  if (currentTitle) {
-    items.push({ title: currentTitle })
-  }
-
-  return items
-})
-
-function handleLangChange(lang: string) {
-  locale.value = lang
-  localStorage.setItem('gkube_locale', lang)
-}
-
-async function handleCommand(command: string) {
-  if (command === 'logout') {
-    await authStore.logout()
-    router.push('/login')
-  } else if (command === 'myPermissions') {
-    router.push('/my-permissions')
-  }
-}
-</script>
 
 <style scoped>
 .header {

@@ -3,25 +3,65 @@ import { Plus, Delete } from '@element-plus/icons-vue'
 import type { Container } from '../form-types'
 import { createEmptyContainer, createEmptyEnv } from '../form-types'
 
-const props = withDefaults(defineProps<{
-  containers: Container[]
-  title?: string
-  showPullPolicy?: boolean
-  minContainers?: number
-  indexColor?: string
-}>(), {
-  title: '容器配置',
-  showPullPolicy: true,
-  minContainers: 1,
-  indexColor: 'var(--el-color-primary)',
-})
+const props = withDefaults(
+  defineProps<{
+    containers: Container[]
+    title?: string
+    showPullPolicy?: boolean
+    minContainers?: number
+    indexColor?: string
+  }>(),
+  {
+    title: '容器配置',
+    showPullPolicy: true,
+    minContainers: 1,
+    indexColor: 'var(--el-color-primary)',
+  },
+)
 
-function addContainer() { props.containers.push(createEmptyContainer()) }
-function removeContainer(i: number) { if (props.containers.length > props.minContainers) props.containers.splice(i, 1) }
-function addPort(ci: number) { props.containers[ci].ports.push({ name: '', containerPort: null, protocol: 'TCP' }) }
-function removePort(ci: number, pi: number) { props.containers[ci].ports.splice(pi, 1) }
-function addEnv(ci: number) { props.containers[ci].env.push(createEmptyEnv()) }
-function removeEnv(ci: number, ei: number) { props.containers[ci].env.splice(ei, 1) }
+const emit = defineEmits<{ 'update:containers': [value: Container[]] }>()
+
+function updateContainer(ci: number, patch: Partial<Container>) {
+  const next = props.containers.map((c, i) => (i === ci ? { ...c, ...patch } : c))
+  emit('update:containers', next)
+}
+
+function addContainer() {
+  emit('update:containers', [...props.containers, createEmptyContainer()])
+}
+function removeContainer(i: number) {
+  if (props.containers.length > props.minContainers) {
+    const next = [...props.containers]
+    next.splice(i, 1)
+    emit('update:containers', next)
+  }
+}
+function addPort(ci: number) {
+  updateContainer(ci, {
+    ports: [...props.containers[ci].ports, { name: '', containerPort: null, protocol: 'TCP' }],
+  })
+}
+function removePort(ci: number, pi: number) {
+  const ports = [...props.containers[ci].ports]
+  ports.splice(pi, 1)
+  updateContainer(ci, { ports })
+}
+function addEnv(ci: number) {
+  updateContainer(ci, { env: [...props.containers[ci].env, createEmptyEnv()] })
+}
+function removeEnv(ci: number, ei: number) {
+  const env = [...props.containers[ci].env]
+  env.splice(ei, 1)
+  updateContainer(ci, { env })
+}
+function resetEnvFields(env: Container['env'][number]) {
+  env.value = ''
+  env.configMapName = ''
+  env.configMapKey = ''
+  env.secretName = ''
+  env.secretKey = ''
+  env.fieldPath = ''
+}
 </script>
 
 <template>
@@ -31,7 +71,13 @@ function removeEnv(ci: number, ei: number) { props.containers[ci].env.splice(ei,
         <span class="container-index" :style="{ background: indexColor }">{{ ci + 1 }}</span>
         <span>{{ container.name || '未命名容器' }}</span>
       </div>
-      <el-button v-if="containers.length > minContainers" type="danger" text size="small" @click="removeContainer(ci)">
+      <el-button
+        v-if="containers.length > minContainers"
+        type="danger"
+        text
+        size="small"
+        @click="removeContainer(ci)"
+      >
         <el-icon><Delete /></el-icon> 移除
       </el-button>
     </div>
@@ -43,26 +89,42 @@ function removeEnv(ci: number, ei: number) { props.containers[ci].env.splice(ei,
         <el-input v-model="container.image" placeholder="nginx:1.25" />
       </el-form-item>
       <el-form-item v-if="showPullPolicy" label="拉取策略">
-        <el-select v-model="container.imagePullPolicy" style="width: 100%;">
+        <el-select v-model="container.imagePullPolicy" style="width: 100%">
           <el-option label="Always" value="Always" />
           <el-option label="IfNotPresent" value="IfNotPresent" />
           <el-option label="Never" value="Never" />
         </el-select>
       </el-form-item>
       <el-form-item label="启动命令 (command)">
-        <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.command" placeholder="每行一个参数，如: /bin/sh" />
+        <el-input
+          v-model="container.command"
+          type="textarea"
+          :autosize="{ minRows: 1, maxRows: 4 }"
+          placeholder="每行一个参数，如: /bin/sh"
+        />
       </el-form-item>
       <el-form-item label="启动参数 (args)" class="full-width">
-        <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" v-model="container.args" placeholder="每行一个参数，如: -c echo hello" />
+        <el-input
+          v-model="container.args"
+          type="textarea"
+          :autosize="{ minRows: 1, maxRows: 4 }"
+          placeholder="每行一个参数，如: -c echo hello"
+        />
       </el-form-item>
     </div>
 
     <!-- Ports -->
     <el-divider content-position="left">端口</el-divider>
     <div v-for="(port, pi) in container.ports" :key="pi" class="kv-row">
-      <el-input v-model="port.name" placeholder="名称" style="width: 120px;" />
-      <el-input-number v-model="port.containerPort" :min="1" :max="65535" placeholder="端口" style="flex: 1;" />
-      <el-select v-model="port.protocol" style="width: 100px;">
+      <el-input v-model="port.name" placeholder="名称" style="width: 120px" />
+      <el-input-number
+        v-model="port.containerPort"
+        :min="1"
+        :max="65535"
+        placeholder="端口"
+        style="flex: 1"
+      />
+      <el-select v-model="port.protocol" style="width: 100px">
         <el-option label="TCP" value="TCP" /><el-option label="UDP" value="UDP" />
       </el-select>
       <el-button type="danger" text circle @click="removePort(ci, pi)">
@@ -76,23 +138,28 @@ function removeEnv(ci: number, ei: number) { props.containers[ci].env.splice(ei,
     <!-- Env -->
     <el-divider content-position="left">环境变量</el-divider>
     <div v-for="(env, ei) in container.env" :key="ei" class="env-row">
-      <el-input v-model="env.name" placeholder="名称" style="width: 140px;" />
-      <el-select v-model="env.type" style="width: 140px;" @change="env.value = ''; env.configMapName = ''; env.configMapKey = ''; env.secretName = ''; env.secretKey = ''; env.fieldPath = ''">
+      <el-input v-model="env.name" placeholder="名称" style="width: 140px" />
+      <el-select v-model="env.type" style="width: 140px" @change="resetEnvFields(env)">
         <el-option label="直接值" value="plain" />
         <el-option label="ConfigMap" value="configMapKeyRef" />
         <el-option label="Secret" value="secretKeyRef" />
         <el-option label="字段引用" value="fieldRef" />
       </el-select>
-      <el-input v-if="env.type === 'plain'" v-model="env.value" placeholder="值" style="flex: 1;" />
+      <el-input v-if="env.type === 'plain'" v-model="env.value" placeholder="值" style="flex: 1" />
       <template v-if="env.type === 'configMapKeyRef'">
-        <el-input v-model="env.configMapName" placeholder="ConfigMap 名称" style="flex: 1;" />
-        <el-input v-model="env.configMapKey" placeholder="Key" style="width: 140px;" />
+        <el-input v-model="env.configMapName" placeholder="ConfigMap 名称" style="flex: 1" />
+        <el-input v-model="env.configMapKey" placeholder="Key" style="width: 140px" />
       </template>
       <template v-if="env.type === 'secretKeyRef'">
-        <el-input v-model="env.secretName" placeholder="Secret 名称" style="flex: 1;" />
-        <el-input v-model="env.secretKey" placeholder="Key" style="width: 140px;" />
+        <el-input v-model="env.secretName" placeholder="Secret 名称" style="flex: 1" />
+        <el-input v-model="env.secretKey" placeholder="Key" style="width: 140px" />
       </template>
-      <el-input v-if="env.type === 'fieldRef'" v-model="env.fieldPath" placeholder="如: metadata.name" style="flex: 1;" />
+      <el-input
+        v-if="env.type === 'fieldRef'"
+        v-model="env.fieldPath"
+        placeholder="如: metadata.name"
+        style="flex: 1"
+      />
       <el-button type="danger" text circle @click="removeEnv(ci, ei)">
         <el-icon><Delete /></el-icon>
       </el-button>
@@ -107,20 +174,28 @@ function removeEnv(ci: number, ei: number) { props.containers[ci].env.splice(ei,
       <div class="resource-group">
         <div class="resource-group-title">Requests</div>
         <div class="resource-fields">
-          <el-form-item label="CPU"><el-input v-model="container.resources.requests.cpu" placeholder="100m" /></el-form-item>
-          <el-form-item label="Memory"><el-input v-model="container.resources.requests.memory" placeholder="128Mi" /></el-form-item>
+          <el-form-item label="CPU"
+            ><el-input v-model="container.resources.requests.cpu" placeholder="100m"
+          /></el-form-item>
+          <el-form-item label="Memory"
+            ><el-input v-model="container.resources.requests.memory" placeholder="128Mi"
+          /></el-form-item>
         </div>
       </div>
       <div class="resource-group">
         <div class="resource-group-title">Limits</div>
         <div class="resource-fields">
-          <el-form-item label="CPU"><el-input v-model="container.resources.limits.cpu" placeholder="500m" /></el-form-item>
-          <el-form-item label="Memory"><el-input v-model="container.resources.limits.memory" placeholder="512Mi" /></el-form-item>
+          <el-form-item label="CPU"
+            ><el-input v-model="container.resources.limits.cpu" placeholder="500m"
+          /></el-form-item>
+          <el-form-item label="Memory"
+            ><el-input v-model="container.resources.limits.memory" placeholder="512Mi"
+          /></el-form-item>
         </div>
       </div>
     </div>
   </div>
-  <el-button text type="primary" @click="addContainer" class="add-container-btn">
+  <el-button text type="primary" class="add-container-btn" @click="addContainer">
     <el-icon><Plus /></el-icon> 添加{{ title }}
   </el-button>
 </template>
