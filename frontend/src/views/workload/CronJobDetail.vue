@@ -287,9 +287,9 @@ function isManualJob(job: any): boolean {
             <template #default="{ row }">{{ getJobDuration(row) }}</template>
           </el-table-column>
           <el-table-column label="Age" width="100">
-            <template #default="{ row }">{{ formatAge(row.metadata?.creationTimestamp) }}</template>
+            <template #default="{ row }">{{ formatAge(row.metadata?.creationTimestamp, false) }}</template>
           </el-table-column>
-          <el-table-column label="镜像" min-width="220" show-overflow-tooltip>
+          <el-table-column :label="t('workload.image')" min-width="220" show-overflow-tooltip>
             <template #default="{ row }">{{ getJobImages(row) }}</template>
           </el-table-column>
         </el-table>

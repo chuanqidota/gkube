@@ -81,7 +81,7 @@ async function fetchPvcs() {
       name: pvc.metadata?.name || '-',
       status: pvc.status?.phase || 'Unknown',
       capacity: pvc.spec?.resources?.requests?.storage || '-',
-      age: formatAge(pvc.metadata?.creationTimestamp),
+      age: formatAge(pvc.metadata?.creationTimestamp, false),
     }))
   } catch {
     pvcs.value = []

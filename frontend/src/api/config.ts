@@ -10,7 +10,7 @@ export function transformConfigMaps(items: any[]) {
     namespace: cm.metadata?.namespace || '',
     labels: cm.metadata?.labels || {},
     data_keys_count: (cm.data ? Object.keys(cm.data).length : 0) + (cm.binaryData ? Object.keys(cm.binaryData).length : 0),
-    age: formatAge(cm.metadata?.creationTimestamp),
+    age: formatAge(cm.metadata?.creationTimestamp, false),
   }))
 }
 
@@ -21,7 +21,7 @@ export function transformSecrets(items: any[]) {
     namespace: s.metadata?.namespace || '',
     type: s.type || 'Opaque',
     data_keys_count: s.data ? Object.keys(s.data).length : 0,
-    age: formatAge(s.metadata?.creationTimestamp),
+    age: formatAge(s.metadata?.creationTimestamp, false),
   }))
 }
 

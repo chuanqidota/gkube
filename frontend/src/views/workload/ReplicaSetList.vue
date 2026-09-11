@@ -27,7 +27,7 @@ function transformReplicaSets(items: any[]) {
       ready: rs.ready || 0,
       available: rs.available || 0,
       owner: owner ? `Deployment/${owner.name}` : '-',
-      age: formatAge(rs.creation_timestamp),
+      age: formatAge(rs.creation_timestamp, false),
     }
   })
 }

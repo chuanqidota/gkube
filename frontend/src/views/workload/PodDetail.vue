@@ -80,7 +80,7 @@ function transformPodDetail(raw: any): any {
     restarts,
     qos_class: raw.status?.qosClass || '',
     priority: raw.spec?.priority ?? null,
-    age: formatAge(raw.metadata?.creationTimestamp),
+    age: formatAge(raw.metadata?.creationTimestamp, false),
     created_at: raw.metadata?.creationTimestamp || '',
     service_account: raw.spec?.serviceAccountName || '',
     labels: raw.metadata?.labels || {},

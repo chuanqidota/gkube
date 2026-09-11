@@ -38,7 +38,7 @@ export function transformPvs(items: any[]): Pv[] {
       storage_class: storageClass,
       reclaim_policy: reclaimPolicy,
       volume_mode: volumeMode,
-      age: formatAge(pv.metadata?.creationTimestamp),
+      age: formatAge(pv.metadata?.creationTimestamp, false),
     }
   })
 }
@@ -53,7 +53,7 @@ export function transformPvcs(items: any[]) {
     capacity: pvc.status?.capacity?.storage || '-',
     storage_class: pvc.spec?.storageClassName || '-',
     access_modes: (pvc.spec?.accessModes || []).join(', '),
-    age: formatAge(pvc.metadata?.creationTimestamp),
+    age: formatAge(pvc.metadata?.creationTimestamp, false),
   }))
 }
 
@@ -69,16 +69,14 @@ export function transformStorageClasses(items: any[]) {
       reclaim_policy: sc.reclaimPolicy || '-',
       volume_binding_mode: sc.volumeBindingMode || '-',
       default: isDefault,
-      age: formatAge(sc.metadata?.creationTimestamp),
+      age: formatAge(sc.metadata?.creationTimestamp, false),
     }
   })
 }
 
 // ============ 标准 CRUD（工厂生成） ============
 
-export const pvApi = createResourceApi('/k8s/pv', {
-  deleteUseParams: true,
-})
+export const pvApi = createResourceApi('/k8s/pv')
 
 export const pvcApi = createResourceApi('/k8s/pvc')
 

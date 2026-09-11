@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Plus, Delete } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import type { Container } from '../form-types'
+
+const { t } = useI18n()
 
 defineProps<{
   containers: Container[]
@@ -12,33 +15,33 @@ function removeCapability(sc: Container['securityContext'], type: 'add' | 'drop'
 
 <template>
   <div v-for="(container, ci) in containers" :key="ci" style="margin-bottom: 24px;">
-    <div class="mount-container-name">{{ container.name || `容器 ${ci + 1}` }}</div>
+    <div class="mount-container-name">{{ container.name || t('securityContext.containerLabel', { n: ci + 1 }) }}</div>
     <div class="security-grid">
       <div class="security-item">
-        <div class="security-item-label">运行用户 ID</div>
+        <div class="security-item-label">{{ t('securityContext.runAsUser') }}</div>
         <el-input-number v-model="container.securityContext.runAsUser" :min="0" placeholder="UID" style="width: 100%;" />
       </div>
       <div class="security-item">
-        <div class="security-item-label">非 Root 运行</div>
+        <div class="security-item-label">{{ t('securityContext.runAsNonRoot') }}</div>
         <el-switch v-model="container.securityContext.runAsNonRoot" />
       </div>
       <div class="security-item">
-        <div class="security-item-label">只读根文件系统</div>
+        <div class="security-item-label">{{ t('securityContext.readOnlyRootFilesystem') }}</div>
         <el-switch v-model="container.securityContext.readOnlyRootFilesystem" />
       </div>
       <div class="security-item">
-        <div class="security-item-label">特权模式</div>
+        <div class="security-item-label">{{ t('securityContext.privileged') }}</div>
         <el-switch v-model="container.securityContext.privileged" />
       </div>
     </div>
     <!-- Capabilities -->
     <div style="margin-top: var(--gk-space-4);">
-      <el-divider content-position="left">Linux Capabilities</el-divider>
+      <el-divider content-position="left">{{ t('securityContext.capabilities') }}</el-divider>
       <div class="fields-grid">
-        <el-form-item label="添加 (Add)">
+        <el-form-item :label="t('securityContext.addCapability')">
           <div style="width: 100%;">
             <div v-for="(_cap, i) in container.securityContext.capabilitiesAdd" :key="i" class="kv-row">
-              <el-select v-model="container.securityContext.capabilitiesAdd[i]" filterable allow-create placeholder="如: NET_ADMIN" style="flex: 1;">
+              <el-select v-model="container.securityContext.capabilitiesAdd[i]" filterable allow-create :placeholder="t('securityContext.addPlaceholder')" style="flex: 1;">
                 <el-option label="NET_ADMIN" value="NET_ADMIN" />
                 <el-option label="NET_RAW" value="NET_RAW" />
                 <el-option label="SYS_ADMIN" value="SYS_ADMIN" />
@@ -59,14 +62,14 @@ function removeCapability(sc: Container['securityContext'], type: 'add' | 'drop'
               </el-button>
             </div>
             <el-button text type="primary" size="small" @click="addCapability(container.securityContext, 'add')">
-              <el-icon><Plus /></el-icon> 添加
+              <el-icon><Plus /></el-icon> {{ t('securityContext.addBtn') }}
             </el-button>
           </div>
         </el-form-item>
-        <el-form-item label="移除 (Drop)">
+        <el-form-item :label="t('securityContext.dropCapability')">
           <div style="width: 100%;">
             <div v-for="(_cap, i) in container.securityContext.capabilitiesDrop" :key="i" class="kv-row">
-              <el-select v-model="container.securityContext.capabilitiesDrop[i]" filterable allow-create placeholder="如: ALL" style="flex: 1;">
+              <el-select v-model="container.securityContext.capabilitiesDrop[i]" filterable allow-create :placeholder="t('securityContext.dropPlaceholder')" style="flex: 1;">
                 <el-option label="ALL" value="ALL" />
                 <el-option label="NET_ADMIN" value="NET_ADMIN" />
                 <el-option label="NET_RAW" value="NET_RAW" />
@@ -88,7 +91,7 @@ function removeCapability(sc: Container['securityContext'], type: 'add' | 'drop'
               </el-button>
             </div>
             <el-button text type="primary" size="small" @click="addCapability(container.securityContext, 'drop')">
-              <el-icon><Plus /></el-icon> 添加
+              <el-icon><Plus /></el-icon> {{ t('securityContext.addBtn') }}
             </el-button>
           </div>
         </el-form-item>

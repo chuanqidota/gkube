@@ -213,12 +213,15 @@ export function useResourceList(options: ResourceListOptions) {
     yamlEditing.value = false
     // Fetch YAML for pages that use el-drawer+YamlEditor (not YamlDrawer)
     if (options.getYaml) {
+      yamlContent.value = ''
       yamlLoading.value = true
       try {
         const res = await options.getYaml({ namespace: row.namespace, name: row.name })
-        yamlContent.value = typeof res === 'string' ? res : (res?.data ?? res ?? '')
+        const raw = res?.data ?? res
+        yamlContent.value = typeof raw === 'object' && raw?.yaml ? raw.yaml : (typeof raw === 'string' ? raw : '')
       } catch (e: any) {
         yamlContent.value = ''
+        yamlDialogVisible.value = false
         ElMessage.error(e?.message || t('common.yamlLoadFailed'))
       } finally {
         yamlLoading.value = false
@@ -234,7 +237,8 @@ export function useResourceList(options: ResourceListOptions) {
         namespace: yamlTarget.value.namespace,
         name: yamlTarget.value.name,
       })
-      yamlContent.value = res.data?.yaml || res.data || ''
+      const raw = res?.data ?? res
+      yamlContent.value = typeof raw === 'object' && raw?.yaml ? raw.yaml : (typeof raw === 'string' ? raw : '')
     } catch (e: any) {
       ElMessage.error(e?.message || t('common.yamlLoadFailed'))
     } finally {

@@ -82,7 +82,7 @@ export function transformPods(items: any[]): Pod[] {
       ip: pod.status?.podIP || '',
       hostIP: pod.status?.hostIP || '',
       restarts,
-      age: formatAge(pod.metadata?.creationTimestamp),
+      age: formatAge(pod.metadata?.creationTimestamp, false),
     }
   })
 }
@@ -97,7 +97,7 @@ export function transformDeployments(items: any[]): Deployment[] {
     ready_replicas: d.status?.readyReplicas || 0,
     up_to_date: d.status?.updatedReplicas || 0,
     available: d.status?.availableReplicas || 0,
-    age: formatAge(d.metadata?.creationTimestamp),
+    age: formatAge(d.metadata?.creationTimestamp, false),
   }))
 }
 
@@ -109,7 +109,7 @@ export function transformStatefulSets(items: any[]): StatefulSet[] {
     ready: `${d.status?.readyReplicas || 0}/${d.spec?.replicas || 0}`,
     serviceName: d.spec?.serviceName || '',
     updateStrategy: d.spec?.updateStrategy?.type || 'RollingUpdate',
-    age: formatAge(d.metadata?.creationTimestamp),
+    age: formatAge(d.metadata?.creationTimestamp, false),
   }))
 }
 
@@ -122,7 +122,7 @@ export function transformDaemonSets(items: any[]): DaemonSet[] {
     current: d.status?.currentNumberScheduled || 0,
     ready: d.status?.numberReady || 0,
     updateStrategy: d.spec?.updateStrategy?.type || 'RollingUpdate',
-    age: formatAge(d.metadata?.creationTimestamp),
+    age: formatAge(d.metadata?.creationTimestamp, false),
   }))
 }
 
@@ -135,7 +135,7 @@ export function transformJobs(items: any[]): Job[] {
     succeeded: d.status?.succeeded || 0,
     active: d.status?.active || 0,
     failed: d.status?.failed || 0,
-    age: formatAge(d.metadata?.creationTimestamp),
+    age: formatAge(d.metadata?.creationTimestamp, false),
   }))
 }
 
@@ -149,13 +149,15 @@ export function transformCronJobs(items: any[]): CronJob[] {
     active: d.status?.active?.length || 0,
     lastSchedule: d.status?.lastScheduleTime || '',
     nextScheduleTime: d.nextScheduleTime || '',
-    age: formatAge(d.metadata?.creationTimestamp),
+    age: formatAge(d.metadata?.creationTimestamp, false),
   }))
 }
 
 // ============ 标准 CRUD（工厂生成） ============
 
-export const podApi = createResourceApi('/k8s/pod')
+export const podApi = createResourceApi('/k8s/pod', {
+  updatePath: '/k8s/pod/update-yaml',
+})
 
 export const deploymentApi = createResourceApi('/k8s/deployment', {
   updatePath: '/k8s/deployment/update-yaml',

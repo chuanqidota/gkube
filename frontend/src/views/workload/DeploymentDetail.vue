@@ -283,7 +283,7 @@ function onEditSuccess() {
               <el-tag v-else-if="(rs.status?.readyReplicas || 0) > 0" type="primary" size="small">{{ t('workload.active') }}</el-tag>
             </div>
             <div class="rs-image">{{ rs.spec?.template?.spec?.containers?.[0]?.image || '-' }}</div>
-            <div class="rs-age">{{ formatAge(rs.metadata.creationTimestamp) }}</div>
+            <div class="rs-age">{{ formatAge(rs.metadata.creationTimestamp, false) }}</div>
             <div class="rs-rollback" v-if="rs.metadata.annotations?.['deployment.kubernetes.io/revision'] !== deployment?.metadata?.annotations?.['deployment.kubernetes.io/revision']">
               <el-button size="small" type="warning" @click.stop="handleReplicasetRollback(rs)">{{ t('workload.rollback') }}</el-button>
             </div>

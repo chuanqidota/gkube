@@ -1,6 +1,8 @@
 import yaml from 'js-yaml'
 import { ElMessage } from 'element-plus'
-import { useI18n } from 'vue-i18n'
+import i18n from '@/locales'
+
+const { t } = i18n.global
 
 /**
  * Reusable helpers for clone-from-existing flows.
@@ -50,7 +52,6 @@ export async function fetchAndPrepareClone(
   namespace: string | undefined,
   name: string,
 ): Promise<{ parsed: any; originalName: string } | null> {
-  const { t } = useI18n()
   if (!name) {
     ElMessage.warning(t('common.cloneResourceNameRequired'))
     return null

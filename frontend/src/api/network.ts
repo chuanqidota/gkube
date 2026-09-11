@@ -44,7 +44,7 @@ export function transformServices(items: any[]): Service[] {
       cluster_ip: svc.spec?.clusterIP || '',
       external_ip: externalIps,
       ports,
-      age: formatAge(svc.metadata?.creationTimestamp),
+      age: formatAge(svc.metadata?.creationTimestamp, false),
     }
   })
 }
@@ -59,7 +59,7 @@ export function transformIngresses(items: any[]): Ingress[] {
       namespace: ing.metadata?.namespace || '',
       hosts,
       address,
-      age: formatAge(ing.metadata?.creationTimestamp),
+      age: formatAge(ing.metadata?.creationTimestamp, false),
     }
   })
 }

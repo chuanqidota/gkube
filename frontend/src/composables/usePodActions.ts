@@ -10,7 +10,7 @@ export function usePodActions(clusterName: Ref<string>) {
 
   const handlePodLogs = (pod: { namespace: string; name: string }) => {
     const route = router.resolve({
-      name: 'fullscreen-logs',
+      name: 'Logs',
       query: { cluster: clusterName.value, namespace: pod.namespace, pod: pod.name }
     })
     window.open(route.href, '_blank')
@@ -18,7 +18,7 @@ export function usePodActions(clusterName: Ref<string>) {
 
   const handlePodExec = (pod: { namespace: string; name: string }) => {
     const route = router.resolve({
-      name: 'fullscreen-terminal',
+      name: 'Terminal',
       query: { cluster: clusterName.value, namespace: pod.namespace, pod: pod.name }
     })
     window.open(route.href, '_blank')

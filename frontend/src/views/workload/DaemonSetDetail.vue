@@ -342,7 +342,7 @@ function handleImageUpdated() {
             <el-tag v-else-if="revisionPodCount(rev) > 0" type="primary" size="small">{{ t('workload.active') }}</el-tag>
           </div>
           <div class="rs-image" v-for="(img, i) in (rev.images || [])" :key="i">{{ img }}</div>
-          <div class="rs-age">{{ formatAge(rev.createdAt) }}</div>
+          <div class="rs-age">{{ formatAge(rev.createdAt, false) }}</div>
           <div class="rs-rollback" v-if="!rev.isCurrent">
             <el-button size="small" type="warning" @click.stop="handleRevisionRollback(rev)">{{ t('workload.rollback') }}</el-button>
           </div>

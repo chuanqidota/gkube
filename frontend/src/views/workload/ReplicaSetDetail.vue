@@ -178,13 +178,13 @@ onMounted(() => {
           <div class="block-title">{{ t('config.basicInfo') }}</div>
           <div class="info-row"><span class="info-label">{{ t('common.name') }}</span><span class="info-value mono">{{ rs.metadata?.name }}</span></div>
           <div class="info-row"><span class="info-label">{{ t('common.namespace_label') }}</span><span class="info-value">{{ rs.metadata?.namespace }}</span></div>
-          <div class="info-row"><span class="info-label">期望副本</span><span class="info-value">{{ rs.spec?.replicas ?? 0 }}</span></div>
-          <div class="info-row"><span class="info-label">当前副本</span><span class="info-value">{{ rs.status?.replicas ?? 0 }}</span></div>
-          <div class="info-row"><span class="info-label">就绪副本</span><span class="info-value">{{ rs.status?.readyReplicas ?? 0 }}</span></div>
-          <div class="info-row"><span class="info-label">可用副本</span><span class="info-value">{{ rs.status?.availableReplicas ?? 0 }}</span></div>
-          <div class="info-row"><span class="info-label">创建时间</span><span class="info-value">{{ formatAge(rs.metadata?.creationTimestamp) }}</span></div>
+          <div class="info-row"><span class="info-label">{{ t('workload.replicas') }}</span><span class="info-value">{{ rs.spec?.replicas ?? 0 }}</span></div>
+          <div class="info-row"><span class="info-label">{{ t('workload.currentReplicas') }}</span><span class="info-value">{{ rs.status?.replicas ?? 0 }}</span></div>
+          <div class="info-row"><span class="info-label">{{ t('workload.readyReplicas') }}</span><span class="info-value">{{ rs.status?.readyReplicas ?? 0 }}</span></div>
+          <div class="info-row"><span class="info-label">{{ t('workload.availableReplicas') }}</span><span class="info-value">{{ rs.status?.availableReplicas ?? 0 }}</span></div>
+          <div class="info-row"><span class="info-label">{{ t('common.creationTime') }}</span><span class="info-value">{{ formatAge(rs.metadata?.creationTimestamp, false) }}</span></div>
           <div class="info-row" v-if="controllerOf">
-            <span class="info-label">拥有者</span>
+            <span class="info-label">{{ t('workload.owner') }}</span>
             <span
               class="info-value link"
               :class="{ disabled: controllerOf.kind !== 'Deployment' }"
