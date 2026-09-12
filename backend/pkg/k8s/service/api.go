@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	apperr "gkube/pkg/errors"
 
 	"gkube/pkg/yamlutil"
 
@@ -22,12 +22,12 @@ import (
 //	@param namespace
 //	@return []corev1.Service
 //	@return error
-func GetServicesList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]corev1.Service, error) {
+func GetServicesList(ctx context.Context, client *kubernetes.Clientset, namespace string, labelSelector string) ([]corev1.Service, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	services, err := client.CoreV1().Services(namespace).List(context.TODO(), listOpts)
+	services, err := client.CoreV1().Services(namespace).List(ctx, listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func GetServicesList(client *kubernetes.Clientset, namespace string, labelSelect
 }
 
 // ListServices returns a paginated service list with metadata
-func ListServices(client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*corev1.ServiceList, error) {
+func ListServices(ctx context.Context, client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*corev1.ServiceList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
@@ -46,7 +46,7 @@ func ListServices(client *kubernetes.Clientset, namespace string, limit int64, c
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	return client.CoreV1().Services(namespace).List(context.TODO(), listOpts)
+	return client.CoreV1().Services(namespace).List(ctx, listOpts)
 }
 
 // GetServicesByName
@@ -57,8 +57,8 @@ func ListServices(client *kubernetes.Clientset, namespace string, limit int64, c
 //	@param name
 //	@return *corev1.Service
 //	@return error
-func GetServicesByName(client *kubernetes.Clientset, namespace, name string) (*corev1.Service, error) {
-	service, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetServicesByName(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*corev1.Service, error) {
+	service, err := client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -73,17 +73,17 @@ func GetServicesByName(client *kubernetes.Clientset, namespace, name string) (*c
 //	@param name
 //	@return []map[string]any
 //	@return error
-func GetServiceEvents(client *kubernetes.Clientset, namespace, name string) ([]map[string]any, error) {
+func GetServiceEvents(ctx context.Context, client *kubernetes.Clientset, namespace, name string) ([]map[string]any, error) {
 	selector := fields.AndSelectors(
 		fields.OneTermEqualSelector("involvedObject.name", name),
 		fields.OneTermEqualSelector("involvedObject.kind", "Service"),
 	).String()
-	events, err := client.CoreV1().Events(namespace).List(context.TODO(), metav1.ListOptions{
+	events, err := client.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
 		FieldSelector:   selector,
 		ResourceVersion: "0",
 	})
 	if err != nil {
-		return nil, fmt.Errorf("获取service事件失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取service事件失败", err)
 	}
 	var result []map[string]any
 	for _, event := range events.Items {
@@ -109,8 +109,8 @@ func GetServiceEvents(client *kubernetes.Clientset, namespace, name string) ([]m
 //	@param name
 //	@return string
 //	@return error
-func GetServicesYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
-	services, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetServicesYaml(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (string, error) {
+	services, err := client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -129,14 +129,17 @@ func GetServicesYaml(client *kubernetes.Clientset, namespace, name string) (stri
 //	@param namespace
 //	@param serviceYAML
 //	@return error
-func CreateService(client *kubernetes.Clientset, namespace, serviceYAML string) error {
+func CreateService(ctx context.Context, client *kubernetes.Clientset, namespace, serviceYAML string) error {
 	var service corev1.Service
 	if err := yaml.Unmarshal([]byte(serviceYAML), &service); err != nil {
-		return fmt.Errorf("yaml文件错误:%s", err.Error())
+		return apperr.K8sAPIFail("yaml文件错误", err)
 	}
-	_, err := client.CoreV1().Services(namespace).Create(context.TODO(), &service, metav1.CreateOptions{})
+	if service.Namespace == "" {
+		service.Namespace = namespace
+	}
+	_, err := client.CoreV1().Services(namespace).Create(ctx, &service, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("创建service资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("创建service资源失败", err)
 	}
 	return nil
 }
@@ -148,18 +151,18 @@ func CreateService(client *kubernetes.Clientset, namespace, serviceYAML string) 
 //	@param namespace
 //	@param serviceYAML
 //	@return error
-func UpdateService(client *kubernetes.Clientset, namespace, serviceYAML string) error {
+func UpdateService(ctx context.Context, client *kubernetes.Clientset, namespace, serviceYAML string) error {
 	var service corev1.Service
 	if err := yaml.Unmarshal([]byte(serviceYAML), &service); err != nil {
-		return fmt.Errorf("yaml文件错误:%s", err.Error())
+		return apperr.K8sAPIFail("yaml文件错误", err)
 	}
 	if service.Namespace == "" {
 		service.Namespace = namespace
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest, err := client.CoreV1().Services(service.Namespace).Get(context.TODO(), service.Name, metav1.GetOptions{})
+		latest, err := client.CoreV1().Services(service.Namespace).Get(ctx, service.Name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("获取service资源失败:%s", err.Error())
+			return apperr.K8sAPIFail("获取service资源失败", err)
 		}
 		// 用用户 YAML 的可变字段覆盖最新对象,保留最新 resourceVersion
 		// 注意: ClusterIP 在创建后不可变,不覆盖
@@ -180,9 +183,9 @@ func UpdateService(client *kubernetes.Clientset, namespace, serviceYAML string) 
 		latest.Spec.HealthCheckNodePort = service.Spec.HealthCheckNodePort
 		latest.Labels = service.Labels
 		latest.Annotations = service.Annotations
-		_, err = client.CoreV1().Services(service.Namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
+		_, err = client.CoreV1().Services(service.Namespace).Update(ctx, latest, metav1.UpdateOptions{})
 		if err != nil {
-			return fmt.Errorf("更新service资源失败:%s", err.Error())
+			return apperr.K8sAPIFail("更新service资源失败", err)
 		}
 		return nil
 	})
@@ -195,13 +198,13 @@ func UpdateService(client *kubernetes.Clientset, namespace, serviceYAML string) 
 //	@param namespace
 //	@param name
 //	@return error
-func DeleteService(client *kubernetes.Clientset, namespace, name string) error {
+func DeleteService(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
 	propagation := metav1.DeletePropagationForeground
-	err := client.CoreV1().Services(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{
+	err := client.CoreV1().Services(namespace).Delete(ctx, name, metav1.DeleteOptions{
 		PropagationPolicy: &propagation,
 	})
 	if err != nil {
-		return fmt.Errorf("删除service资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("删除service资源失败", err)
 	}
 	return nil
 }
@@ -214,21 +217,21 @@ func DeleteService(client *kubernetes.Clientset, namespace, name string) error {
 //	@param name
 //	@return *corev1.PodList
 //	@return error
-func ServicePodList(client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
-	svc, err := client.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func ServicePodList(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
+	svc, err := client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("获取service资源失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取service资源失败", err)
 	}
 	if len(svc.Spec.Selector) == 0 {
 		return &corev1.PodList{}, nil
 	}
 	labelSelector := labels.Set(svc.Spec.Selector).AsSelectorPreValidated()
-	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+	podList, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  labelSelector.String(),
 		ResourceVersion: "0",
 	})
 	if err != nil {
-		return nil, fmt.Errorf("获取service关联pod列表失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取service关联pod列表失败", err)
 	}
 	return podList, nil
 }

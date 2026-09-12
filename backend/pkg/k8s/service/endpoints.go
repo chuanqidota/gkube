@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	apperr "gkube/pkg/errors"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,10 +32,10 @@ type EndpointAddress struct {
 
 // GetServiceEndpoints returns the Endpoints object for a given Service,
 // transformed into a simplified structure for the frontend.
-func GetServiceEndpoints(client *kubernetes.Clientset, namespace, name string) ([]EndpointSubset, error) {
-	ep, err := client.CoreV1().Endpoints(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetServiceEndpoints(ctx context.Context, client *kubernetes.Clientset, namespace, name string) ([]EndpointSubset, error) {
+	ep, err := client.CoreV1().Endpoints(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("获取Service Endpoints失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取Service Endpoints失败", err)
 	}
 
 	var subsets []EndpointSubset

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Plus, Delete } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import {
   getStorageClassList,
   getStorageClassYaml,
@@ -14,6 +15,7 @@ import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useClusterStore } from '@/stores/cluster'
 
+const { t } = useI18n()
 const clusterStore = useClusterStore()
 
 const {
@@ -71,10 +73,10 @@ const {
     >
       <template #actions>
         <el-button type="success" @click="$router.push('/storage/storageclasses/create')">
-          <el-icon><Plus /></el-icon> 创建
+          <el-icon><Plus /></el-icon> {{ t('common.create') }}
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})
         </el-button>
       </template>
       <template #extra>
@@ -99,7 +101,12 @@ const {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          prop="name"
+          :label="t('common.name')"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <el-button
               link
@@ -115,25 +122,27 @@ const {
           min-width="200"
           show-overflow-tooltip
         />
-        <el-table-column prop="reclaim_policy" label="回收策略" width="120" />
+        <el-table-column prop="reclaim_policy" :label="t('storage.reclaimPolicy')" width="120" />
         <el-table-column
           prop="volume_binding_mode"
-          label="卷绑定模式"
+          :label="t('storage.volumeBindingMode')"
           width="180"
           show-overflow-tooltip
         />
-        <el-table-column prop="default" label="默认" width="80">
+        <el-table-column prop="default" :label="t('config.default')" width="80">
           <template #default="{ row }">
-            <el-tag v-if="row.default" type="success" size="small">是</el-tag>
+            <el-tag v-if="row.default" type="success" size="small">{{ t('common.yes') }}</el-tag>
             <span v-else>-</span>
           </template>
         </el-table-column>
         <el-table-column prop="age" label="Age" width="120" />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column :label="t('common.actions')" width="160" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{
+                t('common.delete')
+              }}</el-button>
             </div>
           </template>
         </el-table-column>

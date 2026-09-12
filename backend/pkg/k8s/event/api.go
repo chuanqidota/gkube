@@ -35,7 +35,7 @@ type Source struct {
 	Host      string `json:"host,omitempty"`
 }
 
-func ListEvents(client *kubernetes.Clientset, namespace, fieldSelector string, limit int64, continueToken string) ([]KubeEvent, string, string, error) {
+func ListEvents(ctx context.Context, client *kubernetes.Clientset, namespace, fieldSelector string, limit int64, continueToken string) ([]KubeEvent, string, string, error) {
 	opts := metav1.ListOptions{FieldSelector: fieldSelector}
 	if limit > 0 {
 		opts.Limit = limit
@@ -43,7 +43,7 @@ func ListEvents(client *kubernetes.Clientset, namespace, fieldSelector string, l
 	if continueToken != "" {
 		opts.Continue = continueToken
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), eventTimeout)
+	ctx, cancel := context.WithTimeout(ctx, eventTimeout)
 	defer cancel()
 	list, err := client.CoreV1().Events(namespace).List(ctx, opts)
 	if err != nil {

@@ -1,12 +1,13 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/robfig/cron/v3"
+	apperr "gkube/pkg/errors"
 	k8sclient "gkube/pkg/k8s"
 	k8sCronjob "gkube/pkg/k8s/cronjob"
 	"gkube/pkg/logger"
@@ -20,54 +21,29 @@ import (
 // ---------------------------------------------------------------------------
 
 var GetCronJobYaml = NamespacedHandler(
-	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
-		return k8sCronjob.GetCronJobYaml(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sCronjob.GetCronJobYaml(ctx, client, namespace, name)
 	},
-	"执行成功", "获取cronjob yaml失败",
+	"执行成功",
 )
 
 var CreateCronJob = CreateHandler(
-	func(client *kubernetes.Clientset, namespace, yaml string) error {
-		return k8sCronjob.CreateCronJob(client, namespace, yaml)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, yaml string) error {
+		return k8sCronjob.CreateCronJob(ctx, client, namespace, yaml)
 	},
-	"执行成功", "创建cronjob失败",
+	"执行成功",
 )
 
-// UpdateCronJob 更新 —— pkg 函数只传 namespace+yaml（无 name 参数）
-func UpdateCronJob(c *gin.Context) {
-	var body struct {
-		ClusterName string `json:"clusterName" binding:"required"`
-		Namespace   string `json:"namespace"`
-		Yaml        string `json:"yaml" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数校验失败")
-		return
-	}
-	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
-	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
-		return
-	}
-	if err := k8sCronjob.UpdateCronJob(client, body.Namespace, body.Yaml); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "更新cronjob失败")
-		return
-	}
-	response.Success(c, "执行成功", nil)
-}
-
 var DeleteCronJobByName = DeleteHandler(
-	func(client *kubernetes.Clientset, namespace, name string) error {
-		return k8sCronjob.DeleteCronJobByName(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
+		return k8sCronjob.DeleteCronJobByName(ctx, client, namespace, name)
 	},
-	"执行成功", "删除cronjob失败",
+	"执行成功",
 )
 
 var GetCronJobEvents = NamespacedHandler(
-	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
-		events, err := k8sCronjob.GetCronJobEvents(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (any, error) {
+		events, err := k8sCronjob.GetCronJobEvents(ctx, client, namespace, name)
 		if err != nil {
 			return nil, err
 		}
@@ -82,43 +58,64 @@ var GetCronJobEvents = NamespacedHandler(
 		}
 		return result, nil
 	},
-	"执行成功", "获取cronjob事件失败",
+	"执行成功",
 )
 
 var CronJobJobsList = NamespacedHandler(
-	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
-		return k8sCronjob.CronJobJobsList(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sCronjob.CronJobJobsList(ctx, client, namespace, name)
 	},
-	"执行成功", "获取cronjob执行历史失败",
+	"执行成功",
 )
 
 // ---------------------------------------------------------------------------
 // 特殊 handler
 // ---------------------------------------------------------------------------
 
+// UpdateCronJob 更新 —— pkg 函数只传 namespace+yaml（无 name 参数）
+func UpdateCronJob(c *gin.Context) {
+	var body struct {
+		ClusterName string `json:"clusterName" binding:"required"`
+		Namespace   string `json:"namespace"`
+		Yaml        string `json:"yaml" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
+		return
+	}
+	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
+	if err != nil {
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
+		return
+	}
+	if err := k8sCronjob.UpdateCronJob(c.Request.Context(), client, body.Namespace, body.Yaml); err != nil {
+		response.FailWithError(c, ensureAppError(err))
+		return
+	}
+	response.Success(c, "执行成功", nil)
+}
+
 // GetCronJobList 列表 —— 有 limit>0 分支 + augmentCronJob
 func GetCronJobList(c *gin.Context) {
 	var p ListParams
 	if err := c.ShouldBind(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
 	selector, err := buildLabelSelector(p.LabelFilters)
 	if err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	if p.Limit > 0 {
-		cjList, err := k8sCronjob.ListCronJobs(client, p.Namespace, p.Limit, p.Continue, selector)
+		cjList, err := k8sCronjob.ListCronJobs(c.Request.Context(), client, p.Namespace, p.Limit, p.Continue, selector)
 		if err != nil {
-			logger.Error(err.Error())
-			response.FailWithStatus(c, http.StatusBadGateway, "获取cronjob列表失败")
+			response.FailWithError(c, ensureAppError(err))
 			return
 		}
 		augmented := make([]map[string]any, 0, len(cjList.Items))
@@ -133,10 +130,9 @@ func GetCronJobList(c *gin.Context) {
 		data.Total = len(cjList.Items)
 		response.Success(c, "执行成功", data)
 	} else {
-		jobList, err := k8sCronjob.GetCronJobList(client, p.Namespace, selector)
+		jobList, err := k8sCronjob.GetCronJobList(c.Request.Context(), client, p.Namespace, selector)
 		if err != nil {
-			logger.Error(err.Error())
-			response.FailWithStatus(c, http.StatusBadGateway, "获取cronjob列表失败")
+			response.FailWithError(c, ensureAppError(err))
 			return
 		}
 		augmented := make([]map[string]any, 0, len(jobList))
@@ -149,40 +145,38 @@ func GetCronJobList(c *gin.Context) {
 
 // GetCronJobByName 详情 —— NamespacedHandler + augmentCronJob
 var GetCronJobByName = NamespacedHandler(
-	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
-		cj, err := k8sCronjob.GetCronJobByName(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (any, error) {
+		cj, err := k8sCronjob.GetCronJobByName(ctx, client, namespace, name)
 		if err != nil {
 			return nil, err
 		}
 		return augmentCronJob(cj), nil
 	},
-	"执行成功", "获取cronjob失败",
+	"执行成功",
 )
 
-// SuspendCronJob 暂停 —— 原代码用 c.Query()，改为 ShouldBindQuery
+// SuspendCronJob 暂停
 func SuspendCronJob(c *gin.Context) {
 	var p NamespacedParams
 	if err := c.ShouldBindQuery(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	if p.Name == "" {
-		response.Fail(c, "name参数不能为空")
+		response.FailWithError(c, apperr.BadRequest("name参数不能为空", nil))
 		return
 	}
 	if p.ClusterName == "" {
-		response.Fail(c, "clusterName参数不能为空")
+		response.FailWithError(c, apperr.BadRequest("clusterName参数不能为空", nil))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sCronjob.SuspendCronJob(client, p.Namespace, p.Name); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("暂停CronJob失败:%s", err.Error()))
+	if err := k8sCronjob.SuspendCronJob(c.Request.Context(), client, p.Namespace, p.Name); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "暂停CronJob成功", nil)
@@ -192,26 +186,24 @@ func SuspendCronJob(c *gin.Context) {
 func ResumeCronJob(c *gin.Context) {
 	var p NamespacedParams
 	if err := c.ShouldBindQuery(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	if p.Name == "" {
-		response.Fail(c, "name参数不能为空")
+		response.FailWithError(c, apperr.BadRequest("name参数不能为空", nil))
 		return
 	}
 	if p.ClusterName == "" {
-		response.Fail(c, "clusterName参数不能为空")
+		response.FailWithError(c, apperr.BadRequest("clusterName参数不能为空", nil))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sCronjob.ResumeCronJob(client, p.Namespace, p.Name); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("恢复CronJob失败:%s", err.Error()))
+	if err := k8sCronjob.ResumeCronJob(c.Request.Context(), client, p.Namespace, p.Name); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "恢复CronJob成功", nil)
@@ -221,27 +213,25 @@ func ResumeCronJob(c *gin.Context) {
 func TriggerCronJob(c *gin.Context) {
 	var p NamespacedParams
 	if err := c.ShouldBindQuery(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	if p.Name == "" {
-		response.Fail(c, "name参数不能为空")
+		response.FailWithError(c, apperr.BadRequest("name参数不能为空", nil))
 		return
 	}
 	if p.ClusterName == "" {
-		response.Fail(c, "clusterName参数不能为空")
+		response.FailWithError(c, apperr.BadRequest("clusterName参数不能为空", nil))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	job, err := k8sCronjob.TriggerCronJob(client, p.Namespace, p.Name)
+	job, err := k8sCronjob.TriggerCronJob(c.Request.Context(), client, p.Namespace, p.Name)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("触发CronJob失败:%s", err.Error()))
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "触发CronJob成功", job)

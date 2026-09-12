@@ -357,9 +357,13 @@ onMounted(() => {
       <!-- Info view -->
       <div v-show="leftTab === 'info'" class="left-content">
         <el-descriptions :column="1" border size="small">
-          <el-descriptions-item label="名称">{{ service.name }}</el-descriptions-item>
-          <el-descriptions-item label="命名空间">{{ service.namespace }}</el-descriptions-item>
-          <el-descriptions-item label="类型">{{ service.type || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.name')">{{ service.name }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.namespace_label')">{{
+            service.namespace
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.type')">{{
+            service.type || '-'
+          }}</el-descriptions-item>
           <el-descriptions-item label="Cluster IP">{{
             service.clusterIP || '-'
           }}</el-descriptions-item>
@@ -378,7 +382,7 @@ onMounted(() => {
         >
           <h4 style="margin: 0 0 8px; font-size: var(--gk-font-size-sm)">端口映射</h4>
           <el-table :data="service.portList" size="small" border stripe>
-            <el-table-column prop="name" label="名称" width="80">
+            <el-table-column prop="name" :label="t('common.name')" width="80">
               <template #default="{ row }">{{ row.name || '-' }}</template>
             </el-table-column>
             <el-table-column prop="port" label="Port" width="70" align="center" />
@@ -388,7 +392,12 @@ onMounted(() => {
               >
             </el-table-column>
             <el-table-column prop="targetPort" label="TargetPort" width="90" align="center" />
-            <el-table-column prop="protocol" label="协议" width="70" align="center" />
+            <el-table-column
+              prop="protocol"
+              :label="t('network.protocol')"
+              width="70"
+              align="center"
+            />
             <el-table-column
               v-if="showNodePort"
               prop="nodePort"
@@ -429,10 +438,15 @@ onMounted(() => {
           <el-table v-if="endpointRows.length > 0" :data="endpointRows" size="small" stripe>
             <el-table-column prop="ip" label="IP" width="130" />
             <el-table-column prop="port" label="Port" width="70" align="center" />
-            <el-table-column prop="protocol" label="协议" width="65" align="center" />
+            <el-table-column
+              prop="protocol"
+              :label="t('network.protocol')"
+              width="65"
+              align="center"
+            />
             <el-table-column prop="podName" label="Pod" min-width="140" show-overflow-tooltip />
             <el-table-column prop="nodeName" label="Node" min-width="100" show-overflow-tooltip />
-            <el-table-column label="状态" width="75" align="center">
+            <el-table-column :label="t('common.status')" width="75" align="center">
               <template #default="{ row }">
                 <el-tag :type="row.ready ? 'success' : 'warning'" size="small">
                   {{ row.ready ? 'Ready' : 'NotReady' }}

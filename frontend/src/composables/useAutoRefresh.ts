@@ -96,13 +96,31 @@ export function useAutoRefresh(fetchFn: () => Promise<void>, options: AutoRefres
     }
   }
 
-  function refresh() {
+  async function refresh() {
     // 手动刷新优先用 manualFetch（可显示遮罩），否则回退到 fetchFn
     const fn = manualFetch || fetchFn
-    fn().catch((e) => console.warn('[useAutoRefresh] Manual refresh failed:', e))
-    if (isRunning.value) {
-      stop()
-      start()
+    // 停止当前轮询，避免与手动刷新并发
+    if (isRunning.value && pollTimer) {
+      clearTimeout(pollTimer)
+      pollTimer = null
+      if (countdownTimer) {
+        clearInterval(countdownTimer)
+        countdownTimer = null
+      }
+    }
+    try {
+      await fn()
+      consecutiveFailures = 0
+    } catch (e) {
+      consecutiveFailures++
+      console.warn('[useAutoRefresh] Manual refresh failed:', e)
+    } finally {
+      // 手动刷新完成后，恢复轮询计时器
+      if (isRunning.value) {
+        const delay = getEffectiveDelay()
+        pollTimer = setTimeout(pollingTick, delay)
+        startCountdown(delay)
+      }
     }
   }
 

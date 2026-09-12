@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	apperr "gkube/pkg/errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -20,7 +21,7 @@ import (
 )
 
 // ListDeployments returns a paginated deployment list with metadata
-func ListDeployments(client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*appsv1.DeploymentList, error) {
+func ListDeployments(ctx context.Context, client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*appsv1.DeploymentList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
@@ -31,7 +32,7 @@ func ListDeployments(client *kubernetes.Clientset, namespace string, limit int64
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	return client.AppsV1().Deployments(namespace).List(context.TODO(), listOpts)
+	return client.AppsV1().Deployments(namespace).List(ctx, listOpts)
 }
 
 // GetDeploymentYaml
@@ -42,8 +43,8 @@ func ListDeployments(client *kubernetes.Clientset, namespace string, limit int64
 //	@param name
 //	@return string
 //	@return error
-func GetDeploymentYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
-	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetDeploymentYaml(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (string, error) {
+	deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -61,16 +62,16 @@ func GetDeploymentYaml(client *kubernetes.Clientset, namespace, name string) (st
 //	@param namespace
 //	@param deploymentYaml
 //	@return error
-func CreateDeployment(client *kubernetes.Clientset, namespace string, deploymentYaml string) error {
+func CreateDeployment(ctx context.Context, client *kubernetes.Clientset, namespace string, deploymentYaml string) error {
 	var deployment *appsv1.Deployment
 	if err := yaml.Unmarshal([]byte(deploymentYaml), &deployment); err != nil {
-		return fmt.Errorf("yaml文件错误:%s", err.Error())
+		return apperr.BadRequest("yaml解析失败", err)
 	}
 	// 以 handler 传入的 namespace 为准，避免 YAML 内 metadata.namespace 与之不符时静默落到别处
 	deployment.Namespace = namespace
-	_, err := client.AppsV1().Deployments(namespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
+	_, err := client.AppsV1().Deployments(namespace).Create(ctx, deployment, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("创建deployment资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("创建deployment资源失败", err)
 	}
 	return nil
 }
@@ -83,32 +84,32 @@ func CreateDeployment(client *kubernetes.Clientset, namespace string, deployment
 //	@param name
 //	@param deploymentYaml
 //	@return error
-func UpdateDeployment(client *kubernetes.Clientset, namespace, name, deploymentYaml string) error {
+func UpdateDeployment(ctx context.Context, client *kubernetes.Clientset, namespace, name, deploymentYaml string) error {
 	var deployment *appsv1.Deployment
 	if err := yaml.Unmarshal([]byte(deploymentYaml), &deployment); err != nil {
-		return fmt.Errorf("yaml文件错误:%s", err.Error())
+		return apperr.BadRequest("yaml解析失败", err)
 	}
 	// 校验 YAML 中的名称与请求指定的一致，避免误更新同名空间下的其他资源
 	if deployment.Name != name {
-		return fmt.Errorf("资源名称不匹配: 请求指定 %s, YAML 中为 %s", name, deployment.Name)
+		return apperr.BadRequest("资源名称不匹配", fmt.Errorf("请求指定 %s, YAML 中为 %s", name, deployment.Name))
 	}
 	deployment.Namespace = namespace
 	// 冲突时自动重试(参照 pod UpdatePod / deployment restart/scale 的 RetryOnConflict 模式)。
 	// 闭包内 re-Get 最新对象(带新 resourceVersion),再用用户 YAML 的 spec 覆盖后 Update,
 	// 否则重试会发同一个过期 resourceVersion 持续 409 直到 backoff 耗尽(死重试)。
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		latest, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("获取deployment资源失败:%s", err.Error())
+			return apperr.K8sAPIFail("获取deployment资源失败", err)
 		}
 		// 用用户 YAML 的 spec 与可变 metadata 覆盖最新对象,保留最新 resourceVersion
 		latest.Spec = deployment.Spec
 		latest.Labels = deployment.Labels
 		latest.Annotations = deployment.Annotations
-		_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
+		_, err = client.AppsV1().Deployments(namespace).Update(ctx, latest, metav1.UpdateOptions{})
 		return err
 	}); err != nil {
-		return fmt.Errorf("更新deployment资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("更新deployment资源失败", err)
 	}
 	return nil
 }
@@ -120,13 +121,13 @@ func UpdateDeployment(client *kubernetes.Clientset, namespace, name, deploymentY
 //	@param namespace
 //	@param name
 //	@return error
-func DeleteDeployment(client *kubernetes.Clientset, namespace, name string) error {
+func DeleteDeployment(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
 	propagation := metav1.DeletePropagationForeground
-	err := client.AppsV1().Deployments(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{
+	err := client.AppsV1().Deployments(namespace).Delete(ctx, name, metav1.DeleteOptions{
 		PropagationPolicy: &propagation,
 	})
 	if err != nil {
-		return fmt.Errorf("删除deployment资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("删除deployment资源失败", err)
 	}
 	return nil
 }
@@ -139,14 +140,14 @@ func DeleteDeployment(client *kubernetes.Clientset, namespace, name string) erro
 //	@param name
 //	@param replicas
 //	@return error
-func ScaleDeployment(client *kubernetes.Clientset, namespace, name string, replicas *int32) error {
+func ScaleDeployment(ctx context.Context, client *kubernetes.Clientset, namespace, name string, replicas *int32) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("获取deployment资源失败:%s", err.Error())
+			return apperr.K8sAPIFail("获取deployment资源失败", err)
 		}
 		deployment.Spec.Replicas = replicas
-		_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+		_, err = client.AppsV1().Deployments(namespace).Update(ctx, deployment, metav1.UpdateOptions{})
 		// 返回原始 err，以便 RetryOnConflict 识别 409 Conflict 自动重试
 		return err
 	})
@@ -159,18 +160,18 @@ func ScaleDeployment(client *kubernetes.Clientset, namespace, name string, repli
 //	@param namespace
 //	@param name
 //	@return error
-func RestartDeployment(client *kubernetes.Clientset, namespace, name string) error {
+func RestartDeployment(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("获取deployment资源失败:%s", err.Error())
+			return apperr.K8sAPIFail("获取deployment资源失败", err)
 		}
 		// 合并而非覆盖：保留 pod 模板上已有的运维注解
 		if deployment.Spec.Template.Annotations == nil {
 			deployment.Spec.Template.Annotations = map[string]string{}
 		}
 		deployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.DateTime)
-		_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+		_, err = client.AppsV1().Deployments(namespace).Update(ctx, deployment, metav1.UpdateOptions{})
 		return err
 	})
 }
@@ -184,11 +185,11 @@ func RestartDeployment(client *kubernetes.Clientset, namespace, name string) err
 //	@param containerName
 //	@param image
 //	@return error
-func UpdateDeploymentImage(client *kubernetes.Clientset, namespace, name, containerName, image string) error {
+func UpdateDeploymentImage(ctx context.Context, client *kubernetes.Clientset, namespace, name, containerName, image string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("获取deployment资源失败:%s", err.Error())
+			return apperr.K8sAPIFail("获取deployment资源失败", err)
 		}
 		found := false
 		for i, container := range deployment.Spec.Template.Spec.Containers {
@@ -199,9 +200,9 @@ func UpdateDeploymentImage(client *kubernetes.Clientset, namespace, name, contai
 			}
 		}
 		if !found {
-			return fmt.Errorf("容器 %s 不存在", containerName)
+			return apperr.BadRequest("容器不存在", fmt.Errorf("容器 %s 不存在", containerName))
 		}
-		_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+		_, err = client.AppsV1().Deployments(namespace).Update(ctx, deployment, metav1.UpdateOptions{})
 		return err
 	})
 }
@@ -214,10 +215,10 @@ func UpdateDeploymentImage(client *kubernetes.Clientset, namespace, name, contai
 //	@param name
 //	@return *appsv1.Deployment
 //	@return error
-func GetDeploymentDetail(client *kubernetes.Clientset, namespace, name string) (*appsv1.Deployment, error) {
-	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetDeploymentDetail(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*appsv1.Deployment, error) {
+	deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("获取deployment详情失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取deployment详情失败", err)
 	}
 	return deployment, nil
 }
@@ -230,30 +231,30 @@ func GetDeploymentDetail(client *kubernetes.Clientset, namespace, name string) (
 //	@param name
 //	@param revision
 //	@return error
-func RollbackDeployment(client *kubernetes.Clientset, namespace, name string, revision int64) error {
+func RollbackDeployment(ctx context.Context, client *kubernetes.Clientset, namespace, name string, revision int64) error {
 	// 先取 deployment 的 selector 用于查找 ReplicaSet（不参与冲突重试）
-	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("获取deployment资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("获取deployment资源失败", err)
 	}
 
 	// 用完整 selector(matchLabels + matchExpressions) 查找 RS,nil/空 selector 时中止避免误列
 	if deployment.Spec.Selector == nil {
-		return fmt.Errorf("deployment selector 为空,无法定位关联 ReplicaSet")
+		return apperr.BadRequest("deployment selector 为空,无法定位关联 ReplicaSet", nil)
 	}
 	selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
 	if err != nil {
-		return fmt.Errorf("解析deployment selector失败:%s", err.Error())
+		return apperr.K8sAPIFail("解析deployment selector失败", err)
 	}
 	if selector.Empty() {
-		return fmt.Errorf("deployment selector 为空,无法定位关联 ReplicaSet")
+		return apperr.BadRequest("deployment selector 为空,无法定位关联 ReplicaSet", nil)
 	}
-	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), metav1.ListOptions{
+	rsList, err := client.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  selector.String(),
 		ResourceVersion: "0",
 	})
 	if err != nil {
-		return fmt.Errorf("获取ReplicaSet列表失败:%s", err.Error())
+		return apperr.K8sAPIFail("获取ReplicaSet列表失败", err)
 	}
 
 	// Find the target ReplicaSet with matching revision
@@ -267,22 +268,22 @@ func RollbackDeployment(client *kubernetes.Clientset, namespace, name string, re
 	}
 
 	if targetRS == nil {
-		return fmt.Errorf("未找到 revision %d 对应的ReplicaSet", revision)
+		return apperr.BadRequest("未找到对应的ReplicaSet", fmt.Errorf("revision %d 不存在", revision))
 	}
 
 	// 用目标 RS 的模板覆盖 deployment 模板，冲突时自动重试
 	newTemplate := targetRS.Spec.Template
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		d, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		d, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("获取deployment资源失败:%s", err.Error())
+			return apperr.K8sAPIFail("获取deployment资源失败", err)
 		}
 		d.Spec.Template = newTemplate
-		_, err = client.AppsV1().Deployments(namespace).Update(context.TODO(), d, metav1.UpdateOptions{})
+		_, err = client.AppsV1().Deployments(namespace).Update(ctx, d, metav1.UpdateOptions{})
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("回滚deployment失败:%s", err.Error())
+		return apperr.K8sAPIFail("回滚deployment失败", err)
 	}
 	return nil
 }
@@ -295,10 +296,10 @@ func RollbackDeployment(client *kubernetes.Clientset, namespace, name string, re
 //	@param name
 //	@return *corev1.PodList
 //	@return error
-func GetDeploymentPods(client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
-	deployment, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetDeploymentPods(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
+	deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("获取deployment资源失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取deployment资源失败", err)
 	}
 	// 用完整 selector(matchLabels + matchExpressions),nil/空 selector 时返回空列表避免误列全部 Pod
 	if deployment.Spec.Selector == nil {
@@ -306,26 +307,26 @@ func GetDeploymentPods(client *kubernetes.Clientset, namespace, name string) (*c
 	}
 	selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
 	if err != nil {
-		return nil, fmt.Errorf("解析deployment selector失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("解析deployment selector失败", err)
 	}
 	if selector.Empty() {
 		return &corev1.PodList{Items: []corev1.Pod{}}, nil
 	}
-	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+	podList, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  selector.String(),
 		ResourceVersion: "0",
 	})
 	if err != nil {
-		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取pod资源失败", err)
 	}
 	return podList, nil
 }
 
 // GetDeploymentReplicaSets returns all ReplicaSets owned by a Deployment
-func GetDeploymentReplicaSets(client *kubernetes.Clientset, namespace, name string) ([]appsv1.ReplicaSet, error) {
-	deploy, err := client.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetDeploymentReplicaSets(ctx context.Context, client *kubernetes.Clientset, namespace, name string) ([]appsv1.ReplicaSet, error) {
+	deploy, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("获取deployment资源失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取deployment资源失败", err)
 	}
 
 	// 用完整 selector(matchLabels + matchExpressions),nil/空 selector 时返回空列表避免误列全部 RS
@@ -334,17 +335,17 @@ func GetDeploymentReplicaSets(client *kubernetes.Clientset, namespace, name stri
 	}
 	selector, err := metav1.LabelSelectorAsSelector(deploy.Spec.Selector)
 	if err != nil {
-		return nil, fmt.Errorf("解析deployment selector失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("解析deployment selector失败", err)
 	}
 	if selector.Empty() {
 		return []appsv1.ReplicaSet{}, nil
 	}
-	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), metav1.ListOptions{
+	rsList, err := client.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  selector.String(),
 		ResourceVersion: "0",
 	})
 	if err != nil {
-		return nil, fmt.Errorf("获取ReplicaSet列表失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取ReplicaSet列表失败", err)
 	}
 
 	// Sort by revision annotation (descending)
@@ -369,14 +370,14 @@ func getRevision(rs *appsv1.ReplicaSet) int64 {
 
 // GetDeploymentEvents returns the events associated with a Deployment.
 // 复用 event 包返回结构化 KubeEvent(与 Pod events 形态一致),用 fields.Selector 防注入。
-func GetDeploymentEvents(client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
+func GetDeploymentEvents(ctx context.Context, client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
 	selector := fields.AndSelectors(
 		fields.OneTermEqualSelector("involvedObject.name", name),
 		fields.OneTermEqualSelector("involvedObject.kind", "Deployment"),
 	).String()
-	events, _, _, err := k8sEvent.ListEvents(client, namespace, selector, 0, "")
+	events, _, _, err := k8sEvent.ListEvents(ctx, client, namespace, selector, 0, "")
 	if err != nil {
-		return nil, fmt.Errorf("获取deployment事件失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取deployment事件失败", err)
 	}
 	return events, nil
 }

@@ -1,8 +1,8 @@
 package volumesnapshot
 
 import (
-	"gkube/pkg/yamlutil"
 	"context"
+	"gkube/pkg/yamlutil"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,7 +26,7 @@ var VolumeSnapshotGVR = schema.GroupVersionResource{
 //	@param namespace
 //	@return []unstructured.Unstructured
 //	@return error
-func GetVolumeSnapshotList(client dynamic.Interface, namespace string, labelSelector string) ([]unstructured.Unstructured, error) {
+func GetVolumeSnapshotList(ctx context.Context, client dynamic.Interface, namespace string, labelSelector string) ([]unstructured.Unstructured, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
@@ -34,9 +34,9 @@ func GetVolumeSnapshotList(client dynamic.Interface, namespace string, labelSele
 	var result *unstructured.UnstructuredList
 	var err error
 	if namespace != "" {
-		result, err = client.Resource(VolumeSnapshotGVR).Namespace(namespace).List(context.TODO(), listOpts)
+		result, err = client.Resource(VolumeSnapshotGVR).Namespace(namespace).List(ctx, listOpts)
 	} else {
-		result, err = client.Resource(VolumeSnapshotGVR).List(context.TODO(), listOpts)
+		result, err = client.Resource(VolumeSnapshotGVR).List(ctx, listOpts)
 	}
 	if err != nil {
 		return nil, err
@@ -52,8 +52,8 @@ func GetVolumeSnapshotList(client dynamic.Interface, namespace string, labelSele
 //	@param name
 //	@return *unstructured.Unstructured
 //	@return error
-func GetVolumeSnapshotByName(client dynamic.Interface, namespace, name string) (*unstructured.Unstructured, error) {
-	obj, err := client.Resource(VolumeSnapshotGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetVolumeSnapshotByName(ctx context.Context, client dynamic.Interface, namespace, name string) (*unstructured.Unstructured, error) {
+	obj, err := client.Resource(VolumeSnapshotGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +68,8 @@ func GetVolumeSnapshotByName(client dynamic.Interface, namespace, name string) (
 //	@param name
 //	@return string
 //	@return error
-func GetVolumeSnapshotYaml(client dynamic.Interface, namespace, name string) (string, error) {
-	obj, err := client.Resource(VolumeSnapshotGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetVolumeSnapshotYaml(ctx context.Context, client dynamic.Interface, namespace, name string) (string, error) {
+	obj, err := client.Resource(VolumeSnapshotGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -87,13 +87,13 @@ func GetVolumeSnapshotYaml(client dynamic.Interface, namespace, name string) (st
 //	@param namespace
 //	@param yamlContent
 //	@return error
-func CreateVolumeSnapshot(client dynamic.Interface, namespace, yamlContent string) error {
+func CreateVolumeSnapshot(ctx context.Context, client dynamic.Interface, namespace, yamlContent string) error {
 	obj := make(map[string]any)
 	if err := yaml.Unmarshal([]byte(yamlContent), &obj); err != nil {
 		return fmt.Errorf("YAML解析错误: %w", err)
 	}
 	unstructuredObj := &unstructured.Unstructured{Object: obj}
-	_, err := client.Resource(VolumeSnapshotGVR).Namespace(namespace).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
+	_, err := client.Resource(VolumeSnapshotGVR).Namespace(namespace).Create(ctx, unstructuredObj, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func CreateVolumeSnapshot(client dynamic.Interface, namespace, yamlContent strin
 //	@param namespace
 //	@param yamlContent
 //	@return error
-func UpdateVolumeSnapshot(client dynamic.Interface, namespace, yamlContent string) error {
+func UpdateVolumeSnapshot(ctx context.Context, client dynamic.Interface, namespace, yamlContent string) error {
 	obj := make(map[string]any)
 	if err := yaml.Unmarshal([]byte(yamlContent), &obj); err != nil {
 		return fmt.Errorf("YAML解析错误: %w", err)
@@ -117,13 +117,13 @@ func UpdateVolumeSnapshot(client dynamic.Interface, namespace, yamlContent strin
 		return fmt.Errorf("metadata.name is required")
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest, err := client.Resource(VolumeSnapshotGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		latest, err := client.Resource(VolumeSnapshotGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		unstructuredObj := &unstructured.Unstructured{Object: obj}
 		unstructuredObj.SetResourceVersion(latest.GetResourceVersion())
-		_, err = client.Resource(VolumeSnapshotGVR).Namespace(namespace).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
+		_, err = client.Resource(VolumeSnapshotGVR).Namespace(namespace).Update(ctx, unstructuredObj, metav1.UpdateOptions{})
 		return err
 	})
 }
@@ -135,6 +135,6 @@ func UpdateVolumeSnapshot(client dynamic.Interface, namespace, yamlContent strin
 //	@param namespace
 //	@param name
 //	@return error
-func DeleteVolumeSnapshotByName(client dynamic.Interface, namespace, name string) error {
-	return client.Resource(VolumeSnapshotGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+func DeleteVolumeSnapshotByName(ctx context.Context, client dynamic.Interface, namespace, name string) error {
+	return client.Resource(VolumeSnapshotGVR).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }

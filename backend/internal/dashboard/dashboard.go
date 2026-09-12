@@ -511,7 +511,11 @@ var abnormalWaitingReasons = map[string]bool{
 	"CreateContainerConfigError": true,
 	"CreateContainerError":       true,
 	"RunContainerError":          true,
-	"OOMKilled":                  true,
+}
+
+// 异常容器 terminated reason 集合（OOMKilled 属于终止态，不走 Waiting 分支）。
+var abnormalTerminatedReasons = map[string]bool{
+	"OOMKilled": true,
 }
 
 // Health 获取集群健康快照
@@ -597,6 +601,12 @@ func (d *dashboard) Health(c *gin.Context) {
 						abnormal = true
 						if reason == "" {
 							reason = cs.State.Waiting.Reason
+						}
+					}
+					if cs.State.Terminated != nil && abnormalTerminatedReasons[cs.State.Terminated.Reason] {
+						abnormal = true
+						if reason == "" {
+							reason = cs.State.Terminated.Reason
 						}
 					}
 					if cs.RestartCount >= int32(getRestartThreshold()) {

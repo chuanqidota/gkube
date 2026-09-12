@@ -89,7 +89,7 @@ function handleViewYaml(row: any) {
 async function handleViewData(row: any) {
   dataLoading.value = true
   dataDialogVisible.value = true
-  dataDialogTitle.value = `数据字典: ${row.name}`
+  dataDialogTitle.value = t('config.configMapTitle', { name: row.name })
   dataEntries.value = []
   try {
     const res: any = await getConfigMapDetail({ name: row.name, namespace: row.namespace })
@@ -115,8 +115,8 @@ function handleDetail(row: any) {
 async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(
-      `确定要删除命名空间 "${row.namespace}" 中的数据字典 "${row.name}" 吗？`,
-      '确认',
+      t('config.deleteConfigMapConfirm', { name: row.name, namespace: row.namespace }),
+      t('common.confirm'),
       { type: 'warning' },
     )
     await deleteConfigMap({ name: row.name, namespace: row.namespace })
@@ -131,8 +131,11 @@ async function handleBatchDelete() {
   if (!selectedRows.value.length) return
   try {
     await ElMessageBox.confirm(
-      `确定要删除选中的 ${selectedRows.value.length} 个数据字典吗？`,
-      '确认',
+      t('common.batchDeleteConfirm', {
+        count: selectedRows.value.length,
+        type: t('config.configmap'),
+      }),
+      t('common.confirm'),
       { type: 'warning' },
     )
     const results = await Promise.allSettled(
@@ -146,7 +149,7 @@ async function handleBatchDelete() {
       t('config.batchDeleteResult', {
         count,
         type: t('config.configmap'),
-        failed: failed ? `，${failed} 个失败` : '',
+        failed: failed ? t('common.batchDeletePartialFailed', { success: count, failed }) : '',
       }),
     )
     fetchConfigMaps()
@@ -188,10 +191,10 @@ onMounted(() => {
     >
       <template #actions>
         <el-button type="success" @click="router.push('/config/configmaps/create')">
-          <el-icon><Plus /></el-icon> 创建
+          <el-icon><Plus /></el-icon> {{ t('common.create') }}
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})
         </el-button>
       </template>
       <template #extra>
@@ -215,15 +218,20 @@ onMounted(() => {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          prop="name"
+          :label="t('common.name')"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }"
             ><el-button link type="primary" @click="handleDetail(row)">{{
               row.name
             }}</el-button></template
           >
         </el-table-column>
-        <el-table-column prop="namespace" label="命名空间" width="140" />
-        <el-table-column label="标签" min-width="180" show-overflow-tooltip>
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
+        <el-table-column :label="t('common.labels')" min-width="180" show-overflow-tooltip>
           <template #default="{ row }">
             <template v-if="row.labels && Object.keys(row.labels).length">
               <el-tag
@@ -247,20 +255,22 @@ onMounted(() => {
             <span v-else class="no-labels">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="数据键数量" width="120">
+        <el-table-column :label="t('config.dataKeys')" width="120">
           <template #default="{ row }"
             ><el-tag size="small">{{ row.data_keys_count }}</el-tag></template
           >
         </el-table-column>
-        <el-table-column prop="age" label="创建时间" width="120" />
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column prop="age" :label="t('common.creationTime')" width="120" />
+        <el-table-column :label="t('common.actions')" width="240" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-              <el-button size="small" type="primary" @click="handleViewData(row)"
-                >查看数据</el-button
-              >
-              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" type="primary" @click="handleViewData(row)">{{
+                t('config.viewData')
+              }}</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{
+                t('common.delete')
+              }}</el-button>
             </div>
           </template>
         </el-table-column>

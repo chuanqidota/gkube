@@ -2,7 +2,7 @@ package pvc
 
 import (
 	"context"
-	"fmt"
+	apperr "gkube/pkg/errors"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,12 +22,12 @@ import (
 //	@param namespace
 //	@return []corev1.PersistentVolumeClaim
 //	@return error
-func GetPVCList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]corev1.PersistentVolumeClaim, error) {
+func GetPVCList(ctx context.Context, client *kubernetes.Clientset, namespace string, labelSelector string) ([]corev1.PersistentVolumeClaim, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	result, err := client.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), listOpts)
+	result, err := client.CoreV1().PersistentVolumeClaims(namespace).List(ctx, listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -41,11 +41,11 @@ func GetPVCList(client *kubernetes.Clientset, namespace string, labelSelector st
 //	@param storageClassName
 //	@return []corev1.PersistentVolumeClaim
 //	@return error
-func GetPVCListByStorageClass(client *kubernetes.Clientset, storageClassName string) ([]corev1.PersistentVolumeClaim, error) {
+func GetPVCListByStorageClass(ctx context.Context, client *kubernetes.Clientset, storageClassName string) ([]corev1.PersistentVolumeClaim, error) {
 	fieldSelector := fields.SelectorFromSet(map[string]string{
 		"spec.storageClassName": storageClassName,
 	})
-	pvcList, err := client.CoreV1().PersistentVolumeClaims("").List(context.Background(), metav1.ListOptions{
+	pvcList, err := client.CoreV1().PersistentVolumeClaims("").List(ctx, metav1.ListOptions{
 		FieldSelector:  fieldSelector.String(),
 		ResourceVersion: "0",
 	})
@@ -63,8 +63,8 @@ func GetPVCListByStorageClass(client *kubernetes.Clientset, storageClassName str
 //	@param name
 //	@return *corev1.PersistentVolumeClaim
 //	@return error
-func GetPVCByName(client *kubernetes.Clientset, namespace, name string) (*corev1.PersistentVolumeClaim, error) {
-	pvc, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), name, metav1.GetOptions{})
+func GetPVCByName(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*corev1.PersistentVolumeClaim, error) {
+	pvc, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -79,9 +79,9 @@ func GetPVCByName(client *kubernetes.Clientset, namespace, name string) (*corev1
 //	@param labelMap
 //	@return []corev1.PersistentVolumeClaim
 //	@return error
-func GetPVCByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]corev1.PersistentVolumeClaim, error) {
+func GetPVCByLabel(ctx context.Context, client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]corev1.PersistentVolumeClaim, error) {
 	labelSelector := labels.SelectorFromSet(labelMap)
-	pvcList, err := client.CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), metav1.ListOptions{
+	pvcList, err := client.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  labelSelector.String(),
 		ResourceVersion: "0",
 	})
@@ -99,9 +99,9 @@ func GetPVCByLabel(client *kubernetes.Clientset, namespace string, labelMap map[
 //	@param fieldMap
 //	@return []corev1.PersistentVolumeClaim
 //	@return error
-func GetPVCByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]corev1.PersistentVolumeClaim, error) {
+func GetPVCByField(ctx context.Context, client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]corev1.PersistentVolumeClaim, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
-	pvcList, err := client.CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), metav1.ListOptions{
+	pvcList, err := client.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{
 		FieldSelector:  fieldSelector.String(),
 		ResourceVersion: "0",
 	})
@@ -119,8 +119,8 @@ func GetPVCByField(client *kubernetes.Clientset, namespace string, fieldMap map[
 //	@param name
 //	@return string
 //	@return error
-func GetPVCYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
-	pvc, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), name, metav1.GetOptions{})
+func GetPVCYaml(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (string, error) {
+	pvc, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -138,14 +138,14 @@ func GetPVCYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 //	@param namespace
 //	@param pvcYaml
 //	@return error
-func CreatePVC(client *kubernetes.Clientset, namespace, pvcYaml string) error {
+func CreatePVC(ctx context.Context, client *kubernetes.Clientset, namespace, pvcYaml string) error {
 	var pvc corev1.PersistentVolumeClaim
 	if err := yaml.Unmarshal([]byte(pvcYaml), &pvc); err != nil {
-		return fmt.Errorf("yaml文件错误:%s", err.Error())
+		return apperr.K8sAPIFail("yaml文件错误", err)
 	}
-	_, err := client.CoreV1().PersistentVolumeClaims(namespace).Create(context.Background(), &pvc, metav1.CreateOptions{})
+	_, err := client.CoreV1().PersistentVolumeClaims(namespace).Create(ctx, &pvc, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("创建pvc资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("创建pvc资源失败", err)
 	}
 	return nil
 }
@@ -157,20 +157,20 @@ func CreatePVC(client *kubernetes.Clientset, namespace, pvcYaml string) error {
 //	@param namespace
 //	@param pvcYaml
 //	@return error
-func UpdatePVC(client *kubernetes.Clientset, namespace, pvcYaml string) error {
+func UpdatePVC(ctx context.Context, client *kubernetes.Clientset, namespace, pvcYaml string) error {
 	var pvc corev1.PersistentVolumeClaim
 	if err := yaml.Unmarshal([]byte(pvcYaml), &pvc); err != nil {
-		return fmt.Errorf("yaml文件错误:%s", err.Error())
+		return apperr.K8sAPIFail("yaml文件错误", err)
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvc.Name, metav1.GetOptions{})
+		latest, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvc.Name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("获取PVC资源失败:%s", err.Error())
+			return apperr.K8sAPIFail("获取PVC资源失败", err)
 		}
 		// PVC 的 resources/storageClassName/volumeName/selector/volumeMode 不可变,只更新可变字段
 		latest.Labels = pvc.Labels
 		latest.Annotations = pvc.Annotations
-		_, err = client.CoreV1().PersistentVolumeClaims(namespace).Update(context.Background(), latest, metav1.UpdateOptions{})
+		_, err = client.CoreV1().PersistentVolumeClaims(namespace).Update(ctx, latest, metav1.UpdateOptions{})
 		return err
 	})
 }
@@ -182,8 +182,8 @@ func UpdatePVC(client *kubernetes.Clientset, namespace, pvcYaml string) error {
 //	@param namespace
 //	@param name
 //	@return error
-func DeletePVCByName(client *kubernetes.Clientset, namespace, name string) error {
-	err := client.CoreV1().PersistentVolumeClaims(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+func DeletePVCByName(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
+	err := client.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -197,9 +197,9 @@ func DeletePVCByName(client *kubernetes.Clientset, namespace, name string) error
 //	@param namespace
 //	@param labelMap
 //	@return error
-func DeletePVCByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
+func DeletePVCByLabel(ctx context.Context, client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
 	labelSelector := labels.SelectorFromSet(labelMap)
-	err := client.CoreV1().PersistentVolumeClaims(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
+	err := client.CoreV1().PersistentVolumeClaims(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
 	if err != nil {
@@ -215,9 +215,9 @@ func DeletePVCByLabel(client *kubernetes.Clientset, namespace string, labelMap m
 //	@param namespace
 //	@param fieldMap
 //	@return error
-func DeletePVCByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) error {
+func DeletePVCByField(ctx context.Context, client *kubernetes.Clientset, namespace string, fieldMap map[string]string) error {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
-	err := client.CoreV1().PersistentVolumeClaims(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
+	err := client.CoreV1().PersistentVolumeClaims(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {

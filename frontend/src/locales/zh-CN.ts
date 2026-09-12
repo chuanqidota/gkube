@@ -140,6 +140,7 @@ export default {
     restartFailed: '重启失败',
     scaleSuccess: '扩缩容成功',
     scaleFailed: '扩缩容失败',
+    clone: '克隆',
     cloneSuccess: '克隆成功',
     cloneFailed: '克隆失败',
     importSuccess: '导入成功',
@@ -567,6 +568,7 @@ export default {
     status: '状态',
     // PV
     pvTitle: '持久卷: {name}',
+    storageClass: '存储类',
     storageClassName: '存储类名称',
     volumeMode: '卷模式',
     claimReference: '声明引用',

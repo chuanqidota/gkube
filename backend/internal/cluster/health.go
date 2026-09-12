@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -9,8 +11,7 @@ import (
 	"gkube/pkg/auth"
 	"gkube/pkg/database"
 	"gkube/pkg/k8s"
-
-	"github.com/sirupsen/logrus"
+	"gkube/pkg/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -53,12 +54,12 @@ func (hc *HealthChecker) Start() {
 			case <-ticker.C:
 				hc.checkAll()
 			case <-hc.stopCh:
-				logrus.Info("HealthChecker stopped")
+				logger.Info("HealthChecker stopped")
 				return
 			}
 		}
 	}()
-	logrus.Infof("HealthChecker started with interval %s", hc.interval)
+	logger.Info(fmt.Sprintf("HealthChecker started with interval %s", hc.interval))
 }
 
 // Stop signals the background goroutine to exit. Safe to call multiple times.
@@ -81,7 +82,7 @@ func (hc *HealthChecker) checkAll() {
 
 	var clusters []model.K8SCluster
 	if err := database.DB.Find(&clusters).Error; err != nil {
-		logrus.Errorf("HealthChecker: failed to query clusters: %v", err)
+		logger.Error(fmt.Sprintf("HealthChecker: failed to query clusters: %v", err))
 		return
 	}
 
@@ -123,7 +124,7 @@ func (hc *HealthChecker) checkOne(cluster model.K8SCluster) {
 	// Decrypt kubeconfig.
 	kubeconfig, err := auth.DecryptAES(cluster.KubeConfig)
 	if err != nil {
-		logrus.Errorf("HealthChecker: cluster %s decrypt kubeconfig failed: %v", cluster.ClusterName, err)
+		logger.Error(fmt.Sprintf("HealthChecker: cluster %s decrypt kubeconfig failed: %v", cluster.ClusterName, err))
 		hc.updateStatus(cluster.ID, "offline", "", 0, now)
 		return
 	}
@@ -131,46 +132,38 @@ func (hc *HealthChecker) checkOne(cluster model.K8SCluster) {
 	// Create k8s client.
 	clientset, err := k8s.GetK8sClient(kubeconfig)
 	if err != nil {
-		logrus.Errorf("HealthChecker: cluster %s get k8s client failed: %v", cluster.ClusterName, err)
+		logger.Error(fmt.Sprintf("HealthChecker: cluster %s get k8s client failed: %v", cluster.ClusterName, err))
 		hc.updateStatus(cluster.ID, "offline", "", 0, now)
 		return
 	}
 
 	// Get server version with context-bound timeout.
-	versionCh := make(chan string, 1)
-	errCh := make(chan error, 1)
-	go func() {
-		v, err := clientset.Discovery().ServerVersion()
-		if err != nil {
-			errCh <- err
-			return
-		}
-		versionCh <- v.GitVersion
-	}()
-
-	var version string
-	select {
-	case v := <-versionCh:
-		version = v
-	case err := <-errCh:
-		logrus.Errorf("HealthChecker: cluster %s get server version failed: %v", cluster.ClusterName, err)
-		hc.updateStatus(cluster.ID, "offline", "", 0, now)
-		return
-	case <-ctx.Done():
-		logrus.Errorf("HealthChecker: cluster %s get server version timed out", cluster.ClusterName)
+	// 使用 RESTClient 以支持 ctx 取道，避免 goroutine 泄漏。
+	body, err := clientset.RESTClient().Get().AbsPath("/version").Do(ctx).Raw()
+	if err != nil {
+		logger.Error(fmt.Sprintf("HealthChecker: cluster %s get server version failed: %v", cluster.ClusterName, err))
 		hc.updateStatus(cluster.ID, "offline", "", 0, now)
 		return
 	}
+	var versionInfo struct {
+		GitVersion string `json:"gitVersion"`
+	}
+	if err := json.Unmarshal(body, &versionInfo); err != nil {
+		logger.Error(fmt.Sprintf("HealthChecker: cluster %s parse version failed: %v", cluster.ClusterName, err))
+		hc.updateStatus(cluster.ID, "offline", "", 0, now)
+		return
+	}
+	version := versionInfo.GitVersion
 
 	// Get node count.
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		logrus.Errorf("HealthChecker: cluster %s list nodes failed: %v", cluster.ClusterName, err)
+		logger.Error(fmt.Sprintf("HealthChecker: cluster %s list nodes failed: %v", cluster.ClusterName, err))
 		hc.updateStatus(cluster.ID, "offline", "", 0, now)
 		return
 	}
 
-	logrus.Infof("HealthChecker: cluster %s is online (version=%s, nodes=%d)", cluster.ClusterName, version, len(nodes.Items))
+	logger.Info(fmt.Sprintf("HealthChecker: cluster %s is online (version=%s, nodes=%d)", cluster.ClusterName, version, len(nodes.Items)))
 	hc.updateStatus(cluster.ID, "online", version, len(nodes.Items), now)
 }
 
@@ -183,6 +176,6 @@ func (hc *HealthChecker) updateStatus(id uint, status, clusterVersion string, no
 		"last_health_check": lastCheck,
 	}
 	if err := database.DB.Model(&model.K8SCluster{}).Where("id = ?", id).Updates(updates).Error; err != nil {
-		logrus.Errorf("HealthChecker: failed to update cluster %d status: %v", id, err)
+		logger.Error(fmt.Sprintf("HealthChecker: failed to update cluster %d status: %v", id, err))
 	}
 }

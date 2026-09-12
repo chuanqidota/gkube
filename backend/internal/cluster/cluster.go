@@ -162,7 +162,7 @@ func (cl *clusterHandler) Create(c *gin.Context) {
 	}
 
 	// 获取集群版本
-	version, err := k8sCluster.GetClusterVersion(client)
+	version, err := k8sCluster.GetClusterVersion(c.Request.Context(), client)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群版本失败")
@@ -170,7 +170,7 @@ func (cl *clusterHandler) Create(c *gin.Context) {
 	}
 
 	// 获取节点数量
-	nodes, err := k8sCluster.GetClusterNodesInfo(client)
+	nodes, err := k8sCluster.GetClusterNodesInfo(c.Request.Context(), client)
 	if err != nil {
 		logger.Error(err.Error())
 		response.FailWithStatus(c, http.StatusInternalServerError, "获取集群节点信息失败")
@@ -289,13 +289,13 @@ func (cl *clusterHandler) Update(c *gin.Context) {
 			response.Fail(c, "kubeconfig验证失败")
 			return
 		}
-		version, err := k8sCluster.GetClusterVersion(client)
+		version, err := k8sCluster.GetClusterVersion(c.Request.Context(), client)
 		if err != nil {
 			logger.Error(err.Error())
 			response.Fail(c, "获取集群版本失败")
 			return
 		}
-		nodes, err := k8sCluster.GetClusterNodesInfo(client)
+		nodes, err := k8sCluster.GetClusterNodesInfo(c.Request.Context(), client)
 		if err != nil {
 			logger.Error(err.Error())
 			response.Fail(c, "获取集群节点信息失败")
@@ -399,7 +399,7 @@ func (cl *clusterHandler) Check(c *gin.Context) {
 	}
 
 	// 获取集群版本
-	version, err := k8sCluster.GetClusterVersion(client)
+	version, err := k8sCluster.GetClusterVersion(c.Request.Context(), client)
 	if err != nil {
 		logger.Error(err.Error())
 		markOffline(&cluster, "")
@@ -408,7 +408,7 @@ func (cl *clusterHandler) Check(c *gin.Context) {
 	}
 
 	// 获取节点数量
-	nodes, err := k8sCluster.GetClusterNodesInfo(client)
+	nodes, err := k8sCluster.GetClusterNodesInfo(c.Request.Context(), client)
 	if err != nil {
 		logger.Error(err.Error())
 		markOffline(&cluster, version)
@@ -475,14 +475,14 @@ func (cl *clusterHandler) TestKubeConfig(c *gin.Context) {
 		return
 	}
 
-	version, err := k8sCluster.GetClusterVersion(client)
+	version, err := k8sCluster.GetClusterVersion(c.Request.Context(), client)
 	if err != nil {
 		logger.Error(err.Error())
 		response.Fail(c, "获取集群版本失败")
 		return
 	}
 
-	nodes, err := k8sCluster.GetClusterNodesInfo(client)
+	nodes, err := k8sCluster.GetClusterNodesInfo(c.Request.Context(), client)
 	if err != nil {
 		logger.Error(err.Error())
 		response.Fail(c, "获取集群节点信息失败")

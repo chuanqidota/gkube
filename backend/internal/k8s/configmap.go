@@ -1,24 +1,23 @@
 package k8s
 
 import (
-	"net/http"
-
-	"k8s.io/client-go/kubernetes"
+	"context"
 
 	"github.com/gin-gonic/gin"
+	apperr "gkube/pkg/errors"
 	k8sclient "gkube/pkg/k8s"
 	k8sConfigMap "gkube/pkg/k8s/configmap"
-	"gkube/pkg/logger"
 	"gkube/pkg/response"
+	"k8s.io/client-go/kubernetes"
 )
 
 // ---------------------------------------------------------------------------
-// 标准 handler
+// 标准 handler（使用 wrapper）
 // ---------------------------------------------------------------------------
 
 var GetConfigMapList = ListHandler(
-	func(client *kubernetes.Clientset, namespace, selector string, limit int64, continueToken string) (any, error) {
-		list, err := k8sConfigMap.GetConfigMapList(client, namespace, limit, continueToken, selector)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, selector string, limit int64, continueToken string) (any, error) {
+		list, err := k8sConfigMap.GetConfigMapList(ctx, client, namespace, limit, continueToken, selector)
 		if err != nil {
 			return nil, err
 		}
@@ -30,33 +29,37 @@ var GetConfigMapList = ListHandler(
 		data.Total = len(list.Items) + int(remaining)
 		return data, nil
 	},
-	"获取ConfigMap列表成功", "获取ConfigMap列表失败",
+	"获取ConfigMap列表成功",
 )
 
 var GetConfigMapByName = NamespacedHandler(
-	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
-		return k8sConfigMap.GetConfigMapByName(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sConfigMap.GetConfigMapByName(ctx, client, namespace, name)
 	},
-	"获取ConfigMap成功", "获取ConfigMap失败",
+	"获取ConfigMap成功",
 )
 
 var GetConfigMapYaml = NamespacedHandler(
-	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
-		yaml, err := k8sConfigMap.GetConfigMapYaml(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (any, error) {
+		yaml, err := k8sConfigMap.GetConfigMapYaml(ctx, client, namespace, name)
 		if err != nil {
 			return nil, err
 		}
 		return map[string]string{"yaml": yaml}, nil
 	},
-	"获取ConfigMap YAML成功", "获取ConfigMap YAML失败",
+	"获取ConfigMap YAML成功",
 )
 
 var DeleteConfigMapByName = DeleteHandler(
-	func(client *kubernetes.Clientset, namespace, name string) error {
-		return k8sConfigMap.DeleteConfigMap(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
+		return k8sConfigMap.DeleteConfigMap(ctx, client, namespace, name)
 	},
-	"删除ConfigMap成功", "删除ConfigMap失败",
+	"删除ConfigMap成功",
 )
+
+// ---------------------------------------------------------------------------
+// 特殊 handler（namespace required）
+// ---------------------------------------------------------------------------
 
 // CreateConfigMapFromYaml 创建 —— namespace required
 func CreateConfigMapFromYaml(c *gin.Context) {
@@ -66,18 +69,16 @@ func CreateConfigMapFromYaml(c *gin.Context) {
 		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sConfigMap.CreateConfigMapFromYaml(client, p.Namespace, p.Yaml); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "创建ConfigMap失败")
+	if err := k8sConfigMap.CreateConfigMapFromYaml(c.Request.Context(), client, p.Namespace, p.Yaml); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "创建ConfigMap成功", nil)
@@ -91,18 +92,16 @@ func UpdateConfigMapFromYaml(c *gin.Context) {
 		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sConfigMap.UpdateConfigMapFromYaml(client, p.Namespace, p.Yaml); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "更新ConfigMap失败")
+	if err := k8sConfigMap.UpdateConfigMapFromYaml(c.Request.Context(), client, p.Namespace, p.Yaml); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "更新ConfigMap成功", nil)

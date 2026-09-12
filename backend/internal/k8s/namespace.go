@@ -1,11 +1,11 @@
 package k8s
 
 import (
-	"fmt"
 	"maps"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
+	apperr "gkube/pkg/errors"
 	k8sclient "gkube/pkg/k8s"
 	k8sLabels "gkube/pkg/k8s/labels"
 	k8sNamespace "gkube/pkg/k8s/namespace"
@@ -40,7 +40,7 @@ func (n *namespace) GetNamespaceList(c *gin.Context) {
 		LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters"`
 	}
 	if err := c.ShouldBind(&query); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	// 构建 label selector
@@ -49,18 +49,18 @@ func (n *namespace) GetNamespaceList(c *gin.Context) {
 		var buildErr error
 		labelSelector, buildErr = k8sLabels.BuildLabelSelector(query.LabelFilters)
 		if buildErr != nil {
-			response.Fail(c, buildErr.Error())
+			response.FailWithError(c, apperr.Validation("标签筛选器参数错误", buildErr))
 			return
 		}
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	namespaces, err := k8sNamespace.GetNamespaceList(client, labelSelector)
+	namespaces, err := k8sNamespace.GetNamespaceList(c.Request.Context(), client, labelSelector)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取集群命名空间列表失败:%s", err.Error()))
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	// 返回完整的命名空间对象列表
@@ -89,17 +89,17 @@ func (n *namespace) GetNamespaceList(c *gin.Context) {
 func (n *namespace) CreateNamespace(c *gin.Context) {
 	var body NamespaceCreateParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
 
-	if err := k8sNamespace.CreateNamespace(client, body.Namespace, body.Labels, body.Annotations); err != nil {
-		response.Fail(c, fmt.Sprintf("创建命名空间失败:%s", err.Error()))
+	if err := k8sNamespace.CreateNamespace(c.Request.Context(), client, body.Namespace, body.Labels, body.Annotations); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -113,20 +113,20 @@ func (n *namespace) CreateNamespace(c *gin.Context) {
 func (n *namespace) UpdateNamespaceLabels(c *gin.Context) {
 	var body NamespaceLabelsParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, fmt.Sprintf("参数校验失败:%s", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	if body.Namespace == "" {
-		response.Fail(c, "namespace参数不能为空")
+		response.FailWithError(c, apperr.Validation("namespace参数不能为空", nil))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sNamespace.UpdateNamespaceLabels(client, body.Namespace, body.Labels); err != nil {
-		response.Fail(c, fmt.Sprintf("更新命名空间标签失败:%s", err.Error()))
+	if err := k8sNamespace.UpdateNamespaceLabels(c.Request.Context(), client, body.Namespace, body.Labels); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "更新命名空间标签成功", nil)
@@ -141,21 +141,21 @@ func (n *namespace) GetNamespaceDetail(c *gin.Context) {
 	name := c.Query("name")
 	clusterName := c.Query("clusterName")
 	if name == "" {
-		response.Fail(c, "name参数不能为空")
+		response.FailWithError(c, apperr.Validation("name参数不能为空", nil))
 		return
 	}
 	if clusterName == "" {
-		response.Fail(c, "clusterName参数不能为空")
+		response.FailWithError(c, apperr.Validation("clusterName参数不能为空", nil))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(clusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	ns, err := k8sNamespace.GetNamespaceDetail(client, name)
+	ns, err := k8sNamespace.GetNamespaceDetail(c.Request.Context(), client, name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取命名空间详情失败:%s", err.Error()))
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	labels := make(map[string]string)
@@ -181,21 +181,21 @@ func (n *namespace) GetNamespaceYaml(c *gin.Context) {
 	name := c.Query("name")
 	clusterName := c.Query("clusterName")
 	if name == "" {
-		response.Fail(c, "name参数不能为空")
+		response.FailWithError(c, apperr.Validation("name参数不能为空", nil))
 		return
 	}
 	if clusterName == "" {
-		response.Fail(c, "clusterName参数不能为空")
+		response.FailWithError(c, apperr.Validation("clusterName参数不能为空", nil))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(clusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	yamlContent, err := k8sNamespace.GetNamespaceYaml(client, name)
+	yamlContent, err := k8sNamespace.GetNamespaceYaml(c.Request.Context(), client, name)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取命名空间YAML失败:%s", err.Error()))
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", map[string]string{"yaml": yamlContent})
@@ -212,16 +212,16 @@ func (n *namespace) UpdateNamespace(c *gin.Context) {
 		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, fmt.Sprintf("参数错误:%s", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数错误", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(req.ClusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sNamespace.UpdateNamespace(client, req.Yaml); err != nil {
-		response.Fail(c, fmt.Sprintf("更新命名空间失败:%s", err.Error()))
+	if err := k8sNamespace.UpdateNamespace(c.Request.Context(), client, req.Yaml); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "更新命名空间成功", nil)
@@ -236,20 +236,20 @@ func (n *namespace) DeleteNamespace(c *gin.Context) {
 	name := c.Query("name")
 	clusterName := c.Query("clusterName")
 	if name == "" {
-		response.Fail(c, "name参数不能为空")
+		response.FailWithError(c, apperr.Validation("name参数不能为空", nil))
 		return
 	}
 	if clusterName == "" {
-		response.Fail(c, "clusterName参数不能为空")
+		response.FailWithError(c, apperr.Validation("clusterName参数不能为空", nil))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(clusterName)
 	if err != nil {
-		response.Fail(c, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sNamespace.DeleteNamespace(client, name); err != nil {
-		response.Fail(c, fmt.Sprintf("删除命名空间失败:%s", err.Error()))
+	if err := k8sNamespace.DeleteNamespace(c.Request.Context(), client, name); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "删除命名空间成功", nil)

@@ -1,8 +1,8 @@
 package volumesnapshotclass
 
 import (
-	"gkube/pkg/yamlutil"
 	"context"
+	"gkube/pkg/yamlutil"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,12 +25,12 @@ var VolumeSnapshotClassGVR = schema.GroupVersionResource{
 //	@param client
 //	@return []unstructured.Unstructured
 //	@return error
-func GetVolumeSnapshotClassList(client dynamic.Interface, labelSelector string) ([]unstructured.Unstructured, error) {
+func GetVolumeSnapshotClassList(ctx context.Context, client dynamic.Interface, labelSelector string) ([]unstructured.Unstructured, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	result, err := client.Resource(VolumeSnapshotClassGVR).List(context.TODO(), listOpts)
+	result, err := client.Resource(VolumeSnapshotClassGVR).List(ctx, listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +44,8 @@ func GetVolumeSnapshotClassList(client dynamic.Interface, labelSelector string) 
 //	@param name
 //	@return *unstructured.Unstructured
 //	@return error
-func GetVolumeSnapshotClassByName(client dynamic.Interface, name string) (*unstructured.Unstructured, error) {
-	obj, err := client.Resource(VolumeSnapshotClassGVR).Get(context.TODO(), name, metav1.GetOptions{})
+func GetVolumeSnapshotClassByName(ctx context.Context, client dynamic.Interface, name string) (*unstructured.Unstructured, error) {
+	obj, err := client.Resource(VolumeSnapshotClassGVR).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +59,8 @@ func GetVolumeSnapshotClassByName(client dynamic.Interface, name string) (*unstr
 //	@param name
 //	@return string
 //	@return error
-func GetVolumeSnapshotClassYaml(client dynamic.Interface, name string) (string, error) {
-	obj, err := client.Resource(VolumeSnapshotClassGVR).Get(context.TODO(), name, metav1.GetOptions{})
+func GetVolumeSnapshotClassYaml(ctx context.Context, client dynamic.Interface, name string) (string, error) {
+	obj, err := client.Resource(VolumeSnapshotClassGVR).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -77,13 +77,13 @@ func GetVolumeSnapshotClassYaml(client dynamic.Interface, name string) (string, 
 //	@param client
 //	@param yamlContent
 //	@return error
-func CreateVolumeSnapshotClass(client dynamic.Interface, yamlContent string) error {
+func CreateVolumeSnapshotClass(ctx context.Context, client dynamic.Interface, yamlContent string) error {
 	obj := make(map[string]any)
 	if err := yaml.Unmarshal([]byte(yamlContent), &obj); err != nil {
 		return fmt.Errorf("YAML解析错误: %w", err)
 	}
 	unstructuredObj := &unstructured.Unstructured{Object: obj}
-	_, err := client.Resource(VolumeSnapshotClassGVR).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
+	_, err := client.Resource(VolumeSnapshotClassGVR).Create(ctx, unstructuredObj, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func CreateVolumeSnapshotClass(client dynamic.Interface, yamlContent string) err
 //	@param client
 //	@param yamlContent
 //	@return error
-func UpdateVolumeSnapshotClass(client dynamic.Interface, yamlContent string) error {
+func UpdateVolumeSnapshotClass(ctx context.Context, client dynamic.Interface, yamlContent string) error {
 	obj := make(map[string]any)
 	if err := yaml.Unmarshal([]byte(yamlContent), &obj); err != nil {
 		return fmt.Errorf("YAML解析错误: %w", err)
@@ -106,13 +106,13 @@ func UpdateVolumeSnapshotClass(client dynamic.Interface, yamlContent string) err
 		return fmt.Errorf("metadata.name is required")
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest, err := client.Resource(VolumeSnapshotClassGVR).Get(context.TODO(), name, metav1.GetOptions{})
+		latest, err := client.Resource(VolumeSnapshotClassGVR).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		unstructuredObj := &unstructured.Unstructured{Object: obj}
 		unstructuredObj.SetResourceVersion(latest.GetResourceVersion())
-		_, err = client.Resource(VolumeSnapshotClassGVR).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
+		_, err = client.Resource(VolumeSnapshotClassGVR).Update(ctx, unstructuredObj, metav1.UpdateOptions{})
 		return err
 	})
 }
@@ -123,6 +123,6 @@ func UpdateVolumeSnapshotClass(client dynamic.Interface, yamlContent string) err
 //	@param client
 //	@param name
 //	@return error
-func DeleteVolumeSnapshotClassByName(client dynamic.Interface, name string) error {
-	return client.Resource(VolumeSnapshotClassGVR).Delete(context.TODO(), name, metav1.DeleteOptions{})
+func DeleteVolumeSnapshotClassByName(ctx context.Context, client dynamic.Interface, name string) error {
+	return client.Resource(VolumeSnapshotClassGVR).Delete(ctx, name, metav1.DeleteOptions{})
 }

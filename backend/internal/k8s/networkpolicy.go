@@ -1,45 +1,45 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
+	apperr "gkube/pkg/errors"
 	k8sclient "gkube/pkg/k8s"
 	k8sNp "gkube/pkg/k8s/networkpolicy"
-	"gkube/pkg/logger"
 	"gkube/pkg/response"
 	"k8s.io/client-go/kubernetes"
 )
 
 // ---------------------------------------------------------------------------
-// 标准 handler
+// 标准 handler（使用 wrapper）
 // ---------------------------------------------------------------------------
 
 var GetNetworkPolicyDetail = NamespacedHandler(
-	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
-		return k8sNp.GetNetworkPolicyDetail(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sNp.GetNetworkPolicyDetail(ctx, client, namespace, name)
 	},
-	"执行成功", "获取NetworkPolicy失败",
+	"执行成功",
 )
 
 var GetNetworkPolicyYaml = NamespacedHandler(
-	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
-		return k8sNp.GetNetworkPolicyYaml(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sNp.GetNetworkPolicyYaml(ctx, client, namespace, name)
 	},
-	"执行成功", "获取NetworkPolicy YAML失败",
+	"执行成功",
 )
 
 var GetNetworkPolicyPods = NamespacedHandler(
-	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
-		return k8sNp.GetNetworkPolicyPods(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sNp.GetNetworkPolicyPods(ctx, client, namespace, name)
 	},
-	"执行成功", "获取NetworkPolicy关联Pod失败",
+	"执行成功",
 )
 
 var GetNetworkPolicyEvents = NamespacedHandler(
-	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
-		events, err := k8sNp.GetNetworkPolicyEvents(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (any, error) {
+		events, err := k8sNp.GetNetworkPolicyEvents(ctx, client, namespace, name)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +54,7 @@ var GetNetworkPolicyEvents = NamespacedHandler(
 		}
 		return result, nil
 	},
-	"执行成功", "获取NetworkPolicy事件失败",
+	"执行成功",
 )
 
 // ---------------------------------------------------------------------------
@@ -65,24 +65,22 @@ var GetNetworkPolicyEvents = NamespacedHandler(
 func GetNetworkPolicyList(c *gin.Context) {
 	var p ListParams
 	if err := c.ShouldBind(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
 	selector, err := buildLabelSelector(p.LabelFilters)
 	if err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
-	npList, err := k8sNp.GetNetworkPolicyList(client, p.Namespace, selector)
+	npList, err := k8sNp.GetNetworkPolicyList(c.Request.Context(), client, p.Namespace, selector)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取NetworkPolicy列表失败")
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	var result []map[string]any
@@ -120,18 +118,16 @@ func CreateNetworkPolicy(c *gin.Context) {
 		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%s", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sNp.CreateNetworkPolicy(client, body.Namespace, body.Yaml); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("创建NetworkPolicy失败:%s", err.Error()))
+	if err := k8sNp.CreateNetworkPolicy(c.Request.Context(), client, body.Namespace, body.Yaml); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -145,47 +141,43 @@ func UpdateNetworkPolicy(c *gin.Context) {
 		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%s", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sNp.UpdateNetworkPolicy(client, body.Namespace, body.Yaml); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("更新NetworkPolicy失败:%s", err.Error()))
+	if err := k8sNp.UpdateNetworkPolicy(c.Request.Context(), client, body.Namespace, body.Yaml); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)
 }
 
-// DeleteNetworkPolicy 删除 —— 原代码用 c.Query()，改为 ShouldBindQuery
+// DeleteNetworkPolicy 删除
 func DeleteNetworkPolicy(c *gin.Context) {
 	var p NamespacedParams
 	if err := c.ShouldBindQuery(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	if p.Name == "" {
-		response.Fail(c, "name参数不能为空")
+		response.FailWithError(c, apperr.BadRequest("name参数不能为空", nil))
 		return
 	}
 	if p.ClusterName == "" {
-		response.Fail(c, "clusterName参数不能为空")
+		response.FailWithError(c, apperr.BadRequest("clusterName参数不能为空", nil))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sNp.DeleteNetworkPolicy(client, p.Namespace, p.Name); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "删除NetworkPolicy失败")
+	if err := k8sNp.DeleteNetworkPolicy(c.Request.Context(), client, p.Namespace, p.Name); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)

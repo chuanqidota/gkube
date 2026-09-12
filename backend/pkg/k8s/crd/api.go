@@ -1,8 +1,8 @@
 package crd
 
 import (
-	"gkube/pkg/yamlutil"
 	"context"
+	"gkube/pkg/yamlutil"
 	"fmt"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -17,24 +17,24 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func GetCRDList(client *apiextensionsclientset.Clientset, labelSelector string) ([]apiextensionsv1.CustomResourceDefinition, error) {
+func GetCRDList(ctx context.Context, client *apiextensionsclientset.Clientset, labelSelector string) ([]apiextensionsv1.CustomResourceDefinition, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	crdList, err := client.ApiextensionsV1().CustomResourceDefinitions().List(context.TODO(), listOpts)
+	crdList, err := client.ApiextensionsV1().CustomResourceDefinitions().List(ctx, listOpts)
 	if err != nil {
 		return nil, err
 	}
 	return crdList.Items, nil
 }
 
-func GetCRDDetail(client *apiextensionsclientset.Clientset, name string) (*apiextensionsv1.CustomResourceDefinition, error) {
-	return client.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), name, metav1.GetOptions{})
+func GetCRDDetail(ctx context.Context, client *apiextensionsclientset.Clientset, name string) (*apiextensionsv1.CustomResourceDefinition, error) {
+	return client.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, name, metav1.GetOptions{})
 }
 
-func GetCRDYaml(client *apiextensionsclientset.Clientset, name string) (string, error) {
-	crd, err := client.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), name, metav1.GetOptions{})
+func GetCRDYaml(ctx context.Context, client *apiextensionsclientset.Clientset, name string) (string, error) {
+	crd, err := client.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -46,7 +46,7 @@ func GetCRDYaml(client *apiextensionsclientset.Clientset, name string) (string, 
 	return string(out), nil
 }
 
-func GetCustomResourceList(config *rest.Config, gvr schema.GroupVersionResource, namespace string, labelSelector string) ([]unstructured.Unstructured, error) {
+func GetCustomResourceList(ctx context.Context, config *rest.Config, gvr schema.GroupVersionResource, namespace string, labelSelector string) ([]unstructured.Unstructured, error) {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -57,9 +57,9 @@ func GetCustomResourceList(config *rest.Config, gvr schema.GroupVersionResource,
 	}
 	var list *unstructured.UnstructuredList
 	if namespace != "" {
-		list, err = dynamicClient.Resource(gvr).Namespace(namespace).List(context.TODO(), listOpts)
+		list, err = dynamicClient.Resource(gvr).Namespace(namespace).List(ctx, listOpts)
 	} else {
-		list, err = dynamicClient.Resource(gvr).List(context.TODO(), listOpts)
+		list, err = dynamicClient.Resource(gvr).List(ctx, listOpts)
 	}
 	if err != nil {
 		return nil, err
@@ -67,16 +67,16 @@ func GetCustomResourceList(config *rest.Config, gvr schema.GroupVersionResource,
 	return list.Items, nil
 }
 
-func GetCustomResourceYaml(config *rest.Config, gvr schema.GroupVersionResource, namespace, name string) (string, error) {
+func GetCustomResourceYaml(ctx context.Context, config *rest.Config, gvr schema.GroupVersionResource, namespace, name string) (string, error) {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return "", err
 	}
 	var obj *unstructured.Unstructured
 	if namespace != "" {
-		obj, err = dynamicClient.Resource(gvr).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		obj, err = dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 	} else {
-		obj, err = dynamicClient.Resource(gvr).Get(context.TODO(), name, metav1.GetOptions{})
+		obj, err = dynamicClient.Resource(gvr).Get(ctx, name, metav1.GetOptions{})
 	}
 	if err != nil {
 		return "", err
@@ -88,16 +88,16 @@ func GetCustomResourceYaml(config *rest.Config, gvr schema.GroupVersionResource,
 	return string(out), nil
 }
 
-func GetCustomResourceDetail(config *rest.Config, gvr schema.GroupVersionResource, namespace, name string) (map[string]any, error) {
+func GetCustomResourceDetail(ctx context.Context, config *rest.Config, gvr schema.GroupVersionResource, namespace, name string) (map[string]any, error) {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
 	var obj *unstructured.Unstructured
 	if namespace != "" {
-		obj, err = dynamicClient.Resource(gvr).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		obj, err = dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 	} else {
-		obj, err = dynamicClient.Resource(gvr).Get(context.TODO(), name, metav1.GetOptions{})
+		obj, err = dynamicClient.Resource(gvr).Get(ctx, name, metav1.GetOptions{})
 	}
 	if err != nil {
 		return nil, err
@@ -105,49 +105,49 @@ func GetCustomResourceDetail(config *rest.Config, gvr schema.GroupVersionResourc
 	return obj.Object, nil
 }
 
-func DeleteCustomResource(config *rest.Config, gvr schema.GroupVersionResource, namespace, name string) error {
+func DeleteCustomResource(ctx context.Context, config *rest.Config, gvr schema.GroupVersionResource, namespace, name string) error {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return err
 	}
 	if namespace != "" {
-		return dynamicClient.Resource(gvr).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+		return dynamicClient.Resource(gvr).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	}
-	return dynamicClient.Resource(gvr).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	return dynamicClient.Resource(gvr).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
-func CreateCRD(client *apiextensionsclientset.Clientset, yamlContent string) error {
+func CreateCRD(ctx context.Context, client *apiextensionsclientset.Clientset, yamlContent string) error {
 	var crd apiextensionsv1.CustomResourceDefinition
 	if err := yaml.Unmarshal([]byte(yamlContent), &crd); err != nil {
 		return fmt.Errorf("failed to unmarshal CRD YAML: %w", err)
 	}
-	_, err := client.ApiextensionsV1().CustomResourceDefinitions().Create(context.TODO(), &crd, metav1.CreateOptions{})
+	_, err := client.ApiextensionsV1().CustomResourceDefinitions().Create(ctx, &crd, metav1.CreateOptions{})
 	return err
 }
 
-func UpdateCRD(client *apiextensionsclientset.Clientset, yamlContent string) error {
+func UpdateCRD(ctx context.Context, client *apiextensionsclientset.Clientset, yamlContent string) error {
 	var crd apiextensionsv1.CustomResourceDefinition
 	if err := yaml.Unmarshal([]byte(yamlContent), &crd); err != nil {
 		return fmt.Errorf("failed to unmarshal CRD YAML: %w", err)
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest, err := client.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), crd.Name, metav1.GetOptions{})
+		latest, err := client.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, crd.Name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get CRD: %w", err)
 		}
 		latest.Spec = crd.Spec
 		latest.Labels = crd.Labels
 		latest.Annotations = crd.Annotations
-		_, err = client.ApiextensionsV1().CustomResourceDefinitions().Update(context.TODO(), latest, metav1.UpdateOptions{})
+		_, err = client.ApiextensionsV1().CustomResourceDefinitions().Update(ctx, latest, metav1.UpdateOptions{})
 		return err
 	})
 }
 
-func DeleteCRD(client *apiextensionsclientset.Clientset, name string) error {
-	return client.ApiextensionsV1().CustomResourceDefinitions().Delete(context.TODO(), name, metav1.DeleteOptions{})
+func DeleteCRD(ctx context.Context, client *apiextensionsclientset.Clientset, name string) error {
+	return client.ApiextensionsV1().CustomResourceDefinitions().Delete(ctx, name, metav1.DeleteOptions{})
 }
 
-func CreateCustomResource(config *rest.Config, gvr schema.GroupVersionResource, namespace, yamlContent string) error {
+func CreateCustomResource(ctx context.Context, config *rest.Config, gvr schema.GroupVersionResource, namespace, yamlContent string) error {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return err
@@ -158,14 +158,14 @@ func CreateCustomResource(config *rest.Config, gvr schema.GroupVersionResource, 
 	}
 	unstructuredObj := &unstructured.Unstructured{Object: obj}
 	if namespace != "" {
-		_, err = dynamicClient.Resource(gvr).Namespace(namespace).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
+		_, err = dynamicClient.Resource(gvr).Namespace(namespace).Create(ctx, unstructuredObj, metav1.CreateOptions{})
 	} else {
-		_, err = dynamicClient.Resource(gvr).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
+		_, err = dynamicClient.Resource(gvr).Create(ctx, unstructuredObj, metav1.CreateOptions{})
 	}
 	return err
 }
 
-func UpdateDynamicResource(client dynamic.Interface, gvr schema.GroupVersionResource, namespace, yamlContent string) (*unstructured.Unstructured, error) {
+func UpdateDynamicResource(ctx context.Context, client dynamic.Interface, gvr schema.GroupVersionResource, namespace, yamlContent string) (*unstructured.Unstructured, error) {
 	obj := make(map[string]any)
 	if err := yaml.Unmarshal([]byte(yamlContent), &obj); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal custom resource YAML: %w", err)
@@ -180,9 +180,9 @@ func UpdateDynamicResource(client dynamic.Interface, gvr schema.GroupVersionReso
 		var latest *unstructured.Unstructured
 		var getErr error
 		if namespace != "" {
-			latest, getErr = client.Resource(gvr).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			latest, getErr = client.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 		} else {
-			latest, getErr = client.Resource(gvr).Get(context.TODO(), name, metav1.GetOptions{})
+			latest, getErr = client.Resource(gvr).Get(ctx, name, metav1.GetOptions{})
 		}
 		if getErr != nil {
 			return getErr
@@ -192,16 +192,16 @@ func UpdateDynamicResource(client dynamic.Interface, gvr schema.GroupVersionReso
 		unstructuredObj.SetResourceVersion(latest.GetResourceVersion())
 
 		if namespace != "" {
-			result, getErr = client.Resource(gvr).Namespace(namespace).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
+			result, getErr = client.Resource(gvr).Namespace(namespace).Update(ctx, unstructuredObj, metav1.UpdateOptions{})
 		} else {
-			result, getErr = client.Resource(gvr).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
+			result, getErr = client.Resource(gvr).Update(ctx, unstructuredObj, metav1.UpdateOptions{})
 		}
 		return getErr
 	})
 	return result, err
 }
 
-func PatchDynamicResource(client dynamic.Interface, gvr schema.GroupVersionResource, namespace, name, patchData string, patchType string) (*unstructured.Unstructured, error) {
+func PatchDynamicResource(ctx context.Context, client dynamic.Interface, gvr schema.GroupVersionResource, namespace, name, patchData string, patchType string) (*unstructured.Unstructured, error) {
 	pt := types.StrategicMergePatchType
 	switch patchType {
 	case "merge":
@@ -217,9 +217,9 @@ func PatchDynamicResource(client dynamic.Interface, gvr schema.GroupVersionResou
 	var result *unstructured.Unstructured
 	var err error
 	if namespace != "" {
-		result, err = client.Resource(gvr).Namespace(namespace).Patch(context.TODO(), name, pt, []byte(patchData), metav1.PatchOptions{})
+		result, err = client.Resource(gvr).Namespace(namespace).Patch(ctx, name, pt, []byte(patchData), metav1.PatchOptions{})
 	} else {
-		result, err = client.Resource(gvr).Patch(context.TODO(), name, pt, []byte(patchData), metav1.PatchOptions{})
+		result, err = client.Resource(gvr).Patch(ctx, name, pt, []byte(patchData), metav1.PatchOptions{})
 	}
 	return result, err
 }

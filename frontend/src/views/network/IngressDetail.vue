@@ -266,12 +266,14 @@ onMounted(() => {
       <div class="panel-title">基本信息</div>
       <div class="info-body">
         <el-descriptions :column="1" border size="small">
-          <el-descriptions-item label="名称">{{ ingress.name }}</el-descriptions-item>
-          <el-descriptions-item label="命名空间">{{ ingress.namespace }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.name')">{{ ingress.name }}</el-descriptions-item>
+          <el-descriptions-item :label="t('common.namespace_label')">{{
+            ingress.namespace
+          }}</el-descriptions-item>
           <el-descriptions-item label="Ingress Class">{{
             ingress.ingressClassName || '-'
           }}</el-descriptions-item>
-          <el-descriptions-item label="地址">
+          <el-descriptions-item :label="t('network.address')">
             <span v-if="ingress.address">{{ ingress.address }}</span>
             <span v-else class="text-muted">-</span>
           </el-descriptions-item>
@@ -374,7 +376,7 @@ onMounted(() => {
                 </template>
               </el-table-column>
               <el-table-column prop="secretName" label="Secret Name" min-width="160" />
-              <el-table-column label="证书状态" min-width="160">
+              <el-table-column :label="t('ingress.tlsCertStatus')" min-width="160">
                 <template #default="{ row }">
                   <template v-if="tlsCertMap[row.secretName]">
                     <el-tag
@@ -389,7 +391,7 @@ onMounted(() => {
                   <span v-else class="text-muted">-</span>
                 </template>
               </el-table-column>
-              <el-table-column label="过期时间" min-width="160">
+              <el-table-column :label="t('ingress.expiryTime')" min-width="160">
                 <template #default="{ row }">
                   <template v-if="tlsCertMap[row.secretName]?.notAfter">
                     <div>{{ formatDate(tlsCertMap[row.secretName].notAfter) }}</div>

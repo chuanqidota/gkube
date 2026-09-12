@@ -1,8 +1,8 @@
 package storageclass
 
 import (
-	"gkube/pkg/yamlutil"
 	"context"
+	"gkube/pkg/yamlutil"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -16,12 +16,12 @@ import (
 //	@param client
 //	@return []storagev1.StorageClass
 //	@return error
-func GetStorageClassList(client *kubernetes.Clientset, labelSelector string) ([]storagev1.StorageClass, error) {
+func GetStorageClassList(ctx context.Context, client *kubernetes.Clientset, labelSelector string) ([]storagev1.StorageClass, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	result, err := client.StorageV1().StorageClasses().List(context.TODO(), listOpts)
+	result, err := client.StorageV1().StorageClasses().List(ctx, listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -35,8 +35,8 @@ func GetStorageClassList(client *kubernetes.Clientset, labelSelector string) ([]
 //	@param name
 //	@return *storagev1.StorageClass
 //	@return error
-func GetStorageClassByName(client *kubernetes.Clientset, name string) (*storagev1.StorageClass, error) {
-	sc, err := client.StorageV1().StorageClasses().Get(context.TODO(), name, metav1.GetOptions{})
+func GetStorageClassByName(ctx context.Context, client *kubernetes.Clientset, name string) (*storagev1.StorageClass, error) {
+	sc, err := client.StorageV1().StorageClasses().Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +50,8 @@ func GetStorageClassByName(client *kubernetes.Clientset, name string) (*storagev
 //	@param name
 //	@return string
 //	@return error
-func GetStorageClassYaml(client *kubernetes.Clientset, name string) (string, error) {
-	sc, err := client.StorageV1().StorageClasses().Get(context.TODO(), name, metav1.GetOptions{})
+func GetStorageClassYaml(ctx context.Context, client *kubernetes.Clientset, name string) (string, error) {
+	sc, err := client.StorageV1().StorageClasses().Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -69,9 +69,9 @@ func GetStorageClassYaml(client *kubernetes.Clientset, name string) (string, err
 //	@param fieldMap
 //	@return []storagev1.StorageClass
 //	@return error
-func GetStorageClassByField(client *kubernetes.Clientset, fieldMap map[string]string) ([]storagev1.StorageClass, error) {
+func GetStorageClassByField(ctx context.Context, client *kubernetes.Clientset, fieldMap map[string]string) ([]storagev1.StorageClass, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
-	scList, err := client.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{
+	scList, err := client.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{
 		FieldSelector:  fieldSelector.String(),
 		ResourceVersion: "0",
 	})
@@ -88,9 +88,9 @@ func GetStorageClassByField(client *kubernetes.Clientset, fieldMap map[string]st
 //	@param labelMap
 //	@return []storagev1.StorageClass
 //	@return error
-func GetStorageClassByLabel(client *kubernetes.Clientset, labelMap map[string]string) ([]storagev1.StorageClass, error) {
+func GetStorageClassByLabel(ctx context.Context, client *kubernetes.Clientset, labelMap map[string]string) ([]storagev1.StorageClass, error) {
 	labelSelector := fields.SelectorFromSet(labelMap)
-	scList, err := client.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{
+	scList, err := client.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{
 		LabelSelector:  labelSelector.String(),
 		ResourceVersion: "0",
 	})
@@ -106,13 +106,13 @@ func GetStorageClassByLabel(client *kubernetes.Clientset, labelMap map[string]st
 //	@param client
 //	@param scYaml
 //	@return error
-func CreateStorageClass(client *kubernetes.Clientset, scYaml string) error {
+func CreateStorageClass(ctx context.Context, client *kubernetes.Clientset, scYaml string) error {
 	sc := &storagev1.StorageClass{}
 	err := yaml.Unmarshal([]byte(scYaml), sc)
 	if err != nil {
 		return err
 	}
-	_, err = client.StorageV1().StorageClasses().Create(context.TODO(), sc, metav1.CreateOptions{})
+	_, err = client.StorageV1().StorageClasses().Create(ctx, sc, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -125,13 +125,13 @@ func CreateStorageClass(client *kubernetes.Clientset, scYaml string) error {
 //	@param client
 //	@param scYaml
 //	@return error
-func UpdateStorageClass(client *kubernetes.Clientset, scYaml string) error {
+func UpdateStorageClass(ctx context.Context, client *kubernetes.Clientset, scYaml string) error {
 	sc := &storagev1.StorageClass{}
 	err := yaml.Unmarshal([]byte(scYaml), sc)
 	if err != nil {
 		return err
 	}
-	_, err = client.StorageV1().StorageClasses().Update(context.TODO(), sc, metav1.UpdateOptions{})
+	_, err = client.StorageV1().StorageClasses().Update(ctx, sc, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -145,8 +145,8 @@ func UpdateStorageClass(client *kubernetes.Clientset, scYaml string) error {
 //	@param name
 //	@return bool
 //	@return error
-func DeleteStorageClassByName(client *kubernetes.Clientset, name string) error {
-	err := client.StorageV1().StorageClasses().Delete(context.TODO(), name, metav1.DeleteOptions{})
+func DeleteStorageClassByName(ctx context.Context, client *kubernetes.Clientset, name string) error {
+	err := client.StorageV1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -160,9 +160,9 @@ func DeleteStorageClassByName(client *kubernetes.Clientset, name string) error {
 //	@param fieldMap
 //	@return bool
 //	@return error
-func DeleteStorageClassByField(client *kubernetes.Clientset, fieldMap map[string]string) error {
+func DeleteStorageClassByField(ctx context.Context, client *kubernetes.Clientset, fieldMap map[string]string) error {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
-	err := client.StorageV1().StorageClasses().DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
+	err := client.StorageV1().StorageClasses().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
@@ -177,9 +177,9 @@ func DeleteStorageClassByField(client *kubernetes.Clientset, fieldMap map[string
 //	@param client
 //	@param labelMap
 //	@return error
-func DeleteStorageClassByLabel(client *kubernetes.Clientset, labelMap map[string]string) error {
+func DeleteStorageClassByLabel(ctx context.Context, client *kubernetes.Clientset, labelMap map[string]string) error {
 	labelSelector := fields.SelectorFromSet(labelMap)
-	err := client.StorageV1().StorageClasses().DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
+	err := client.StorageV1().StorageClasses().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
 	if err != nil {

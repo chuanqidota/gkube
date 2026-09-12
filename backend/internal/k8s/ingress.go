@@ -5,13 +5,12 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	apperr "gkube/pkg/errors"
 	k8sclient "gkube/pkg/k8s"
 	k8sIngress "gkube/pkg/k8s/ingress"
-	"gkube/pkg/logger"
 	"gkube/pkg/response"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -19,35 +18,35 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// 标准 handler
+// 标准 handler（使用 wrapper）
 // ---------------------------------------------------------------------------
 
 var GetIngressByName = NamespacedHandler(
-	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
-		return k8sIngress.GetIngressByName(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sIngress.GetIngressByName(ctx, client, namespace, name)
 	},
-	"执行成功", "查询ingress失败",
+	"执行成功",
 )
 
 var GetIngressYaml = NamespacedHandler(
-	func(client *kubernetes.Clientset, namespace, name string) (any, error) {
-		return k8sIngress.GetIngressYaml(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (any, error) {
+		return k8sIngress.GetIngressYaml(ctx, client, namespace, name)
 	},
-	"执行成功", "获取ingress失败",
+	"执行成功",
 )
 
 var CreateIngress = CreateHandler(
-	func(client *kubernetes.Clientset, namespace, yaml string) error {
-		return k8sIngress.CreateIngress(client, namespace, yaml)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, yaml string) error {
+		return k8sIngress.CreateIngress(ctx, client, namespace, yaml)
 	},
-	"执行成功", "创建ingress失败",
+	"执行成功",
 )
 
 var DeleteIngressByName = DeleteHandler(
-	func(client *kubernetes.Clientset, namespace, name string) error {
-		return k8sIngress.DeleteIngressByName(client, namespace, name)
+	func(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
+		return k8sIngress.DeleteIngressByName(ctx, client, namespace, name)
 	},
-	"执行成功", "删除ingress失败",
+	"执行成功",
 )
 
 // ---------------------------------------------------------------------------
@@ -58,24 +57,22 @@ var DeleteIngressByName = DeleteHandler(
 func GetIngressList(c *gin.Context) {
 	var p ListParams
 	if err := c.ShouldBind(&p); err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
 	selector, err := buildLabelSelector(p.LabelFilters)
 	if err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
-	ingressList, err := k8sIngress.GetIngressList(client, p.Namespace, selector)
+	ingressList, err := k8sIngress.GetIngressList(c.Request.Context(), client, p.Namespace, selector)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("查询ingress失败:%v", err.Error()))
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", ingressList)
@@ -89,18 +86,16 @@ func UpdateIngress(c *gin.Context) {
 		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sIngress.UpdateIngress(client, body.Namespace, body.Yaml); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("更新ingress失败:%v", err.Error()))
+	if err := k8sIngress.UpdateIngress(c.Request.Context(), client, body.Namespace, body.Yaml); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -110,24 +105,22 @@ func UpdateIngress(c *gin.Context) {
 func GetIngressEvents(c *gin.Context) {
 	var p NamespacedParams
 	if err := c.ShouldBindQuery(&p); err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	events, err := client.CoreV1().Events(p.Namespace).List(context.TODO(), metav1.ListOptions{
+	events, err := client.CoreV1().Events(p.Namespace).List(c.Request.Context(), metav1.ListOptions{
 		FieldSelector: fields.AndSelectors(
 			fields.OneTermEqualSelector("involvedObject.name", p.Name),
 			fields.OneTermEqualSelector("involvedObject.kind", "Ingress"),
 		).String(),
 	})
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取ingress事件失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sAPIFail("获取ingress事件失败", err))
 		return
 	}
 	var result []map[string]any
@@ -150,19 +143,17 @@ func GetIngressEvents(c *gin.Context) {
 func CheckIngressTLSCertStatus(c *gin.Context) {
 	var p NamespacedParams
 	if err := c.ShouldBindQuery(&p); err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	ing, err := k8sIngress.GetIngressByName(client, p.Namespace, p.Name)
+	ing, err := k8sIngress.GetIngressByName(c.Request.Context(), client, p.Namespace, p.Name)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("查询ingress失败:%v", err.Error()))
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	var results []map[string]any
@@ -180,7 +171,7 @@ func CheckIngressTLSCertStatus(c *gin.Context) {
 		}
 		secretData, cached := secretCache[tls.SecretName]
 		if !cached {
-			secret, err := client.CoreV1().Secrets(p.Namespace).Get(context.TODO(), tls.SecretName, metav1.GetOptions{})
+			secret, err := client.CoreV1().Secrets(p.Namespace).Get(c.Request.Context(), tls.SecretName, metav1.GetOptions{})
 			if err != nil {
 				entry["status"] = "error"
 				entry["message"] = fmt.Sprintf("Secret %s 不存在或无法访问", tls.SecretName)
@@ -245,19 +236,17 @@ func GetIngressClassList(c *gin.Context) {
 		ClusterName string `form:"clusterName" binding:"required"`
 	}
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	names, err := k8sIngress.ListIngressClasses(client)
+	names, err := k8sIngress.ListIngressClasses(c.Request.Context(), client)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", names)

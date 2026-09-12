@@ -2,6 +2,7 @@ package pod
 
 import (
 	"context"
+	apperr "gkube/pkg/errors"
 	"encoding/json"
 	"fmt"
 
@@ -16,7 +17,7 @@ import (
 
 // ListPods returns a paginated pod list with metadata.
 // 传 limit<=0 且 continueToken="" 时等价于全量列举(不分页)。
-func ListPods(client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*corev1.PodList, error) {
+func ListPods(ctx context.Context, client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*corev1.PodList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
@@ -27,7 +28,7 @@ func ListPods(client *kubernetes.Clientset, namespace string, limit int64, conti
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	return client.CoreV1().Pods(namespace).List(context.TODO(), listOpts)
+	return client.CoreV1().Pods(namespace).List(ctx, listOpts)
 }
 
 // GetPodByName
@@ -38,8 +39,8 @@ func ListPods(client *kubernetes.Clientset, namespace string, limit int64, conti
 //	@param name
 //	@return *corev1.Pod
 //	@return error
-func GetPodByName(client *kubernetes.Clientset, namespace, name string) (*corev1.Pod, error) {
-	pod, err := client.CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetPodByName(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*corev1.Pod, error) {
+	pod, err := client.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -54,8 +55,8 @@ func GetPodByName(client *kubernetes.Clientset, namespace, name string) (*corev1
 //	@param name
 //	@return string
 //	@return error
-func GetPodYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
-	pod, err := client.CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetPodYaml(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (string, error) {
+	pod, err := client.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -73,15 +74,15 @@ func GetPodYaml(client *kubernetes.Clientset, namespace, name string) (string, e
 //	@param namespace 以请求参数为准,避免 YAML 内 metadata.namespace 与之不符时静默落到别处
 //	@param podYaml
 //	@return error
-func CreatePod(client *kubernetes.Clientset, namespace, podYaml string) error {
+func CreatePod(ctx context.Context, client *kubernetes.Clientset, namespace, podYaml string) error {
 	pod := &corev1.Pod{}
 	if err := yaml.Unmarshal([]byte(podYaml), pod); err != nil {
-		return fmt.Errorf("yaml文件错误:%s", err.Error())
+		return apperr.BadRequest("YAML解析失败", err)
 	}
 	pod.Namespace = namespace
-	_, err := client.CoreV1().Pods(namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+	_, err := client.CoreV1().Pods(namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("创建pod资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("创建pod资源失败", err)
 	}
 	return nil
 }
@@ -89,10 +90,10 @@ func CreatePod(client *kubernetes.Clientset, namespace, podYaml string) error {
 // PatchPodMetadata 仅更新 Pod 的 labels 和 annotations（metadata patch）。
 // Pod spec 创建后基本不可变,全量 Update 会被 K8s API 拒绝,
 // 因此这里用 Strategic Merge Patch 只修补可变的 metadata 字段。
-func PatchPodMetadata(client *kubernetes.Clientset, namespace, name, podYaml string) error {
+func PatchPodMetadata(ctx context.Context, client *kubernetes.Clientset, namespace, name, podYaml string) error {
 	pod := &corev1.Pod{}
 	if err := yaml.Unmarshal([]byte(podYaml), pod); err != nil {
-		return fmt.Errorf("yaml文件错误:%s", err.Error())
+		return apperr.BadRequest("YAML解析失败", err)
 	}
 	if pod.Name != name {
 		return fmt.Errorf("资源名称不匹配: 请求指定 %s, YAML 中为 %s", name, pod.Name)
@@ -107,14 +108,14 @@ func PatchPodMetadata(client *kubernetes.Clientset, namespace, name, podYaml str
 	}
 	patchBytes, err := json.Marshal(patchObj)
 	if err != nil {
-		return fmt.Errorf("序列化patch失败:%s", err.Error())
+		return apperr.K8sAPIFail("序列化patch失败", err)
 	}
 
 	_, err = client.CoreV1().Pods(namespace).Patch(
-		context.TODO(), name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{},
+		ctx, name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{},
 	)
 	if err != nil {
-		return fmt.Errorf("更新pod元数据失败:%s", err.Error())
+		return apperr.K8sAPIFail("更新pod元数据失败", err)
 	}
 	return nil
 }
@@ -127,7 +128,7 @@ func PatchPodMetadata(client *kubernetes.Clientset, namespace, name, podYaml str
 //	@param name
 //	@param force 强制删除：GracePeriodSeconds=0，PropagationPolicy=Background
 //	@return error
-func DeletePodByName(client *kubernetes.Clientset, namespace, name string, force bool) error {
+func DeletePodByName(ctx context.Context, client *kubernetes.Clientset, namespace, name string, force bool) error {
 	deleteOpts := metav1.DeleteOptions{}
 	if force {
 		gracePeriod := int64(0)
@@ -135,9 +136,9 @@ func DeletePodByName(client *kubernetes.Clientset, namespace, name string, force
 		prop := metav1.DeletePropagationBackground
 		deleteOpts.PropagationPolicy = &prop
 	}
-	err := client.CoreV1().Pods(namespace).Delete(context.TODO(), name, deleteOpts)
+	err := client.CoreV1().Pods(namespace).Delete(ctx, name, deleteOpts)
 	if err != nil {
-		return fmt.Errorf("删除pod资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("删除pod资源失败", err)
 	}
 	return nil
 }

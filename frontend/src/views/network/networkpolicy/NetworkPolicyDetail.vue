@@ -370,12 +370,14 @@ onBeforeUnmount(() => {
           <div class="panel-title">基本信息</div>
           <div class="info-body">
             <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="名称">{{ np.name }}</el-descriptions-item>
-              <el-descriptions-item label="命名空间">{{ np.namespace }}</el-descriptions-item>
+              <el-descriptions-item :label="t('common.name')">{{ np.name }}</el-descriptions-item>
+              <el-descriptions-item :label="t('common.namespace_label')">{{
+                np.namespace
+              }}</el-descriptions-item>
               <el-descriptions-item label="Pod Selector">{{
                 np.podSelectorStr
               }}</el-descriptions-item>
-              <el-descriptions-item label="策略类型">
+              <el-descriptions-item :label="t('network.policyTypes')">
                 <el-tag
                   v-for="pt in np.policyTypes"
                   :key="pt"
@@ -727,21 +729,21 @@ onBeforeUnmount(() => {
                 stripe
                 max-height="260"
               >
-                <el-table-column prop="type" label="类型" width="80">
+                <el-table-column prop="type" :label="t('common.type')" width="80">
                   <template #default="{ row }">
                     <el-tag :type="row.type === 'Warning' ? 'danger' : 'info'" size="small">{{
                       row.type
                     }}</el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="reason" label="原因" width="130" />
+                <el-table-column prop="reason" :label="t('event.reason')" width="130" />
                 <el-table-column
                   prop="message"
-                  label="信息"
+                  :label="t('event.message')"
                   min-width="200"
                   show-overflow-tooltip
                 />
-                <el-table-column prop="last_seen" label="最后发生" width="150" />
+                <el-table-column prop="last_seen" :label="t('event.lastSeen')" width="150" />
               </el-table>
               <div v-else class="empty-hint">暂无事件</div>
             </div>

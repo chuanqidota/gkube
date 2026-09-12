@@ -1,12 +1,10 @@
 package k8s
 
 import (
-	"fmt"
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+	k8sclient "gkube/pkg/k8s"
 	k8sVolumeSnapshotClass "gkube/pkg/k8s/volumesnapshotclass"
-	"gkube/pkg/logger"
+	apperr "gkube/pkg/errors"
 	"gkube/pkg/response"
 )
 
@@ -18,24 +16,22 @@ import (
 func GetVolumeSnapshotClassList(c *gin.Context) {
 	var p ListParams
 	if err := c.ShouldBind(&p); err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数错误", err))
 		return
 	}
-	client, err := getDynamicClient(p.ClusterName)
+	client, err := k8sclient.GetDynamicClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
 	selector, err := buildLabelSelector(p.LabelFilters)
 	if err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		response.FailWithError(c, apperr.Validation("标签选择器错误", err))
 		return
 	}
-	items, err := k8sVolumeSnapshotClass.GetVolumeSnapshotClassList(client, selector)
+	items, err := k8sVolumeSnapshotClass.GetVolumeSnapshotClassList(c.Request.Context(), client, selector)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取VolumeSnapshotClass列表失败:%v", err.Error()))
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	var result []map[string]any
@@ -57,19 +53,17 @@ func GetVolumeSnapshotClassList(c *gin.Context) {
 func GetVolumeSnapshotClassByName(c *gin.Context) {
 	var p ClusterScopedParams
 	if err := c.ShouldBindQuery(&p); err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数错误", err))
 		return
 	}
-	client, err := getDynamicClient(p.ClusterName)
+	client, err := k8sclient.GetDynamicClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	obj, err := k8sVolumeSnapshotClass.GetVolumeSnapshotClassByName(client, p.Name)
+	obj, err := k8sVolumeSnapshotClass.GetVolumeSnapshotClassByName(c.Request.Context(), client, p.Name)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取VolumeSnapshotClass失败:%v", err.Error()))
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", obj.Object)
@@ -79,19 +73,17 @@ func GetVolumeSnapshotClassByName(c *gin.Context) {
 func GetVolumeSnapshotClassYaml(c *gin.Context) {
 	var p ClusterScopedParams
 	if err := c.ShouldBindQuery(&p); err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数错误", err))
 		return
 	}
-	client, err := getDynamicClient(p.ClusterName)
+	client, err := k8sclient.GetDynamicClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	yamlContent, err := k8sVolumeSnapshotClass.GetVolumeSnapshotClassYaml(client, p.Name)
+	yamlContent, err := k8sVolumeSnapshotClass.GetVolumeSnapshotClassYaml(c.Request.Context(), client, p.Name)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取VolumeSnapshotClass YAML失败:%v", err.Error()))
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", map[string]string{"yaml": yamlContent})
@@ -101,18 +93,16 @@ func GetVolumeSnapshotClassYaml(c *gin.Context) {
 func CreateVolumeSnapshotClass(c *gin.Context) {
 	var p ClusterCreateParams
 	if err := c.ShouldBindJSON(&p); err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数错误", err))
 		return
 	}
-	client, err := getDynamicClient(p.ClusterName)
+	client, err := k8sclient.GetDynamicClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sVolumeSnapshotClass.CreateVolumeSnapshotClass(client, p.Yaml); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("创建VolumeSnapshotClass失败:%v", err.Error()))
+	if err := k8sVolumeSnapshotClass.CreateVolumeSnapshotClass(c.Request.Context(), client, p.Yaml); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -122,18 +112,16 @@ func CreateVolumeSnapshotClass(c *gin.Context) {
 func UpdateVolumeSnapshotClass(c *gin.Context) {
 	var p ClusterCreateParams
 	if err := c.ShouldBindJSON(&p); err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数错误", err))
 		return
 	}
-	client, err := getDynamicClient(p.ClusterName)
+	client, err := k8sclient.GetDynamicClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sVolumeSnapshotClass.UpdateVolumeSnapshotClass(client, p.Yaml); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("更新VolumeSnapshotClass失败:%v", err.Error()))
+	if err := k8sVolumeSnapshotClass.UpdateVolumeSnapshotClass(c.Request.Context(), client, p.Yaml); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -143,18 +131,16 @@ func UpdateVolumeSnapshotClass(c *gin.Context) {
 func DeleteVolumeSnapshotClassByName(c *gin.Context) {
 	var p ClusterScopedParams
 	if err := c.ShouldBindQuery(&p); err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("参数错误:%v", err.Error()))
+		response.FailWithError(c, apperr.Validation("参数错误", err))
 		return
 	}
-	client, err := getDynamicClient(p.ClusterName)
+	client, err := k8sclient.GetDynamicClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("获取k8s客户端失败:%v", err.Error()))
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sVolumeSnapshotClass.DeleteVolumeSnapshotClassByName(client, p.Name); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, fmt.Sprintf("删除VolumeSnapshotClass失败:%v", err.Error()))
+	if err := k8sVolumeSnapshotClass.DeleteVolumeSnapshotClassByName(c.Request.Context(), client, p.Name); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)

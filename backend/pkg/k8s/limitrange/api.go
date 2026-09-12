@@ -1,9 +1,9 @@
 package limitrange
 
 import (
-	"gkube/pkg/yamlutil"
 	"context"
-	"fmt"
+	apperr "gkube/pkg/errors"
+	"gkube/pkg/yamlutil"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,68 +12,68 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func GetLimitRangeList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]corev1.LimitRange, error) {
+func GetLimitRangeList(ctx context.Context, client *kubernetes.Clientset, namespace string, labelSelector string) ([]corev1.LimitRange, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	result, err := client.CoreV1().LimitRanges(namespace).List(context.TODO(), listOpts)
+	result, err := client.CoreV1().LimitRanges(namespace).List(ctx, listOpts)
 	if err != nil {
 		return nil, err
 	}
 	return result.Items, nil
 }
 
-func GetLimitRangeYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
-	lr, err := client.CoreV1().LimitRanges(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetLimitRangeYaml(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (string, error) {
+	lr, err := client.CoreV1().LimitRanges(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 	lr.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "LimitRange"}
 	out, err := yamlutil.MarshalWithoutManagedFields(lr)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal LimitRange to YAML: %w", err)
+		return "", apperr.K8sAPIFail("序列化失败", err)
 	}
 	return string(out), nil
 }
 
-func CreateLimitRange(client *kubernetes.Clientset, namespace, yamlContent string) error {
+func CreateLimitRange(ctx context.Context, client *kubernetes.Clientset, namespace, yamlContent string) error {
 	var lr corev1.LimitRange
 	if err := yaml.Unmarshal([]byte(yamlContent), &lr); err != nil {
-		return fmt.Errorf("failed to unmarshal LimitRange YAML: %w", err)
+		return apperr.BadRequest("yaml解析失败", err)
 	}
 	if lr.Namespace == "" {
 		lr.Namespace = namespace
 	}
-	_, err := client.CoreV1().LimitRanges(namespace).Create(context.TODO(), &lr, metav1.CreateOptions{})
+	_, err := client.CoreV1().LimitRanges(namespace).Create(ctx, &lr, metav1.CreateOptions{})
 	return err
 }
 
-func UpdateLimitRange(client *kubernetes.Clientset, namespace, yamlContent string) error {
+func UpdateLimitRange(ctx context.Context, client *kubernetes.Clientset, namespace, yamlContent string) error {
 	var lr corev1.LimitRange
 	if err := yaml.Unmarshal([]byte(yamlContent), &lr); err != nil {
-		return fmt.Errorf("failed to unmarshal LimitRange YAML: %w", err)
+		return apperr.BadRequest("yaml解析失败", err)
 	}
 	if lr.Namespace == "" {
 		lr.Namespace = namespace
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest, err := client.CoreV1().LimitRanges(namespace).Get(context.TODO(), lr.Name, metav1.GetOptions{})
+		latest, err := client.CoreV1().LimitRanges(namespace).Get(ctx, lr.Name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to get LimitRange: %w", err)
+			return apperr.K8sAPIFail("获取LimitRange资源失败", err)
 		}
 		latest.Spec.Limits = lr.Spec.Limits
 		latest.Labels = lr.Labels
 		latest.Annotations = lr.Annotations
-		_, err = client.CoreV1().LimitRanges(namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
+		_, err = client.CoreV1().LimitRanges(namespace).Update(ctx, latest, metav1.UpdateOptions{})
 		return err
 	})
 }
 
-func DeleteLimitRange(client *kubernetes.Clientset, namespace, name string) error {
-	return client.CoreV1().LimitRanges(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+func DeleteLimitRange(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
+	return client.CoreV1().LimitRanges(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
-func GetLimitRangeDetail(client *kubernetes.Clientset, namespace, name string) (*corev1.LimitRange, error) {
-	return client.CoreV1().LimitRanges(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetLimitRangeDetail(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*corev1.LimitRange, error) {
+	return client.CoreV1().LimitRanges(namespace).Get(ctx, name, metav1.GetOptions{})
 }

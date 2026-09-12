@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	apperr "gkube/pkg/errors"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -228,7 +229,7 @@ func (h *auditHandler) GetAuditLog(c *gin.Context) {
 		}
 	}
 
-	response.Fail(c, "审计日志不存在")
+	response.FailWithError(c, apperr.NotFound("审计日志", nil))
 }
 
 // GetAuditStats gets audit log statistics
@@ -278,7 +279,7 @@ func (h *auditHandler) ClearAuditLogs(c *gin.Context) {
 	store := &auditStore{Logs: []auditlog.AuditLog{}}
 
 	if err := saveAuditLogs(store); err != nil {
-		response.Fail(c, fmt.Sprintf("清除审计日志失败:%s", err.Error()))
+		response.FailWithError(c, apperr.K8sAPIFail("清除审计日志失败", err))
 		return
 	}
 

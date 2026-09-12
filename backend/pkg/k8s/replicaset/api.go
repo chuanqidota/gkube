@@ -1,11 +1,11 @@
 package replicaset
 
 import (
-	"fmt"
+	"context"
+	apperr "gkube/pkg/errors"
 
 	k8sEvent "gkube/pkg/k8s/event"
 	"gkube/pkg/yamlutil"
-	"context"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -14,48 +14,48 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func GetReplicaSetList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]appsv1.ReplicaSet, error) {
+func GetReplicaSetList(ctx context.Context, client *kubernetes.Clientset, namespace string, labelSelector string) ([]appsv1.ReplicaSet, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	rsList, err := client.AppsV1().ReplicaSets(namespace).List(context.TODO(), listOpts)
+	rsList, err := client.AppsV1().ReplicaSets(namespace).List(ctx, listOpts)
 	if err != nil {
 		return nil, err
 	}
 	return rsList.Items, nil
 }
 
-func GetReplicaSetYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
-	rs, err := client.AppsV1().ReplicaSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetReplicaSetYaml(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (string, error) {
+	rs, err := client.AppsV1().ReplicaSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 	rs.TypeMeta = metav1.TypeMeta{APIVersion: "apps/v1", Kind: "ReplicaSet"}
 	out, err := yamlutil.MarshalWithoutManagedFields(rs)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal ReplicaSet to YAML: %w", err)
+		return "", apperr.K8sAPIFail("序列化失败", err)
 	}
 	return string(out), nil
 }
 
-func DeleteReplicaSet(client *kubernetes.Clientset, namespace, name string) error {
-	return client.AppsV1().ReplicaSets(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+func DeleteReplicaSet(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
+	return client.AppsV1().ReplicaSets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
 // GetReplicaSetPodList returns the full Pod list controlled by the ReplicaSet (matched by its selector).
-func GetReplicaSetPodList(client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
-	rs, err := client.AppsV1().ReplicaSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetReplicaSetPodList(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
+	rs, err := client.AppsV1().ReplicaSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get ReplicaSet: %w", err)
+		return nil, apperr.K8sAPIFail("获取ReplicaSet资源失败", err)
 	}
 	selector := metav1.FormatLabelSelector(rs.Spec.Selector)
-	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+	podList, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  selector,
 		ResourceVersion: "0",
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list Pods: %w", err)
+		return nil, apperr.K8sAPIFail("获取Pod列表失败", err)
 	}
 	return podList, nil
 }
@@ -74,14 +74,14 @@ type ReplicaSetDetailDTO struct {
 	ControllerOf *OwnerRef         `json:"controllerOf"`
 }
 
-func GetReplicaSetDetail(client *kubernetes.Clientset, namespace, name string) (*ReplicaSetDetailDTO, error) {
-	rs, err := client.AppsV1().ReplicaSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetReplicaSetDetail(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*ReplicaSetDetailDTO, error) {
+	rs, err := client.AppsV1().ReplicaSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	selector := metav1.FormatLabelSelector(rs.Spec.Selector)
-	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+	podList, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  selector,
 		ResourceVersion: "0",
 	})
@@ -112,14 +112,14 @@ func GetReplicaSetDetail(client *kubernetes.Clientset, namespace, name string) (
 
 // GetReplicaSetEvents returns the events associated with a ReplicaSet.
 // 用 fields.Selector 防注入。
-func GetReplicaSetEvents(client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
+func GetReplicaSetEvents(ctx context.Context, client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
 	selector := fields.AndSelectors(
 		fields.OneTermEqualSelector("involvedObject.name", name),
 		fields.OneTermEqualSelector("involvedObject.kind", "ReplicaSet"),
 	).String()
-	events, _, _, err := k8sEvent.ListEvents(client, namespace, selector, 200, "")
+	events, _, _, err := k8sEvent.ListEvents(ctx, client, namespace, selector, 200, "")
 	if err != nil {
-		return nil, fmt.Errorf("获取replicaset事件失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取replicaset事件失败", err)
 	}
 	return events, nil
 }

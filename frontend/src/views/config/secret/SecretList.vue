@@ -109,10 +109,10 @@ async function handleViewData(row: any) {
     >
       <template #actions>
         <el-button type="success" @click="$router.push('/config/secrets/create')">
-          <el-icon><Plus /></el-icon> 创建
+          <el-icon><Plus /></el-icon> {{ t('common.create') }}
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})
         </el-button>
       </template>
       <template #extra>
@@ -168,7 +168,9 @@ async function handleViewData(row: any) {
               <el-button size="small" type="primary" @click="handleViewData(row)">{{
                 t('config.viewData')
               }}</el-button>
-              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{
+                t('common.delete')
+              }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -199,7 +201,7 @@ async function handleViewData(row: any) {
             min-width="200"
             show-overflow-tooltip
           />
-          <el-table-column label="值" min-width="300">
+          <el-table-column :label="t('common.value')" min-width="300">
             <template #default="{ row }"
               ><div
                 style="

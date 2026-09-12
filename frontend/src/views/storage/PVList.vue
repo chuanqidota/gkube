@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Plus, Delete } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import { getPvList, getPvYaml, updatePvYaml, deletePv, transformPvs } from '@/api/resource'
 import { statusType } from '@/utils/helpers'
 import { useResourceList } from '@/composables/useResourceList'
@@ -9,6 +10,7 @@ import ResourceListToolbar from '@/components/ResourceListToolbar.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useClusterStore } from '@/stores/cluster'
 
+const { t } = useI18n()
 const clusterStore = useClusterStore()
 
 const {
@@ -40,7 +42,7 @@ const {
   updateYaml: updatePvYaml,
   deleteResource: deletePv,
   detailRoute: '/storage/pvs',
-  deleteConfirm: (row) => `删除持久卷 "${row.name}"?`,
+  deleteConfirm: (row) => t('storage.deletePvConfirm', { name: row.name }),
 })
 
 const {
@@ -69,10 +71,10 @@ const {
     >
       <template #actions>
         <el-button type="success" @click="$router.push('/storage/pvs/create')">
-          <el-icon><Plus /></el-icon> 创建
+          <el-icon><Plus /></el-icon> {{ t('common.create') }}
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})
         </el-button>
       </template>
       <template #extra>
@@ -97,37 +99,49 @@ const {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          prop="name"
+          :label="t('common.name')"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <el-button link type="primary" @click="handleDetail(row)">{{ row.name }}</el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="capacity" label="容量" width="120" />
+        <el-table-column prop="capacity" :label="t('storage.capacity')" width="120" />
         <el-table-column
           prop="access_modes"
-          label="访问模式"
+          :label="t('storage.accessModes')"
           min-width="160"
           show-overflow-tooltip
         />
-        <el-table-column prop="status" label="状态" width="120">
+        <el-table-column prop="status" :label="t('common.status')" width="120">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="claim" label="声明" min-width="180" show-overflow-tooltip />
+        <el-table-column
+          prop="claim"
+          :label="t('storage.claim')"
+          min-width="180"
+          show-overflow-tooltip
+        />
         <el-table-column
           prop="storage_class"
-          label="存储类"
+          :label="t('storage.storageClass')"
           min-width="140"
           show-overflow-tooltip
         />
-        <el-table-column prop="reclaim_policy" label="回收策略" width="100" />
-        <el-table-column prop="age" label="存活时间" width="120" />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column prop="reclaim_policy" :label="t('storage.reclaimPolicy')" width="100" />
+        <el-table-column prop="age" :label="t('common.age')" width="120" />
+        <el-table-column :label="t('common.actions')" width="180" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{
+                t('common.delete')
+              }}</el-button>
             </div>
           </template>
         </el-table-column>

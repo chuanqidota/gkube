@@ -70,3 +70,12 @@ type ClusterCreateParams struct {
 	ClusterName string `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
 	Yaml        string `form:"yaml" json:"yaml" binding:"required" label:"YAML"`
 }
+
+// ClusterListParams 集群级资源的分页列表参数
+// 适用：PV, StorageClass, Node, VolumeSnapshotClass
+type ClusterListParams struct {
+	ClusterName  string                  `form:"clusterName" json:"clusterName" binding:"required" label:"集群名称"`
+	Limit        int64                   `form:"limit" json:"limit" label:"每页条数"`
+	Continue     string                  `form:"continue" json:"continue" label:"分页标记"`
+	LabelFilters []k8sLabels.LabelFilter `json:"labelFilters" form:"labelFilters" label:"标签过滤"`
+}

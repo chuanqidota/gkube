@@ -2,8 +2,8 @@ package configmap
 
 import (
 	"context"
-	"fmt"
 
+	apperr "gkube/pkg/errors"
 	"gkube/pkg/yamlutil"
 
 	corev1 "k8s.io/api/core/v1"
@@ -23,7 +23,7 @@ import (
 //	@param labelSelector
 //	@return *corev1.ConfigMapList
 //	@return error
-func GetConfigMapList(client *kubernetes.Clientset, namespace string, limit int64, continueToken, labelSelector string) (*corev1.ConfigMapList, error) {
+func GetConfigMapList(ctx context.Context, client *kubernetes.Clientset, namespace string, limit int64, continueToken, labelSelector string) (*corev1.ConfigMapList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
@@ -34,7 +34,7 @@ func GetConfigMapList(client *kubernetes.Clientset, namespace string, limit int6
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	return client.CoreV1().ConfigMaps(namespace).List(context.TODO(), listOpts)
+	return client.CoreV1().ConfigMaps(namespace).List(ctx, listOpts)
 }
 
 // GetConfigMapByName
@@ -45,8 +45,8 @@ func GetConfigMapList(client *kubernetes.Clientset, namespace string, limit int6
 //	@param name
 //	@return *corev1.ConfigMap
 //	@return error
-func GetConfigMapByName(client *kubernetes.Clientset, namespace, name string) (*corev1.ConfigMap, error) {
-	return client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetConfigMapByName(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*corev1.ConfigMap, error) {
+	return client.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 // GetConfigMapYaml
@@ -57,8 +57,8 @@ func GetConfigMapByName(client *kubernetes.Clientset, namespace, name string) (*
 //	@param name
 //	@return string
 //	@return error
-func GetConfigMapYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
-	configmap, err := client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetConfigMapYaml(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (string, error) {
+	configmap, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -77,8 +77,8 @@ func GetConfigMapYaml(client *kubernetes.Clientset, namespace, name string) (str
 //	@param namespace
 //	@param name
 //	@return error
-func DeleteConfigMap(client *kubernetes.Clientset, namespace, name string) error {
-	return client.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+func DeleteConfigMap(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
+	return client.CoreV1().ConfigMaps(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
 // UpdateConfigMapFromYaml
@@ -88,29 +88,29 @@ func DeleteConfigMap(client *kubernetes.Clientset, namespace, name string) error
 //	@param namespace
 //	@param yamlContent
 //	@return error
-func UpdateConfigMapFromYaml(client *kubernetes.Clientset, namespace, yamlContent string) error {
+func UpdateConfigMapFromYaml(ctx context.Context, client *kubernetes.Clientset, namespace, yamlContent string) error {
 	if yamlContent == "" {
-		return fmt.Errorf("YAML content cannot be empty")
+		return apperr.Validation("YAML内容不能为空", nil)
 	}
 	var cm corev1.ConfigMap
 	if err := yaml.Unmarshal([]byte(yamlContent), &cm); err != nil {
-		return fmt.Errorf("failed to unmarshal ConfigMap YAML: %w", err)
+		return apperr.Validation("yaml解析失败", err)
 	}
 	if cm.Name == "" {
-		return fmt.Errorf("ConfigMap name is required")
+		return apperr.Validation("ConfigMap名称不能为空", nil)
 	}
 	if cm.Kind != "" && cm.Kind != "ConfigMap" {
-		return fmt.Errorf("YAML kind is %q, expected ConfigMap", cm.Kind)
+		return apperr.Validation("YAML kind必须为ConfigMap", nil)
 	}
 	if cm.APIVersion != "" && cm.APIVersion != "v1" {
-		return fmt.Errorf("YAML apiVersion is %q, expected v1", cm.APIVersion)
+		return apperr.Validation("YAML apiVersion必须为v1", nil)
 	}
 	cm.Namespace = namespace
 	// RetryOnConflict: re-Get latest object to obtain fresh resourceVersion before Update
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest, err := client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), cm.Name, metav1.GetOptions{})
+		latest, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, cm.Name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to get ConfigMap: %w", err)
+			return apperr.K8sAPIFail("获取ConfigMap失败", err)
 		}
 		latest.Data = cm.Data
 		latest.BinaryData = cm.BinaryData
@@ -119,7 +119,7 @@ func UpdateConfigMapFromYaml(client *kubernetes.Clientset, namespace, yamlConten
 		if cm.Immutable != nil {
 			latest.Immutable = cm.Immutable
 		}
-		_, err = client.CoreV1().ConfigMaps(namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
+		_, err = client.CoreV1().ConfigMaps(namespace).Update(ctx, latest, metav1.UpdateOptions{})
 		return err
 	})
 }
@@ -131,24 +131,24 @@ func UpdateConfigMapFromYaml(client *kubernetes.Clientset, namespace, yamlConten
 //	@param namespace
 //	@param yamlContent
 //	@return error
-func CreateConfigMapFromYaml(client *kubernetes.Clientset, namespace, yamlContent string) error {
+func CreateConfigMapFromYaml(ctx context.Context, client *kubernetes.Clientset, namespace, yamlContent string) error {
 	if yamlContent == "" {
-		return fmt.Errorf("YAML content cannot be empty")
+		return apperr.Validation("YAML内容不能为空", nil)
 	}
 	var cm corev1.ConfigMap
 	if err := yaml.Unmarshal([]byte(yamlContent), &cm); err != nil {
-		return fmt.Errorf("failed to unmarshal ConfigMap YAML: %w", err)
+		return apperr.Validation("yaml解析失败", err)
 	}
 	if cm.Name == "" {
-		return fmt.Errorf("ConfigMap name is required")
+		return apperr.Validation("ConfigMap名称不能为空", nil)
 	}
 	if cm.Kind != "" && cm.Kind != "ConfigMap" {
-		return fmt.Errorf("YAML kind is %q, expected ConfigMap", cm.Kind)
+		return apperr.Validation("YAML kind必须为ConfigMap", nil)
 	}
 	if cm.APIVersion != "" && cm.APIVersion != "v1" {
-		return fmt.Errorf("YAML apiVersion is %q, expected v1", cm.APIVersion)
+		return apperr.Validation("YAML apiVersion必须为v1", nil)
 	}
 	cm.Namespace = namespace
-	_, err := client.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &cm, metav1.CreateOptions{})
+	_, err := client.CoreV1().ConfigMaps(namespace).Create(ctx, &cm, metav1.CreateOptions{})
 	return err
 }

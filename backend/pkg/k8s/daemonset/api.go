@@ -2,6 +2,7 @@ package daemonset
 
 import (
 	"context"
+	apperr "gkube/pkg/errors"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -28,12 +29,12 @@ import (
 //	@param namespace
 //	@return []appsv1.DaemonSet
 //	@return error
-func GetDaemonSetList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]appsv1.DaemonSet, error) {
+func GetDaemonSetList(ctx context.Context, client *kubernetes.Clientset, namespace string, labelSelector string) ([]appsv1.DaemonSet, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	daemonSetList, err := client.AppsV1().DaemonSets(namespace).List(context.Background(), listOpts)
+	daemonSetList, err := client.AppsV1().DaemonSets(namespace).List(ctx, listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,7 @@ func GetDaemonSetList(client *kubernetes.Clientset, namespace string, labelSelec
 }
 
 // ListDaemonSets returns a paginated daemonset list with metadata
-func ListDaemonSets(client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*appsv1.DaemonSetList, error) {
+func ListDaemonSets(ctx context.Context, client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*appsv1.DaemonSetList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
@@ -52,7 +53,7 @@ func ListDaemonSets(client *kubernetes.Clientset, namespace string, limit int64,
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	return client.AppsV1().DaemonSets(namespace).List(context.Background(), listOpts)
+	return client.AppsV1().DaemonSets(namespace).List(ctx, listOpts)
 }
 
 // GetDaemonSetByName
@@ -63,8 +64,8 @@ func ListDaemonSets(client *kubernetes.Clientset, namespace string, limit int64,
 //	@param name
 //	@return *appsv1.DaemonSet
 //	@return error
-func GetDaemonSetByName(client *kubernetes.Clientset, namespace, name string) (*appsv1.DaemonSet, error) {
-	daemonSet, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+func GetDaemonSetByName(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*appsv1.DaemonSet, error) {
+	daemonSet, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -79,8 +80,8 @@ func GetDaemonSetByName(client *kubernetes.Clientset, namespace, name string) (*
 //	@param name
 //	@return string
 //	@return error
-func GetDaemonSetYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
-	daemonSet, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+func GetDaemonSetYaml(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (string, error) {
+	daemonSet, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -95,9 +96,9 @@ func GetDaemonSetYaml(client *kubernetes.Clientset, namespace, name string) (str
 //	@param fieldMap
 //	@return []appsv1.DaemonSet
 //	@return error
-func GetDaemonSetByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]appsv1.DaemonSet, error) {
+func GetDaemonSetByField(ctx context.Context, client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]appsv1.DaemonSet, error) {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
-	daemonSetList, err := client.AppsV1().DaemonSets(namespace).List(context.Background(), metav1.ListOptions{
+	daemonSetList, err := client.AppsV1().DaemonSets(namespace).List(ctx, metav1.ListOptions{
 		FieldSelector:  fieldSelector.String(),
 		ResourceVersion: "0",
 	})
@@ -115,9 +116,9 @@ func GetDaemonSetByField(client *kubernetes.Clientset, namespace string, fieldMa
 //	@param labelMap
 //	@return []appsv1.DaemonSet
 //	@return error
-func GetDaemonSetByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]appsv1.DaemonSet, error) {
+func GetDaemonSetByLabel(ctx context.Context, client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]appsv1.DaemonSet, error) {
 	labelSelector := labels.Set(labelMap).AsSelectorPreValidated()
-	daemonSetList, err := client.AppsV1().DaemonSets(namespace).List(context.Background(), metav1.ListOptions{
+	daemonSetList, err := client.AppsV1().DaemonSets(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  labelSelector.String(),
 		ResourceVersion: "0",
 	})
@@ -134,16 +135,16 @@ func GetDaemonSetByLabel(client *kubernetes.Clientset, namespace string, labelMa
 //	@param namespace
 //	@param daemonSetYaml
 //	@return error
-func CreateDaemonSet(client *kubernetes.Clientset, namespace, daemonSetYaml string) error {
+func CreateDaemonSet(ctx context.Context, client *kubernetes.Clientset, namespace, daemonSetYaml string) error {
 	daemonSet := &appsv1.DaemonSet{}
 	err := yaml.Unmarshal([]byte(daemonSetYaml), daemonSet)
 	if err != nil {
-		return err
+		return apperr.BadRequest("yaml解析失败", err)
 	}
 	daemonSet.Namespace = namespace
-	_, err = client.AppsV1().DaemonSets(namespace).Create(context.Background(), daemonSet, metav1.CreateOptions{})
+	_, err = client.AppsV1().DaemonSets(namespace).Create(ctx, daemonSet, metav1.CreateOptions{})
 	if err != nil {
-		return err
+		return apperr.K8sAPIFail("创建DaemonSet资源失败", err)
 	}
 	return nil
 }
@@ -156,25 +157,25 @@ func CreateDaemonSet(client *kubernetes.Clientset, namespace, daemonSetYaml stri
 //	@param name
 //	@param daemonSetYaml
 //	@return error
-func UpdateDaemonSet(client *kubernetes.Clientset, namespace, name, daemonSetYaml string) error {
+func UpdateDaemonSet(ctx context.Context, client *kubernetes.Clientset, namespace, name, daemonSetYaml string) error {
 	daemonSet := &appsv1.DaemonSet{}
 	err := yaml.Unmarshal([]byte(daemonSetYaml), daemonSet)
 	if err != nil {
-		return fmt.Errorf("yaml文件错误:%s", err.Error())
+		return apperr.BadRequest("yaml解析失败", err)
 	}
 	// 校验 YAML 中的名称与请求指定的一致，避免误更新同名空间下的其他资源
 	if daemonSet.Name != name {
-		return fmt.Errorf("资源名称不匹配: 请求指定 %s, YAML 中为 %s", name, daemonSet.Name)
+		return apperr.BadRequest("资源名称不匹配", fmt.Errorf("请求指定 %s, YAML 中为 %s", name, daemonSet.Name))
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		latest, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("获取daemonSet资源失败:%s", err.Error())
+			return apperr.K8sAPIFail("获取daemonSet资源失败", err)
 		}
 		latest.Spec = daemonSet.Spec
 		latest.Labels = daemonSet.Labels
 		latest.Annotations = daemonSet.Annotations
-		_, err = client.AppsV1().DaemonSets(namespace).Update(context.Background(), latest, metav1.UpdateOptions{})
+		_, err = client.AppsV1().DaemonSets(namespace).Update(ctx, latest, metav1.UpdateOptions{})
 		return err
 	})
 }
@@ -186,13 +187,13 @@ func UpdateDaemonSet(client *kubernetes.Clientset, namespace, name, daemonSetYam
 //	@param namespace
 //	@param name
 //	@return error
-func DeleteDaemonSetByName(client *kubernetes.Clientset, namespace, name string) error {
+func DeleteDaemonSetByName(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
 	propagation := metav1.DeletePropagationForeground
-	err := client.AppsV1().DaemonSets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{
+	err := client.AppsV1().DaemonSets(namespace).Delete(ctx, name, metav1.DeleteOptions{
 		PropagationPolicy: &propagation,
 	})
 	if err != nil {
-		return fmt.Errorf("删除daemonSet资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("删除daemonSet资源失败", err)
 	}
 	return nil
 }
@@ -204,13 +205,13 @@ func DeleteDaemonSetByName(client *kubernetes.Clientset, namespace, name string)
 //	@param namespace
 //	@param fieldMap
 //	@return error
-func DeleteDaemonSetByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) error {
+func DeleteDaemonSetByField(ctx context.Context, client *kubernetes.Clientset, namespace string, fieldMap map[string]string) error {
 	fieldSelector := fields.SelectorFromSet(fieldMap)
-	err := client.AppsV1().DaemonSets(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
+	err := client.AppsV1().DaemonSets(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
-		return fmt.Errorf("删除daemonSet资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("删除daemonSet资源失败", err)
 	}
 	return nil
 }
@@ -222,13 +223,13 @@ func DeleteDaemonSetByField(client *kubernetes.Clientset, namespace string, fiel
 //	@param namespace
 //	@param labelMap
 //	@return error
-func DeleteDaemonSetByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
+func DeleteDaemonSetByLabel(ctx context.Context, client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
 	labelSelector := labels.Set(labelMap).AsSelectorPreValidated()
-	err := client.AppsV1().DaemonSets(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
+	err := client.AppsV1().DaemonSets(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
 	if err != nil {
-		return fmt.Errorf("删除daemonSet资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("删除daemonSet资源失败", err)
 	}
 	return nil
 }
@@ -241,10 +242,10 @@ func DeleteDaemonSetByLabel(client *kubernetes.Clientset, namespace string, labe
 //	@param name
 //	@return *corev1.PodList
 //	@return error
-func DaemonSetPodList(client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
-	daemonSet, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+func DaemonSetPodList(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
+	daemonSet, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("获取daemonSet资源失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取daemonSet资源失败", err)
 	}
 	// 使用完整 selector(matchLabels + matchExpressions),与 deployment 行为对齐
 	if daemonSet.Spec.Selector == nil {
@@ -252,17 +253,17 @@ func DaemonSetPodList(client *kubernetes.Clientset, namespace, name string) (*co
 	}
 	selector, err := metav1.LabelSelectorAsSelector(daemonSet.Spec.Selector)
 	if err != nil {
-		return nil, fmt.Errorf("解析daemonSet selector失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("解析daemonSet selector失败", err)
 	}
 	if selector.Empty() {
 		return &corev1.PodList{Items: []corev1.Pod{}}, nil
 	}
-	podList, err := client.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
+	podList, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  selector.String(),
 		ResourceVersion: "0",
 	})
 	if err != nil {
-		return nil, fmt.Errorf("获取pod资源失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取pod资源失败", err)
 	}
 	return podList, nil
 }
@@ -275,17 +276,17 @@ func DaemonSetPodList(client *kubernetes.Clientset, namespace, name string) (*co
 //	@param name
 //	@return bool
 //	@return error
-func RestartDaemonSet(client *kubernetes.Clientset, namespace, name string) (bool, error) {
+func RestartDaemonSet(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (bool, error) {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		daemonSet, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		daemonSet, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("获取daemonSet资源失败:%s", err.Error())
+			return apperr.K8sAPIFail("获取daemonSet资源失败", err)
 		}
 		if daemonSet.Spec.Template.Annotations == nil {
 			daemonSet.Spec.Template.Annotations = make(map[string]string)
 		}
 		daemonSet.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.DateTime)
-		_, err = client.AppsV1().DaemonSets(namespace).Update(context.Background(), daemonSet, metav1.UpdateOptions{})
+		_, err = client.AppsV1().DaemonSets(namespace).Update(ctx, daemonSet, metav1.UpdateOptions{})
 		return err
 	})
 	if err != nil {
@@ -294,21 +295,21 @@ func RestartDaemonSet(client *kubernetes.Clientset, namespace, name string) (boo
 	return true, nil
 }
 
-func UpdateDaemonSetImage(client *kubernetes.Clientset, namespace, name, containerName, image string) (*appsv1.DaemonSet, error) {
+func UpdateDaemonSetImage(ctx context.Context, client *kubernetes.Clientset, namespace, name, containerName, image string) (*appsv1.DaemonSet, error) {
 	var latest *appsv1.DaemonSet
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		ds, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		ds, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		for i, c := range ds.Spec.Template.Spec.Containers {
 			if c.Name == containerName {
 				ds.Spec.Template.Spec.Containers[i].Image = image
-				latest, err = client.AppsV1().DaemonSets(namespace).Update(context.Background(), ds, metav1.UpdateOptions{})
+				latest, err = client.AppsV1().DaemonSets(namespace).Update(ctx, ds, metav1.UpdateOptions{})
 				return err
 			}
 		}
-		return fmt.Errorf("container %s not found", containerName)
+		return apperr.BadRequest("容器不存在", fmt.Errorf("容器 %s 不存在", containerName))
 	})
 	return latest, err
 }
@@ -322,20 +323,20 @@ func UpdateDaemonSetImage(client *kubernetes.Clientset, namespace, name, contain
 //	@param revision
 //	@return *appsv1.DaemonSet
 //	@return error
-func RollbackDaemonSet(client *kubernetes.Clientset, namespace, name string, revision int64) (*appsv1.DaemonSet, error) {
+func RollbackDaemonSet(ctx context.Context, client *kubernetes.Clientset, namespace, name string, revision int64) (*appsv1.DaemonSet, error) {
 	if revision <= 0 {
-		return nil, fmt.Errorf("revision must be a positive integer, got %d", revision)
+		return nil, apperr.BadRequest("revision必须为正整数", fmt.Errorf("revision must be a positive integer, got %d", revision))
 	}
-	ds, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	ds, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, apperr.K8sAPIFail("获取DaemonSet资源失败", err)
 	}
-	revisions, err := client.AppsV1().ControllerRevisions(namespace).List(context.Background(), metav1.ListOptions{
+	revisions, err := client.AppsV1().ControllerRevisions(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  metav1.FormatLabelSelector(ds.Spec.Selector),
 		ResourceVersion: "0",
 	})
 	if err != nil {
-		return nil, err
+		return nil, apperr.K8sAPIFail("获取ControllerRevision列表失败", err)
 	}
 	var targetData []byte
 	for _, rev := range revisions.Items {
@@ -345,22 +346,22 @@ func RollbackDaemonSet(client *kubernetes.Clientset, namespace, name string, rev
 		}
 	}
 	if len(targetData) == 0 {
-		return nil, fmt.Errorf("revision %d not found", revision)
+		return nil, apperr.BadRequest("revision不存在", fmt.Errorf("revision %d 不存在", revision))
 	}
 	var restored appsv1.DaemonSet
 	if err := json.Unmarshal(targetData, &restored); err != nil {
-		return nil, err
+		return nil, apperr.BadRequest("解析revision数据失败", err)
 	}
 	var latest *appsv1.DaemonSet
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		current, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		current, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			return err
+			return apperr.K8sAPIFail("获取DaemonSet资源失败", err)
 		}
 		// 只回滚 pod template（与 Deployment/StatefulSet 回滚逻辑一致），
 		// 不覆盖 selector 等不可变字段，避免触发 Forbidden。
 		current.Spec.Template = restored.Spec.Template
-		latest, err = client.AppsV1().DaemonSets(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
+		latest, err = client.AppsV1().DaemonSets(namespace).Update(ctx, current, metav1.UpdateOptions{})
 		return err
 	})
 	return latest, err
@@ -368,18 +369,17 @@ func RollbackDaemonSet(client *kubernetes.Clientset, namespace, name string, rev
 
 // GetDaemonSetRollbacks returns all ControllerRevision entries for a DaemonSet,
 // sorted by revision descending, for UI rollback selection.
-func GetDaemonSetRollbacks(client *kubernetes.Clientset, namespace, name string) ([]map[string]any, error) {
-	ctx := context.Background()
+func GetDaemonSetRollbacks(ctx context.Context, client *kubernetes.Clientset, namespace, name string) ([]map[string]any, error) {
 	ds, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, apperr.K8sAPIFail("获取DaemonSet资源失败", err)
 	}
 	revisions, err := client.AppsV1().ControllerRevisions(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  metav1.FormatLabelSelector(ds.Spec.Selector),
 		ResourceVersion: "0",
 	})
 	if err != nil {
-		return nil, err
+		return nil, apperr.K8sAPIFail("获取ControllerRevision列表失败", err)
 	}
 	// 反序列化 ControllerRevision.Data.Raw 取出容器镜像，方便回滚时确认目标版本。
 	// DaemonSet（与 StatefulSet 不同）的 status 不暴露 currentRevision，
@@ -429,14 +429,14 @@ func GetDaemonSetRollbacks(client *kubernetes.Clientset, namespace, name string)
 
 // GetDaemonSetEvents returns the events associated with a DaemonSet.
 // 用 fields.Selector 防注入。
-func GetDaemonSetEvents(client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
+func GetDaemonSetEvents(ctx context.Context, client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
 	selector := fields.AndSelectors(
 		fields.OneTermEqualSelector("involvedObject.name", name),
 		fields.OneTermEqualSelector("involvedObject.kind", "DaemonSet"),
 	).String()
-	events, _, _, err := k8sEvent.ListEvents(client, namespace, selector, 0, "")
+	events, _, _, err := k8sEvent.ListEvents(ctx, client, namespace, selector, 0, "")
 	if err != nil {
-		return nil, fmt.Errorf("获取daemonset事件失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取daemonset事件失败", err)
 	}
 	return events, nil
 }

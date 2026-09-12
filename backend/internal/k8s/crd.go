@@ -40,7 +40,7 @@ func (c *crd) GetCRDList(ginCtx *gin.Context) {
 		response.Fail(ginCtx, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	crdList, err := k8sCrd.GetCRDList(client, labelSelector)
+	crdList, err := k8sCrd.GetCRDList(ginCtx.Request.Context(), client, labelSelector)
 	if err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("获取CRD列表失败:%s", err.Error()))
 		return
@@ -87,7 +87,7 @@ func (c *crd) GetCRDDetail(ginCtx *gin.Context) {
 		response.Fail(ginCtx, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	crd, err := k8sCrd.GetCRDDetail(client, name)
+	crd, err := k8sCrd.GetCRDDetail(ginCtx.Request.Context(), client, name)
 	if err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("获取CRD详情失败:%s", err.Error()))
 		return
@@ -107,7 +107,7 @@ func (c *crd) GetCRDYaml(ginCtx *gin.Context) {
 		response.Fail(ginCtx, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	yamlContent, err := k8sCrd.GetCRDYaml(client, name)
+	yamlContent, err := k8sCrd.GetCRDYaml(ginCtx.Request.Context(), client, name)
 	if err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("获取CRD YAML失败:%s", err.Error()))
 		return
@@ -144,7 +144,7 @@ func (c *crd) GetCustomResourceList(ginCtx *gin.Context) {
 		return
 	}
 	gvr := schema.GroupVersionResource{Group: query.Group, Version: query.Version, Resource: query.Resource}
-	items, err := k8sCrd.GetCustomResourceList(config, gvr, query.Namespace, labelSelector)
+	items, err := k8sCrd.GetCustomResourceList(ginCtx.Request.Context(), config, gvr, query.Namespace, labelSelector)
 	if err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("获取自定义资源列表失败:%s", err.Error()))
 		return
@@ -178,7 +178,7 @@ func (c *crd) GetCustomResourceYaml(ginCtx *gin.Context) {
 		return
 	}
 	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
-	yamlContent, err := k8sCrd.GetCustomResourceYaml(config, gvr, namespace, name)
+	yamlContent, err := k8sCrd.GetCustomResourceYaml(ginCtx.Request.Context(), config, gvr, namespace, name)
 	if err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("获取自定义资源YAML失败:%s", err.Error()))
 		return
@@ -203,7 +203,7 @@ func (c *crd) GetCustomResourceDetail(ginCtx *gin.Context) {
 		return
 	}
 	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
-	detail, err := k8sCrd.GetCustomResourceDetail(config, gvr, namespace, name)
+	detail, err := k8sCrd.GetCustomResourceDetail(ginCtx.Request.Context(), config, gvr, namespace, name)
 	if err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("获取自定义资源详情失败:%s", err.Error()))
 		return
@@ -228,7 +228,7 @@ func (c *crd) DeleteCustomResource(ginCtx *gin.Context) {
 		return
 	}
 	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
-	if err := k8sCrd.DeleteCustomResource(config, gvr, namespace, name); err != nil {
+	if err := k8sCrd.DeleteCustomResource(ginCtx.Request.Context(), config, gvr, namespace, name); err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("删除自定义资源失败:%s", err.Error()))
 		return
 	}
@@ -249,7 +249,7 @@ func (c *crd) CreateCRD(ginCtx *gin.Context) {
 		response.Fail(ginCtx, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sCrd.CreateCRD(client, req.Yaml); err != nil {
+	if err := k8sCrd.CreateCRD(ginCtx.Request.Context(), client, req.Yaml); err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("创建CRD失败:%s", err.Error()))
 		return
 	}
@@ -270,7 +270,7 @@ func (c *crd) UpdateCRD(ginCtx *gin.Context) {
 		response.Fail(ginCtx, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sCrd.UpdateCRD(client, req.Yaml); err != nil {
+	if err := k8sCrd.UpdateCRD(ginCtx.Request.Context(), client, req.Yaml); err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("更新CRD失败:%s", err.Error()))
 		return
 	}
@@ -289,7 +289,7 @@ func (c *crd) DeleteCRD(ginCtx *gin.Context) {
 		response.Fail(ginCtx, fmt.Sprintf("获取k8s客户端失败:%s", err.Error()))
 		return
 	}
-	if err := k8sCrd.DeleteCRD(client, name); err != nil {
+	if err := k8sCrd.DeleteCRD(ginCtx.Request.Context(), client, name); err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("删除CRD失败:%s", err.Error()))
 		return
 	}
@@ -319,7 +319,7 @@ func (c *crd) CreateCustomResource(ginCtx *gin.Context) {
 		return
 	}
 	gvr := schema.GroupVersionResource{Group: req.Group, Version: req.Version, Resource: req.Resource}
-	if err := k8sCrd.CreateCustomResource(config, gvr, req.Namespace, req.Yaml); err != nil {
+	if err := k8sCrd.CreateCustomResource(ginCtx.Request.Context(), config, gvr, req.Namespace, req.Yaml); err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("创建自定义资源失败:%s", err.Error()))
 		return
 	}
@@ -349,7 +349,7 @@ func (c *crd) UpdateCustomResource(ginCtx *gin.Context) {
 		return
 	}
 	gvr := schema.GroupVersionResource{Group: req.Group, Version: req.Version, Resource: req.Resource}
-	result, err := k8sCrd.UpdateDynamicResource(client, gvr, req.Namespace, req.Yaml)
+	result, err := k8sCrd.UpdateDynamicResource(ginCtx.Request.Context(), client, gvr, req.Namespace, req.Yaml)
 	if err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("更新自定义资源失败:%s", err.Error()))
 		return
@@ -385,7 +385,7 @@ func (c *crd) PatchCustomResource(ginCtx *gin.Context) {
 		return
 	}
 	gvr := schema.GroupVersionResource{Group: req.Group, Version: req.Version, Resource: req.Resource}
-	result, err := k8sCrd.PatchDynamicResource(client, gvr, req.Namespace, req.Name, req.Patch, req.PatchType)
+	result, err := k8sCrd.PatchDynamicResource(ginCtx.Request.Context(), client, gvr, req.Namespace, req.Name, req.Patch, req.PatchType)
 	if err != nil {
 		response.Fail(ginCtx, fmt.Sprintf("Patch自定义资源失败:%s", err.Error()))
 		return

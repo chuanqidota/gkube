@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import {
@@ -17,6 +18,7 @@ import { useClusterStore } from '@/stores/cluster'
 import type { LabelCondition } from '@/components/LabelFilterPopover.vue'
 import YamlDrawer from '@/components/YamlDrawer.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const clusterStore = useClusterStore()
 const loading = ref(false)
@@ -81,12 +83,16 @@ function handleViewYaml(row: any) {
 async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(
-      `Delete ResourceQuota "${row.name}" in namespace "${row.namespace}"?`,
-      'Confirm',
+      t('common.deleteResourceConfirmNs', {
+        type: 'ResourceQuota',
+        name: row.name,
+        ns: row.namespace,
+      }),
+      t('common.confirm'),
       { type: 'warning' },
     )
     await deleteResourceQuota({ namespace: row.namespace, name: row.name })
-    ElMessage.success('Deleted')
+    ElMessage.success(t('common.deleted'))
     fetchResourceQuotas()
   } catch {
     /* cancelled */
@@ -97,8 +103,8 @@ async function handleBatchDelete() {
   if (!selectedRows.value.length) return
   try {
     await ElMessageBox.confirm(
-      `Delete ${selectedRows.value.length} selected ResourceQuota(s)?`,
-      'Confirm',
+      t('common.batchDeleteConfirm', { count: selectedRows.value.length, type: 'ResourceQuota' }),
+      t('common.confirm'),
       { type: 'warning' },
     )
     let count = 0
@@ -110,7 +116,7 @@ async function handleBatchDelete() {
         /* continue */
       }
     }
-    ElMessage.success(`Deleted ${count} ResourceQuota(s)`)
+    ElMessage.success(t('common.batchDeleteSuccess', { count, type: 'ResourceQuota' }))
     fetchResourceQuotas()
   } catch {
     /* cancelled */
@@ -150,10 +156,10 @@ onMounted(() => {
     >
       <template #actions>
         <el-button type="success" @click="router.push('/config/resourcequotas/create')">
-          <el-icon><Plus /></el-icon> 创建
+          <el-icon><Plus /></el-icon> {{ t('common.create') }}
         </el-button>
         <el-button type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-          <el-icon><Delete /></el-icon> 删除 ({{ selectedRows.length }})
+          <el-icon><Delete /></el-icon> {{ t('common.delete') }} ({{ selectedRows.length }})
         </el-button>
       </template>
       <template #extra>
@@ -177,34 +183,41 @@ onMounted(() => {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="Name" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          prop="name"
+          :label="t('common.name')"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }"
             ><el-button link type="primary" @click="handleDetail(row)">{{
               row.name
             }}</el-button></template
           >
         </el-table-column>
-        <el-table-column prop="namespace" label="Namespace" width="140" />
-        <el-table-column label="Hard Limits" min-width="250">
+        <el-table-column prop="namespace" :label="t('common.namespace_label')" width="140" />
+        <el-table-column :label="t('config.hardLimits')" min-width="250">
           <template #default="{ row }">
             <div v-for="(v, k) in row.hard || {}" :key="k" style="font-size: 12px">
               {{ k }}: {{ v }}
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="Used" min-width="250">
+        <el-table-column :label="t('config.used')" min-width="250">
           <template #default="{ row }">
             <div v-for="(v, k) in row.used || {}" :key="k" style="font-size: 12px">
               {{ k }}: {{ v }}
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="age" label="Age" width="180" />
-        <el-table-column label="Actions" width="160" fixed="right">
+        <el-table-column prop="age" :label="t('common.age')" width="180" />
+        <el-table-column :label="t('common.actions')" width="160" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button size="small" @click="handleViewYaml(row)">YAML</el-button>
-              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row)">{{
+                t('common.delete')
+              }}</el-button>
             </div>
           </template>
         </el-table-column>

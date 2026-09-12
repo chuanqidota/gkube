@@ -8,7 +8,7 @@ import (
 
 // registerPublicAuthRoutes 注册公开的认证路由（无需JWT）
 func registerPublicAuthRoutes(rg *gin.RouterGroup) {
-	rg.POST("auth/login", auth.Auth.Login)
+	rg.POST("auth/login", middleware.RateLimitLogin(), auth.Auth.Login)
 	rg.POST("auth/refresh", auth.Auth.Refresh)
 }
 

@@ -2,6 +2,7 @@ package cronjob
 
 import (
 	"context"
+	apperr "gkube/pkg/errors"
 	"fmt"
 	k8sEvent "gkube/pkg/k8s/event"
 	"gkube/pkg/yamlutil"
@@ -25,15 +26,15 @@ import (
 //	@param name
 //	@return []batchv1.Job
 //	@return error
-func CronJobJobsList(client *kubernetes.Clientset, namespace, name string) ([]batchv1.Job, error) {
-	cronJob, err := client.BatchV1().CronJobs(namespace).Get(context.Background(), name, metav1.GetOptions{})
+func CronJobJobsList(ctx context.Context, client *kubernetes.Clientset, namespace, name string) ([]batchv1.Job, error) {
+	cronJob, err := client.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("获取cronjob资源失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取cronjob资源失败", err)
 	}
 
-	jobList, err := client.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{ResourceVersion: "0"})
+	jobList, err := client.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{ResourceVersion: "0"})
 	if err != nil {
-		return nil, fmt.Errorf("获取job列表失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取job列表失败", err)
 	}
 
 	var ownedJobs []batchv1.Job
@@ -67,12 +68,12 @@ func jobHistoryTime(job batchv1.Job) time.Time {
 //	@param namespace
 //	@return []batchv1.CronJob
 //	@return error
-func GetCronJobList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]batchv1.CronJob, error) {
+func GetCronJobList(ctx context.Context, client *kubernetes.Clientset, namespace string, labelSelector string) ([]batchv1.CronJob, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	cronJobList, err := client.BatchV1().CronJobs(namespace).List(context.TODO(), listOpts)
+	cronJobList, err := client.BatchV1().CronJobs(namespace).List(ctx, listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +81,7 @@ func GetCronJobList(client *kubernetes.Clientset, namespace string, labelSelecto
 }
 
 // ListCronJobs returns a paginated cronjob list with metadata
-func ListCronJobs(client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*batchv1.CronJobList, error) {
+func ListCronJobs(ctx context.Context, client *kubernetes.Clientset, namespace string, limit int64, continueToken string, labelSelector string) (*batchv1.CronJobList, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if limit > 0 {
 		listOpts.Limit = limit
@@ -91,7 +92,7 @@ func ListCronJobs(client *kubernetes.Clientset, namespace string, limit int64, c
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	return client.BatchV1().CronJobs(namespace).List(context.TODO(), listOpts)
+	return client.BatchV1().CronJobs(namespace).List(ctx, listOpts)
 }
 
 // GetCronJobByName
@@ -102,8 +103,8 @@ func ListCronJobs(client *kubernetes.Clientset, namespace string, limit int64, c
 //	@param name
 //	@return *batchv1.CronJob
 //	@return error
-func GetCronJobByName(client *kubernetes.Clientset, namespace, name string) (*batchv1.CronJob, error) {
-	cronJob, err := client.BatchV1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetCronJobByName(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*batchv1.CronJob, error) {
+	cronJob, err := client.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -118,8 +119,8 @@ func GetCronJobByName(client *kubernetes.Clientset, namespace, name string) (*ba
 //	@param name
 //	@return string
 //	@return error
-func GetCronJobYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
-	cronJob, err := client.BatchV1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetCronJobYaml(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (string, error) {
+	cronJob, err := client.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -138,9 +139,9 @@ func GetCronJobYaml(client *kubernetes.Clientset, namespace, name string) (strin
 //	@param labelMap
 //	@return []batchv1.CronJob
 //	@return error
-func GetCronJobByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]batchv1.CronJob, error) {
+func GetCronJobByLabel(ctx context.Context, client *kubernetes.Clientset, namespace string, labelMap map[string]string) ([]batchv1.CronJob, error) {
 	labelSelector := labels.SelectorFromSet(labelMap)
-	cronJobList, err := client.BatchV1().CronJobs(namespace).List(context.TODO(), metav1.ListOptions{
+	cronJobList, err := client.BatchV1().CronJobs(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  labelSelector.String(),
 		ResourceVersion: "0",
 	})
@@ -158,9 +159,9 @@ func GetCronJobByLabel(client *kubernetes.Clientset, namespace string, labelMap 
 //	@param fieldMap
 //	@return []batchv1.CronJob
 //	@return error
-func GetCronJobByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]batchv1.CronJob, error) {
+func GetCronJobByField(ctx context.Context, client *kubernetes.Clientset, namespace string, fieldMap map[string]string) ([]batchv1.CronJob, error) {
 	fieldSelector := labels.SelectorFromSet(fieldMap)
-	cronJobList, err := client.BatchV1().CronJobs(namespace).List(context.TODO(), metav1.ListOptions{
+	cronJobList, err := client.BatchV1().CronJobs(namespace).List(ctx, metav1.ListOptions{
 		FieldSelector:  fieldSelector.String(),
 		ResourceVersion: "0",
 	})
@@ -178,15 +179,15 @@ func GetCronJobByField(client *kubernetes.Clientset, namespace string, fieldMap 
 //	@param cronJobYaml
 //	@return bool
 //	@return error
-func CreateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) error {
+func CreateCronJob(ctx context.Context, client *kubernetes.Clientset, namespace, cronJobYaml string) error {
 	var cronJob batchv1.CronJob
 	if err := yaml.Unmarshal([]byte(cronJobYaml), &cronJob); err != nil {
-		return fmt.Errorf("yaml文件错误:%s", err.Error())
+		return apperr.BadRequest("yaml文件错误", err)
 	}
 
-	_, err := client.BatchV1().CronJobs(namespace).Create(context.TODO(), &cronJob, metav1.CreateOptions{})
+	_, err := client.BatchV1().CronJobs(namespace).Create(ctx, &cronJob, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("创建cronjob资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("创建cronjob资源失败", err)
 	}
 	return nil
 }
@@ -199,16 +200,16 @@ func CreateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) 
 //	@param cronJobYaml
 //	@return bool
 //	@return error
-func UpdateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) error {
+func UpdateCronJob(ctx context.Context, client *kubernetes.Clientset, namespace, cronJobYaml string) error {
 	var cronJob batchv1.CronJob
 	if err := yaml.Unmarshal([]byte(cronJobYaml), &cronJob); err != nil {
-		return fmt.Errorf("yaml文件错误:%s", err.Error())
+		return apperr.BadRequest("yaml文件错误", err)
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest, err := client.BatchV1().CronJobs(namespace).Get(context.TODO(), cronJob.Name, metav1.GetOptions{})
+		latest, err := client.BatchV1().CronJobs(namespace).Get(ctx, cronJob.Name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("获取cronjob资源失败:%s", err.Error())
+			return apperr.K8sAPIFail("获取cronjob资源失败", err)
 		}
 		latest.Spec.JobTemplate.Spec = cronJob.Spec.JobTemplate.Spec
 		latest.Spec.JobTemplate.Labels = cronJob.Spec.JobTemplate.Labels
@@ -222,9 +223,9 @@ func UpdateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) 
 		latest.Spec.TimeZone = cronJob.Spec.TimeZone
 		latest.Labels = cronJob.Labels
 		latest.Annotations = cronJob.Annotations
-		_, err = client.BatchV1().CronJobs(namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
+		_, err = client.BatchV1().CronJobs(namespace).Update(ctx, latest, metav1.UpdateOptions{})
 		if err != nil {
-			return fmt.Errorf("更新cronjob资源失败:%s", err.Error())
+			return apperr.K8sAPIFail("更新cronjob资源失败", err)
 		}
 		return nil
 	})
@@ -238,13 +239,13 @@ func UpdateCronJob(client *kubernetes.Clientset, namespace, cronJobYaml string) 
 //	@param name
 //	@return bool
 //	@return error
-func DeleteCronJobByName(client *kubernetes.Clientset, namespace, name string) error {
+func DeleteCronJobByName(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
 	propagation := metav1.DeletePropagationForeground
-	err := client.BatchV1().CronJobs(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{
+	err := client.BatchV1().CronJobs(namespace).Delete(ctx, name, metav1.DeleteOptions{
 		PropagationPolicy: &propagation,
 	})
 	if err != nil {
-		return fmt.Errorf("删除cronjob资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("删除cronjob资源失败", err)
 	}
 	return nil
 }
@@ -257,13 +258,13 @@ func DeleteCronJobByName(client *kubernetes.Clientset, namespace, name string) e
 //	@param fieldMap
 //	@return bool
 //	@return error
-func DeleteCronJobByField(client *kubernetes.Clientset, namespace string, fieldMap map[string]string) error {
+func DeleteCronJobByField(ctx context.Context, client *kubernetes.Clientset, namespace string, fieldMap map[string]string) error {
 	fieldSelector := labels.SelectorFromSet(fieldMap)
-	err := client.BatchV1().CronJobs(namespace).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
+	err := client.BatchV1().CronJobs(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
-		return fmt.Errorf("删除cronjob资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("删除cronjob资源失败", err)
 	}
 	return nil
 }
@@ -276,45 +277,44 @@ func DeleteCronJobByField(client *kubernetes.Clientset, namespace string, fieldM
 //	@param labelMap
 //	@return bool
 //	@return error
-func DeleteCronJobByLabel(client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
+func DeleteCronJobByLabel(ctx context.Context, client *kubernetes.Clientset, namespace string, labelMap map[string]string) error {
 	labelSelector := labels.SelectorFromSet(labelMap)
-	err := client.BatchV1().CronJobs(namespace).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
+	err := client.BatchV1().CronJobs(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector.String(),
 	})
 	if err != nil {
-		return fmt.Errorf("删除cronjob资源失败:%s", err.Error())
+		return apperr.K8sAPIFail("删除cronjob资源失败", err)
 	}
 	return nil
 }
 
-func SuspendCronJob(client *kubernetes.Clientset, namespace, name string) error {
+func SuspendCronJob(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		cj, err := client.BatchV1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		cj, err := client.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		trueVal := true
 		cj.Spec.Suspend = &trueVal
-		_, err = client.BatchV1().CronJobs(namespace).Update(context.TODO(), cj, metav1.UpdateOptions{})
+		_, err = client.BatchV1().CronJobs(namespace).Update(ctx, cj, metav1.UpdateOptions{})
 		return err
 	})
 }
 
-func ResumeCronJob(client *kubernetes.Clientset, namespace, name string) error {
+func ResumeCronJob(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		cj, err := client.BatchV1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		cj, err := client.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		falseVal := false
 		cj.Spec.Suspend = &falseVal
-		_, err = client.BatchV1().CronJobs(namespace).Update(context.TODO(), cj, metav1.UpdateOptions{})
+		_, err = client.BatchV1().CronJobs(namespace).Update(ctx, cj, metav1.UpdateOptions{})
 		return err
 	})
 }
 
-func TriggerCronJob(client *kubernetes.Clientset, namespace, name string) (*batchv1.Job, error) {
-	ctx := context.TODO()
+func TriggerCronJob(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*batchv1.Job, error) {
 	cj, err := client.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -337,14 +337,14 @@ func TriggerCronJob(client *kubernetes.Clientset, namespace, name string) (*batc
 
 // GetCronJobEvents returns the events associated with a CronJob.
 // 用 fields.Selector 防注入。
-func GetCronJobEvents(client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
+func GetCronJobEvents(ctx context.Context, client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
 	selector := fields.AndSelectors(
 		fields.OneTermEqualSelector("involvedObject.name", name),
 		fields.OneTermEqualSelector("involvedObject.kind", "CronJob"),
 	).String()
-	events, _, _, err := k8sEvent.ListEvents(client, namespace, selector, 0, "")
+	events, _, _, err := k8sEvent.ListEvents(ctx, client, namespace, selector, 0, "")
 	if err != nil {
-		return nil, fmt.Errorf("获取cronjob事件失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取cronjob事件失败", err)
 	}
 	return events, nil
 }

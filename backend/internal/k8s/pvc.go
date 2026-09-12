@@ -1,12 +1,10 @@
 package k8s
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+	apperr "gkube/pkg/errors"
 	k8sclient "gkube/pkg/k8s"
 	k8sPvc "gkube/pkg/k8s/pvc"
-	"gkube/pkg/logger"
 	"gkube/pkg/response"
 )
 
@@ -18,24 +16,22 @@ import (
 func GetPVCList(c *gin.Context) {
 	var p ListParams
 	if err := c.ShouldBind(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
 	selector, err := buildLabelSelector(p.LabelFilters)
 	if err != nil {
-		response.FailWithStatus(c, http.StatusBadGateway, err.Error())
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
-	pvcList, err := k8sPvc.GetPVCList(client, p.Namespace, selector)
+	pvcList, err := k8sPvc.GetPVCList(c.Request.Context(), client, p.Namespace, selector)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取pvc列表失败")
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", pvcList)
@@ -48,19 +44,17 @@ func GetPVCListByStorageClass(c *gin.Context) {
 		StorageClassName string `form:"storageClassName" binding:"required"`
 	}
 	if err := c.ShouldBindQuery(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	pvcList, err := k8sPvc.GetPVCListByStorageClass(client, p.StorageClassName)
+	pvcList, err := k8sPvc.GetPVCListByStorageClass(c.Request.Context(), client, p.StorageClassName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取pvc列表失败")
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", pvcList)
@@ -70,19 +64,17 @@ func GetPVCListByStorageClass(c *gin.Context) {
 func GetPVCByName(c *gin.Context) {
 	var p NamespacedRequiredParams
 	if err := c.ShouldBindQuery(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	pvc, err := k8sPvc.GetPVCByName(client, p.Namespace, p.Name)
+	pvc, err := k8sPvc.GetPVCByName(c.Request.Context(), client, p.Namespace, p.Name)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取pvc详情失败")
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", pvc)
@@ -92,19 +84,17 @@ func GetPVCByName(c *gin.Context) {
 func GetPVCYaml(c *gin.Context) {
 	var p NamespacedRequiredParams
 	if err := c.ShouldBindQuery(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	yaml, err := k8sPvc.GetPVCYaml(client, p.Namespace, p.Name)
+	yaml, err := k8sPvc.GetPVCYaml(c.Request.Context(), client, p.Namespace, p.Name)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取pvc yaml失败")
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", map[string]string{"yaml": yaml})
@@ -118,18 +108,16 @@ func CreatePVC(c *gin.Context) {
 		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sPvc.CreatePVC(client, p.Namespace, p.Yaml); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "创建pvc失败")
+	if err := k8sPvc.CreatePVC(c.Request.Context(), client, p.Namespace, p.Yaml); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -143,18 +131,16 @@ func UpdatePVC(c *gin.Context) {
 		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sPvc.UpdatePVC(client, p.Namespace, p.Yaml); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "更新pvc失败")
+	if err := k8sPvc.UpdatePVC(c.Request.Context(), client, p.Namespace, p.Yaml); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -164,18 +150,16 @@ func UpdatePVC(c *gin.Context) {
 func DeletePVCByName(c *gin.Context) {
 	var p NamespacedRequiredParams
 	if err := c.ShouldBindJSON(&p); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(p.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sPvc.DeletePVCByName(client, p.Namespace, p.Name); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "删除pvc失败")
+	if err := k8sPvc.DeletePVCByName(c.Request.Context(), client, p.Namespace, p.Name); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)

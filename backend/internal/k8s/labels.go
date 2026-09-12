@@ -1,8 +1,8 @@
 package k8s
 
 import (
+	apperr "gkube/pkg/errors"
 	"fmt"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 
@@ -28,35 +28,35 @@ func (l *labelHandler) GetLabels(c *gin.Context) {
 		ResourceType string `form:"resourceType" json:"resourceType" binding:"required" label:"资源类型"`
 	}
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取K8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取K8s客户端失败", err))
 		return
 	}
 
 	dynamicClient, err := k8sclient.GetDynamicClientByName(query.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取动态客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取动态客户端失败", err))
 		return
 	}
 
 	aeClient, err := k8sclient.GetApiExtensionsClientByName(query.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取API扩展客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取API扩展客户端失败", err))
 		return
 	}
 
 	labelData, err := k8sLabels.GetAvailableLabels(c.Request.Context(), client, dynamicClient, aeClient, query.ClusterName, query.Namespace, query.ResourceType)
 	if err != nil {
 		logger.Error(fmt.Sprintf("获取标签失败 [cluster=%s, resource=%s]: %s", query.ClusterName, query.ResourceType, err.Error()))
-		response.FailWithStatus(c, http.StatusBadGateway, "获取标签失败")
+		response.FailWithError(c, apperr.K8sAPIFail("获取标签失败", err))
 		return
 	}
 

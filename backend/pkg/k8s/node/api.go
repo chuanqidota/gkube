@@ -1,6 +1,7 @@
 package node
 
 import (
+	apperr "gkube/pkg/errors"
 	"context"
 	"encoding/json"
 	"errors"
@@ -52,7 +53,7 @@ func isProtectedLabel(key string) bool {
 
 // NodeStatus 从 conditions 中解析节点就绪状态。
 // 返回 "Ready" / "NotReady" / "Unknown" 以及 isReady。
-func NodeStatus(conditions []corev1.NodeCondition) (status string, isReady bool) {
+func NodeStatus(ctx context.Context, conditions []corev1.NodeCondition) (status string, isReady bool) {
 	status = "Unknown"
 	for _, cond := range conditions {
 		if cond.Type != corev1.NodeReady {
@@ -70,7 +71,7 @@ func NodeStatus(conditions []corev1.NodeCondition) (status string, isReady bool)
 }
 
 // NodeRoles 从标签中提取角色名（node-role.kubernetes.io/<role>），逗号分隔。
-func NodeRoles(labels map[string]string) string {
+func NodeRoles(ctx context.Context, labels map[string]string) string {
 	var roles []string
 	for label := range labels {
 		if !strings.HasPrefix(label, roleLabelPrefix) {
@@ -178,8 +179,8 @@ type Detail struct {
 }
 
 // GetNodeYaml 获取 node 的 yaml。
-func GetNodeYaml(client *kubernetes.Clientset, nodeName string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+func GetNodeYaml(ctx context.Context, client *kubernetes.Clientset, nodeName string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 
 	node, err := client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
@@ -194,17 +195,17 @@ func GetNodeYaml(client *kubernetes.Clientset, nodeName string) (string, error) 
 // 强制 YAML 内 metadata.name 与目标节点一致，避免 name 不匹配导致晦涩的 409 Conflict。
 // 用服务端对象的 uid/creationTimestamp/status 覆盖用户编辑值，避免用户改这些
 // immutable/服务端管理字段时 K8s 返回晦涩的 400（field is immutable）。
-func UpdateNodeYaml(client *kubernetes.Clientset, nodeName, yamlStr string) error {
+func UpdateNodeYaml(ctx context.Context, client *kubernetes.Clientset, nodeName, yamlStr string) error {
 	var nodeObj corev1.Node
 	if err := yaml.Unmarshal([]byte(yamlStr), &nodeObj); err != nil {
-		return fmt.Errorf("%w: %s", ErrYamlParse, err.Error())
+		return apperr.BadRequest("YAML解析失败", fmt.Errorf("%w: %s", ErrYamlParse, err.Error()))
 	}
 	if nodeObj.Name != nodeName {
-		return fmt.Errorf("YAML 中 metadata.name(%q) 与目标节点(%q)不一致", nodeObj.Name, nodeName)
+		return apperr.BadRequest("YAML解析失败", fmt.Errorf("YAML 中 metadata.name(%q) 与目标节点(%q)不一致", nodeObj.Name, nodeName))
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// 每次重试创建新的 context,避免前次超时导致后续重试也超时
-		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 		defer cancel()
 		current, err := client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 		if err != nil {
@@ -221,8 +222,8 @@ func UpdateNodeYaml(client *kubernetes.Clientset, nodeName, yamlStr string) erro
 }
 
 // GetNodePods 获取 node 上的非终态 pod，投影为 PodView 仅暴露前端所需字段。
-func GetNodePods(client *kubernetes.Clientset, nodeName string) ([]PodView, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+func GetNodePods(ctx context.Context, client *kubernetes.Clientset, nodeName string) ([]PodView, error) {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 
 	// 用 OneTermEqualSelector 构造，避免 nodeName 含特殊字符时拼出非法 field selector
@@ -246,8 +247,8 @@ func GetNodePods(client *kubernetes.Clientset, nodeName string) ([]PodView, erro
 // CordonNode 封锁或解除封锁节点。返回当前封锁状态。
 // 用 strategic merge patch 直接改 spec.unschedulable，不读全量对象，
 // 避免节点高频更新（kubelet 心跳）导致的 read-modify-write 409 冲突。
-func CordonNode(client *kubernetes.Clientset, nodeName string, cordon bool) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+func CordonNode(ctx context.Context, client *kubernetes.Clientset, nodeName string, cordon bool) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 
 	patch := fmt.Sprintf(`{"spec":{"unschedulable":%t}}`, cordon)
@@ -298,14 +299,14 @@ func hasLocalStorage(pod corev1.Pod) bool {
 // 与 kubectl drain 一致：单个 pod 驱逐失败不中断，继续尝试其余 pod，最后汇总失败列表。
 // 注意：EvictV1 返回 nil 只代表驱逐请求被 API server 接受，pod 进入 terminating，
 // 并不保证已终止——前端应据此提示"已提交驱逐请求"而非"已驱逐"。
-func DrainNode(client *kubernetes.Clientset, nodeName string, opts DrainOptions) (evicted []string, skipped []string, failed []string, err error) {
+func DrainNode(ctx context.Context, client *kubernetes.Clientset, nodeName string, opts DrainOptions) (evicted []string, skipped []string, failed []string, err error) {
 	// Step 1: Cordon the node first（复用 patch 实现，避免 read-modify-write 409 冲突）
-	if _, err := CordonNode(client, nodeName, true); err != nil {
-		return nil, nil, nil, fmt.Errorf("封锁节点失败:%s", err.Error())
+	if _, err := CordonNode(ctx, client, nodeName, true); err != nil {
+		return nil, nil, nil, apperr.K8sAPIFail("封锁节点失败", err)
 	}
 
 	// Step 2: List all pods on the node（短调用，显式超时）
-	listCtx, listCancel := context.WithTimeout(context.Background(), requestTimeout)
+	listCtx, listCancel := context.WithTimeout(ctx, requestTimeout)
 	defer listCancel()
 	selector := fields.OneTermEqualSelector("spec.nodeName", nodeName)
 	pods, err := client.CoreV1().Pods(corev1.NamespaceAll).List(listCtx, metav1.ListOptions{
@@ -313,11 +314,11 @@ func DrainNode(client *kubernetes.Clientset, nodeName string, opts DrainOptions)
 		ResourceVersion: "0",
 	})
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("获取节点pod列表失败:%s", err.Error())
+		return nil, nil, nil, apperr.K8sAPIFail("获取节点pod列表失败", err)
 	}
 
 	// Step 3: Filter and evict（整体超时约束 evict 循环）
-	drainCtx, drainCancel := context.WithTimeout(context.Background(), drainOverallTimeout)
+	drainCtx, drainCancel := context.WithTimeout(ctx, drainOverallTimeout)
 	defer drainCancel()
 	for _, pod := range pods.Items {
 		// Skip mirror pods (static pods)
@@ -382,8 +383,8 @@ func DrainNode(client *kubernetes.Clientset, nodeName string, opts DrainOptions)
 }
 
 // DeleteNode 从集群中删除节点。
-func DeleteNode(client *kubernetes.Clientset, nodeName string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+func DeleteNode(ctx context.Context, client *kubernetes.Clientset, nodeName string) error {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 
 	return client.CoreV1().Nodes().Delete(ctx, nodeName, metav1.DeleteOptions{})
@@ -393,8 +394,8 @@ func DeleteNode(client *kubernetes.Clientset, nodeName string) error {
 // 传入的 labels 作为用户标签的完整期望集——不在其中的用户标签会被删除，
 // 受保护前缀（kubernetes.io/ 等）下的标签保持原值不被改动。
 // 用 patch 而非 Update：不携带 resourceVersion，避免节点高频更新导致的 409 冲突。
-func UpdateNodeLabels(client *kubernetes.Clientset, nodeName string, labels map[string]string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+func UpdateNodeLabels(ctx context.Context, client *kubernetes.Clientset, nodeName string, labels map[string]string) error {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 
 	// 只读一次当前标签用于保留系统标签；patch 不带 resourceVersion，Get 与 Patch 间
@@ -416,7 +417,7 @@ func UpdateNodeLabels(client *kubernetes.Clientset, nodeName string, labels map[
 	}
 	patchBytes, err := json.Marshal(map[string]any{"metadata": map[string]any{"labels": merged}})
 	if err != nil {
-		return fmt.Errorf("构造 patch 失败:%s", err.Error())
+		return apperr.K8sAPIFail("构造 patch 失败", err)
 	}
 	_, err = client.CoreV1().Nodes().Patch(ctx, nodeName, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	return err
@@ -424,21 +425,21 @@ func UpdateNodeLabels(client *kubernetes.Clientset, nodeName string, labels map[
 
 // UpdateNodeTaints 替换式更新节点污点（传入完整污点列表）。
 // 用 patch 而非 Update：不携带 resourceVersion，避免 409 冲突。
-func UpdateNodeTaints(client *kubernetes.Clientset, nodeName string, taints []corev1.Taint) error {
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+func UpdateNodeTaints(ctx context.Context, client *kubernetes.Clientset, nodeName string, taints []corev1.Taint) error {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 
 	patchBytes, err := json.Marshal(map[string]any{"spec": map[string]any{"taints": taints}})
 	if err != nil {
-		return fmt.Errorf("构造 patch 失败:%s", err.Error())
+		return apperr.K8sAPIFail("构造 patch 失败", err)
 	}
 	_, err = client.CoreV1().Nodes().Patch(ctx, nodeName, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	return err
 }
 
 // GetNodeDetail 获取节点详情（conditions / addresses / labels / taints / capacity 等）。
-func GetNodeDetail(client *kubernetes.Clientset, nodeName string) (*Detail, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+func GetNodeDetail(ctx context.Context, client *kubernetes.Clientset, nodeName string) (*Detail, error) {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 
 	node, err := client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
@@ -446,7 +447,7 @@ func GetNodeDetail(client *kubernetes.Clientset, nodeName string) (*Detail, erro
 		return nil, err
 	}
 
-	status, _ := NodeStatus(node.Status.Conditions)
+	status, _ := NodeStatus(ctx, node.Status.Conditions)
 
 	var conditions []ConditionView
 	for _, cond := range node.Status.Conditions {
@@ -488,7 +489,7 @@ func GetNodeDetail(client *kubernetes.Clientset, nodeName string) (*Detail, erro
 	return &Detail{
 		Name:             node.Name,
 		Status:           status,
-		Roles:            NodeRoles(node.Labels),
+		Roles:            NodeRoles(ctx, node.Labels),
 		Version:          node.Status.NodeInfo.KubeletVersion,
 		OS:               node.Status.NodeInfo.OSImage,
 		Kernel:           node.Status.NodeInfo.KernelVersion,
@@ -508,8 +509,8 @@ func GetNodeDetail(client *kubernetes.Clientset, nodeName string) (*Detail, erro
 }
 
 // GetNodeEvents 获取节点相关事件。
-func GetNodeEvents(client *kubernetes.Clientset, nodeName string) ([]EventView, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+func GetNodeEvents(ctx context.Context, client *kubernetes.Clientset, nodeName string) ([]EventView, error) {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 
 	// 用 fields.AndSelectors 构造，避免 nodeName 注入非法字段选择器语法

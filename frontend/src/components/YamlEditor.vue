@@ -255,7 +255,7 @@ function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') {
     e.preventDefault()
     if (props.showSaveButtons && !props.saveable) {
-      emit('save')
+      emit('save', props.modelValue)
     } else if (props.saveable) {
       handleSave()
     }
@@ -307,7 +307,7 @@ defineExpose({ resetSaving, handleFormat, handleCopy, toggleFullscreen })
         </template>
         <!-- showSaveButtons mode: Save + Cancel -->
         <template v-if="showSaveButtons && !saveable">
-          <el-button size="small" type="success" :loading="saving" @click="emit('save')"
+          <el-button size="small" type="success" :loading="saving" @click="emit('save', modelValue)"
             >保存</el-button
           >
           <el-button size="small" @click="emit('cancel')">取消</el-button>
@@ -360,7 +360,7 @@ defineExpose({ resetSaving, handleFormat, handleCopy, toggleFullscreen })
           </template>
         </template>
         <template v-if="showSaveButtons && !saveable">
-          <el-button size="small" type="success" :loading="saving" @click="emit('save')"
+          <el-button size="small" type="success" :loading="saving" @click="emit('save', modelValue)"
             >保存</el-button
           >
           <el-button size="small" @click="emit('cancel')">取消</el-button>

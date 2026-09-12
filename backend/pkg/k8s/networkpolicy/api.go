@@ -1,9 +1,9 @@
 package networkpolicy
 
 import (
-	"gkube/pkg/yamlutil"
 	"context"
-	"fmt"
+	apperr "gkube/pkg/errors"
+	"gkube/pkg/yamlutil"
 
 	k8sEvent "gkube/pkg/k8s/event"
 
@@ -16,20 +16,20 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func GetNetworkPolicyList(client *kubernetes.Clientset, namespace string, labelSelector string) ([]networkingv1.NetworkPolicy, error) {
+func GetNetworkPolicyList(ctx context.Context, client *kubernetes.Clientset, namespace string, labelSelector string) ([]networkingv1.NetworkPolicy, error) {
 	listOpts := metav1.ListOptions{ResourceVersion: "0"}
 	if labelSelector != "" {
 		listOpts.LabelSelector = labelSelector
 	}
-	result, err := client.NetworkingV1().NetworkPolicies(namespace).List(context.TODO(), listOpts)
+	result, err := client.NetworkingV1().NetworkPolicies(namespace).List(ctx, listOpts)
 	if err != nil {
 		return nil, err
 	}
 	return result.Items, nil
 }
 
-func GetNetworkPolicyYaml(client *kubernetes.Clientset, namespace, name string) (string, error) {
-	np, err := client.NetworkingV1().NetworkPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetNetworkPolicyYaml(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (string, error) {
+	np, err := client.NetworkingV1().NetworkPolicies(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -39,84 +39,84 @@ func GetNetworkPolicyYaml(client *kubernetes.Clientset, namespace, name string) 
 	}
 	out, err := yamlutil.MarshalWithoutManagedFields(np)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal NetworkPolicy to YAML: %w", err)
+		return "", apperr.K8sAPIFail("序列化失败", err)
 	}
 	return string(out), nil
 }
 
-func CreateNetworkPolicy(client *kubernetes.Clientset, namespace, yamlContent string) error {
+func CreateNetworkPolicy(ctx context.Context, client *kubernetes.Clientset, namespace, yamlContent string) error {
 	var np networkingv1.NetworkPolicy
 	if err := yaml.Unmarshal([]byte(yamlContent), &np); err != nil {
-		return fmt.Errorf("failed to unmarshal NetworkPolicy YAML: %w", err)
+		return apperr.BadRequest("yaml解析失败", err)
 	}
 	if np.Namespace == "" {
 		np.Namespace = namespace
 	}
-	_, err := client.NetworkingV1().NetworkPolicies(namespace).Create(context.TODO(), &np, metav1.CreateOptions{})
+	_, err := client.NetworkingV1().NetworkPolicies(namespace).Create(ctx, &np, metav1.CreateOptions{})
 	return err
 }
 
-func UpdateNetworkPolicy(client *kubernetes.Clientset, namespace, yamlContent string) error {
+func UpdateNetworkPolicy(ctx context.Context, client *kubernetes.Clientset, namespace, yamlContent string) error {
 	var np networkingv1.NetworkPolicy
 	if err := yaml.Unmarshal([]byte(yamlContent), &np); err != nil {
-		return fmt.Errorf("failed to unmarshal NetworkPolicy YAML: %w", err)
+		return apperr.BadRequest("yaml解析失败", err)
 	}
 	if np.Namespace == "" {
 		np.Namespace = namespace
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest, err := client.NetworkingV1().NetworkPolicies(namespace).Get(context.TODO(), np.Name, metav1.GetOptions{})
+		latest, err := client.NetworkingV1().NetworkPolicies(namespace).Get(ctx, np.Name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to get existing NetworkPolicy: %w", err)
+			return apperr.K8sAPIFail("获取NetworkPolicy资源失败", err)
 		}
 		latest.Spec = np.Spec
 		latest.Labels = np.Labels
 		latest.Annotations = np.Annotations
-		_, err = client.NetworkingV1().NetworkPolicies(namespace).Update(context.TODO(), latest, metav1.UpdateOptions{})
+		_, err = client.NetworkingV1().NetworkPolicies(namespace).Update(ctx, latest, metav1.UpdateOptions{})
 		return err
 	})
 }
 
-func DeleteNetworkPolicy(client *kubernetes.Clientset, namespace, name string) error {
-	return client.NetworkingV1().NetworkPolicies(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+func DeleteNetworkPolicy(ctx context.Context, client *kubernetes.Clientset, namespace, name string) error {
+	return client.NetworkingV1().NetworkPolicies(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
-func GetNetworkPolicyDetail(client *kubernetes.Clientset, namespace, name string) (*networkingv1.NetworkPolicy, error) {
-	return client.NetworkingV1().NetworkPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetNetworkPolicyDetail(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*networkingv1.NetworkPolicy, error) {
+	return client.NetworkingV1().NetworkPolicies(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 // GetNetworkPolicyPods returns pods matched by the NetworkPolicy's podSelector.
 // Properly handles both MatchLabels and MatchExpressions.
-func GetNetworkPolicyPods(client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
-	np, err := client.NetworkingV1().NetworkPolicies(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetNetworkPolicyPods(ctx context.Context, client *kubernetes.Clientset, namespace, name string) (*corev1.PodList, error) {
+	np, err := client.NetworkingV1().NetworkPolicies(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("获取NetworkPolicy资源失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取NetworkPolicy资源失败", err)
 	}
 	// Use the full label selector (MatchLabels + MatchExpressions)
 	selector, err := metav1.LabelSelectorAsSelector(&np.Spec.PodSelector)
 	if err != nil {
-		return nil, fmt.Errorf("解析PodSelector失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("解析PodSelector失败", err)
 	}
-	podList, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+	podList, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector:  selector.String(),
 		ResourceVersion: "0",
 	})
 	if err != nil {
-		return nil, fmt.Errorf("获取NetworkPolicy关联pod列表失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取NetworkPolicy关联pod列表失败", err)
 	}
 	return podList, nil
 }
 
 // GetNetworkPolicyEvents returns the events associated with a NetworkPolicy.
 // 用 fields.Selector 防注入。
-func GetNetworkPolicyEvents(client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
+func GetNetworkPolicyEvents(ctx context.Context, client *kubernetes.Clientset, namespace, name string) ([]k8sEvent.KubeEvent, error) {
 	selector := fields.AndSelectors(
 		fields.OneTermEqualSelector("involvedObject.name", name),
 		fields.OneTermEqualSelector("involvedObject.kind", "NetworkPolicy"),
 	).String()
-	events, _, _, err := k8sEvent.ListEvents(client, namespace, selector, 0, "")
+	events, _, _, err := k8sEvent.ListEvents(ctx, client, namespace, selector, 0, "")
 	if err != nil {
-		return nil, fmt.Errorf("获取networkpolicy事件失败:%s", err.Error())
+		return nil, apperr.K8sAPIFail("获取networkpolicy事件失败", err)
 	}
 	return events, nil
 }

@@ -49,13 +49,13 @@ defineEmits<{
       <el-popover trigger="click" width="200">
         <template #reference>
           <el-button :icon="Timer" :type="isRunning ? 'success' : 'default'" size="small">
-            {{ isRunning ? `${countdown}s` : '自动刷新' }}
+            {{ isRunning ? `${countdown}s` : '' }}
           </el-button>
         </template>
         <div class="auto-refresh-popover">
           <span class="popover-title">刷新间隔</span>
           <el-radio-group
-            :model-value="currentInterval"
+            :model-value="currentInterval ? currentInterval / 1000 : 15"
             size="small"
             @update:model-value="(v: number) => $emit('setIntervalOption', v)"
           >

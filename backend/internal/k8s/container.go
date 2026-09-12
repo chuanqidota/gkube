@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	apperr "gkube/pkg/errors"
 	"bufio"
 	"net/http"
 	"strings"
@@ -128,27 +129,27 @@ func HandleWebSocket(c *gin.Context) {
 func PodContainerLog(c *gin.Context) {
 	var query ContainerLogQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数错误")
+		response.FailWithError(c, apperr.BadRequest("参数错误", nil))
 		return
 	}
 
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
 	// 容器名缺省时兜底到 Pod 的首个容器(日志路径允许退回 init 容器,其日志对排查初始化失败有用)
 	query.Container, err = container.ResolveContainerName(c.Request.Context(), client, query.Namespace, query.PodName, query.Container, true)
 	if err != nil {
 		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "解析容器失败")
+		response.FailWithError(c, apperr.K8sAPIFail("解析容器失败", err))
 		return
 	}
 	log, err := container.GetPodContainerLog(c.Request.Context(), client, query.Namespace, query.PodName, query.Container, query.TailLines)
 	if err != nil {
 		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取日志失败")
+		response.FailWithError(c, apperr.K8sAPIFail("获取日志失败", err))
 		return
 	}
 	response.Success(c, "获取成功", log)
@@ -158,13 +159,13 @@ func PodContainerLog(c *gin.Context) {
 func StreamPodContainerLogs(c *gin.Context) {
 	var query ContainerLogQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数错误")
+		response.FailWithError(c, apperr.BadRequest("参数错误", nil))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
 		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
 
@@ -175,14 +176,14 @@ func StreamPodContainerLogs(c *gin.Context) {
 	query.Container, err = container.ResolveContainerName(ctx, client, query.Namespace, query.PodName, query.Container, true)
 	if err != nil {
 		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusInternalServerError, "解析容器失败")
+		response.FailWithError(c, apperr.K8sAPIFail("解析容器失败", err))
 		return
 	}
 
 	stream, err := container.GetPodContainerLogStream(ctx, client, query.Namespace, query.PodName, query.Container, query.TailLines)
 	if err != nil {
 		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusInternalServerError, "日志流创建失败")
+		response.FailWithError(c, apperr.K8sAPIFail("日志流创建失败", err))
 		return
 	}
 	defer stream.Close()

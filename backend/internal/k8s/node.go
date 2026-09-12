@@ -1,13 +1,10 @@
 package k8s
 
 import (
-	"errors"
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+	apperr "gkube/pkg/errors"
 	k8sclient "gkube/pkg/k8s"
 	k8sNode "gkube/pkg/k8s/node"
-	"gkube/pkg/logger"
 	"gkube/pkg/response"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -20,19 +17,17 @@ var Node = new(node)
 func (n *node) GetNodeYaml(c *gin.Context) {
 	var query NodeQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	yamlStr, err := k8sNode.GetNodeYaml(client, query.Name)
+	yamlStr, err := k8sNode.GetNodeYaml(c.Request.Context(), client, query.Name)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取节点yaml失败")
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", map[string]any{"yaml": yamlStr})
@@ -42,19 +37,17 @@ func (n *node) GetNodeYaml(c *gin.Context) {
 func (n *node) GetNodePods(c *gin.Context) {
 	var query NodeQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	pods, err := k8sNode.GetNodePods(client, query.Name)
+	pods, err := k8sNode.GetNodePods(c.Request.Context(), client, query.Name)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取节点pod失败")
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", pods)
@@ -64,27 +57,25 @@ func (n *node) GetNodePods(c *gin.Context) {
 func (n *node) CordonNode(c *gin.Context) {
 	var body CordonNodeParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
 	if body.Cordon == nil {
-		response.Fail(c, "cordon参数不能为空")
+		response.FailWithError(c, apperr.Validation("cordon参数不能为空", nil))
 		return
 	}
-	isCordon, err := k8sNode.CordonNode(client, body.Name, *body.Cordon)
+	isCordon, err := k8sNode.CordonNode(c.Request.Context(), client, body.Name, *body.Cordon)
 	if err != nil {
-		logger.Error(err.Error())
-		action := "封锁失败"
+		action := "封锁"
 		if !*body.Cordon {
-			action = "解除封锁失败"
+			action = "解除封锁"
 		}
-		response.FailWithStatus(c, http.StatusBadGateway, action)
+		response.FailWithError(c, apperr.K8sAPIFail(action+"节点失败", err))
 		return
 	}
 	response.Success(c, "执行成功", map[string]bool{"isCordon": isCordon})
@@ -94,13 +85,12 @@ func (n *node) CordonNode(c *gin.Context) {
 func (n *node) DrainNode(c *gin.Context) {
 	var body DrainNodeParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
 	opts := k8sNode.DrainOptions{
@@ -109,10 +99,9 @@ func (n *node) DrainNode(c *gin.Context) {
 		GracePeriod:      body.GracePeriod,
 		Force:            body.Force,
 	}
-	evicted, skipped, failed, err := k8sNode.DrainNode(client, body.Name, opts)
+	evicted, skipped, failed, err := k8sNode.DrainNode(c.Request.Context(), client, body.Name, opts)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "驱逐节点失败")
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", map[string]any{"evicted": evicted, "skipped": skipped, "failed": failed})
@@ -122,18 +111,16 @@ func (n *node) DrainNode(c *gin.Context) {
 func (n *node) DeleteNode(c *gin.Context) {
 	var body DeleteNodeParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sNode.DeleteNode(client, body.Name); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "删除节点失败")
+	if err := k8sNode.DeleteNode(c.Request.Context(), client, body.Name); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -143,18 +130,16 @@ func (n *node) DeleteNode(c *gin.Context) {
 func (n *node) UpdateNodeLabels(c *gin.Context) {
 	var body UpdateNodeLabelsParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sNode.UpdateNodeLabels(client, body.Name, body.Labels); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "更新标签失败")
+	if err := k8sNode.UpdateNodeLabels(c.Request.Context(), client, body.Name, body.Labels); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -164,13 +149,12 @@ func (n *node) UpdateNodeLabels(c *gin.Context) {
 func (n *node) UpdateNodeTaints(c *gin.Context) {
 	var body UpdateNodeTaintsParams
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
 	var taints []corev1.Taint
@@ -184,9 +168,8 @@ func (n *node) UpdateNodeTaints(c *gin.Context) {
 			Effect: corev1.TaintEffect(t.Effect),
 		})
 	}
-	if err := k8sNode.UpdateNodeTaints(client, body.Name, taints); err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "更新污点失败")
+	if err := k8sNode.UpdateNodeTaints(c.Request.Context(), client, body.Name, taints); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -196,19 +179,17 @@ func (n *node) UpdateNodeTaints(c *gin.Context) {
 func (n *node) GetNodeDetail(c *gin.Context) {
 	var query NodeQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	detail, err := k8sNode.GetNodeDetail(client, query.Name)
+	detail, err := k8sNode.GetNodeDetail(c.Request.Context(), client, query.Name)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取节点详情失败")
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", detail)
@@ -218,19 +199,17 @@ func (n *node) GetNodeDetail(c *gin.Context) {
 func (n *node) GetNodeEvents(c *gin.Context) {
 	var query NodeQueryParams
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(query.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	events, err := k8sNode.GetNodeEvents(client, query.Name)
+	events, err := k8sNode.GetNodeEvents(c.Request.Context(), client, query.Name)
 	if err != nil {
-		logger.Error(err.Error())
-		response.FailWithStatus(c, http.StatusBadGateway, "获取节点事件失败")
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", events)
@@ -239,27 +218,21 @@ func (n *node) GetNodeEvents(c *gin.Context) {
 // UpdateNodeYaml 更新节点（通过YAML）
 func (n *node) UpdateNodeYaml(c *gin.Context) {
 	var body struct {
-		ClusterName string `json:"clusterName"`
+		ClusterName string `json:"clusterName" binding:"required"`
 		Name        string `json:"name" binding:"required"`
 		Yaml        string `json:"yaml" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数校验失败")
+		response.FailWithError(c, apperr.Validation("参数校验失败", err))
 		return
 	}
 	client, err := k8sclient.GetK8sClientByName(body.ClusterName)
 	if err != nil {
-		logger.Error(err.Error())
-		response.Fail(c, "获取k8s客户端失败")
+		response.FailWithError(c, apperr.K8sClientFail("获取k8s客户端失败", err))
 		return
 	}
-	if err := k8sNode.UpdateNodeYaml(client, body.Name, body.Yaml); err != nil {
-		logger.Error(err.Error())
-		if errors.Is(err, k8sNode.ErrYamlParse) {
-			response.Fail(c, "YAML解析失败")
-		} else {
-			response.FailWithStatus(c, http.StatusBadGateway, "更新节点失败")
-		}
+	if err := k8sNode.UpdateNodeYaml(c.Request.Context(), client, body.Name, body.Yaml); err != nil {
+		response.FailWithError(c, ensureAppError(err))
 		return
 	}
 	response.Success(c, "执行成功", nil)
@@ -279,7 +252,7 @@ type CordonNodeParams struct {
 
 // UpdateNodeTaintsParams 批量更新污点参数（替换式）
 type UpdateNodeTaintsParams struct {
-	ClusterName string      `json:"clusterName"`
+	ClusterName string      `json:"clusterName" binding:"required"`
 	Name        string      `json:"name" binding:"required" label:"节点名称"`
 	Taints      []TaintItem `json:"taints" label:"污点列表"`
 }
@@ -293,7 +266,7 @@ type TaintItem struct {
 
 // DrainNodeParams 驱逐节点参数
 type DrainNodeParams struct {
-	ClusterName      string `json:"clusterName"`
+	ClusterName      string `json:"clusterName" binding:"required"`
 	Name             string `json:"name" binding:"required" label:"节点名称"`
 	IgnoreDaemonSets bool   `json:"ignoreDaemonSets"` // 是否忽略 DaemonSet
 	DeleteLocalData  bool   `json:"deleteLocalData"`  // 是否删除本地数据（emptyDir/hostPath）
@@ -303,13 +276,13 @@ type DrainNodeParams struct {
 
 // DeleteNodeParams 删除节点参数
 type DeleteNodeParams struct {
-	ClusterName string `json:"clusterName"`
+	ClusterName string `json:"clusterName" binding:"required"`
 	Name        string `json:"name" binding:"required" label:"节点名称"`
 }
 
 // UpdateNodeLabelsParams 更新节点标签参数
 type UpdateNodeLabelsParams struct {
-	ClusterName string            `json:"clusterName"`
+	ClusterName string            `json:"clusterName" binding:"required"`
 	Name        string            `json:"name" binding:"required" label:"节点名称"`
 	Labels      map[string]string `json:"labels" label:"标签"`
 }
