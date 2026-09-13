@@ -2,6 +2,11 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import 'element-plus/theme-chalk/dark/css-vars.css'
 
+// Element Plus 按需注册（见 vite.config.ts 的 resolver）。resolver 只覆盖模板标签，
+// 程序式调用的 ElMessage / ElMessageBox 需显式引入样式。
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/message-box/style/css'
+
 // Self-hosted fonts (font-display: swap). Makes --gk-font-sans / --gk-font-mono real.
 import '@fontsource/inter/400.css'
 import '@fontsource/inter/500.css'
