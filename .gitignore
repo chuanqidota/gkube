@@ -29,6 +29,12 @@ go.work.sum
 backend/config/config.yaml
 backend/config/config.docker.yaml
 
+# 审计日志本地降级存储(ES 不可用时写入,运行时数据)
+backend/config/audit-logs.json
+
+# 后端编译产物(go build -o gkube .)
+backend/gkube
+
 # Superpowers brainstorm
 .superpowers/
 
