@@ -78,6 +78,46 @@ Kubernetes 多集群管理 Web 平台，提供可视化的资源管理、运维�
 - 节点容量：各节点 CPU/内存使用率
 - 健康面板：异常 Pod、重启 Pod、PVC 问题汇总
 
+## 界面预览
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/01_登陆页.png" width="300" alt="登陆页"><br><sub>登陆页</sub></td>
+    <td align="center"><img src="docs/02_首页.png" width="300" alt="首页"><br><sub>首页</sub></td>
+    <td align="center"><img src="docs/03_集群管理页面.png" width="300" alt="集群管理"><br><sub>集群管理</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/04_节点管理页.png" width="300" alt="节点管理"><br><sub>节点管理</sub></td>
+    <td align="center"><img src="docs/05_命名空间页.png" width="300" alt="命名空间"><br><sub>命名空间</sub></td>
+    <td align="center"><img src="docs/06_容器组列表页.png" width="300" alt="容器组列表"><br><sub>容器组列表</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/06_01_容器日志查看.png" width="300" alt="容器日志查看"><br><sub>容器日志查看</sub></td>
+    <td align="center"><img src="docs/06_02_终端页.png" width="300" alt="终端"><br><sub>终端</sub></td>
+    <td align="center"><img src="docs/07_无状态负载页.png" width="300" alt="无状态负载"><br><sub>无状态负载</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/07_01_无状态负载详情页.png" width="300" alt="无状态负载详情"><br><sub>无状态负载详情</sub></td>
+    <td align="center"><img src="docs/07_02_无状态负载创建页.png" width="300" alt="无状态负载创建"><br><sub>无状态负载创建</sub></td>
+    <td align="center"><img src="docs/07_03_无状态负载yaml文件.png" width="300" alt="无状态负载 YAML"><br><sub>无状态负载 YAML</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/08_定时任务页png.png" width="300" alt="定时任务"><br><sub>定时任务</sub></td>
+    <td align="center"><img src="docs/09_服务详情页.png" width="300" alt="服务详情"><br><sub>服务详情</sub></td>
+    <td align="center"><img src="docs/10_路由详情页.png" width="300" alt="路由详情"><br><sub>路由详情</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/11_配置字典详情页.png" width="300" alt="配置字典详情"><br><sub>配置字典详情</sub></td>
+    <td align="center"><img src="docs/12_事件页.png" width="300" alt="事件"><br><sub>事件</sub></td>
+    <td align="center"><img src="docs/13_审计日志页.png" width="300" alt="审计日志"><br><sub>审计日志</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/14_角色管理.png" width="300" alt="角色管理"><br><sub>角色管理</sub></td>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
+
 ## 技术架构
 
 ### 后端
